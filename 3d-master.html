@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEURAPOLIS 3D — Moteur WebGL Master (Big Ambitions HD)</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #030712;
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #f9fafb;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+    }
+    #ui-hud {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      padding: 18px 24px;
+      max-width: 380px;
+      box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.7);
+    }
+    h1 {
+      font-size: 1.25rem;
+      margin: 0 0 6px 0;
+      color: #fbbf24;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    p {
+      font-size: 0.88rem;
+      line-height: 1.5;
+      margin: 0 0 14px 0;
+      color: #9ca3af;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      font-size: 0.78rem;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .controls-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px 14px;
+      font-size: 0.82rem;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .key {
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 2px 8px;
+      border-radius: 6px;
+      color: #f8fafc;
+      font-weight: 700;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <div id="ui-hud">
+    <h1>🏛️ NEURAPOLIS 3D Master HD</h1>
+    <p>Moteur 3D haute fidélité style Big Ambitions : ombres projetées, façades volumétriques, cycle jour/nuit dynamique, météo et PNJ simulés en temps réel.</p>
+    <div class="status-badge">● Simulation WebGL Connectée (60 FPS)</div>
+    <div class="controls-grid">
+      <span class="key">ZQSD / WASD</span> <span>Déplacer le personnage en 3D</span>
+      <span class="key">Souris / Flèches</span> <span>Orbiter la caméra 3D</span>
+      <span class="key">E</span> <span>Entrer dans les commerces</span>
+    </div>
+  </div>
+  <script type="module" src="/src/presentation/sandbox3d_master.ts"></script>
+</body>
+</html>
