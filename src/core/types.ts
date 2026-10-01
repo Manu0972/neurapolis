@@ -204,6 +204,38 @@ export interface ProjectState {
   lastForecast?: { expected: number; day: number };
 }
 
+// ---------- Second Projet : Atelier de Réparation ----------
+export type RepairOrderStatus = 'pending' | 'in_progress' | 'completed' | 'failed';
+
+export interface RepairOrder {
+  id: string;
+  clientName: string;
+  npcId?: NpcId;
+  itemLabel: string;
+  partsNeeded: number;
+  salvageNeeded: number;
+  workNeeded: number;   // unités de 20 min (ticks)
+  workDone: number;
+  reward: number;       // €
+  deadlineDay: number;
+  minTechnique: number;
+  status: RepairOrderStatus;
+}
+
+export interface WorkshopState {
+  id: 'atelier_friche';
+  active: boolean;
+  partsStock: number;      // pièces détachées neuves (unités)
+  salvageStock: number;    // matériaux de récupération (unités)
+  members: NpcId[];        // coéquipiers recrutés (karim, yasmine...)
+  orders: RepairOrder[];
+  completedOrdersCount: number;
+  ledger: LedgerEntry[];
+  balance: number;         // caisse de l'atelier (€) — invariant : Σ(entrées − sorties) = balance
+  week: { index: number; revenue: number; expenses: number; distributed: boolean };
+  work: Record<string, number>;
+}
+
 // ---------- Territoire ----------
 export type Meteo = 'soleil' | 'nuages' | 'pluie';
 
@@ -333,6 +365,7 @@ export interface WorldState {
   npcs: Record<NpcId, NpcState>;
   council: CouncilState;
   project?: ProjectState;
+  workshop?: WorkshopState;
   district: DistrictState;
   rivals: Record<RivalId, RivalState>;
   campaign: CampaignState;

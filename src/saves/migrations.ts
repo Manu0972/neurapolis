@@ -93,6 +93,12 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
     s.version = 5;
     return s;
   },
+  // 5 → 6 : second projet économique (Atelier de Réparation de la Friche)
+  5: (s) => {
+    s.workshop = s.workshop ?? undefined;
+    s.version = 6;
+    return s;
+  },
 };
 
 export const CURRENT_SAVE_VERSION = SAVE_VERSION;
