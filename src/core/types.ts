@@ -70,12 +70,16 @@ export interface RoutineSlot {
   weekends?: boolean; // true si ce créneau s'applique aussi le week-end
 }
 
+export type CharacterTemperament = 'pragmatique' | 'militant' | 'audacieux' | 'analytique' | 'pessimiste' | 'empathique';
+export type DynamicMood = 'serein' | 'enthousiaste' | 'tendu' | 'inspire' | 'indigne';
+
 export interface NpcDef {
   id: NpcId;
   name: string;
   age: number;
   role: string;
   traits: string[];
+  temperament?: CharacterTemperament;
   color: string;
   routine: RoutineSlot[];
   /** Phares de dialogue : thème → répliques (choix multiples gérés côté présentation). */
@@ -90,6 +94,7 @@ export interface NpcState {
   moral: number;
   memory: string[]; // ids d'événements vécus (mémoire sélective, Bible §6)
   opinion: number;  // -100..100 opinion sur le joueur
+  mood?: DynamicMood;
 }
 
 // ---------- Fantômes (Conseil) ----------
@@ -124,6 +129,7 @@ export interface GhostState {
   lastWords: string;
   history: GhostAdviceRecord[];
   loyaltyZeroDays: number;
+  mood?: DynamicMood;
   /** Scène d'arrivée en attente du choix du joueur (écouter / repousser). */
   arrivalPending?: boolean;
   /** Refus : jour (index) à partir duquel la voix peut revenir. */
@@ -147,6 +153,7 @@ export interface GhostDef {
   name: string;
   era: string;                 // époque / tradition
   generation: 1 | 2 | 3;
+  temperament?: CharacterTemperament;
   color: string;               // teinte de présence
   emoji: string;
   identity: { portrait: string; life: string; became: string };

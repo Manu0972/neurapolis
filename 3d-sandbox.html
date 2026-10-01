@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEURAPOLIS — Bac à Sable 3D Autonome</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #111827;
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #f3f4f6;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+    }
+    #ui-overlay {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: rgba(17, 24, 39, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 16px;
+      max-width: 320px;
+    }
+    h1 {
+      font-size: 1.1rem;
+      margin: 0 0 8px 0;
+      color: #f59e0b;
+    }
+    p {
+      font-size: 0.85rem;
+      line-height: 1.4;
+      margin: 0 0 12px 0;
+      color: #9ca3af;
+    }
+    .badge {
+      display: inline-block;
+      background: #374151;
+      color: #38bdf8;
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+  <div id="ui-overlay">
+    <h1>Bac à Sable 3D (Isolé)</h1>
+    <p>Prototype 3D indépendant pré-configuré pour accueillir votre kit 3D sans perturber le moteur Canvas 2.5D principal.</p>
+    <div class="badge">Contrôles : ZQSD / Flèches</div>
+  </div>
+  <script type="module" src="/src/presentation/sandbox3d.ts"></script>
+</body>
+</html>
