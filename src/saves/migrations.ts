@@ -4,6 +4,8 @@
  */
 import type { WorldState } from '../core/types';
 import { SAVE_VERSION } from '../core/store';
+import { INITIAL_RIVALS } from '../data/rivals';
+import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
 
 type AnySave = Record<string, unknown>;
 
@@ -52,6 +54,18 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
     if (cs && typeof cs === 'object') cs.proposedDay = cs.proposedDay ?? undefined;
     s.council = council;
     s.version = 3;
+    return s;
+  },
+  // 3 → 4 : ajout des rivaux économiques et de la campagne narrative
+  3: (s) => {
+    s.rivals = s.rivals ?? structuredClone(INITIAL_RIVALS);
+    s.campaign = s.campaign ?? {
+      currentChapter: 1,
+      stages: structuredClone(INITIAL_CAMPAIGN_STAGES),
+      completedChapters: [],
+      delayedConsequences: [],
+    };
+    s.version = 4;
     return s;
   },
 };

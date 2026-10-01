@@ -74,8 +74,8 @@ function samirTeaser(w: WorldState): void {
 export function districtDay(w: WorldState): void {
   const d = w.district;
   const day = dayIndexOf(w.time.tick);
-  // La grande surface et son drive grignottent l’épicerie, chaque jour, avec ou sans toi.
-  d.vitaliteEpicerie = clamp(d.vitaliteEpicerie - 0.2);
+  // Note : la pression du Drive HyperVal sur l'épicerie est désormais calculée
+  // dynamiquement dans rivalDay(w) selon la part de marché réelle.
   // La confiance du quartier dérive lentement vers la santé de ses commerces.
   const cible = d.vitaliteEpicerie * 0.4 + 50 * 0.6;
   d.confianceQuartier = clamp(d.confianceQuartier + (cible - d.confianceQuartier) * 0.05);

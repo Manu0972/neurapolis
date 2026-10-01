@@ -1,0 +1,158 @@
+/**
+ * Tests du système de Concurrence & Rivalité Économique (NEURAPOLIS / inspiration Big Ambitions).
+ * Couvre :
+ * 1. Déterminisme et calcul des parts de marché (prix, qualité, réputation).
+ * 2. Contre-stratégies jouables (coûts, effets sur les parts, événements avec causes).
+ * 3. Réactions des rivaux à la domination du joueur (>50% de part de marché).
+ * 4. Pression dynamique sur le quartier (impact du Drive sur l'épicerie).
+ * 5. Préservation des invariants (livre de comptes, stock, etc.).
+ */
+import { describe, expect, it } from 'vitest';
+import { createWorld } from '../src/core/store';
+import { buyStock, createProject, ledgerInvariantHolds, runSalesSession, setPrice } from '../src/simulation/project';
+import {
+  calculateMarketShares,
+  executeCounterStrategy,
+  getAvailableCounterStrategies,
+  getRivalForPlace,
+  rivalDay,
+} from '../src/simulation/rival';
+import { runTicks } from '../src/simulation/engine';
+import { COUNTER_STRATEGIES } from '../src/data/rivals';
+
+describe('Rivalité économique — calculs des parts de marché', () => {
+  it('sans stand actif ou sans stock, le rival détient 100 % du marché', () => {
+    const w = createWorld();
+    const { playerShare, rivalShare, rival } = calculateMarketShares(w, 'place');
+    expect(rival).toBeDefined();
+    expect(rival?.id).toBe('drive_hyper');
+    expect(playerShare).toBe(0);
+    expect(rivalShare).toBe(100);
+  });
+
+  it('avec un stand approvisionné, le marché est partagé selon les prix relatifs et la réputation', () => {
+    const w = createWorld();
+    createProject(w);
+    buyStock(w);
+
+    const { playerShare, rivalShare } = calculateMarketShares(w, 'place');
+    expect(playerShare).toBeGreaterThan(30);
+    expect(playerShare).toBeLessThan(70);
+    expect(playerShare + rivalShare).toBe(100);
+  });
+
+  it('baisser le prix du stand augmente la part de marché du joueur', () => {
+    const w = createWorld();
+    createProject(w);
+    buyStock(w);
+
+    setPrice(w, 1.50);
+    const cher = calculateMarketShares(w, 'place').playerShare;
+
+    setPrice(w, 0.70);
+    const competitif = calculateMarketShares(w, 'place').playerShare;
+
+    expect(competitif).toBeGreaterThan(cher);
+  });
+});
+
+describe('Rivalité économique — contre-stratégies jouables', () => {
+  it('liste les contre-stratégies disponibles avec coûts et effets', () => {
+    const w = createWorld();
+    const strategies = getAvailableCounterStrategies(w);
+    expect(strategies.length).toBeGreaterThanOrEqual(3);
+    const circuitCourt = strategies.find((s) => s.id === 'circuit_court');
+    expect(circuitCourt).toBeDefined();
+    expect(circuitCourt?.costMoney).toBe(12);
+  });
+
+  it('lancer une contre-stratégie déduit l’argent, fatigue le joueur et booste sa part', () => {
+    const w = createWorld();
+    createProject(w);
+    buyStock(w); // joueur a 0 € restant
+    w.player.money = 20; // on donne du budget pour le test
+
+    const shareAvant = calculateMarketShares(w, 'place').playerShare;
+    const res = executeCounterStrategy(w, 'circuit_court');
+
+    expect(res.ok).toBe(true);
+    expect(w.player.money).toBe(8); // 20 - 12
+    expect(w.player.needs.fatigue).toBeGreaterThan(20);
+    expect(w.rivals.drive_hyper.activeCounterActions).toContain('circuit_court');
+
+    const shareApres = calculateMarketShares(w, 'place').playerShare;
+    expect(shareApres).toBeGreaterThan(shareAvant);
+
+    // Vérification de l'événement avec causes
+    const ev = w.events.find((e) => e.title.includes('Contre-offensive'));
+    expect(ev).toBeDefined();
+    expect(ev?.causes.some((c) => c.facteur.includes('investissement financier'))).toBe(true);
+  });
+
+  it('refuse si argent insuffisant ou si déjà active', () => {
+    const w = createWorld();
+    createProject(w);
+    w.player.money = 2; // insuffisant
+    const failMoney = executeCounterStrategy(w, 'circuit_court');
+    expect(failMoney.ok).toBe(false);
+    expect(failMoney.message).toContain('Pas assez d\'argent');
+
+    w.player.money = 50;
+    expect(executeCounterStrategy(w, 'circuit_court').ok).toBe(true);
+    const failDouble = executeCounterStrategy(w, 'circuit_court');
+    expect(failDouble.ok).toBe(false);
+    expect(failDouble.message).toContain('déjà active');
+  });
+});
+
+describe('Rivalité économique — réactions des rivaux & territoire', () => {
+  it('le Drive réplique par une guerre des prix si le joueur domine le marché (>50%)', () => {
+    const w = createWorld();
+    createProject(w);
+    buyStock(w);
+    w.player.money = 50;
+    executeCounterStrategy(w, 'circuit_court');
+    setPrice(w, 0.60); // prix ultra compétitif
+
+    const share = calculateMarketShares(w, 'place').playerShare;
+    expect(share).toBeGreaterThanOrEqual(50);
+
+    const initialPrice = w.rivals.drive_hyper.price;
+    const notifs = rivalDay(w);
+
+    expect(w.rivals.drive_hyper.strategy).toBe('prix_casse');
+    expect(w.rivals.drive_hyper.price).toBeLessThan(initialPrice);
+    expect(w.rivals.drive_hyper.reactionCooldown).toBeGreaterThan(0);
+    expect(notifs.some((n) => n.text.includes('guerre des prix') || n.text.includes('Drive HyperVal réplique'))).toBe(true);
+
+    const ev = w.events.find((e) => e.title.includes('Guerre des prix'));
+    expect(ev).toBeDefined();
+    expect(ev?.causes.some((c) => c.facteur.includes('domination du joueur'))).toBe(true);
+  });
+
+  it('la domination du joueur face au Drive protège l’épicerie de quartier', () => {
+    const w = createWorld();
+    createProject(w);
+    buyStock(w);
+    w.player.money = 50;
+    executeCounterStrategy(w, 'circuit_court');
+    setPrice(w, 0.60);
+
+    const vitInitiale = w.district.vitaliteEpicerie;
+    rivalDay(w);
+    // Comme le Drive est contenu (<45% de part), l'épicerie ne s'effondre pas et reprend même de la vitalité
+    expect(w.district.vitaliteEpicerie).toBeGreaterThanOrEqual(vitInitiale);
+  });
+
+  it('l’invariant du livre de comptes du stand reste toujours vérifié avec la concurrence', () => {
+    const w = createWorld();
+    createProject(w);
+    buyStock(w);
+    w.player.money = 20;
+    executeCounterStrategy(w, 'degustation');
+
+    const res = runSalesSession(w, 'place');
+    expect(res.ok).toBe(true);
+    expect(ledgerInvariantHolds(w.project!)).toBe(true);
+  });
+});

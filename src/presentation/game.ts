@@ -25,6 +25,7 @@ import {
 import { contractChoose, exitSecurityContract, securityPending } from '../simulation/security';
 import { affinityOf, fusionConfirm } from '../simulation/fusions';
 import { allianceDesOmbres } from '../simulation/antagonists';
+import { calculateMarketShares, executeCounterStrategy, getAvailableCounterStrategies } from '../simulation/rival';
 import { PLACE_BY_ID } from '../data/places';
 import { NPC_BY_ID, NPCS } from '../data/npcs';
 import { DIALOGUE_REPLIES, REL_LABELS } from '../data/dialogue';
@@ -361,7 +362,88 @@ export function startGame(root: HTMLElement): void {
   navBtns[1]?.addEventListener('click', openRelations);
   navBtns[2]?.addEventListener('click', openJournal);
   navBtns[3]?.addEventListener('click', openProjet);
-  navBtns[4]?.addEventListener('click', openConseil);
+  navBtns[4]?.addEventListener('click', openConcurrence);
+  navBtns[5]?.addEventListener('click', openConseil);
+
+  // ---------- Concurrence & Campagne narrative ----------
+
+  function openConcurrence(): void {
+    const body = el('div', 'panel-body');
+
+    // Section 1 : Campagne & Objectif
+    body.appendChild(el('h3', 'panel-sub', `Campagne — Chapitre ${world.campaign.currentChapter}`));
+    const stage = world.campaign.stages.find((s) => s.chapter === world.campaign.currentChapter);
+    if (stage) {
+      const cBox = el('div', 'ghost-detail');
+      cBox.appendChild(el('h4', 'journal-title', `✦ ${stage.title} (âge : ${stage.targetAge} ans)`));
+      cBox.appendChild(el('p', 'panel-desc', stage.objective));
+      body.appendChild(cBox);
+    }
+
+    // Section 2 : Rivaux & Territoire
+    body.appendChild(el('h3', 'panel-sub', 'Concurrence & Parts de marché'));
+    for (const rival of Object.values(world.rivals)) {
+      const box = el('div', 'ghost-detail');
+      const { playerShare, rivalShare } = calculateMarketShares(world, rival.place);
+      const placeName = PLACE_BY_ID[rival.place]?.name ?? rival.place;
+
+      box.appendChild(el('h4', 'journal-title', `${rival.name} (${placeName})`));
+      box.appendChild(el('p', 'panel-desc',
+        `Prix rival : ${rival.price.toFixed(2)} € · Stratégie : ${rival.strategy} · Agressivité : ${rival.aggressiveness}/100`));
+
+      const barRow = el('div', 'stat-row');
+      barRow.appendChild(el('span', 'stat-label', `Ta part : ${playerShare}% | Rival : ${rivalShare}%`));
+      const track = el('div', 'need-track');
+      const fill = el('div', 'need-fill');
+      fill.style.width = `${playerShare}%`;
+      fill.style.background = TOKENS.vert;
+      track.appendChild(fill);
+      barRow.appendChild(track);
+      box.appendChild(barRow);
+
+      if (rival.id === 'drive_hyper') {
+        const impactText = rivalShare >= 65
+          ? '⚠ Le Drive écrase l’épicerie de Mme Bertin (−0,20/jour)'
+          : rivalShare >= 45
+            ? 'Équilibre fragile : l’épicerie résiste (−0,10/jour)'
+            : '✓ Vos circuits courts protègent l’épicerie (+0,10/jour) !';
+        box.appendChild(el('p', 'panel-note', impactText));
+      }
+
+      body.appendChild(box);
+    }
+
+    // Section 3 : Contre-stratégies
+    body.appendChild(el('h3', 'panel-sub', 'Contre-stratégies jouables'));
+    const strategies = getAvailableCounterStrategies(world);
+    for (const strat of strategies) {
+      const rival = world.rivals[strat.rivalId];
+      const isActive = rival?.activeCounterActions.includes(strat.id);
+
+      const sBox = el('div', 'rel-row');
+      sBox.appendChild(el('span', 'rel-name', strat.label));
+      sBox.appendChild(el('p', 'panel-desc', strat.description));
+      sBox.appendChild(el('p', 'panel-note',
+        `Coût : ${strat.costMoney} € · Temps : ${strat.costTimeMinutes} min · Impact : +${strat.playerShareBonus}% part · Réputation +${strat.reputationBonus}`));
+
+      const btn = el('button', 'btn btn-action', isActive ? '✓ Déjà active' : `Lancer (${strat.costMoney} €)`);
+      btn.disabled = !!isActive;
+      if (!isActive) {
+        btn.addEventListener('click', () => {
+          const res = executeCounterStrategy(world, strat.id);
+          btn.textContent = res.message;
+          btn.disabled = !res.ok;
+          if (res.ok) {
+            setTimeout(openConcurrence, 700);
+          }
+        });
+      }
+      sBox.appendChild(btn);
+      body.appendChild(sBox);
+    }
+
+    showModal('Marché & Concurrence', 'parts de marché · rivaux · contre-offensives', body, true);
+  }
 
   // ---------- M5 : le projet (Stand des Roses) ----------
 

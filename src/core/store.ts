@@ -5,8 +5,10 @@ import type { GhostState, NpcState, Rel4, WorldState, SkillId } from './types';
 import { makeSeed } from './rng';
 import { NPCS } from '../data/npcs';
 import { ALL_GHOST_IDS } from '../data/ghosts/registry';
+import { INITIAL_RIVALS } from '../data/rivals';
+import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 const SKILL_IDS: SkillId[] = ['negociation', 'comptabilite', 'communication', 'organisation', 'technique', 'recherche'];
 
@@ -74,6 +76,13 @@ export function createWorld(opts: CreateWorldOptions = {}): WorldState {
       allianceDesOmbres: 0,
     },
     district: { vitaliteEpicerie: 45, confianceQuartier: 50, frequentationParc: 55, meteo: 'soleil' },
+    rivals: structuredClone(INITIAL_RIVALS),
+    campaign: {
+      currentChapter: 1,
+      stages: structuredClone(INITIAL_CAMPAIGN_STAGES),
+      completedChapters: [],
+      delayedConsequences: [],
+    },
     events: [],
     lifeJournal: [
       {

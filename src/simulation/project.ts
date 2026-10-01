@@ -11,7 +11,7 @@
  * (fusion), Contrat de Sécurité (rendement +20 %) et sabotage de Taylor (−15 %).
  * Données : src/data/project.ts. État : w.project (types.ts).
  */
-import type { Meteo, NpcId, Notification, ProjectState, RepartitionMode, WorldState } from '../core/types';
+import type { Meteo, NpcId, Notification, PlaceId, ProjectState, RepartitionMode, WorldState } from '../core/types';
 import { dateOf, dayIndexOf, weekIndexOf } from '../core/clock';
 import { rngChance, rngPick } from '../core/rng';
 import {
@@ -29,6 +29,7 @@ import { checkVitaliteEvents } from './district';
 import { councilKeyDecision } from './council';
 import { securityYieldFactor, weeklySecurityCost } from './security';
 import { taylorChronoDay, taylorSabotageFactor } from './antagonists';
+import { calculateMarketShares } from './rival';
 
 const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v));
 const round2 = (v: number): number => Math.round(v * 100) / 100;
@@ -186,7 +187,11 @@ export function runSalesSession(w: WorldState, place: string): SessionResult {
   if (p.stock <= 0) return { ok: false, message: 'Plus de stock — achète avant de vendre.', demand: 0, sold: 0, revenue: 0 };
 
   const day = dayIndexOf(w.time.tick);
-  const demand = demandAt(p.price, w.player.reputation, dateOf(day).weekday, w.district.meteo);
+  const placeId: PlaceId = (place === 'collège' || place === 'college') ? 'college' : 'place';
+  const { playerShare, rival } = calculateMarketShares(w, placeId);
+  const marketMultiplier = (playerShare + 50) / 100;
+  const baseDemand = demandAt(p.price, w.player.reputation, dateOf(day).weekday, w.district.meteo);
+  const demand = Math.max(0, Math.round(baseDemand * marketMultiplier));
   const sold = Math.min(p.stock, demand);
 
   // Prévision en attente (action « prévision ») : comparée à cette session (Simon, §6).
@@ -254,6 +259,7 @@ export function runSalesSession(w: WorldState, place: string): SessionResult {
       { facteur: 'prix de vente', seuil: `${p.price.toFixed(2)} €`, poids: 2 },
       { facteur: 'réputation dans le quartier', seuil: `${w.player.reputation - 2}/100`, poids: 1 },
       { facteur: 'météo', seuil: w.district.meteo, poids: 1 },
+      ...(rival ? [{ facteur: `part de marché face à ${rival.name}`, seuil: `${playerShare}%`, poids: 2 }] : []),
     ],
   });
 

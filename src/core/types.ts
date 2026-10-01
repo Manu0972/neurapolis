@@ -259,6 +259,64 @@ export interface CouncilState {
   allianceDesOmbres: number;   // jauge teaser super-antagoniste
 }
 
+// ---------- Concurrence & Rivaux ----------
+export type RivalId = 'drive_hyper' | 'distributeur_college';
+
+export type RivalStrategy = 'prix_casse' | 'campagne_com' | 'fidelite' | 'standard';
+
+export interface RivalState {
+  id: RivalId;
+  name: string;
+  place: PlaceId;
+  marketShare: number;       // 0-100, part de marché sur son secteur
+  price: number;             // prix de son offre (€)
+  quality: number;           // 0-100 qualité perçue
+  aggressiveness: number;    // 0-100 agressivité commerciale
+  strategy: RivalStrategy;
+  activeCounterActions: string[]; // ids des contre-stratégies activées par le joueur
+  reactionCooldown: number;  // jours avant prochaine réaction tactique
+}
+
+export interface CounterStrategyDef {
+  id: string;
+  rivalId: RivalId;
+  label: string;
+  description: string;
+  costMoney: number;
+  costTimeMinutes: number;
+  durationDays: number;
+  playerShareBonus: number;
+  rivalSharePenalty: number;
+  reputationBonus: number;
+}
+
+// ---------- Campagne & Vie (Progression 12 ans → suite) ----------
+export interface CampaignStage {
+  id: string;
+  chapter: number;
+  title: string;
+  targetAge: number;
+  objective: string;
+  completed: boolean;
+}
+
+export interface DelayedConsequence {
+  id: string;
+  triggerDay: number;
+  title: string;
+  text: string;
+  impactType: 'reputation' | 'money' | 'relation' | 'quartier';
+  value: number;
+  targetNpc?: NpcId;
+}
+
+export interface CampaignState {
+  currentChapter: number;
+  stages: CampaignStage[];
+  completedChapters: number[];
+  delayedConsequences: DelayedConsequence[];
+}
+
 // ---------- Monde ----------
 export interface WorldState {
   version: number;
@@ -270,6 +328,8 @@ export interface WorldState {
   council: CouncilState;
   project?: ProjectState;
   district: DistrictState;
+  rivals: Record<RivalId, RivalState>;
+  campaign: CampaignState;
   events: GameEvent[];        // journal des événements (cap 250)
   lifeJournal: LifeJournalEntry[];
   flags: Record<string, number>; // compteurs libres (ventes, conflits, prévisions ratées…)

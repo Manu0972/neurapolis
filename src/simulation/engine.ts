@@ -11,6 +11,8 @@ import { districtDay } from './district';
 import { councilDay, councilTick } from './council';
 import { lifeTick } from './life';
 import { projectDay, projectWeek } from './project';
+import { rivalDay } from './rival';
+import { campaignTick } from './campaign';
 import { notify } from './events';
 import { saveToSlot } from '../saves/persist';
 
@@ -39,9 +41,11 @@ export function tickWorld(w: WorldState): TickOutput {
   out.push(...councilTick(w));
 
   if (day !== prevDay) {
+    out.push(...rivalDay(w));
     districtDay(w);
     out.push(...councilDay(w));
     projectDay(w);
+    out.push(...campaignTick(w));
 
     // Hebdomadaire : argent de poche + répartition des gains du stand (M5)
     if (weekIndexOf(day) !== prevWeek) {

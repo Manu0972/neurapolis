@@ -66,7 +66,7 @@ export function buildUi(root: HTMLElement): UiRefs {
   root.appendChild(hud);
 
   const navEl = el('div', 'hud-nav');
-  for (const label of ['Personnage', 'Relations', 'Journal', 'Projet', 'Conseil']) {
+  for (const label of ['Personnage', 'Relations', 'Journal', 'Projet', 'Concurrence', 'Conseil']) {
     navEl.appendChild(el('button', 'hud-nav-btn', label));
   }
   root.appendChild(navEl);

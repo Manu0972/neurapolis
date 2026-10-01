@@ -8,7 +8,7 @@
  *  - auto-sauvegarde de fin de journée (cadence figée, contrat M0).
  */
 import { describe, expect, it } from 'vitest';
-import { createWorld } from '../src/core/store';
+import { createWorld, SAVE_VERSION } from '../src/core/store';
 import { runTicks } from '../src/simulation/engine';
 import { TICKS_PER_DAY } from '../src/core/types';
 import { councilArrivalChoose, councilKeyDecision, councilPendingArrivals } from '../src/simulation/council';
@@ -181,7 +181,7 @@ describe('M7 — auto-sauvegarde de fin de journée', () => {
     };
     runTicks(w, DAY); // franchit la fin de journée → auto-sauvegarde
     expect(store.has('neurapolis.save.auto')).toBe(true);
-    expect((JSON.parse(store.get('neurapolis.save.auto') ?? '{}') as { version: number }).version).toBe(3);
+    expect((JSON.parse(store.get('neurapolis.save.auto') ?? '{}') as { version: number }).version).toBe(SAVE_VERSION);
     delete (globalThis as unknown as { localStorage?: Storage }).localStorage;
   });
 });
