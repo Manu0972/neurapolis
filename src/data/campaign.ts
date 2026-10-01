@@ -3,7 +3,39 @@
  * Contrat : Le joueur commence à 12 ans à Val-Ferrand et traverse des étapes
  * marquantes aux conséquences différées et à la conclusion satisfaisante.
  */
-import type { CampaignStage } from '../core/types';
+import type { CampaignStage, EndingModelId } from '../core/types';
+
+export interface EndingModelOption {
+  id: EndingModelId;
+  title: string;
+  subtitle: string;
+  description: string;
+  philosophy: string;
+}
+
+export const ENDING_MODELS: EndingModelOption[] = [
+  {
+    id: 'coop_citoyenne',
+    title: 'La Coopérative Citoyenne Autonome',
+    subtitle: 'Modèle fondé sur les communs et la gouvernance partagée',
+    description: 'Val-Ferrand devient un réseau de coopératives autogérées par les habitants et commerçants. Le capital reste local, réinvesti dans le quartier.',
+    philosophy: 'Favorise la cohésion sociale et la résilience, au prix d’une croissance commerciale plus modérée et de débats fréquents.',
+  },
+  {
+    id: 'marche_equitable',
+    title: 'Le Marché Équitable Régulé',
+    subtitle: 'Modèle fondé sur la libre initiative sous charte sociale strict',
+    description: 'Commerces indépendants et entreprises locales collaborent sous une charte de prix et de rémunération équitable, canalisant l’agressivité des rivaux.',
+    philosophy: 'Offre dynamisme économique et liberté d’entreprise, tout en encadrant les abus et en maintenant la vitalité des petits commerces.',
+  },
+  {
+    id: 'planification_communs',
+    title: 'La Planification des Communs Urbains',
+    subtitle: 'Modèle de solidarité municipale et d’allocation concertée',
+    description: 'Les infrastructures et services essentiels sont gérés en biens communs municipaux. Les bénéfices financent la solidarité et la gratuité des besoins de base.',
+    philosophy: 'Garantit la sécurité et l’égalité d’accès pour tous les habitants, exigeant une discipline collective forte.',
+  },
+];
 
 export const INITIAL_CAMPAIGN_STAGES: CampaignStage[] = [
   {

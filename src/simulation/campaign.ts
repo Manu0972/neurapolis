@@ -3,11 +3,133 @@
  * Gère l'évolution de Camille, les jalons de vie, les choix à retardement
  * et la conclusion narrative de NEURAPOLIS.
  */
-import { STARTING_PLAYER_AGE, type Notification, type WorldState } from '../core/types';
+import { STARTING_PLAYER_AGE, type EndingModelId, type Notification, type WorldState } from '../core/types';
 import { dateOf, dayIndexOf } from '../core/clock';
+import { ENDING_MODELS } from '../data/campaign';
 import { notify, pushEvent } from './events';
 
 const clamp = (v: number, min = 0, max = 100): number => Math.max(min, Math.min(max, v));
+
+export interface CampaignActionResult {
+  ok: boolean;
+  message: string;
+}
+
+/** Mobilise les habitants et le conseil lors du réaménagement de la place (Chapitre 4). */
+export function holdUrbanCouncil(w: WorldState): CampaignActionResult {
+  if (w.campaign.currentChapter !== 4) {
+    return { ok: false, message: 'Le Conseil Urbain n’est disponible qu’au chapitre 4.' };
+  }
+  if (w.player.age < 15) {
+    return { ok: false, message: 'Tu dois avoir au moins 15 ans pour organiser l’assemblée du quartier.' };
+  }
+  w.flags['chapitre4Mobilisation'] = (w.flags['chapitre4Mobilisation'] ?? 0) + 1;
+  pushEvent(w, {
+    type: 'quartier',
+    title: 'Assemblée du Conseil Urbain de Val-Ferrand',
+    text: 'Habitants, commerçants et conseillers du quartier se sont réunis sur la place pour débattre de l’avenir de Val-Ferrand.',
+    causes: [
+      { facteur: 'âge du joueur', seuil: `${w.player.age} ans`, poids: 2 },
+      { facteur: 'mobilisation citoyenne', poids: 3 },
+    ],
+  });
+  return { ok: true, message: 'L’assemblée du Conseil Urbain a réuni le quartier avec succès !' };
+}
+
+/** Scelle le choix final du modèle durable pour Val-Ferrand (Chapitre 5). */
+export function chooseFinalModel(w: WorldState, modelId: EndingModelId): CampaignActionResult {
+  if (w.campaign.ending) {
+    return { ok: false, message: 'La conclusion de Val-Ferrand a déjà été scellée.' };
+  }
+  if (w.campaign.currentChapter !== 5) {
+    return { ok: false, message: 'La décision finale n’est accessible qu’au chapitre 5.' };
+  }
+  if (w.player.age < 16) {
+    return { ok: false, message: 'Tu dois avoir atteint l’âge de 16 ans pour trancher l’avenir de NEURAPOLIS.' };
+  }
+
+  const option = ENDING_MODELS.find((m) => m.id === modelId);
+  if (!option) {
+    return { ok: false, message: 'Modèle économique non reconnu.' };
+  }
+
+  const day = dayIndexOf(w.time.tick);
+  const dateIso = dateOf(day).iso;
+
+  // Calcul des accomplissements et sacrifices de l'arc (Chapitres 1 à 4)
+  const totalSales = w.flags['ventes'] ?? 0;
+  const coursesDone = w.flags['courses'] ?? 0;
+  const counterStrategiesCount = w.flags['contreStrategiesLancees'] ?? 0;
+  const fusions = w.council.fusionsDone.length;
+
+  let builtText = `En quatre ans (12 → 16 ans), tu as lancé le Stand des Roses (${totalSales} sessions de vente), aidé l'épicerie Bertin (${coursesDone} livraisons), `;
+  if (counterStrategiesCount > 0) {
+    builtText += `organisé ${counterStrategiesCount} contre-offensives face au Drive HyperVal, `;
+  }
+  if (fusions > 0) {
+    builtText += `et fait émerger ${fusions} synthèse(s) philosophique(s) au Conseil. `;
+  } else {
+    builtText += `et porté la voix des habitants au Conseil Urbain. `;
+  }
+
+  let sacrificedText = '';
+  if (modelId === 'coop_citoyenne') {
+    sacrificedText = 'Tu as sacrifié la recherche de profit individuel au profit de la gouvernance partagée et du temps passé en débats collectifs.';
+    w.district.confianceQuartier = clamp(w.district.confianceQuartier + 20);
+    w.district.vitaliteEpicerie = clamp(w.district.vitaliteEpicerie + 15);
+    w.player.reputation = clamp(w.player.reputation + 10);
+    if (w.rivals.drive_hyper) w.rivals.drive_hyper.marketShare = Math.max(25, w.rivals.drive_hyper.marketShare - 25);
+  } else if (modelId === 'marche_equitable') {
+    sacrificedText = 'Tu as renoncé à un contrôle étatique strict, acceptant une concurrence encadrée par une charte sociale exigeante.';
+    w.district.confianceQuartier = clamp(w.district.confianceQuartier + 10);
+    w.district.vitaliteEpicerie = clamp(w.district.vitaliteEpicerie + 20);
+    w.player.reputation = clamp(w.player.reputation + 15);
+    if (w.rivals.drive_hyper) w.rivals.drive_hyper.marketShare = Math.max(35, w.rivals.drive_hyper.marketShare - 15);
+  } else {
+    sacrificedText = 'Tu as renoncé aux marges privées et à l’agressivité marchande pour inscrire les biens vitaux sous gestion citoyenne et municipale.';
+    w.district.confianceQuartier = clamp(w.district.confianceQuartier + 25);
+    w.district.vitaliteEpicerie = clamp(w.district.vitaliteEpicerie + 10);
+    w.player.reputation = clamp(w.player.reputation + 12);
+    if (w.rivals.drive_hyper) w.rivals.drive_hyper.marketShare = Math.max(20, w.rivals.drive_hyper.marketShare - 30);
+  }
+
+  w.campaign.ending = {
+    modelId,
+    title: option.title,
+    summary: `${option.subtitle}. ${option.description}`,
+    builtText,
+    sacrificedText,
+    day,
+    date: dateIso,
+  };
+
+  const stage5 = w.campaign.stages.find((s) => s.chapter === 5);
+  if (stage5) {
+    stage5.completed = true;
+    if (!w.campaign.completedChapters.includes(5)) {
+      w.campaign.completedChapters.push(5);
+    }
+  }
+
+  pushEvent(w, {
+    type: 'vie',
+    title: `Conclusion de NEURAPOLIS : ${option.title}`,
+    text: `${builtText} ${sacrificedText}`,
+    causes: [
+      { facteur: 'décision finale à 16 ans', seuil: option.title, poids: 3 },
+      { facteur: 'historique des chapitres 1 à 4', poids: 3 },
+    ],
+  });
+
+  w.lifeJournal.push({
+    day,
+    date: dateIso,
+    title: `L'Héritage de Val-Ferrand — ${option.title}`,
+    text: `À 16 ans, j'ai tranché le modèle durable de notre quartier : ${option.title}. ${builtText} ${sacrificedText}`,
+  });
+
+  return { ok: true, message: `L'avenir de Val-Ferrand est scellé sous le modèle : ${option.title}.` };
+}
 
 /** Âge calendaire : l'anniversaire est le 1er septembre, jour de départ du jeu. */
 function ageForDay(day: number): number {
@@ -164,6 +286,33 @@ export function campaignTick(w: WorldState): Notification[] {
         text: 'Les livraisons maintiennent l’épicerie dans le jeu. Notre contre-offensive a coûté de l’argent et de l’énergie, mais le Drive ne peut plus faire comme si nous n’existions pas.',
       });
       out.push(notify('bien', 'Chapitre 3 complété ! Chapitre 4 débloqué : La Voix du Quartier.'));
+    }
+  }
+
+  if (currentChapter === 4) {
+    const stage = w.campaign.stages.find((s) => s.chapter === 4);
+    const mobilizationDone = (w.flags['chapitre4Mobilisation'] ?? 0) >= 1;
+    if (stage && !stage.completed && w.player.age >= stage.targetAge && mobilizationDone) {
+      stage.completed = true;
+      if (!w.campaign.completedChapters.includes(4)) w.campaign.completedChapters.push(4);
+      w.campaign.currentChapter = 5;
+
+      pushEvent(w, {
+        type: 'vie',
+        title: 'Chapitre 4 accompli : La Voix du Quartier s’élève',
+        text: 'L’assemblée du Conseil Urbain sur la place a réuni habitants et commerçants. Le réaménagement de Val-Ferrand ne se fera pas sans nous.',
+        causes: [
+          { facteur: 'âge du joueur', seuil: `${w.player.age} ans`, poids: 1 },
+          { facteur: 'assemblée du Conseil Urbain tenue', poids: 3 },
+        ],
+      });
+      w.lifeJournal.push({
+        day,
+        date: dateOf(day).iso,
+        title: 'La Voix du Quartier',
+        text: 'À 15 ans, nous avons mobilisé le quartier face aux projets d’aménagement. Il est temps de penser à la suite.',
+      });
+      out.push(notify('bien', 'Chapitre 4 complété ! Chapitre 5 débloqué : L’Héritage de Val-Ferrand (16 ans).'));
     }
   }
 
