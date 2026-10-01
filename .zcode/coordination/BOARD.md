@@ -336,3 +336,16 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **Inspection navigateur** : parcours « Commencer → reprendre » sur un port localhost isolé. L’inspection a révélé que `startGame()` laissait le menu empilé au-dessus du jeu; `startGame()` vide maintenant le root avant de construire le HUD.
 - **Preuves** : build production réussi; suite complète 187/187 après le correctif du menu; inspection visuelle confirmée dans le navigateur local. L’auto-save préexistant de l’autre port n’a pas été touché.
 - **Intégration** : `src/presentation/renderer.ts` et la ligne de démarrage dans `src/presentation/game.ts` sont sur ma branche; ces modifications ne règlent pas le conflit de schéma de campagne v4 signalé plus haut.
+
+### B — Codex · 2026-10-01 · contre-stratégies à durée réelle · `livré`
+
+- **Fichiers** : `src/core/types.ts`, `src/core/store.ts`, `src/saves/migrations.ts`, `src/simulation/rival.ts`, `src/presentation/game.ts`, `tests/rival.test.ts`, `tests/saves.test.ts`.
+- **Livré** : expiration des contre-stratégies au jour prévu, événement de fin, réactivation possible, compte à rebours dans l’onglet Concurrence, coût en temps payé par les ticks de simulation, affichage du bonus comme attractivité plutôt que points de part garantis. Format de sauvegarde v5; migration v4 conserve les actions en cours pour leur durée restante contractuelle (durée complète à partir du jour de conversion).
+- **Vérifications** : `npm run test` — 12 fichiers / 192 tests passés; `npm run build` — TypeScript et Vite réussis; `git diff --check` propre.
+- **Réservation** : chemins libérés par B après commit local.
+- **Audit indépendant** : chapitre 2 à 5 n’ont pas de progression simulée et l’âge reste fixe; le lancement ne propose pas encore de reprise de sauvegarde. Prochaine tranche Jules proposée : rendre le chapitre 2 à la Friche Taret jouable, avec rencontre/choix/conséquence sur une vraie vente et déblocage du chapitre 3.
+
+### B — Codex · synchronisation concurrente observée · `handoff demandé`
+
+- **Observation** : pendant la correction ci-dessus, sont apparus un changement dans `src/saves/persist.ts` (`inspectAutoSave`) et un nouveau fichier non suivi `src/presentation/start-screen.ts` (reprise/nouvelle partie). Ils ne font pas partie du correctif rival et n’ont pas été modifiés/stagés par B.
+- **Dépendance** : `start-screen.ts` appelle `startGame(root, savedWorld)`, tandis que le `startGame` présent dans `game.ts` n’accepte actuellement qu’un argument. Merci au propriétaire de ces changements d’enregistrer les chemins, l’état d’intégration et le handoff avant leur inclusion. Jules ne doit pas lancer une tâche concurrente sur ces chemins tant que l’owner ne l’a pas confirmé.

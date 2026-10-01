@@ -19,6 +19,7 @@ import {
 } from '../src/simulation/rival';
 import { runTicks } from '../src/simulation/engine';
 import { COUNTER_STRATEGIES } from '../src/data/rivals';
+import { TICKS_PER_DAY } from '../src/core/types';
 
 describe('Rivalité économique — calculs des parts de marché', () => {
   it('sans stand actif ou sans stock, le rival détient 100 % du marché', () => {
@@ -78,7 +79,8 @@ describe('Rivalité économique — contre-stratégies jouables', () => {
     expect(res.ok).toBe(true);
     expect(w.player.money).toBe(8); // 20 - 12
     expect(w.player.needs.fatigue).toBeGreaterThan(20);
-    expect(w.rivals.drive_hyper.activeCounterActions).toContain('circuit_court');
+    expect(w.rivals.drive_hyper.activeCounterActions).toContainEqual({ strategyId: 'circuit_court', expiresDay: 5 });
+    expect(res.timeCostTicks).toBe(6);
 
     const shareApres = calculateMarketShares(w, 'place').playerShare;
     expect(shareApres).toBeGreaterThan(shareAvant);
@@ -102,6 +104,26 @@ describe('Rivalité économique — contre-stratégies jouables', () => {
     const failDouble = executeCounterStrategy(w, 'circuit_court');
     expect(failDouble.ok).toBe(false);
     expect(failDouble.message).toContain('déjà active');
+  });
+
+  it('retire le bonus à l’échéance, journalise la fin et permet de relancer', () => {
+    const w = createWorld();
+    createProject(w);
+    buyStock(w);
+    w.player.money = 50;
+    expect(executeCounterStrategy(w, 'circuit_court').ok).toBe(true);
+    expect(w.rivals.drive_hyper.activeCounterActions).toHaveLength(1);
+
+    w.time.tick = 4 * TICKS_PER_DAY;
+    rivalDay(w);
+    expect(w.rivals.drive_hyper.activeCounterActions).toHaveLength(1);
+
+    w.time.tick = 5 * TICKS_PER_DAY;
+    const notifs = rivalDay(w);
+    expect(w.rivals.drive_hyper.activeCounterActions).toHaveLength(0);
+    expect(notifs.some((n) => n.text.includes('est terminée'))).toBe(true);
+    expect(w.events.some((event) => event.title.includes('Fin de la contre-offensive'))).toBe(true);
+    expect(executeCounterStrategy(w, 'circuit_court').ok).toBe(true);
   });
 });
 

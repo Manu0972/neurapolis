@@ -4,7 +4,7 @@
  * La présentation ne fait qu'appeler les actions de simulation et lire l'état.
  */
 import { createWorld } from '../core/store';
-import { tickWorld } from '../simulation/engine';
+import { runTicks, tickWorld } from '../simulation/engine';
 import { tryMove } from '../simulation/movement';
 import { npcsNearby, placeAtAdjacent } from '../simulation/interact';
 import { applyPlaceAction } from '../simulation/places';
@@ -25,7 +25,7 @@ import {
 import { contractChoose, exitSecurityContract, securityPending } from '../simulation/security';
 import { affinityOf, fusionConfirm } from '../simulation/fusions';
 import { allianceDesOmbres } from '../simulation/antagonists';
-import { calculateMarketShares, executeCounterStrategy, getAvailableCounterStrategies } from '../simulation/rival';
+import { calculateMarketShares, counterStrategyDaysRemaining, executeCounterStrategy, getAvailableCounterStrategies, isCounterStrategyActive } from '../simulation/rival';
 import { PLACE_BY_ID } from '../data/places';
 import { NPC_BY_ID, NPCS } from '../data/npcs';
 import { DIALOGUE_REPLIES, REL_LABELS } from '../data/dialogue';
@@ -418,22 +418,26 @@ export function startGame(root: HTMLElement): void {
     const strategies = getAvailableCounterStrategies(world);
     for (const strat of strategies) {
       const rival = world.rivals[strat.rivalId];
-      const isActive = rival?.activeCounterActions.includes(strat.id);
+      const isActive = rival ? isCounterStrategyActive(world, rival, strat.id) : false;
+      const daysRemaining = rival ? counterStrategyDaysRemaining(world, rival, strat.id) : 0;
 
       const sBox = el('div', 'rel-row');
       sBox.appendChild(el('span', 'rel-name', strat.label));
       sBox.appendChild(el('p', 'panel-desc', strat.description));
       sBox.appendChild(el('p', 'panel-note',
-        `Coût : ${strat.costMoney} € · Temps : ${strat.costTimeMinutes} min · Impact : +${strat.playerShareBonus}% part · Réputation +${strat.reputationBonus}`));
+        `Coût : ${strat.costMoney} € · Temps : ${strat.costTimeMinutes} min · bonus d’attractivité : +${strat.playerShareBonus} · Réputation immédiate : +${strat.reputationBonus}`));
 
-      const btn = el('button', 'btn btn-action', isActive ? '✓ Déjà active' : `Lancer (${strat.costMoney} €)`);
+      const btn = el('button', 'btn btn-action', isActive ? `✓ Active · ${daysRemaining} j` : `Lancer (${strat.costMoney} €)`);
       btn.disabled = !!isActive;
       if (!isActive) {
         btn.addEventListener('click', () => {
-          const res = executeCounterStrategy(world, strat.id);
+          const timeCostTicks = Math.ceil(strat.costTimeMinutes / 10);
+          const res = executeCounterStrategy(world, strat.id, timeCostTicks);
           btn.textContent = res.message;
           btn.disabled = !res.ok;
           if (res.ok) {
+            // Le coût en temps passe par l'horloge canonique et ses effets de simulation.
+            runTicks(world, res.timeCostTicks ?? timeCostTicks);
             setTimeout(openConcurrence, 700);
           }
         });

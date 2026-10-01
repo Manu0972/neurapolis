@@ -20,6 +20,16 @@ import { addXp } from './skills';
 const clamp = (v: number, min = 0, max = 100): number => Math.max(min, Math.min(max, v));
 const round2 = (v: number): number => Math.round(v * 100) / 100;
 
+export function isCounterStrategyActive(w: WorldState, rival: RivalState, strategyId: string): boolean {
+  const day = dayIndexOf(w.time.tick);
+  return rival.activeCounterActions.some((action) => action.strategyId === strategyId && day < action.expiresDay);
+}
+
+export function counterStrategyDaysRemaining(w: WorldState, rival: RivalState, strategyId: string): number {
+  const action = rival.activeCounterActions.find((candidate) => candidate.strategyId === strategyId);
+  return action ? Math.max(0, action.expiresDay - dayIndexOf(w.time.tick)) : 0;
+}
+
 /** Récupère le rival présent sur un lieu donné (ex: 'place' -> Drive HyperVal, 'college' -> Distributeur). */
 export function getRivalForPlace(w: WorldState, place: PlaceId): RivalState | undefined {
   return Object.values(w.rivals).find((r) => r.place === place);
@@ -45,8 +55,10 @@ export function calculateMarketShares(w: WorldState, place: PlaceId): {
   // Bonus conférés par les contre-stratégies actives
   let bonusPlayer = 0;
   let penaltyRival = 0;
-  for (const csId of rival.activeCounterActions) {
-    const def = COUNTER_STRATEGIES.find((c) => c.id === csId);
+  const today = dayIndexOf(w.time.tick);
+  for (const action of rival.activeCounterActions) {
+    if (today >= action.expiresDay) continue;
+    const def = COUNTER_STRATEGIES.find((c) => c.id === action.strategyId);
     if (def) {
       bonusPlayer += def.playerShareBonus;
       penaltyRival += def.rivalSharePenalty;
@@ -78,14 +90,14 @@ export function calculateMarketShares(w: WorldState, place: PlaceId): {
 }
 
 /** Exécution d'une contre-stratégie par le joueur. */
-export function executeCounterStrategy(w: WorldState, strategyId: string): { ok: boolean; message: string } {
+export function executeCounterStrategy(w: WorldState, strategyId: string, startAfterTicks = 0): { ok: boolean; message: string; timeCostTicks?: number } {
   const def = COUNTER_STRATEGIES.find((c) => c.id === strategyId);
   if (!def) return { ok: false, message: 'Stratégie inconnue.' };
 
   const rival = w.rivals[def.rivalId];
   if (!rival) return { ok: false, message: 'Rival introuvable.' };
 
-  if (rival.activeCounterActions.includes(strategyId)) {
+  if (isCounterStrategyActive(w, rival, strategyId)) {
     return { ok: false, message: 'Cette contre-stratégie est déjà active.' };
   }
 
@@ -100,7 +112,10 @@ export function executeCounterStrategy(w: WorldState, strategyId: string): { ok:
   // Application des coûts
   w.player.money = round2(w.player.money - def.costMoney);
   w.player.needs.fatigue = clamp(w.player.needs.fatigue + 15);
-  rival.activeCounterActions.push(def.id);
+  const today = dayIndexOf(w.time.tick);
+  rival.activeCounterActions = rival.activeCounterActions.filter((action) => action.strategyId !== def.id || today < action.expiresDay);
+  const startsOnDay = dayIndexOf(w.time.tick + Math.max(0, startAfterTicks));
+  rival.activeCounterActions.push({ strategyId: def.id, expiresDay: startsOnDay + def.durationDays });
 
   // Bénéfices immédiats
   w.player.reputation = clamp(w.player.reputation + def.reputationBonus);
@@ -124,6 +139,7 @@ export function executeCounterStrategy(w: WorldState, strategyId: string): { ok:
   return {
     ok: true,
     message: `${def.label} activée avec succès ! (Part de marché : ${playerShare}%).`,
+    timeCostTicks: Math.ceil(def.costTimeMinutes / 10),
   };
 }
 
@@ -133,6 +149,22 @@ export function rivalDay(w: WorldState): Notification[] {
   const day = dayIndexOf(w.time.tick);
 
   for (const rival of Object.values(w.rivals)) {
+    const expired = rival.activeCounterActions.filter((action) => day >= action.expiresDay);
+    if (expired.length > 0) {
+      rival.activeCounterActions = rival.activeCounterActions.filter((action) => day < action.expiresDay);
+      for (const action of expired) {
+        const def = COUNTER_STRATEGIES.find((candidate) => candidate.id === action.strategyId);
+        const label = def?.label ?? action.strategyId;
+        pushEvent(w, {
+          type: 'consequence',
+          title: `Fin de la contre-offensive : ${label}`,
+          text: `L’effet temporaire de « ${label} » prend fin. Il peut être relancé si tu en as les moyens.`,
+          causes: [{ facteur: 'échéance de la contre-stratégie', seuil: `jour ${action.expiresDay}`, poids: 2 }],
+        });
+        out.push(notify('info', `La contre-stratégie « ${label} » est terminée.`));
+      }
+    }
+
     // Diminution du temps de recharge de réaction
     if (rival.reactionCooldown > 0) {
       rival.reactionCooldown -= 1;

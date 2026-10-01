@@ -8,7 +8,7 @@ import { ALL_GHOST_IDS } from '../data/ghosts/registry';
 import { INITIAL_RIVALS } from '../data/rivals';
 import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 const SKILL_IDS: SkillId[] = ['negociation', 'comptabilite', 'communication', 'organisation', 'technique', 'recherche'];
 

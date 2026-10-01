@@ -273,8 +273,13 @@ export interface RivalState {
   quality: number;           // 0-100 qualité perçue
   aggressiveness: number;    // 0-100 agressivité commerciale
   strategy: RivalStrategy;
-  activeCounterActions: string[]; // ids des contre-stratégies activées par le joueur
+  activeCounterActions: ActiveCounterAction[]; // contre-stratégies actives et date d'expiration (jour exclusif)
   reactionCooldown: number;  // jours avant prochaine réaction tactique
+}
+
+export interface ActiveCounterAction {
+  strategyId: string;
+  expiresDay: number;
 }
 
 export interface CounterStrategyDef {

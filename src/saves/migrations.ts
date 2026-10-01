@@ -6,6 +6,8 @@ import type { WorldState } from '../core/types';
 import { SAVE_VERSION } from '../core/store';
 import { INITIAL_RIVALS } from '../data/rivals';
 import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
+import { COUNTER_STRATEGIES } from '../data/rivals';
+import { dayIndexOf } from '../core/clock';
 
 type AnySave = Record<string, unknown>;
 
@@ -66,6 +68,29 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
       delayedConsequences: [],
     };
     s.version = 4;
+    return s;
+  },
+  // 4 → 5 : échéances persistées des contre-stratégies économiques
+  4: (s) => {
+    const rivals = (s.rivals ?? structuredClone(INITIAL_RIVALS)) as Record<string, AnySave>;
+    const time = s.time as AnySave | undefined;
+    const today = dayIndexOf(Number(time?.tick ?? 0));
+    for (const rival of Object.values(rivals)) {
+      const active = Array.isArray(rival.activeCounterActions) ? rival.activeCounterActions : [];
+      rival.activeCounterActions = active.flatMap((entry) => {
+        if (typeof entry === 'string') {
+          const strategy = COUNTER_STRATEGIES.find((candidate) => candidate.id === entry);
+          return strategy ? [{ strategyId: entry, expiresDay: today + strategy.durationDays }] : [];
+        }
+        if (typeof entry !== 'object' || entry === null) return [];
+        const action = entry as AnySave;
+        return typeof action.strategyId === 'string' && typeof action.expiresDay === 'number'
+          ? [{ strategyId: action.strategyId, expiresDay: action.expiresDay }]
+          : [];
+      });
+    }
+    s.rivals = rivals;
+    s.version = 5;
     return s;
   },
 };
