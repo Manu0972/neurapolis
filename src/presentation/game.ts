@@ -19,6 +19,11 @@ import {
   sellCustomerData, setPrice, setRepartitionMode, weeklyResult,
 } from '../simulation/project';
 import {
+  buyWorkshopParts, collectSalvage, createWorkshop, ledgerInvariantHoldsWorkshop,
+  recruitWorkshopMember, workOnOrder,
+} from '../simulation/workshop';
+import { WORKSHOP_CONFIG } from '../data/workshop';
+import {
   councilAnswerAdvice, councilArrivalChoose, councilColumns, councilPendingArrivals,
   councilSleep, councilWake, ghostSignature,
 } from '../simulation/council';
@@ -141,6 +146,27 @@ export function startGame(root: HTMLElement): void {
       });
       body.appendChild(btn);
     }
+
+    if (place === 'friche') {
+      const atelierBtn = el('button', 'btn btn-action', world.workshop?.active ? 'Accéder à l’Atelier de Réparation' : 'Créer l’Atelier de Réparation (avec Karim)');
+      atelierBtn.addEventListener('click', () => {
+        if (!world.workshop?.active) {
+          createWorkshop(world);
+        }
+        openProjet('atelier');
+      });
+      body.appendChild(atelierBtn);
+
+      if (world.workshop?.active) {
+        const collectBtn = el('button', 'btn btn-action', 'Collecter du matériel de récupération (20 min)');
+        collectBtn.addEventListener('click', () => {
+          const r = collectSalvage(world);
+          collectBtn.textContent = r.message;
+        });
+        body.appendChild(collectBtn);
+      }
+    }
+
     showModal(def.name, 'Intérieur', body);
   }
 
@@ -361,7 +387,7 @@ export function startGame(root: HTMLElement): void {
   navBtns[0]?.addEventListener('click', openPersonnage);
   navBtns[1]?.addEventListener('click', openRelations);
   navBtns[2]?.addEventListener('click', openJournal);
-  navBtns[3]?.addEventListener('click', openProjet);
+  navBtns[3]?.addEventListener('click', () => openProjet());
   navBtns[4]?.addEventListener('click', openConcurrence);
   navBtns[5]?.addEventListener('click', openConseil);
 
@@ -458,28 +484,63 @@ export function startGame(root: HTMLElement): void {
     return row;
   }
 
-  function openProjet(): void {
-    const p = world.project;
+  function openProjet(initialTab: 'stand' | 'atelier' = 'stand'): void {
     const body = el('div', 'panel-body');
 
+    // Onglets des projets
+    const tabsRow = el('div', 'reply-row');
+    const standTabBtn = el('button', 'btn btn-topic', 'Stand des Roses');
+    const atelierTabBtn = el('button', 'btn btn-topic', 'Atelier de la Friche');
+
+    if (initialTab === 'stand') standTabBtn.classList.add('selected');
+    else atelierTabBtn.classList.add('selected');
+
+    tabsRow.appendChild(standTabBtn);
+    tabsRow.appendChild(atelierTabBtn);
+    body.appendChild(tabsRow);
+
+    const projectContent = el('div', 'project-content');
+    body.appendChild(projectContent);
+
+    standTabBtn.addEventListener('click', () => {
+      standTabBtn.classList.add('selected');
+      atelierTabBtn.classList.remove('selected');
+      renderStandContent(projectContent);
+    });
+
+    atelierTabBtn.addEventListener('click', () => {
+      atelierTabBtn.classList.add('selected');
+      standTabBtn.classList.remove('selected');
+      renderAtelierContent(projectContent);
+    });
+
+    if (initialTab === 'stand') renderStandContent(projectContent);
+    else renderAtelierContent(projectContent);
+
+    showModal('Projets économiques', 'Stand des Roses & Atelier de Réparation', body, true);
+  }
+
+  function renderStandContent(container: HTMLElement): void {
+    container.replaceChildren();
+    const p = world.project;
+
     if (!p || !p.active) {
-      body.appendChild(el('p', 'panel-desc', 'Pas encore de projet. Le quartier regorge d’idées : pourquoi pas un stand de goûters à la récré ?'));
+      container.appendChild(el('p', 'panel-desc', 'Pas encore de stand actif. Pourquoi pas un stand de goûters à la récré ?'));
       const btn = el('button', 'btn btn-action', 'Lancer le Stand des Roses');
       btn.addEventListener('click', () => {
         const r = createProject(world);
         btn.textContent = r.message;
         btn.disabled = !r.ok;
-        if (r.ok) openProjet();
+        if (r.ok) renderStandContent(container);
       });
-      body.appendChild(btn);
-      showModal('Projet', 'entreprendre dans le quartier', body, true);
+      container.appendChild(btn);
       return;
     }
 
     // Stock & prix
-    body.appendChild(el('h3', 'panel-sub', 'Stock & prix'));
-    body.appendChild(statRow('Stock', `${p.stock} unités`));
-    body.appendChild(statRow('Prix', `${p.price.toFixed(2)} €/unité`));
+    container.appendChild(el('h3', 'panel-sub', 'Stock & prix'));
+    container.appendChild(statRow('Stock', `${p.stock} unités`));
+    container.appendChild(statRow('Prix', `${p.price.toFixed(2)} €/unité`));
     const prixRow = el('div', 'reply-row');
     const prixInput = el('input', 'price-input');
     prixInput.type = 'range';
@@ -497,18 +558,18 @@ export function startGame(root: HTMLElement): void {
     prixRow.appendChild(prixInput);
     prixRow.appendChild(prixLabel);
     prixRow.appendChild(prixBtn);
-    body.appendChild(prixRow);
+    container.appendChild(prixRow);
     const achatBtn = el('button', 'btn btn-action', `Acheter du stock (${STAND_CONFIG.stockCost} € — ${STAND_CONFIG.stockUnits} unités)`);
     achatBtn.addEventListener('click', () => {
       const r = buyStock(world);
       achatBtn.textContent = r.message;
       achatBtn.disabled = !r.ok;
     });
-    body.appendChild(achatBtn);
+    container.appendChild(achatBtn);
 
     // Équipe
-    body.appendChild(el('h3', 'panel-sub', 'Équipe'));
-    if (p.members.length === 0) body.appendChild(el('p', 'panel-note', 'Personne pour l’instant. Un stand à plusieurs, c’est plus fort — mais il faudra partager.'));
+    container.appendChild(el('h3', 'panel-sub', 'Équipe'));
+    if (p.members.length === 0) container.appendChild(el('p', 'panel-note', 'Personne pour l’instant. Un stand à plusieurs, c’est plus fort — mais il faudra partager.'));
     for (const id of p.members) {
       const npcDef = NPC_BY_ID[id];
       if (!npcDef) continue;
@@ -518,7 +579,7 @@ export function startGame(root: HTMLElement): void {
       head.appendChild(el('span', 'rel-name', npcDef.name));
       head.appendChild(el('span', 'rel-role', `travail cette semaine : ${Math.round((p.work[id] ?? 0) / 3 * 100) / 100} h`));
       chip.appendChild(head);
-      body.appendChild(chip);
+      container.appendChild(chip);
     }
     for (const id of STAND_CONFIG.recruitables) {
       const npcDef = NPC_BY_ID[id];
@@ -538,11 +599,11 @@ export function startGame(root: HTMLElement): void {
         btn.textContent = r.ok ? `${npcDef.name} a rejoint l’équipe ✓` : r.message;
         btn.disabled = !r.ok;
       });
-      body.appendChild(btn);
+      container.appendChild(btn);
     }
 
     // Actions du stand
-    body.appendChild(el('h3', 'panel-sub', 'Actions'));
+    container.appendChild(el('h3', 'panel-sub', 'Actions'));
     const venteBtn = el('button', 'btn btn-action', 'Tenir le stand — 1 h');
     venteBtn.addEventListener('click', () => {
       const lieu = placeAtAdjacent(world);
@@ -554,7 +615,7 @@ export function startGame(root: HTMLElement): void {
       const r = runSalesSession(world, ici);
       venteBtn.textContent = r.message;
     });
-    body.appendChild(venteBtn);
+    container.appendChild(venteBtn);
     const courseBtn = el('button', 'btn btn-action', 'Faire une course pour l’épicerie (20 min — 2 €)');
     courseBtn.addEventListener('click', () => {
       if (placeAtAdjacent(world) !== 'epicerie') {
@@ -564,46 +625,46 @@ export function startGame(root: HTMLElement): void {
       const r = runCourse(world);
       courseBtn.textContent = r.message;
     });
-    body.appendChild(courseBtn);
+    container.appendChild(courseBtn);
 
     // M6 : règles, optimisation, données, écologie
-    body.appendChild(el('h3', 'panel-sub', 'Règles & choix difficiles'));
-    body.appendChild(statRow('Règles du stand', p.rules.collectif ? 'partagées (collectif)' : 'aucune pour l’instant'));
+    container.appendChild(el('h3', 'panel-sub', 'Règles & choix difficiles'));
+    container.appendChild(statRow('Règles du stand', p.rules.collectif ? 'partagées (collectif)' : 'aucune pour l’instant'));
     const reglesBtn = el('button', 'btn btn-action', 'Adopter des règles partagées (équipe ≥ 2)');
     reglesBtn.addEventListener('click', () => {
       const r = adoptSharedRules(world);
       reglesBtn.textContent = r.ok ? `${r.message} ✓` : r.message;
       reglesBtn.disabled = !r.ok;
     });
-    body.appendChild(reglesBtn);
+    container.appendChild(reglesBtn);
     const imposerBtn = el('button', 'btn btn-action', 'Imposer une règle (peut être contournée)');
     imposerBtn.addEventListener('click', () => {
       imposerBtn.textContent = imposeRule(world).message;
     });
-    body.appendChild(imposerBtn);
+    container.appendChild(imposerBtn);
     const optBtn = el('button', 'btn btn-action', 'Tenter une optimisation du rendement');
     optBtn.addEventListener('click', () => {
       optBtn.textContent = optimizeStand(world).message;
     });
-    body.appendChild(optBtn);
+    container.appendChild(optBtn);
     const dataBtn = el('button', 'btn btn-action',
       `Vendre le fichier clients (+${DATA_SALE.gain} € · réputation −${DATA_SALE.reputationPenalty})`);
     dataBtn.addEventListener('click', () => {
       dataBtn.textContent = sellCustomerData(world).message;
     });
-    body.appendChild(dataBtn);
+    container.appendChild(dataBtn);
     const ecoBtn = el('button', 'btn btn-action',
       `Choix écologique coûteux (−${ECO_CHOICE.cost} € · réputation +${ECO_CHOICE.reputation})`);
     ecoBtn.addEventListener('click', () => {
       ecoBtn.textContent = makeEcoChoice(world).message;
     });
-    body.appendChild(ecoBtn);
+    container.appendChild(ecoBtn);
 
     // Comptes
-    body.appendChild(el('h3', 'panel-sub', 'Comptes'));
-    body.appendChild(statRow('Trésorerie (caisse)', `${p.balance.toFixed(2)} €`));
-    body.appendChild(statRow('Résultat de la semaine', `${weeklyResult(p).toFixed(2)} €`));
-    body.appendChild(el('p', 'panel-note', ledgerInvariantHolds(p)
+    container.appendChild(el('h3', 'panel-sub', 'Comptes'));
+    container.appendChild(statRow('Trésorerie (caisse)', `${p.balance.toFixed(2)} €`));
+    container.appendChild(statRow('Résultat de la semaine', `${weeklyResult(p).toFixed(2)} €`));
+    container.appendChild(el('p', 'panel-note', ledgerInvariantHolds(p)
       ? 'Livre de comptes : Σ(entrées − sorties) = solde ✓'
       : '⚠ Livre de comptes déséquilibré !'));
     const ledger = el('div', 'journal-list');
@@ -613,23 +674,23 @@ export function startGame(root: HTMLElement): void {
         `${dateOf(e.day).label} — ${e.label} : ${e.amount > 0 ? '+' : ''}${e.amount.toFixed(2)} €`));
       ledger.appendChild(art);
     }
-    body.appendChild(ledger);
+    container.appendChild(ledger);
 
     // Répartition
-    body.appendChild(el('h3', 'panel-sub', 'Répartition (fin de semaine)'));
+    container.appendChild(el('h3', 'panel-sub', 'Répartition (fin de semaine)'));
     const modeRow = el('div', 'reply-row');
     for (const mode of Object.keys(REPARTITION_MODE_LABELS) as RepartitionMode[]) {
       const btn = el('button', 'btn btn-topic', REPARTITION_MODE_LABELS[mode]);
       if (p.lastRepartition === mode) btn.classList.add('selected');
       btn.addEventListener('click', () => {
         const r = setRepartitionMode(world, mode);
-        if (r.ok) openProjet();
+        if (r.ok) renderStandContent(container);
         else btn.textContent = r.message;
       });
       modeRow.appendChild(btn);
     }
-    body.appendChild(modeRow);
-    body.appendChild(el('p', 'panel-note',
+    container.appendChild(modeRow);
+    container.appendChild(el('p', 'panel-note',
       'Égalité : pareil pour tous · Équité : selon le travail fourni · Incitation : prime au plus gros travailleur.'));
     const repartBtn = el('button', 'btn btn-action', 'Répartir les gains de la semaine maintenant');
     repartBtn.addEventListener('click', () => {
@@ -638,9 +699,128 @@ export function startGame(root: HTMLElement): void {
         ? `${r.message} — ${r.shares.map((s) => `${s.label} ${s.amount.toFixed(2)} €`).join(' · ')}`
         : r.message;
     });
-    body.appendChild(repartBtn);
+    container.appendChild(repartBtn);
+  }
 
-    showModal('Le Stand des Roses', 'stock · prix · équipe · comptes · répartition', body, true);
+  function renderAtelierContent(container: HTMLElement): void {
+    container.replaceChildren();
+    const ws = world.workshop;
+
+    if (!ws || !ws.active) {
+      container.appendChild(el('p', 'panel-desc', 'Pas encore d’Atelier de Réparation. À la Friche, avec Karim, vous pouvez réparer des vélos, de l’électronique et redonner vie aux objets !'));
+      const btn = el('button', 'btn btn-action', 'Lancer l’Atelier de Réparation de la Friche');
+      btn.addEventListener('click', () => {
+        const r = createWorkshop(world);
+        btn.textContent = r.message;
+        btn.disabled = !r.ok;
+        if (r.ok) renderAtelierContent(container);
+      });
+      container.appendChild(btn);
+      return;
+    }
+
+    // Stocks (Pièces & Récupation)
+    container.appendChild(el('h3', 'panel-sub', 'Stocks & Approvisionnements'));
+    container.appendChild(statRow('Pièces neuves', `${ws.partsStock} unités`));
+    container.appendChild(statRow('Matériaux de récup’', `${ws.salvageStock} unités`));
+
+    const stockBtnsRow = el('div', 'reply-row');
+    const buyPartsBtn = el('button', 'btn btn-action', `Acheter pièces (${WORKSHOP_CONFIG.partsCost} € pour 10 u.)`);
+    buyPartsBtn.addEventListener('click', () => {
+      const r = buyWorkshopParts(world);
+      buyPartsBtn.textContent = r.message;
+      if (r.ok) setTimeout(() => renderAtelierContent(container), 800);
+    });
+
+    const collectBtn = el('button', 'btn btn-action', 'Collecter récup’ à la Friche (20 min)');
+    collectBtn.addEventListener('click', () => {
+      const r = collectSalvage(world);
+      collectBtn.textContent = r.message;
+      if (r.ok) setTimeout(() => renderAtelierContent(container), 800);
+    });
+
+    stockBtnsRow.appendChild(buyPartsBtn);
+    stockBtnsRow.appendChild(collectBtn);
+    container.appendChild(stockBtnsRow);
+
+    // Équipe
+    container.appendChild(el('h3', 'panel-sub', 'Équipe'));
+    for (const id of ws.members) {
+      const npcDef = NPC_BY_ID[id];
+      if (!npcDef) continue;
+      const chip = el('div', 'rel-row');
+      const head = el('div', 'rel-head');
+      head.style.borderLeftColor = npcDef.color;
+      head.appendChild(el('span', 'rel-name', npcDef.name));
+      head.appendChild(el('span', 'rel-role', `sessions de travail : ${ws.work[id] ?? 0}`));
+      chip.appendChild(head);
+      container.appendChild(chip);
+    }
+
+    for (const id of WORKSHOP_CONFIG.recruitables) {
+      if (ws.members.includes(id)) continue;
+      const npcDef = NPC_BY_ID[id];
+      if (!npcDef) continue;
+      const level = world.player.skills[WORKSHOP_CONFIG.recruitSkill]?.level ?? 0;
+      const unlocked = level >= WORKSHOP_CONFIG.recruitMinLevel;
+      const btn = el('button', 'btn btn-action', unlocked
+        ? `Recruter ${npcDef.name}`
+        : `Recruter ${npcDef.name} (verrouillé — ${SKILLS_LABELS[WORKSHOP_CONFIG.recruitSkill]} niv. ${WORKSHOP_CONFIG.recruitMinLevel})`);
+      btn.disabled = !unlocked;
+      btn.addEventListener('click', () => {
+        const r = recruitWorkshopMember(world, id);
+        btn.textContent = r.message;
+        if (r.ok) setTimeout(() => renderAtelierContent(container), 800);
+      });
+      container.appendChild(btn);
+    }
+
+    // Carnet de Commandes
+    container.appendChild(el('h3', 'panel-sub', 'Carnet de Commandes'));
+    if (ws.orders.length === 0) container.appendChild(el('p', 'panel-note', 'Aucune commande en attente.'));
+
+    for (const order of ws.orders) {
+      const art = el('article', 'journal-entry');
+      const statusLabel = order.status === 'completed'
+        ? '✓ Livrée'
+        : order.status === 'failed'
+          ? '❌ Expirée'
+          : order.status === 'in_progress'
+            ? '⚙ En cours'
+            : '⏳ En attente';
+
+      art.appendChild(el('h4', 'journal-title', `${order.itemLabel} (${order.clientName}) — ${statusLabel}`));
+      art.appendChild(el('p', 'panel-desc',
+        `Requis : ${order.partsNeeded} pièce(s), ${order.salvageNeeded} récup' · Travail : ${order.workDone}/${order.workNeeded} sessions · Récompense : ${order.reward.toFixed(2)} €`));
+
+      if (order.status === 'pending' || order.status === 'in_progress') {
+        const btn = el('button', 'btn btn-action', `Réparer / Travailler (20 min — req. ${SKILLS_LABELS.technique} niv. ${order.minTechnique})`);
+        btn.addEventListener('click', () => {
+          const r = workOnOrder(world, order.id);
+          btn.textContent = r.message;
+          if (r.ok) setTimeout(() => renderAtelierContent(container), 800);
+        });
+        art.appendChild(btn);
+      }
+      container.appendChild(art);
+    }
+
+    // Comptes & Livre de Comptes
+    container.appendChild(el('h3', 'panel-sub', 'Comptes de l’Atelier'));
+    container.appendChild(statRow('Trésorerie Atelier', `${ws.balance.toFixed(2)} €`));
+    container.appendChild(statRow('Commandes livrées au total', `${ws.completedOrdersCount}`));
+    container.appendChild(el('p', 'panel-note', ledgerInvariantHoldsWorkshop(ws)
+      ? 'Livre de comptes Atelier : Σ(entrées − sorties) = solde ✓'
+      : '⚠ Livre de comptes Atelier déséquilibré !'));
+
+    const ledger = el('div', 'journal-list');
+    for (const e of [...ws.ledger].reverse().slice(0, 8)) {
+      const art = el('article', 'journal-entry');
+      art.appendChild(el('p', 'panel-desc',
+        `${dateOf(e.day).label} — ${e.label} : ${e.amount > 0 ? '+' : ''}${e.amount.toFixed(2)} €`));
+      ledger.appendChild(art);
+    }
+    container.appendChild(ledger);
   }
 
   // ---------- M4 : Le Conseil ----------

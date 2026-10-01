@@ -11,6 +11,7 @@ import { districtDay } from './district';
 import { councilDay, councilTick } from './council';
 import { lifeTick } from './life';
 import { projectDay, projectWeek } from './project';
+import { workshopDay, workshopWeek } from './workshop';
 import { rivalDay } from './rival';
 import { campaignTick } from './campaign';
 import { notify } from './events';
@@ -45,6 +46,7 @@ export function tickWorld(w: WorldState): TickOutput {
     districtDay(w);
     out.push(...councilDay(w));
     projectDay(w);
+    out.push(...workshopDay(w));
     out.push(...campaignTick(w));
 
     // Hebdomadaire : argent de poche + répartition des gains du stand (M5)
@@ -52,6 +54,7 @@ export function tickWorld(w: WorldState): TickOutput {
       w.player.money += 5;
       out.push(notify('info', 'Argent de poche de la semaine : +5 €.'));
       out.push(...projectWeek(w));
+      out.push(...workshopWeek(w));
     }
 
     // Cadence figée (contrat M0) : auto-sauvegarde en fin de journée de jeu.

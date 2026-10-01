@@ -36,18 +36,18 @@ describe('sauvegarde — aller-retour export/import', () => {
   it('l\'export est du JSON versionné sans perte après re-export', () => {
     const w = mondeVecu();
     const json = exportSave(w);
-    expect(JSON.parse(json)).toMatchObject({ version: 5, seed: 42 });
+    expect(JSON.parse(json)).toMatchObject({ version: 6, seed: 42 });
     expect(exportSave(importSave(json))).toBe(json); // clé pour clé, ordre compris
   });
 });
 
-describe('sauvegarde — migration v0 → v5 (météo, Conseil, affinités, rivaux)', () => {
-  it('une sauvegarde v0 sans météo migre jusqu’à v5 avec la météo par défaut « soleil »', () => {
+describe('sauvegarde — migration v0 → v6 (météo, Conseil, affinités, rivaux, atelier)', () => {
+  it('une sauvegarde v0 sans météo migre jusqu’à v6 avec la météo par défaut « soleil »', () => {
     const raw = JSON.parse(exportSave(mondeVecu())) as SauvegardeBrute;
     raw.version = 0;
     delete raw.district.meteo;
     const migre = migrateSave(raw);
-    expect(migre.version).toBe(5);
+    expect(migre.version).toBe(6);
     expect(migre.district.meteo).toBe('soleil');
     expect(migre.council.affinities).toEqual({});
     expect(migre.rivals.drive_hyper).toBeDefined();
@@ -58,7 +58,7 @@ describe('sauvegarde — migration v0 → v5 (météo, Conseil, affinités, riva
     raw.version = 0;
     raw.district.meteo = 'pluie';
     const migre = migrateSave(raw);
-    expect(migre.version).toBe(5);
+    expect(migre.version).toBe(6);
     expect(migre.district.meteo).toBe('pluie');
   });
 
@@ -70,12 +70,12 @@ describe('sauvegarde — migration v0 → v5 (météo, Conseil, affinités, riva
     delete raw.district;
     const migre = migrateSave(raw) as unknown as typeof raw & { district: { meteo: string } };
     expect(migre.district.meteo).toBe('soleil');
-    expect(migre.version).toBe(5);
+    expect(migre.version).toBe(6);
   });
 
   it('une sauvegarde plus récente que le moteur est rejetée (jamais d\'état corrompu)', () => {
     const raw = JSON.parse(exportSave(mondeVecu())) as SauvegardeBrute;
-    raw.version = 6;
+    raw.version = 7;
     expect(() => migrateSave(raw)).toThrow(/trop récente/);
   });
 
@@ -97,7 +97,7 @@ describe('sauvegarde — migration v1 → v2 (champs du Conseil ajoutés en M4)'
       delete smith['fiabilite'];
     }
     const migre = migrateSave(raw);
-    expect(migre.version).toBe(5);
+    expect(migre.version).toBe(6);
     const g = migre.council.ghosts['smith'];
     expect(g?.arrivalPending).toBe(false);
     expect(g?.loyaltyZeroDays).toBe(0);
@@ -106,7 +106,7 @@ describe('sauvegarde — migration v1 → v2 (champs du Conseil ajoutés en M4)'
   });
 });
 
-describe('sauvegarde — migration v2 → v5 (M6 : affinités, fusion, contrat)', () => {
+describe('sauvegarde — migration v2 → v6 (M6 : affinités, fusion, contrat)', () => {
   it('une sauvegarde v2 sans affinités migre avec la progression de fusion structurée', () => {
     const raw = JSON.parse(exportSave(mondeVecu())) as SauvegardeBrute;
     raw.version = 2;
@@ -114,21 +114,21 @@ describe('sauvegarde — migration v2 → v5 (M6 : affinités, fusion, contrat)'
     raw.council = raw.council ?? {};
     raw.council.fusionProgress = { 'smith+ostrom': 0 }; // forme v2 : compteur nu
     const migre = migrateSave(raw);
-    expect(migre.version).toBe(5);
+    expect(migre.version).toBe(6);
     expect(migre.council.affinities).toEqual({});
     expect(migre.council.fusionProgress['smith+ostrom']).toEqual({ marches: 0, communs: 0 });
     expect(migre.council.contratSecurite).toBeNull();
   });
 });
 
-describe('sauvegarde — migration v3 → v5 (concurrence & campagne narrative)', () => {
+describe('sauvegarde — migration v3 → v6 (concurrence & campagne narrative)', () => {
   it('une sauvegarde v3 sans rivaux ni campagne migre avec les structures initiales', () => {
     const raw = JSON.parse(exportSave(mondeVecu())) as SauvegardeBrute & { rivals?: unknown; campaign?: unknown };
     raw.version = 3;
     delete raw.rivals;
     delete raw.campaign;
     const migre = migrateSave(raw);
-    expect(migre.version).toBe(5);
+    expect(migre.version).toBe(6);
     expect(migre.rivals.drive_hyper.marketShare).toBe(65);
     expect(migre.campaign.currentChapter).toBe(1);
     expect(migre.campaign.stages.length).toBeGreaterThanOrEqual(5);
@@ -147,10 +147,20 @@ describe('sauvegarde — migration v4 → v5 (échéances de contre-stratégies)
     const today = Math.floor(raw.time.tick / 144);
 
     const migre = migrateSave(raw);
-    expect(migre.version).toBe(5);
+    expect(migre.version).toBe(6);
     expect(migre.rivals.drive_hyper.activeCounterActions).toEqual([
       { strategyId: 'circuit_court', expiresDay: today + 5 },
       { strategyId: 'degustation', expiresDay: today + 3 },
     ]);
+  });
+});
+
+describe('sauvegarde — migration v5 → v6 (Atelier de Réparation de la Friche)', () => {
+  it('une sauvegarde v5 sans atelier migre vers v6 avec s.workshop = undefined', () => {
+    const raw = JSON.parse(exportSave(mondeVecu())) as SauvegardeBrute;
+    raw.version = 5;
+    const migre = migrateSave(raw);
+    expect(migre.version).toBe(6);
+    expect(migre.workshop).toBeUndefined();
   });
 });
