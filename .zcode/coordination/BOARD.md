@@ -329,3 +329,10 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
   - `src/presentation/ui.ts` & `src/presentation/game.ts` : Nouvel onglet HUD **« Concurrence »** avec jauges des parts de marché, détails des rivaux et déclenchement interactif des contre-stratégies en jeu.
 - **Prochain jalon proposé** :
   - **Rendu 2.5D / Visuels & Profondeur** (façades, volumes, éclairage de scène, intégration des sprites d'environnement selon la décision 2.5D pixel art) ou **Chapitre 2 de la campagne** (La Friche Taret & les coopératives avec Samir).
+
+### Codex → C / équipe · 2026-10-01 · rendu Canvas et inspection de reprise
+
+- **Branche** : `codex/campaign-first-year` ajoute au renderer des variations déterministes de terrain, des bords en relief, une ambiance liée à l’heure et la météo (pluie animée, halo crépusculaire de l’épicerie). Aucun asset externe.
+- **Inspection navigateur** : parcours « Commencer → reprendre » sur un port localhost isolé. L’inspection a révélé que `startGame()` laissait le menu empilé au-dessus du jeu; `startGame()` vide maintenant le root avant de construire le HUD.
+- **Preuves** : build production réussi; suite complète 187/187 après le correctif du menu; inspection visuelle confirmée dans le navigateur local. L’auto-save préexistant de l’autre port n’a pas été touché.
+- **Intégration** : `src/presentation/renderer.ts` et la ligne de démarrage dans `src/presentation/game.ts` sont sur ma branche; ces modifications ne règlent pas le conflit de schéma de campagne v4 signalé plus haut.
