@@ -250,16 +250,21 @@ export function runSalesSession(w: WorldState, place: string): SessionResult {
   bump(w, 'ventes');
   bump(w, 'echanges'); // une revente = un échange vécu (déclencheurs du Conseil)
   bump(w, 'sessionsReussies'); // 3 sessions réussies : déclencheur Ohno (§6)
+  const chapter2CollectiveSale = w.campaign.currentChapter === 2
+    && (w.flags['chapitre2ConversationCoopSamir'] ?? 0) > 0
+    && p.rules.collectif;
+  if (chapter2CollectiveSale) bump(w, 'chapitre2VentesCollectives');
   addXp(w, 'comptabilite', 1);
   pushEvent(w, {
     type: 'vie',
     title: `Vente au stand — ${sold} unités`,
-    text: `${sold} clients s’arrêtent en une heure : ${revenue.toFixed(2)} € dans la caisse. Réputation +2.`,
+    text: `${sold} clients s’arrêtent en une heure : ${revenue.toFixed(2)} € dans la caisse. Réputation +2.${chapter2CollectiveSale ? ' L’équipe a tenu cette vente avec les règles décidées ensemble.' : ''}`,
     causes: [
       { facteur: 'prix de vente', seuil: `${p.price.toFixed(2)} €`, poids: 2 },
       { facteur: 'réputation dans le quartier', seuil: `${w.player.reputation - 2}/100`, poids: 1 },
       { facteur: 'météo', seuil: w.district.meteo, poids: 1 },
       ...(rival ? [{ facteur: `part de marché face à ${rival.name}`, seuil: `${playerShare}%`, poids: 2 }] : []),
+      ...(chapter2CollectiveSale ? [{ facteur: 'règles collectives adoptées et conversation avec Samir', poids: 2 }] : []),
     ],
   });
 

@@ -19,7 +19,7 @@ export const INITIAL_CAMPAIGN_STAGES: CampaignStage[] = [
     chapter: 2,
     title: 'L’Appel de la Friche Taret (13 ans)',
     targetAge: 13,
-    objective: 'Entrer en contact avec Samir, découvrir la coopérative et contrer l’expansion agressive du Drive.',
+    objective: 'À 13 ans, retrouver Samir à la Friche, écrire des règles avec l’équipe puis réussir une vente collective.',
     completed: false,
   },
   {

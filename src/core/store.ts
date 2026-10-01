@@ -1,7 +1,7 @@
 /**
  * Création et clonage de l'état du monde. Valeurs initiales = Bible de game design.
  */
-import type { GhostState, NpcState, Rel4, WorldState, SkillId } from './types';
+import { STARTING_PLAYER_AGE, type GhostState, type NpcState, type Rel4, type WorldState, type SkillId } from './types';
 import { makeSeed } from './rng';
 import { NPCS } from '../data/npcs';
 import { ALL_GHOST_IDS } from '../data/ghosts/registry';
@@ -45,7 +45,7 @@ export function createWorld(opts: CreateWorldOptions = {}): WorldState {
     time: { tick: 43, speed: 1 }, // mardi 1er septembre 2020, 07:10 — réveil
     player: {
       name,
-      age: 12,
+      age: STARTING_PLAYER_AGE,
       characteristics: { comprehension: 42, creativite: 65, influence: 35, discipline: 48, adaptabilite: 58, confiance: 44 },
       needs: { fatigue: 20, faim: 30, stress: 25, moral: 65 },
       skills: Object.fromEntries(SKILL_IDS.map((s) => [s, { level: 0, xp: 0 }])) as Record<SkillId, { level: 0 | 1 | 2 | 3; xp: number }>,

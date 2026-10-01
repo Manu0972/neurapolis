@@ -350,3 +350,20 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **Observation** : des modifications locales sont présentes dans `src/main.ts`, `src/presentation/game.ts`, `src/presentation/style.css`, `src/saves/persist.ts`, ainsi que le nouveau `src/presentation/start-screen.ts`. Elles ajoutent un accueil Continuer/Nouvelle partie; la signature `startGame(root, savedWorld)` est maintenant raccordée dans le diff de travail.
 - **État de vérification observé** : sur l’arbre complet actuel (y compris ces fichiers), `npm run test` passe à 192/192 et `npm run build` réussit. Elles ne sont pas dans le commit Codex `21b8205`, n’ont pas été modifiées ni stagées par B, et restent hors de la publication distante tant qu’elles ne sont pas commitées.
 - **Handoff demandé** : au propriétaire de ce travail de s’identifier ici, confirmer les chemins, les tests/build déjà faits et libérer le périmètre. En attendant, ne pas utiliser `git add .` ni assigner à Jules une tâche qui écrit dans `main.ts`, `presentation/game.ts`, `presentation/style.css`, `saves/persist.ts` ou `presentation/start-screen.ts`.
+
+### B — Codex · 2026-10-01 · progression jouable du chapitre 2 · `en cours`
+
+- **Périmètre réservé** : `src/core/types.ts`, `src/data/campaign.ts`, `src/simulation/campaign.ts`, `src/simulation/dialogue.ts`, `src/simulation/project.ts`, `tests/campaign.test.ts`. Les chemins du démarrage/reprise (`src/main.ts`, `src/presentation/game.ts`, `src/presentation/style.css`, `src/saves/persist.ts`, `src/presentation/start-screen.ts`) restent hors de ma réservation.
+- **Jalon visé** : le joueur doit rencontrer Samir à la Friche après le chapitre 1, adopter les règles collectives existantes, réussir une session de vente pendant que le stand fonctionne collectivement, puis terminer le chapitre 2 et débloquer le chapitre 3. Les objectifs doivent compter des actions faites pendant ce chapitre, et non les anciens compteurs globaux.
+- **Âge** : `Player.age` est déjà stocké mais ne bouge pas. La progression prévue suit une date d’anniversaire déterministe alignée sur la date de départ du jeu (1er septembre 2020) ; les objectifs d’âge doivent être cohérents avec cette règle.
+- **Vérification** : tests nominatifs sur anniversaire, accès au déclencheur Samir, prérequis de coop, vente réelle et progression unique de chapitre. Aucune modification d’UI web dans cette tranche.
+
+### B — Codex · 2026-10-01 · chapitre 2 jouable et progression d’âge · `livré`
+
+- **Fichiers de jeu** : `src/core/types.ts`, `src/core/store.ts`, `src/data/campaign.ts`, `src/simulation/campaign.ts`, `src/simulation/dialogue.ts`, `src/simulation/project.ts`, `tests/campaign.test.ts`, `docs/DECISIONS.md`.
+- **Résultat** : l’âge augmente à chaque 1er septembre à partir de 12 ans au 1er septembre 2020; événement et entrée au journal à l’anniversaire. Après le chapitre 1, le chapitre 2 exige au moins 13 ans, une conversation sur la coopérative avec Samir, des règles partagées au stand et une vente réellement réussie sous ces règles. Cette vente est traçable dans ses causes; le chapitre 2 se valide une fois et ouvre le 3.
+- **Sauvegardes** : aucune propriété nouvelle; réutilisation des flags et de `Player.age`, déjà sérialisés en v5. Pas de migration supplémentaire.
+- **Vérification réelle** : `npm run test` — 13 fichiers, 196 tests passés; `npm run build` — TypeScript + Vite réussis; `git diff --check` propre.
+- **Décision** : anniversaire du 1er septembre consigné par le rôle Documentaliste dans `docs/DECISIONS.md`.
+- **Réservation** : tous les chemins ci-dessus sont libérés par B après commit. Limite connue : chapitres 3–5 n’ont toujours pas leurs objectifs/progressions jouables; le chapitre 3 vient seulement d’être déverrouillé.
+- **Propriétaire suivant proposé** : Jules sur une branche dédiée pour le chapitre 3 ou l’intégration/polish de l’accueil après handoff du propriétaire des changements locaux actuels. Ne pas écrire dans les cinq chemins d’accueil listés ci-dessus avant ce handoff.

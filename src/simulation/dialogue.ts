@@ -23,6 +23,9 @@ export function npcLine(w: WorldState, npcId: NpcId, topic: string): string | nu
   if (!lines || lines.length === 0) return null;
   const line = rngPick(w, lines);
   if (npcId === 'bertin') bump(w, 'marchandages'); // parler prix et rareté avec l'épicière
+  if (npcId === 'samir' && topic === 'coop' && w.campaign.currentChapter === 2) {
+    bump(w, 'chapitre2ConversationCoopSamir');
+  }
   return line;
 }
 

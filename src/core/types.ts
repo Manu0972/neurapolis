@@ -19,6 +19,7 @@ export interface TimeState { tick: number; speed: Speed }
 export const MINUTES_PER_TICK = 10;
 export const TICKS_PER_DAY = 144; // 24h × 6 ticks/h
 export const GAME_START_ISO = '2020-09-01'; // mardi 1er septembre 2020, rentrée
+export const STARTING_PLAYER_AGE = 12;
 
 export interface GameDate { y: number; m: number; d: number; weekday: number; iso: string; label: string }
 

@@ -3,16 +3,38 @@
  * Gère l'évolution de Camille, les jalons de vie, les choix à retardement
  * et la conclusion narrative de NEURAPOLIS.
  */
-import type { Notification, WorldState } from '../core/types';
+import { STARTING_PLAYER_AGE, type Notification, type WorldState } from '../core/types';
 import { dateOf, dayIndexOf } from '../core/clock';
 import { notify, pushEvent } from './events';
 
 const clamp = (v: number, min = 0, max = 100): number => Math.max(min, Math.min(max, v));
 
+/** Âge calendaire : l'anniversaire est le 1er septembre, jour de départ du jeu. */
+function ageForDay(day: number): number {
+  const start = dateOf(0);
+  const current = dateOf(day);
+  const beforeBirthday = current.m < start.m || (current.m === start.m && current.d < start.d);
+  return STARTING_PLAYER_AGE + Math.max(0, current.y - start.y - (beforeBirthday ? 1 : 0));
+}
+
 /** Vérifie et fait progresser les chapitres de la campagne. */
 export function campaignTick(w: WorldState): Notification[] {
   const out: Notification[] = [];
   const day = dayIndexOf(w.time.tick);
+  const age = ageForDay(day);
+  if (age > w.player.age) {
+    w.player.age = age;
+    const date = dateOf(day);
+    const title = `${w.player.name} fête ses ${age} ans`;
+    pushEvent(w, {
+      type: 'vie',
+      title,
+      text: `Le 1er septembre, une nouvelle année commence pour toi. Tu as maintenant ${age} ans.`,
+      causes: [{ facteur: 'anniversaire calendaire', seuil: date.iso, poids: 3 }],
+    });
+    w.lifeJournal.push({ day, date: date.iso, title, text: `Une année de plus à grandir dans le quartier. J’ai ${age} ans.` });
+    out.push(notify('journal', title));
+  }
   const currentChapter = w.campaign.currentChapter;
 
   // Traitement des conséquences différées (choix passés avec retombées ultérieures)
@@ -76,6 +98,37 @@ export function campaignTick(w: WorldState): Notification[] {
 
         out.push(notify('bien', 'Chapitre 1 complété ! Chapitre 2 débloqué : La Friche Taret.'));
       }
+    }
+  }
+
+  if (currentChapter === 2) {
+    const stage = w.campaign.stages.find((s) => s.chapter === 2);
+    const samirContact = (w.flags['chapitre2ConversationCoopSamir'] ?? 0) > 0;
+    const sharedRules = w.project?.rules.collectif ?? false;
+    const collectiveSale = (w.flags['chapitre2VentesCollectives'] ?? 0) > 0;
+    if (stage && !stage.completed && w.player.age >= stage.targetAge && samirContact && sharedRules && collectiveSale) {
+      stage.completed = true;
+      if (!w.campaign.completedChapters.includes(2)) w.campaign.completedChapters.push(2);
+      w.campaign.currentChapter = 3;
+
+      pushEvent(w, {
+        type: 'vie',
+        title: 'Chapitre 2 accompli : La Friche Taret ouvre ses portes',
+        text: 'À la Friche, Samir ne t’a pas offert une solution toute faite. Avec l’équipe, tu as écrit des règles, puis vous les avez mises à l’épreuve d’une vraie vente.',
+        causes: [
+          { facteur: 'âge du joueur', seuil: `${w.player.age} ans`, poids: 1 },
+          { facteur: 'conversation avec Samir sur la coopérative', poids: 2 },
+          { facteur: 'règles collectives du Stand adoptées', poids: 2 },
+          { facteur: 'vente réussie sous règles collectives', seuil: String(w.flags['chapitre2VentesCollectives']), poids: 3 },
+        ],
+      });
+      w.lifeJournal.push({
+        day,
+        date: dateOf(day).iso,
+        title: 'Les règles tiennent au marché',
+        text: 'On a décidé ensemble comment faire tourner le stand, puis on l’a essayé pour de vrai. Samir nous a proposé de revenir à la Friche.',
+      });
+      out.push(notify('bien', 'Chapitre 2 complété ! Chapitre 3 débloqué : Le Réseau Solidaire.'));
     }
   }
 
