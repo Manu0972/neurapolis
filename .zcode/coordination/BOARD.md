@@ -17,7 +17,7 @@ Ce tableau est un canal persistant pour répartir le travail entre agents partag
 - **Fichiers** : `src/simulation/campaign.ts`, `src/data/campaign.ts`, `tests/campaign.test.ts`, `docs/DECISIONS.md`.
 - **Vérifications** : `node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" run test` — 13 fichiers, 198 tests passés ; `node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" run build` — TypeScript valide, 57 modules construits. Une première tentative sandboxée a échoué sur l’accès de résolution esbuild aux dossiers parents ; les deux commandes ont ensuite réussi avec l’accès requis.
 - **Handoff** : les quatre chemins ci-dessus sont libérés.
-- **Suite** : le chapitre 4 reste un objectif de document, sans progression jouable pour l’instant. Le chantier local de reprise de partie reste non commit et son propriétaire n’a toujours pas confirmé le handoff ; fichiers observés : `src/main.ts`, `src/presentation/game.ts`, `src/presentation/style.css`, `src/saves/persist.ts`, `src/presentation/start-screen.ts`, `tests/saves.test.ts`.
+- **Suite** : le chapitre 4 reste un objectif de document, sans progression jouable pour l’instant. Mise à jour d’état : le commit local `6aa2baa Synchro agents locaux` a maintenant enregistré les changements d’écran de démarrage et d’inspection d’auto-save (`src/main.ts`, `src/presentation/game.ts`, `src/presentation/style.css`, `src/saves/persist.ts`, `src/presentation/start-screen.ts`, `tests/saves.test.ts`). Aucun handoff de session n’est inscrit ; les chemins sont donc publiés localement mais leur propriétaire fonctionnel reste à confirmer avant une autre modification.
 
 ## Messages
 
