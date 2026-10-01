@@ -18,6 +18,7 @@ import {
   makeEcoChoice, optimizeStand, recruitMember, repartition, runCourse, runSalesSession,
   sellCustomerData, setPrice, setRepartitionMode, weeklyResult,
 } from '../simulation/project';
+import { chooseReseauStrategy } from '../simulation/campaign';
 import {
   councilAnswerAdvice, councilArrivalChoose, councilColumns, councilPendingArrivals,
   councilSleep, councilWake, ghostSignature,
@@ -159,11 +160,15 @@ export function startGame(root: HTMLElement): void {
     body.appendChild(lineBox);
 
     const topicRow = el('div', 'topic-row');
-    for (const topic of dialogueTopics(id)) {
-      const btn = el('button', 'btn btn-topic', topic);
+    for (const topic of dialogueTopics(id, world)) {
+      const btn = el('button', 'btn btn-topic', topic === 'reseau' ? '✦ Réseau Solidaire' : topic);
       btn.addEventListener('click', () => {
         lineBox.textContent = npcLine(world, id, topic) ?? '…';
-        showReplies();
+        if (id === 'bertin' && topic === 'reseau' && world.campaign.currentChapter === 3) {
+          showReseauChoices();
+        } else {
+          showReplies();
+        }
       });
       topicRow.appendChild(btn);
     }
@@ -172,6 +177,44 @@ export function startGame(root: HTMLElement): void {
 
     const replyRow = el('div', 'reply-row');
     body.appendChild(replyRow);
+
+    function showReseauChoices(): void {
+      replyRow.replaceChildren();
+      const codeChoice = world.flags['chapitre3ChoixReseau'] ?? 0;
+      if (codeChoice > 0) {
+        const str = codeChoice === 1 ? 'COMMERCIAL' : codeChoice === 2 ? 'SOLIDAIRE' : 'COMBAT';
+        lineBox.textContent = `Stratégie choisie : ${str}. L’alliance du Réseau Solidaire est en cours.`;
+        const bye = el('button', 'btn', 'Fermer');
+        bye.addEventListener('click', closeModal);
+        replyRow.appendChild(bye);
+        return;
+      }
+
+      const btn1 = el('button', 'btn btn-action', '1. Commercial : Garantir les marges (+25 € immédiats, cash Stand +15 €)');
+      btn1.addEventListener('click', () => {
+        const res = chooseReseauStrategy(world, 'commercial');
+        lineBox.textContent = res.message;
+        showReseauChoices();
+      });
+
+      const btn2 = el('button', 'btn btn-action', '2. Solidaire : Mutualiser les livraisons (+15 Confiance quartier, amitié Bertin +15)');
+      btn2.addEventListener('click', () => {
+        const res = chooseReseauStrategy(world, 'solidaire');
+        lineBox.textContent = res.message;
+        showReseauChoices();
+      });
+
+      const btn3 = el('button', 'btn btn-action', '3. Combat : Pacte offensive Anti-Drive (Réputation +5, freine l’agressivité du Drive)');
+      btn3.addEventListener('click', () => {
+        const res = chooseReseauStrategy(world, 'combat');
+        lineBox.textContent = res.message;
+        showReseauChoices();
+      });
+
+      replyRow.appendChild(btn1);
+      replyRow.appendChild(btn2);
+      replyRow.appendChild(btn3);
+    }
 
     function showReplies(): void {
       replyRow.replaceChildren();
@@ -377,6 +420,23 @@ export function startGame(root: HTMLElement): void {
       const cBox = el('div', 'ghost-detail');
       cBox.appendChild(el('h4', 'journal-title', `✦ ${stage.title} (âge : ${stage.targetAge} ans)`));
       cBox.appendChild(el('p', 'panel-desc', stage.objective));
+
+      if (world.campaign.currentChapter === 3) {
+        const coursesDone = Math.max(0, (world.flags['courses'] ?? 0) - (world.flags['chapitre3CoursesDepart'] ?? 0));
+        const stratsDone = Math.max(0, (world.flags['contreStrategiesLancees'] ?? 0) - (world.flags['chapitre3ContreStrategiesDepart'] ?? 0));
+        const codeChoice = world.flags['chapitre3ChoixReseau'] ?? 0;
+        const choice = codeChoice === 1 ? 'COMMERCIAL' : codeChoice === 2 ? 'SOLIDAIRE' : codeChoice === 3 ? 'COMBAT' : 'Non tranché (Parler à Mme Bertin)';
+
+        const progBox = el('div', 'stat-row');
+        progBox.appendChild(el('p', 'panel-note',
+          `• Âge : ${world.player.age}/14 ans ${world.player.age >= 14 ? '✓' : ''}\n` +
+          `• Choix Réseau Solidaire : ${choice}\n` +
+          `• Livraisons à l’épicerie : ${Math.min(5, coursesDone)}/5 ${coursesDone >= 5 ? '✓' : ''}\n` +
+          `• Contre-offensive de marché : ${Math.min(1, stratsDone)}/1 ${stratsDone >= 1 ? '✓' : ''}`
+        ));
+        cBox.appendChild(progBox);
+      }
+
       body.appendChild(cBox);
     }
 

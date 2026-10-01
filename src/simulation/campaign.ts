@@ -138,21 +138,26 @@ export function campaignTick(w: WorldState): Notification[] {
 
   if (currentChapter === 3) {
     const stage = w.campaign.stages.find((s) => s.chapter === 3);
+    const codeChoice = w.flags['chapitre3ChoixReseau'] ?? 0;
+    const hasChosenStrategy = codeChoice > 0;
     const coursesSinceOpening = (w.flags['courses'] ?? 0) - (w.flags['chapitre3CoursesDepart'] ?? 0);
     const strategiesSinceOpening = (w.flags['contreStrategiesLancees'] ?? 0)
       - (w.flags['chapitre3ContreStrategiesDepart'] ?? 0);
     if (stage && !stage.completed && w.player.age >= stage.targetAge
-      && coursesSinceOpening >= 5 && strategiesSinceOpening >= 1) {
+      && hasChosenStrategy && coursesSinceOpening >= 5 && strategiesSinceOpening >= 1) {
       stage.completed = true;
       if (!w.campaign.completedChapters.includes(3)) w.campaign.completedChapters.push(3);
       w.campaign.currentChapter = 4;
 
+      const choiceLabel = codeChoice === 1 ? 'Commercial' : codeChoice === 2 ? 'Solidaire' : 'Combat';
+
       pushEvent(w, {
         type: 'vie',
         title: 'Chapitre 3 accompli : Le quartier fait front',
-        text: 'Cinq courses ont aidé l’épicerie à garder ses habitués. Face au Drive, vous avez aussi investi dans une nouvelle contre-offensive : l’alliance du quartier commence à peser.',
+        text: 'Cinq courses ont aidé l’épicerie à garder ses habitués. Avec votre stratégie de Réseau Solidaire et votre contre-offensive face au Drive, l’alliance du quartier est devenue incontournable.',
         causes: [
           { facteur: 'âge du joueur', seuil: `${w.player.age} ans`, poids: 1 },
+          { facteur: 'choix stratégique du Réseau Solidaire', seuil: choiceLabel, poids: 3 },
           { facteur: 'courses livrées pour l’épicerie depuis la Friche', seuil: String(coursesSinceOpening), poids: 2 },
           { facteur: 'nouvelle contre-stratégie lancée depuis la Friche', seuil: String(strategiesSinceOpening), poids: 2 },
         ],
@@ -161,13 +166,136 @@ export function campaignTick(w: WorldState): Notification[] {
         day,
         date: dateOf(day).iso,
         title: 'Le quartier fait front',
-        text: 'Les livraisons maintiennent l’épicerie dans le jeu. Notre contre-offensive a coûté de l’argent et de l’énergie, mais le Drive ne peut plus faire comme si nous n’existions pas.',
+        text: 'Les livraisons maintiennent l’épicerie dans le jeu. Notre choix stratégique et notre contre-offensive portent leurs fruits : le Drive ne peut plus ignorer notre réseau.',
       });
       out.push(notify('bien', 'Chapitre 3 complété ! Chapitre 4 débloqué : La Voix du Quartier.'));
     }
   }
 
   return out;
+}
+
+export type ReseauStrategy = 'commercial' | 'solidaire' | 'combat';
+
+/** Effectue le choix de stratégie pour le Réseau Solidaire (Chapitre 3). */
+export function chooseReseauStrategy(
+  w: WorldState,
+  strategy: ReseauStrategy
+): { ok: boolean; message: string } {
+  if (w.campaign.currentChapter !== 3) {
+    return { ok: false, message: 'Le Réseau Solidaire n’est actif qu’au chapitre 3.' };
+  }
+  if ((w.flags['chapitre3ChoixReseau'] ?? 0) > 0) {
+    return { ok: false, message: 'La stratégie du Réseau Solidaire a déjà été tranchée.' };
+  }
+
+  w.flags['chapitre3ChoixReseau'] = strategy === 'commercial' ? 1 : strategy === 'solidaire' ? 2 : 3;
+  const day = dayIndexOf(w.time.tick);
+
+  if (strategy === 'commercial') {
+    w.player.money += 25;
+    if (w.project) w.project.balance += 15;
+    w.player.reputation = clamp(w.player.reputation + 2);
+
+    addDelayedConsequence(w, {
+      delayDays: 3,
+      title: 'Partenariat commercial rentable',
+      text: 'Les marges garanties entre le Stand et l’épicerie rapportent leurs premiers revenus réguliers.',
+      impactType: 'money',
+      value: 20,
+    });
+
+    pushEvent(w, {
+      type: 'vie',
+      title: 'Réseau Solidaire : Partenariat commercial',
+      text: 'Tu as choisi de sécuriser les marges financières du Stand et de l’épicerie. L’accord apporte des liquidités immédiates (+25 €).',
+      causes: [
+        { facteur: 'accord commercial avec Mme Bertin', poids: 3 },
+        { facteur: 'priorité à la rentabilité', poids: 2 },
+      ],
+    });
+
+    w.lifeJournal.push({
+      day,
+      date: dateOf(day).iso,
+      title: 'Partenariat commercial conclu',
+      text: 'Nous avons garanti des marges stables sur les produits distribués avec Mme Bertin. Un choix prudent pour la trésorerie.',
+    });
+
+    return { ok: true, message: 'Stratégie commerciale adoptée (+25 € pour toi, +15 € en caisse du Stand) !' };
+  }
+
+  if (strategy === 'solidaire') {
+    w.district.confianceQuartier = clamp(w.district.confianceQuartier + 15);
+    const relBertin = w.player.relations['bertin'] ?? { amitie: 0, confiance: 0, respect: 0, rivalite: 0 };
+    relBertin.amitie = clamp(relBertin.amitie + 15);
+    relBertin.confiance = clamp(relBertin.confiance + 10);
+    w.player.relations['bertin'] = relBertin;
+
+    const relMonique = w.player.relations['monique'] ?? { amitie: 0, confiance: 0, respect: 0, rivalite: 0 };
+    relMonique.amitie = clamp(relMonique.amitie + 10);
+    w.player.relations['monique'] = relMonique;
+
+    addDelayedConsequence(w, {
+      delayDays: 3,
+      title: 'Confiance de quartier consolidée',
+      text: 'L’alliance de livraison mutuelle et le circuit court incitent de nombreux habitants âgés à soutenir l’épicerie.',
+      impactType: 'quartier',
+      value: 10,
+    });
+
+    pushEvent(w, {
+      type: 'vie',
+      title: 'Réseau Solidaire : Alliance solidaire de quartier',
+      text: 'Tu as privilégié la mutualisation des livraisons et la solidarité intergénérationnelle. La confiance du quartier grimpe en flèche (+15).',
+      causes: [
+        { facteur: 'mutualisation des livraisons avec Mme Bertin', poids: 3 },
+        { facteur: 'engagement de quartier', poids: 2 },
+      ],
+    });
+
+    w.lifeJournal.push({
+      day,
+      date: dateOf(day).iso,
+      title: 'Alliance solidaire nouée',
+      text: 'Mme Bertin et Monique ont salué notre engagement. Le quartier sait désormais qu’il peut compter sur le Stand et l’épicerie.',
+    });
+
+    return { ok: true, message: 'Alliance solidaire adoptée (Confiance quartier +15, amitié Mme Bertin +15) !' };
+  }
+
+  // strategy === 'combat'
+  w.player.reputation = clamp(w.player.reputation + 5);
+  if (w.rivals['drive_hyper']) {
+    w.rivals['drive_hyper'].aggressiveness = Math.max(0, w.rivals['drive_hyper'].aggressiveness - 15);
+  }
+
+  addDelayedConsequence(w, {
+    delayDays: 3,
+    title: 'Pression sur le Drive HyperVal',
+    text: 'La campagne de prix réduits combinés perturbe les marges du Drive, obligeant l’hypermarché à réduire sa pression.',
+    impactType: 'reputation',
+    value: 5,
+  });
+
+  pushEvent(w, {
+    type: 'vie',
+    title: 'Réseau Solidaire : Pacte offensive Anti-Drive',
+    text: 'Vous avez déclenché une politique agressive de prix et d’offres croisées pour freiner le Drive HyperVal.',
+    causes: [
+      { facteur: 'pacte de prix réduits croisés', poids: 3 },
+      { facteur: 'offensive de marché contre Drive HyperVal', poids: 2 },
+    ],
+  });
+
+  w.lifeJournal.push({
+    day,
+    date: dateOf(day).iso,
+    title: 'Pacte offensif lancé',
+    text: 'Nous avons lancé une offensive de prix coordinée avec l’épicerie. Le Drive HyperVal perd de sa superbe dans le quartier.',
+  });
+
+  return { ok: true, message: 'Pacte offensif Anti-Drive adopté (Réputation +5, agressivité du Drive diminuée) !' };
 }
 
 /** Programme une conséquence différée issue d'un choix du joueur. */

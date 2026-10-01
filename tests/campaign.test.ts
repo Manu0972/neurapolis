@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createWorld } from '../src/core/store';
 import { TICKS_PER_DAY } from '../src/core/types';
-import { npcLine } from '../src/simulation/dialogue';
-import { campaignTick } from '../src/simulation/campaign';
+import { dialogueTopics, npcLine } from '../src/simulation/dialogue';
+import { campaignTick, chooseReseauStrategy } from '../src/simulation/campaign';
 import { adoptSharedRules, buyStock, createProject, runCourse, runSalesSession } from '../src/simulation/project';
 import { executeCounterStrategy } from '../src/simulation/rival';
 
@@ -94,6 +94,7 @@ describe('campagne — chapitre 2 et âge du joueur', () => {
     w.player.age = 13;
     w.flags['chapitre3CoursesDepart'] = 0;
     w.flags['chapitre3ContreStrategiesDepart'] = 0;
+    w.flags['chapitre3ChoixReseau'] = 2; // Stratégie Solidaire choisie
     createProject(w);
 
     for (let i = 0; i < 5; i++) expect(runCourse(w).ok).toBe(true);
@@ -104,8 +105,107 @@ describe('campagne — chapitre 2 et âge du joueur', () => {
     expect(w.campaign.currentChapter).toBe(4);
     expect(w.campaign.completedChapters).toContain(3);
     expect(notifications.some((entry) => entry.text.includes('Chapitre 4 débloqué'))).toBe(true);
-    expect(w.events.find((event) => event.title.includes('Chapitre 3 accompli'))?.causes).toHaveLength(3);
+    expect(w.events.find((event) => event.title.includes('Chapitre 3 accompli'))?.causes).toHaveLength(4);
     campaignTick(w);
     expect(w.events.filter((event) => event.title.includes('Chapitre 3 accompli'))).toHaveLength(1);
+  });
+});
+
+describe('campagne — chapitre 3 jouable (Le Réseau Solidaire)', () => {
+  it('expose le sujet "reseau" pour Mme Bertin uniquement au chapitre 3', () => {
+    const w = createWorld();
+    w.campaign.currentChapter = 2;
+    let topics = dialogueTopics('bertin', w);
+    expect(topics).not.toContain('reseau');
+
+    w.campaign.currentChapter = 3;
+    topics = dialogueTopics('bertin', w);
+    expect(topics).toContain('reseau');
+  });
+
+  it('permet de choisir entre 3 stratégies pour le Réseau Solidaire et applique les effets', () => {
+    const wSolidaire = createWorld();
+    wSolidaire.campaign.currentChapter = 3;
+    const resSol = chooseReseauStrategy(wSolidaire, 'solidaire');
+    expect(resSol.ok).toBe(true);
+    expect(wSolidaire.flags['chapitre3ChoixReseau']).toBe(2);
+    expect(wSolidaire.district.confianceQuartier).toBe(65); // 50 départ + 15
+    expect(wSolidaire.player.relations['bertin']?.amitie).toBe(50); // 35 départ + 15
+    expect(wSolidaire.campaign.delayedConsequences).toHaveLength(1);
+
+    const wCommercial = createWorld();
+    wCommercial.campaign.currentChapter = 3;
+    createProject(wCommercial);
+    const moneyBefore = wCommercial.player.money;
+    const resCom = chooseReseauStrategy(wCommercial, 'commercial');
+    expect(resCom.ok).toBe(true);
+    expect(wCommercial.flags['chapitre3ChoixReseau']).toBe(1);
+    expect(wCommercial.player.money).toBe(moneyBefore + 25);
+    expect(wCommercial.project?.balance).toBe(15);
+
+    const wCombat = createWorld();
+    wCombat.campaign.currentChapter = 3;
+    const resCombat = chooseReseauStrategy(wCombat, 'combat');
+    expect(resCombat.ok).toBe(true);
+    expect(wCombat.flags['chapitre3ChoixReseau']).toBe(3);
+    expect(wCombat.player.reputation).toBe(50); // 45 départ + 5
+  });
+
+  it('refuse de trancher une seconde fois la stratégie du Réseau Solidaire', () => {
+    const w = createWorld();
+    w.campaign.currentChapter = 3;
+    expect(chooseReseauStrategy(w, 'solidaire').ok).toBe(true);
+    const again = chooseReseauStrategy(w, 'commercial');
+    expect(again.ok).toBe(false);
+    expect(again.message).toContain('déjà été tranchée');
+  });
+
+  it('exige la décision stratégique pour compléter le chapitre 3', () => {
+    const w = createWorld();
+    w.campaign.currentChapter = 3;
+    w.player.age = 14;
+    w.flags['chapitre3CoursesDepart'] = 0;
+    w.flags['chapitre3ContreStrategiesDepart'] = 0;
+    createProject(w);
+
+    for (let i = 0; i < 5; i++) runCourse(w);
+    executeCounterStrategy(w, 'degustation');
+
+    // Sans la décision
+    campaignTick(w);
+    expect(w.campaign.currentChapter).toBe(3);
+
+    // Avec la décision
+    chooseReseauStrategy(w, 'solidaire');
+    const notifs = campaignTick(w);
+    expect(w.campaign.currentChapter).toBe(4);
+    expect(notifs.some((n) => n.text.includes('Chapitre 4 débloqué'))).toBe(true);
+  });
+
+  it('conserve la progression et le non-doublon des événements après sauvegarde et rechargement', () => {
+    const w = createWorld();
+    w.campaign.currentChapter = 3;
+    w.player.age = 14;
+    w.flags['chapitre3CoursesDepart'] = 0;
+    w.flags['chapitre3ContreStrategiesDepart'] = 0;
+    createProject(w);
+
+    chooseReseauStrategy(w, 'solidaire');
+    for (let i = 0; i < 5; i++) runCourse(w);
+    executeCounterStrategy(w, 'degustation');
+
+    campaignTick(w);
+    expect(w.campaign.currentChapter).toBe(4);
+
+    // Simulation sauvegarde / rechargement
+    const saved = JSON.parse(JSON.stringify(w));
+    const reloaded = saved;
+
+    expect(reloaded.campaign.currentChapter).toBe(4);
+    expect(reloaded.flags['chapitre3ChoixReseau']).toBe(2);
+
+    const eventsCount = reloaded.events.length;
+    campaignTick(reloaded);
+    expect(reloaded.events.length).toBe(eventsCount);
   });
 });
