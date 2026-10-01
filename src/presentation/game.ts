@@ -26,6 +26,8 @@ import { contractChoose, exitSecurityContract, securityPending } from '../simula
 import { affinityOf, fusionConfirm } from '../simulation/fusions';
 import { allianceDesOmbres } from '../simulation/antagonists';
 import { calculateMarketShares, counterStrategyDaysRemaining, executeCounterStrategy, getAvailableCounterStrategies, isCounterStrategyActive } from '../simulation/rival';
+import { chooseFinalModel, holdUrbanCouncil } from '../simulation/campaign';
+import { ENDING_MODELS } from '../data/campaign';
 import { PLACE_BY_ID } from '../data/places';
 import { NPC_BY_ID, NPCS } from '../data/npcs';
 import { DIALOGUE_REPLIES, REL_LABELS } from '../data/dialogue';
@@ -377,6 +379,54 @@ export function startGame(root: HTMLElement): void {
       const cBox = el('div', 'ghost-detail');
       cBox.appendChild(el('h4', 'journal-title', `✦ ${stage.title} (âge : ${stage.targetAge} ans)`));
       cBox.appendChild(el('p', 'panel-desc', stage.objective));
+
+      // Action du Chapitre 4 : Assemblée du Conseil Urbain
+      if (world.campaign.currentChapter === 4 && !stage.completed) {
+        const mobBtn = el('button', 'btn btn-action', 'Organiser l’assemblée du Conseil Urbain sur la place');
+        mobBtn.addEventListener('click', () => {
+          const res = holdUrbanCouncil(world);
+          mobBtn.textContent = res.message;
+          if (res.ok) setTimeout(openConcurrence, 800);
+        });
+        cBox.appendChild(mobBtn);
+      }
+
+      // Action du Chapitre 5 : Trancher la décision de fin
+      if (world.campaign.currentChapter === 5 && !world.campaign.ending) {
+        cBox.appendChild(el('h3', 'panel-sub', 'Choisis le modèle économique durable de Val-Ferrand (16 ans)'));
+        for (const opt of ENDING_MODELS) {
+          const optBox = el('div', 'rel-row');
+          optBox.appendChild(el('span', 'rel-name', opt.title));
+          optBox.appendChild(el('p', 'panel-desc', `${opt.subtitle}. ${opt.description}`));
+          optBox.appendChild(el('p', 'panel-note', `Philosophie : ${opt.philosophy}`));
+          const chooseBtn = el('button', 'btn btn-action', `Adopter : ${opt.title}`);
+          chooseBtn.addEventListener('click', () => {
+            const res = chooseFinalModel(world, opt.id);
+            chooseBtn.textContent = res.message;
+            if (res.ok) {
+              setTimeout(() => {
+                closeModal();
+                openEndingScene();
+              }, 600);
+            }
+          });
+          optBox.appendChild(chooseBtn);
+          cBox.appendChild(optBox);
+        }
+      }
+
+      // Re-visiter la fin scellée au Chapitre 5
+      if (world.campaign.ending) {
+        cBox.appendChild(el('h3', 'panel-sub', '✦ Modèle de Val-Ferrand Scellé'));
+        cBox.appendChild(el('p', 'panel-desc', `Modèle : ${world.campaign.ending.title}`));
+        const viewEndingBtn = el('button', 'btn btn-action', 'Revoir la scène de conclusion');
+        viewEndingBtn.addEventListener('click', () => {
+          closeModal();
+          openEndingScene();
+        });
+        cBox.appendChild(viewEndingBtn);
+      }
+
       body.appendChild(cBox);
     }
 
@@ -714,6 +764,32 @@ export function startGame(root: HTMLElement): void {
     });
     body.appendChild(btn);
     showModal(`Fusion — ${def.name}`, 'Smith et Ostrom se rejoignent', body);
+  }
+
+  function openEndingScene(): void {
+    const ending = world.campaign.ending;
+    if (!ending) return;
+    const body = el('div', 'panel-body');
+
+    const titleEl = el('h3', 'panel-sub', `✦ ${ending.title}`);
+    body.appendChild(titleEl);
+
+    const summaryEl = el('p', 'panel-desc', ending.summary);
+    body.appendChild(summaryEl);
+
+    body.appendChild(el('h3', 'panel-sub', 'Ce qui a été construit'));
+    body.appendChild(el('p', 'panel-desc', ending.builtText));
+
+    body.appendChild(el('h3', 'panel-sub', 'Ce qui a été sacrifié'));
+    body.appendChild(el('p', 'panel-desc', ending.sacrificedText));
+
+    body.appendChild(el('p', 'panel-note', `Décision scellée le ${ending.date} à l’âge de 16 ans.`));
+
+    const continueBtn = el('button', 'btn btn-action', 'Poursuivre la vie à Val-Ferrand');
+    continueBtn.addEventListener('click', closeModal);
+    body.appendChild(continueBtn);
+
+    showModal('NEURAPOLIS — Conclusion du Chapitre 5', 'L’héritage de Val-Ferrand est scellé', body, true);
   }
 
   function openConseil(): void {

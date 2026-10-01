@@ -316,11 +316,24 @@ export interface DelayedConsequence {
   targetNpc?: NpcId;
 }
 
+export type EndingModelId = 'coop_citoyenne' | 'marche_equitable' | 'planification_communs';
+
+export interface EndingRecord {
+  modelId: EndingModelId;
+  title: string;
+  summary: string;
+  builtText: string;
+  sacrificedText: string;
+  day: number;
+  date: string;
+}
+
 export interface CampaignState {
   currentChapter: number;
   stages: CampaignStage[];
   completedChapters: number[];
   delayedConsequences: DelayedConsequence[];
+  ending?: EndingRecord;
 }
 
 // ---------- Monde ----------

@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { createWorld } from '../src/core/store';
 import { TICKS_PER_DAY } from '../src/core/types';
 import { npcLine } from '../src/simulation/dialogue';
-import { campaignTick } from '../src/simulation/campaign';
+import { campaignTick, chooseFinalModel, holdUrbanCouncil } from '../src/simulation/campaign';
 import { adoptSharedRules, buyStock, createProject, runCourse, runSalesSession } from '../src/simulation/project';
 import { executeCounterStrategy } from '../src/simulation/rival';
+import { exportSave, importSave } from '../src/saves/persist';
 
 describe('campagne — chapitre 2 et âge du joueur', () => {
   it('fait passer l’âge à 13 ans au premier anniversaire du 1er septembre, une seule fois', () => {
@@ -107,5 +108,101 @@ describe('campagne — chapitre 2 et âge du joueur', () => {
     expect(w.events.find((event) => event.title.includes('Chapitre 3 accompli'))?.causes).toHaveLength(3);
     campaignTick(w);
     expect(w.events.filter((event) => event.title.includes('Chapitre 3 accompli'))).toHaveLength(1);
+  });
+});
+
+describe('campagne — chapitres 4, 5 et fin jouable à 16 ans', () => {
+  it('débloque le chapitre 5 après mobilisation citoyenne à 15 ans au chapitre 4', () => {
+    const w = createWorld();
+    w.campaign.currentChapter = 4;
+    w.player.age = 15;
+
+    // Tentative sans mobilisation
+    campaignTick(w);
+    expect(w.campaign.currentChapter).toBe(4);
+
+    // Organiser l'assemblée du Conseil Urbain
+    const res = holdUrbanCouncil(w);
+    expect(res.ok).toBe(true);
+
+    const notifications = campaignTick(w);
+    expect(w.campaign.currentChapter).toBe(5);
+    expect(w.campaign.completedChapters).toContain(4);
+    expect(notifications.some((entry) => entry.text.includes('Chapitre 5 débloqué'))).toBe(true);
+  });
+
+  it('exige l’âge 16 ans et le chapitre 5 pour choisir le modèle final, sans épilogue automatique', () => {
+    const w = createWorld();
+    w.campaign.currentChapter = 5;
+    w.player.age = 15;
+
+    // Pas d'épilogue automatique sur campaignTick
+    campaignTick(w);
+    expect(w.campaign.ending).toBeUndefined();
+
+    // Rejet si âge < 16
+    const tooYoung = chooseFinalModel(w, 'coop_citoyenne');
+    expect(tooYoung.ok).toBe(false);
+
+    // À 16 ans
+    w.player.age = 16;
+    campaignTick(w);
+    expect(w.campaign.ending).toBeUndefined(); // toujours aucune fin automatique sans action du joueur
+  });
+
+  it('teste chaque branche de fin (coop_citoyenne, marche_equitable, planification_communs) et leurs retombées', () => {
+    const branches = ['coop_citoyenne', 'marche_equitable', 'planification_communs'] as const;
+
+    for (const modelId of branches) {
+      const w = createWorld();
+      w.campaign.currentChapter = 5;
+      w.player.age = 16;
+      w.flags['ventes'] = 8;
+      w.flags['courses'] = 12;
+      w.flags['contreStrategiesLancees'] = 3;
+
+      const res = chooseFinalModel(w, modelId);
+      expect(res.ok).toBe(true);
+      expect(w.campaign.ending).toBeDefined();
+      expect(w.campaign.ending?.modelId).toBe(modelId);
+      expect(w.campaign.stages.find((s) => s.chapter === 5)?.completed).toBe(true);
+
+      // Vérifier enregistrement unique et stable
+      expect(w.lifeJournal.some((j) => j.title.includes('L\'Héritage de Val-Ferrand'))).toBe(true);
+      expect(w.events.some((e) => e.title.includes('Conclusion de NEURAPOLIS'))).toBe(true);
+
+      // Impossible de choisir une seconde fin
+      const secondTry = chooseFinalModel(w, 'marche_equitable');
+      expect(secondTry.ok).toBe(false);
+      expect(secondTry.message).toMatch(/déjà été scellée/);
+    }
+  });
+
+  it('permet de continuer après la fin et de recharger la sauvegarde sans dupliquer la scène ni réinitialiser', () => {
+    const w = createWorld();
+    w.campaign.currentChapter = 5;
+    w.player.age = 16;
+
+    chooseFinalModel(w, 'coop_citoyenne');
+    const journalCountBefore = w.lifeJournal.length;
+    const eventsCountBefore = w.events.length;
+
+    // Avancer le temps / simuler un tick
+    campaignTick(w);
+    expect(w.lifeJournal.length).toBe(journalCountBefore);
+    expect(w.events.length).toBe(eventsCountBefore);
+    expect(w.campaign.ending?.modelId).toBe('coop_citoyenne');
+
+    // Sauvegarder et recharger
+    const savedJson = exportSave(w);
+    const reloadedWorld = importSave(savedJson);
+
+    expect(reloadedWorld.campaign.ending).toEqual(w.campaign.ending);
+    expect(reloadedWorld.campaign.completedChapters).toContain(5);
+
+    // Ticks additionnels post-chargement
+    campaignTick(reloadedWorld);
+    expect(reloadedWorld.lifeJournal.length).toBe(journalCountBefore);
+    expect(reloadedWorld.events.length).toBe(eventsCountBefore);
   });
 });
