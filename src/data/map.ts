@@ -46,12 +46,30 @@ const INNER: readonly string[] = [
   '##############################################',
 ];
 
-export type TileKind = 'sol' | 'herbe' | 'terre' | 'mur' | 'entree';
+export type WorldPropId = 'arbre' | 'banc' | 'lampadaire' | 'fontaine' | 'jardiniere';
+export type TileKind = 'sol' | 'herbe' | 'terre' | 'mur' | 'entree' | 'decor';
 
 export interface Tile {
   kind: TileKind;
   place?: PlaceId; // présent si kind === 'entree'
+  decoration?: WorldPropId;
 }
+
+/** Mobilier fixe du quartier : les cases occupées sont aussi bloquées en jeu. */
+const DECORATIONS: readonly { x: number; y: number; id: WorldPropId }[] = [
+  { x: 18, y: 15, id: 'banc' },
+  { x: 21, y: 14, id: 'lampadaire' },
+  { x: 23, y: 15, id: 'fontaine' },
+  { x: 28, y: 16, id: 'lampadaire' },
+  { x: 27, y: 18, id: 'banc' },
+  { x: 20, y: 18, id: 'jardiniere' },
+  { x: 25, y: 18, id: 'jardiniere' },
+  { x: 23, y: 21, id: 'arbre' },
+  { x: 29, y: 22, id: 'arbre' },
+  { x: 34, y: 24, id: 'arbre' },
+  { x: 27, y: 25, id: 'banc' },
+  { x: 31, y: 26, id: 'jardiniere' },
+];
 
 const ENTRY: Record<string, PlaceId> = {
   m: 'maison', c: 'college', e: 'epicerie', f: 'friche', p: 'parc', q: 'place',
@@ -78,6 +96,13 @@ function buildTiles(): Tile[][] {
     }
     tiles.push(row);
   }
+  for (const prop of DECORATIONS) {
+    const tile = tiles[prop.y]?.[prop.x];
+    if (!tile || (tile.kind !== 'sol' && tile.kind !== 'herbe')) {
+      throw new Error(`Décor ${prop.id} impossible à placer en (${prop.x},${prop.y}).`);
+    }
+    tiles[prop.y]![prop.x] = { kind: 'decor', decoration: prop.id };
+  }
   return tiles;
 }
 
@@ -91,7 +116,7 @@ export function tileAt(x: number, y: number): Tile | null {
 
 export function isWalkable(x: number, y: number): boolean {
   const t = tileAt(x, y);
-  return t !== null && t.kind !== 'mur';
+  return t !== null && t.kind !== 'mur' && t.kind !== 'decor';
 }
 
 export function entranceAt(x: number, y: number): PlaceId | undefined {

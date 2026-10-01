@@ -90,6 +90,14 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
       });
     }
     s.rivals = rivals;
+    const campaign = s.campaign as AnySave | undefined;
+    if (campaign && Array.isArray(campaign.stages)) {
+      for (const initStage of INITIAL_CAMPAIGN_STAGES) {
+        if (!campaign.stages.some((st: AnySave) => (st as { chapter?: number }).chapter === initStage.chapter)) {
+          campaign.stages.push(structuredClone(initStage));
+        }
+      }
+    }
     s.version = 5;
     return s;
   },

@@ -10,6 +10,7 @@ import { DIALOGUE_REPLIES } from '../data/dialogue';
 import { addXp } from './skills';
 import { bump } from './events';
 import { isIrritable } from './needs';
+import { rememberedNpcLine } from './npc';
 
 /** Sujets disponibles pour un PNJ (clés de ses topics). */
 export function dialogueTopics(npcId: NpcId): string[] {
@@ -19,6 +20,8 @@ export function dialogueTopics(npcId: NpcId): string[] {
 
 /** Une réplique du PNJ tirée au PRNG dans le sujet choisi. */
 export function npcLine(w: WorldState, npcId: NpcId, topic: string): string | null {
+  const rememberedLine = rememberedNpcLine(w, npcId, topic);
+  if (rememberedLine) return rememberedLine;
   const lines = NPC_BY_ID[npcId]?.topics[topic];
   if (!lines || lines.length === 0) return null;
   const line = rngPick(w, lines);

@@ -70,6 +70,7 @@ export const PLACES: PlaceDef[] = [
     description: 'Le cœur du quartier. On y croise tout le monde, et tout le monde y sait tout.',
     actions: [
       { id: 'flaner', label: 'Flâner sur la place', needs: { stress: -5, moral: 5 } },
+      { id: 'debat', label: 'Participer au grand débat citoyen' },
     ],
   },
 ];

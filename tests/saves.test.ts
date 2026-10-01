@@ -153,6 +153,22 @@ describe('sauvegarde — migration v4 → v5 (échéances de contre-stratégies)
       { strategyId: 'degustation', expiresDay: today + 3 },
     ]);
   });
+
+  it('complète les chapitres 4 et 5 de la campagne lors de la migration v4 → v5', () => {
+    const raw = JSON.parse(exportSave(mondeVecu())) as unknown as {
+      version: number;
+      campaign: { stages: Array<{ chapter: number }> };
+    };
+    raw.version = 4;
+    // Simuler une ancienne sauvegarde v4 qui n'avait que les chapitres 1, 2 et 3
+    raw.campaign.stages = raw.campaign.stages.filter((s) => s.chapter <= 3);
+    expect(raw.campaign.stages).toHaveLength(3);
+
+    const migre = migrateSave(raw);
+    expect(migre.version).toBe(5);
+    expect(migre.campaign.stages).toHaveLength(5);
+    expect(migre.campaign.stages.map((s) => s.chapter)).toEqual([1, 2, 3, 4, 5]);
+  });
 });
 
 describe('inspectAutoSave — inspection de démarrage', () => {

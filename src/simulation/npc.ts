@@ -2,9 +2,10 @@
  * PNJ niveau A : routine horaire → lieu + activité. Les PNJ vivent leur vie
  * même sans observation (Principe 1). Niveau C (agrégats) géré par district.
  */
-import type { NpcDef, NpcState, RoutineSlot, WorldState } from '../core/types';
+import type { GameEvent, NpcDef, NpcId, NpcState, RoutineSlot, WorldState } from '../core/types';
 import { isSchoolDay, minutesOfDay, dayIndexOf, dateOf } from '../core/clock';
 import { NPCS } from '../data/npcs';
+import { NPC_EVENT_REACTIONS } from '../data/npc-events';
 import { PLACE_ANCHORS, isWalkable } from '../data/map';
 
 const toMin = (hhmm: string): number => {
@@ -37,6 +38,35 @@ export function npcTick(w: WorldState): void {
       st.activity = minutes < 7 * 60 || minutes >= 21 * 60 ? 'dort' : weekend ? 'se repose' : 'rentre';
     }
   }
+  rememberNeighborhoodEvents(w, day);
+}
+
+/** Chaque fait est mémorisé une seule fois par témoin, le jour où il survient. */
+function rememberNeighborhoodEvents(w: WorldState, day: number): void {
+  const todaysEvents = w.events.filter((event) => event.day === day).reverse();
+  for (const event of todaysEvents) {
+    for (const reaction of NPC_EVENT_REACTIONS) {
+      if (!event.title.startsWith(reaction.eventTitlePrefix)) continue;
+      const npc = w.npcs[reaction.npcId];
+      if (!npc || npc.memory.includes(event.id)) continue;
+      npc.memory.push(event.id);
+      if (npc.memory.length > 50) npc.memory.splice(0, npc.memory.length - 50);
+    }
+  }
+}
+
+/** Réaction liée au dernier fait mémorisé par ce PNJ, si le sujet correspond. */
+export function rememberedNpcLine(w: WorldState, npcId: NpcId, topic: string): string | null {
+  const npc = w.npcs[npcId];
+  if (!npc) return null;
+  for (const eventId of [...npc.memory].reverse()) {
+    const event: GameEvent | undefined = w.events.find((candidate) => candidate.id === eventId);
+    if (!event) continue;
+    const reaction = NPC_EVENT_REACTIONS.find((candidate) =>
+      candidate.npcId === npcId && candidate.topic === topic && event.title.startsWith(candidate.eventTitlePrefix));
+    if (reaction) return reaction.line;
+  }
+  return null;
 }
 
 /** PNJ présents à un lieu donné (pour interactions sur la carte). */

@@ -9,7 +9,7 @@
 import type {
   DoctrineKey, GhostDef, GhostId, GhostState, Notification, WorldState,
 } from '../core/types';
-import { dayIndexOf } from '../core/clock';
+import { dateOf, dayIndexOf } from '../core/clock';
 import { rngInt } from '../core/rng';
 import { COMPOSITE_DEFS, GHOST_DEFS, GHOST_DEFS_BY_ID } from '../data/ghosts/registry';
 import { ADVICE_POOL, FAREWELLS, GHOST_DOCTRINES, OPPOSITE_DOCTRINE } from '../data/ghosts/scenes';
@@ -407,4 +407,84 @@ export function ghostSignature(w: WorldState, id: GhostId): boolean {
   if (!st) return false;
   if (st.status !== 'actif' && st.status !== 'endormi' && st.status !== 'hostile') return false;
   return st.loyalty > 80;
+}
+
+export interface CouncilMobilizationResult {
+  ok: boolean;
+  message: string;
+  mobilizedGhosts?: GhostId[];
+  supportScore?: number;
+}
+
+/**
+ * Mobilise les voix actives du Conseil pour préparer le débat citoyen (Chapitre 4).
+ * Nécessite au moins 2 voix actives. Évalue la loyauté et les signatures.
+ */
+export function mobilizeCouncilForDebate(w: WorldState): CouncilMobilizationResult {
+  if (w.campaign.currentChapter < 4) {
+    return {
+      ok: false,
+      message: 'Le Conseil n’a pas encore besoin de se mobiliser pour le débat du quartier (attendre le Chapitre 4).',
+    };
+  }
+
+  if ((w.flags['chapitre4ConseilMobilise'] ?? 0) > 0) {
+    return {
+      ok: true,
+      message: 'Le Conseil a déjà été mobilisé pour préparer le débat.',
+      supportScore: w.flags['chapitre4SupportConseil'] ?? 2,
+    };
+  }
+
+  const activeIds = (Object.keys(w.council.ghosts) as GhostId[]).filter(
+    (id) => w.council.ghosts[id]?.status === 'actif',
+  );
+
+  if (activeIds.length < 2) {
+    return {
+      ok: false,
+      message: 'Le Conseil a besoin d’au moins deux voix actives pour formuler une pensée collective pour le quartier.',
+    };
+  }
+
+  let support = 0;
+  for (const id of activeIds) {
+    const st = w.council.ghosts[id];
+    if (!st) continue;
+    if (st.loyalty >= 50) support += 1;
+    if (ghostSignature(w, id)) support += 2;
+  }
+  // Décompte de l'hostilité des voix hostiles
+  const hostileCount = Object.values(w.council.ghosts).filter((g) => g.status === 'hostile').length;
+  support = Math.max(1, support - hostileCount);
+
+  w.flags['chapitre4ConseilMobilise'] = 1;
+  w.flags['chapitre4SupportConseil'] = support;
+  w.player.characteristics.influence = Math.min(100, w.player.characteristics.influence + 3);
+  w.player.characteristics.comprehension = Math.min(100, w.player.characteristics.comprehension + 2);
+
+  const day = dayIndexOf(w.time.tick);
+  pushEvent(w, {
+    type: 'conseil',
+    title: 'Mobilisation du Conseil pour le quartier',
+    text: `Les penseurs de ton esprit s’accordent : ${activeIds.length} voix actives mobilisées pour préparer le débat citoyen (score de soutien : ${support}).`,
+    causes: [
+      { facteur: 'voix actives au Conseil', seuil: String(activeIds.length), poids: 3 },
+      { facteur: 'préparation du grand débat citoyen', poids: 2 },
+    ],
+  });
+
+  w.lifeJournal.push({
+    day,
+    date: dateOf(day).iso,
+    title: 'Le Conseil s’accorde pour Val-Ferrand',
+    text: 'Nos discussions intérieures ont porté leurs fruits. Les arguments sont affûtés, nous sommes prêts pour le grand débat sur la place.',
+  });
+
+  return {
+    ok: true,
+    message: `Le Conseil est mobilisé ! ${activeIds.length} voix actives consultées (score de soutien : ${support}).`,
+    mobilizedGhosts: activeIds,
+    supportScore: support,
+  };
 }

@@ -6,6 +6,7 @@ import type { NeedId, WorldState } from '../core/types';
 import { dateOf, dayIndexOf, hhmmOfTick } from '../core/clock';
 import { NEED_LABELS } from '../data/places';
 import { SAVE_LABEL } from '../data/texts';
+import { getCampaignProgressSummary } from '../simulation/campaign';
 
 export const NEED_IDS: readonly NeedId[] = ['fatigue', 'faim', 'stress', 'moral'];
 
@@ -16,6 +17,10 @@ export interface UiRefs {
   ch: number;
   clockEl: HTMLElement;
   dateEl: HTMLElement;
+  campaignCardEl: HTMLElement;
+  campaignChapterEl: HTMLElement;
+  campaignObjectiveEl: HTMLElement;
+  campaignPromptEl: HTMLElement;
   barEls: Record<NeedId, HTMLElement>;
   promptEl: HTMLElement;
   modalEl: HTMLElement;
@@ -50,6 +55,16 @@ export function buildUi(root: HTMLElement): UiRefs {
   const dateEl = el('div', 'hud-date', '');
   hud.appendChild(clockEl);
   hud.appendChild(dateEl);
+
+  const campaignCardEl = el('div', 'campaign-card');
+  const campaignChapterEl = el('div', 'campaign-chapter', '');
+  const campaignObjectiveEl = el('div', 'campaign-objective', '');
+  const campaignPromptEl = el('div', 'campaign-prompt', '');
+  campaignCardEl.appendChild(campaignChapterEl);
+  campaignCardEl.appendChild(campaignObjectiveEl);
+  campaignCardEl.appendChild(campaignPromptEl);
+  hud.appendChild(campaignCardEl);
+
   const bars = el('div', 'hud-bars');
   const barEls = {} as Record<NeedId, HTMLElement>;
   for (const id of NEED_IDS) {
@@ -90,7 +105,9 @@ export function buildUi(root: HTMLElement): UiRefs {
 
   const ui: UiRefs = {
     canvas, ctx, cw: 0, ch: 0,
-    clockEl, dateEl, barEls, promptEl, modalEl, joyZone, actionBtn, navEl, bannerEl,
+    clockEl, dateEl,
+    campaignCardEl, campaignChapterEl, campaignObjectiveEl, campaignPromptEl,
+    barEls, promptEl, modalEl, joyZone, actionBtn, navEl, bannerEl,
     saveEl, lastIso: '', saveTimer: undefined,
   };
   resizeCanvas(ui, root);
@@ -112,6 +129,12 @@ export function updateHud(ui: UiRefs, w: WorldState, prompt: string): void {
   const day = dayIndexOf(w.time.tick);
   ui.clockEl.textContent = hhmmOfTick(w.time.tick);
   ui.dateEl.textContent = dateOf(day).label;
+
+  const summary = getCampaignProgressSummary(w);
+  ui.campaignChapterEl.textContent = summary.chapterLabel;
+  ui.campaignObjectiveEl.textContent = summary.title;
+  ui.campaignPromptEl.textContent = summary.prompt;
+
   for (const id of NEED_IDS) {
     const fill = ui.barEls[id].querySelector<HTMLElement>('.need-fill');
     if (!fill) continue;

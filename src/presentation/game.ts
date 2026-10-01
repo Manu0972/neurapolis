@@ -20,8 +20,12 @@ import {
 } from '../simulation/project';
 import {
   councilAnswerAdvice, councilArrivalChoose, councilColumns, councilPendingArrivals,
-  councilSleep, councilWake, ghostSignature,
+  councilSleep, councilWake, ghostSignature, mobilizeCouncilForDebate,
 } from '../simulation/council';
+import {
+  calculateEpilogue, foundLastingEconomicModel, holdCitizenDebate, type EpilogueResult,
+} from '../simulation/campaign';
+import { LASTING_ECONOMIC_MODELS, URBAN_CHOICES, type LastingEconomicModelId, type UrbanChoiceId } from '../data/campaign';
 import { contractChoose, exitSecurityContract, securityPending } from '../simulation/security';
 import { affinityOf, fusionConfirm } from '../simulation/fusions';
 import { allianceDesOmbres } from '../simulation/antagonists';
@@ -136,6 +140,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     for (const action of def.actions) {
       const btn = el('button', 'btn btn-action', action.label);
       btn.addEventListener('click', () => {
+        if (place === 'place' && action.id === 'debat') {
+          openUrbanDebate();
+          return;
+        }
         const outcome = applyPlaceAction(world, place, action.id);
         btn.textContent = outcome.ok ? `${action.label} → ${outcome.message}` : outcome.message;
         btn.disabled = !outcome.ok;
@@ -378,6 +386,60 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       const cBox = el('div', 'ghost-detail');
       cBox.appendChild(el('h4', 'journal-title', `✦ ${stage.title} (âge : ${stage.targetAge} ans)`));
       cBox.appendChild(el('p', 'panel-desc', stage.objective));
+
+      // Actions spécifiques au Chapitre 4 : Conseil et Débat
+      if (world.campaign.currentChapter === 4) {
+        const conseilOk = (world.flags['chapitre4ConseilMobilise'] ?? 0) > 0;
+        const debatOk = (world.flags['chapitre4DebatCitoyen'] ?? 0) > 0;
+
+        const row4 = el('div', 'reply-row');
+        if (!conseilOk) {
+          const btnMob = el('button', 'btn btn-action', 'Mobiliser le Conseil pour le débat citoyen');
+          btnMob.addEventListener('click', () => {
+            const res = mobilizeCouncilForDebate(world);
+            btnMob.textContent = res.message;
+            if (res.ok) setTimeout(openConcurrence, 600);
+          });
+          row4.appendChild(btnMob);
+        } else {
+          row4.appendChild(el('span', 'stat-label', '✓ Conseil mobilisé pour le quartier'));
+          if (!debatOk) {
+            const btnDebat = el('button', 'btn btn-action', 'Choisir l’aménagement de la place');
+            btnDebat.addEventListener('click', openUrbanDebate);
+            row4.appendChild(btnDebat);
+          } else {
+            row4.appendChild(el('span', 'stat-label', '✓ Grand débat citoyen validé !'));
+          }
+        }
+        cBox.appendChild(row4);
+      }
+
+      // Actions spécifiques au Chapitre 5 : Fonder le modèle économique
+      if (world.campaign.currentChapter === 5) {
+        const modeleOk = (world.flags['chapitre5ModeleFonde'] ?? 0) > 0;
+        if (!modeleOk) {
+          cBox.appendChild(el('h4', 'panel-sub', 'Choisir le modèle économique de Val-Ferrand :'));
+          for (const mId of Object.keys(LASTING_ECONOMIC_MODELS) as LastingEconomicModelId[]) {
+            const mDef = LASTING_ECONOMIC_MODELS[mId];
+            const mBtn = el('button', 'btn btn-action', `${mDef.title} (${mDef.ghostAlliance})`);
+            mBtn.addEventListener('click', () => {
+              const res = foundLastingEconomicModel(world, mId);
+              mBtn.textContent = res.message;
+              openEpilogueModal(res.epilogue);
+            });
+            cBox.appendChild(mBtn);
+          }
+        } else {
+          const epilogueBtn = el('button', 'btn btn-action', '✦ Consulter l’Épilogue & l’Héritage de Val-Ferrand');
+          epilogueBtn.addEventListener('click', () => openEpilogueModal());
+          cBox.appendChild(epilogueBtn);
+        }
+      } else if (world.campaign.completedChapters.includes(5)) {
+        const epilogueBtn = el('button', 'btn btn-action', '✦ Consulter l’Épilogue & l’Héritage de Val-Ferrand');
+        epilogueBtn.addEventListener('click', () => openEpilogueModal());
+        cBox.appendChild(epilogueBtn);
+      }
+
       body.appendChild(cBox);
     }
 
@@ -448,6 +510,104 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
 
     showModal('Marché & Concurrence', 'parts de marché · rivaux · contre-offensives', body, true);
+  }
+
+  function openUrbanDebate(): void {
+    const body = el('div', 'panel-body');
+    const chapterReady = world.campaign.currentChapter === 4;
+    const ageReady = world.player.age >= 15;
+    const councilReady = (world.flags['chapitre4ConseilMobilise'] ?? 0) > 0;
+    const choiceMade = (world.flags['chapitre4DebatCitoyen'] ?? 0) > 0;
+    if (!chapterReady) {
+      body.appendChild(el('p', 'panel-desc', 'Le grand choix d’aménagement viendra après les étapes de la Friche et du Réseau Solidaire.'));
+    } else if (!ageReady) {
+      body.appendChild(el('p', 'panel-desc', `Le débat citoyen aura lieu à 15 ans. Tu as ${world.player.age} ans; tu peux déjà préparer tes arguments et le Conseil.`));
+    } else if (!councilReady) {
+      body.appendChild(el('p', 'panel-desc', 'Le débat a besoin d’arguments préparés avec au moins deux voix actives du Conseil.'));
+      const prepare = el('button', 'btn btn-action', 'Préparer les arguments au Conseil');
+      prepare.addEventListener('click', () => openConcurrence());
+      body.appendChild(prepare);
+    } else if (choiceMade) {
+      const code = world.flags['chapitre4ChoixUrbain'];
+      const choice = code === 1 ? URBAN_CHOICES.marche_paysan
+        : code === 2 ? URBAN_CHOICES.agora_verte
+          : code === 3 ? URBAN_CHOICES.foyer_cooperatif : undefined;
+      body.appendChild(el('p', 'panel-desc', choice
+        ? `Le quartier a choisi ${choice.title}. ${choice.epilogueSummary}`
+        : 'Le quartier a déjà voté son aménagement.'));
+    } else {
+      body.appendChild(el('p', 'panel-desc', 'Après le débat public, les habitants doivent choisir un projet. Chacun engage une partie de la caisse et transforme différemment la place et les commerces.'));
+      for (const choiceId of Object.keys(URBAN_CHOICES) as UrbanChoiceId[]) {
+        const choice = URBAN_CHOICES[choiceId];
+        const card = el('div', 'ghost-detail');
+        card.appendChild(el('h3', 'panel-sub', choice.title));
+        card.appendChild(el('p', 'panel-note', choice.subtitle));
+        card.appendChild(el('p', 'panel-desc', choice.description));
+        card.appendChild(el('p', 'panel-note',
+          `Coût ${choice.cost} € · Épicerie ${choice.effects.vitaliteEpicerie >= 0 ? '+' : ''}${choice.effects.vitaliteEpicerie} · Parc ${choice.effects.frequentationParc >= 0 ? '+' : ''}${choice.effects.frequentationParc} · Confiance +${choice.effects.confianceQuartier} · Réputation +${choice.effects.reputation}`));
+        const choose = el('button', 'btn btn-action', 'Soutenir ce projet');
+        choose.disabled = world.player.money < choice.cost;
+        if (choose.disabled) choose.title = `Il faut ${choice.cost} €; ta caisse contient ${world.player.money.toFixed(2)} €.`;
+        choose.addEventListener('click', () => {
+          const result = holdCitizenDebate(world, choiceId);
+          if (result.ok) {
+            closeModal();
+            openConcurrence();
+          } else {
+            choose.textContent = result.message;
+          }
+        });
+        card.appendChild(choose);
+        body.appendChild(card);
+      }
+    }
+    showModal('Le Grand Débat de Val-Ferrand', 'choix d’aménagement · coûts et conséquences', body, true);
+  }
+
+  function openEpilogueModal(customEpilogue?: EpilogueResult): void {
+    world.seen['epilogue_modal_shown'] = true;
+    const epilogue = customEpilogue ?? calculateEpilogue(world);
+    const body = el('div', 'panel-body');
+
+    const hero = el('div', 'ghost-detail');
+    hero.appendChild(el('h3', 'panel-sub', '✦ ÉPILOGUE DE NEURAPOLIS ✦'));
+    hero.appendChild(el('h2', 'journal-title', `${epilogue.legacyTitle} — ${epilogue.modelTitle}`));
+    body.appendChild(hero);
+
+    // Destin du quartier
+    const distBox = el('div', 'rel-row');
+    distBox.appendChild(el('span', 'rel-name', 'Destin de Val-Ferrand'));
+    distBox.appendChild(el('p', 'panel-desc', epilogue.districtSummary));
+    distBox.appendChild(el('p', 'panel-desc', `${epilogue.urbanChoiceTitle} — ${epilogue.urbanChoiceSummary}`));
+    distBox.appendChild(el('p', 'panel-note', `Vitalité épicerie : ${epilogue.vitaliteEpicerie}/100 · Confiance citoyenne : ${epilogue.confianceQuartier}/100`));
+    body.appendChild(distBox);
+
+    // Voix du Conseil
+    const ghostBox = el('div', 'rel-row');
+    ghostBox.appendChild(el('span', 'rel-name', `Pensée directrice — ${epilogue.dominantGhost.name}`));
+    ghostBox.appendChild(el('p', 'ghost-citation', `« ${epilogue.dominantGhost.quote} »`));
+    body.appendChild(ghostBox);
+
+    // Compagnons de route
+    body.appendChild(el('h3', 'panel-sub', 'Compagnons de route'));
+    for (const relItem of epilogue.relationshipHighlights) {
+      const rBox = el('div', 'rel-row');
+      rBox.appendChild(el('span', 'rel-name', `${relItem.name} (${relItem.role})`));
+      rBox.appendChild(el('p', 'panel-desc', relItem.highlight));
+      body.appendChild(rBox);
+    }
+
+    // Récit narratif complet
+    body.appendChild(el('h3', 'panel-sub', 'La traversée de Camille (12 → 16 ans)'));
+    for (const para of epilogue.epilogueText.split('\n\n')) {
+      body.appendChild(el('p', 'panel-desc', para));
+    }
+
+    const closeBtn = el('button', 'btn btn-action', 'Continuer à vivre dans Val-Ferrand');
+    closeBtn.addEventListener('click', closeModal);
+    body.appendChild(closeBtn);
+
+    showModal('L’Héritage de Val-Ferrand', 'conclusion & postérité', body, true);
   }
 
   // ---------- M5 : le projet (Stand des Roses) ----------
@@ -919,8 +1079,12 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
 
     if (!modalOpen) {
-      // Fusion prête : la scène attend le joueur (M6).
-      if (world.council.pendingFusion) {
+      // Épilogue prêt : ouverture de l'écran de conclusion de la campagne
+      if (world.campaign.completedChapters.includes(5) && !world.seen['epilogue_modal_shown']) {
+        world.seen['epilogue_modal_shown'] = true;
+        openEpilogueModal();
+      } else if (world.council.pendingFusion) {
+        // Fusion prête : la scène attend le joueur (M6).
         openFusionScene();
       } else {
         // Scène d'arrivée : un fantôme attend le choix du joueur.

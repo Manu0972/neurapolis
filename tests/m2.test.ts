@@ -160,6 +160,21 @@ describe('interactions — lieux et PNJ', () => {
     w.player.money = 0;
     expect(applyPlaceAction(w, 'epicerie', 'gouter').ok).toBe(false);
   });
+
+  it('ne valide pas le débat de la place sans choix du projet urbain', () => {
+    const w = createWorld();
+    w.campaign.currentChapter = 4;
+    w.player.age = 15;
+    w.flags['chapitre4ConseilMobilise'] = 1;
+    w.player.money = 100;
+    const trustBefore = w.district.confianceQuartier;
+    const outcome = applyPlaceAction(w, 'place', 'debat');
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.message).toContain('choisir un projet');
+    expect(w.flags['chapitre4DebatCitoyen']).toBeUndefined();
+    expect(w.district.confianceQuartier).toBe(trustBefore);
+  });
 });
 
 describe('dialogues — Noah, Lina, Mme Bertin', () => {
