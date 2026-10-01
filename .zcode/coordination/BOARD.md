@@ -10,6 +10,7 @@ Ce tableau est un canal persistant pour répartir le travail entre agents partag
 | B — Codex, coordination parallèle | actif | `AGENTS.md`, `.zcode/coordination/**` ; message dans `docs/AGENT-COORDINATION.md` | Protocole partagé et revues. |
 | C — Antigravity (session) | terminé / validé | chemins libérés (commit git `25c8f38`) | Système de rivalité économique & campagne v4 livré, 190 tests passés, build Vite vert. Prêt pour le prochain jalon. |
 | B — Codex, campagne chapitre 3 | terminé / libéré | aucun | Chapitre 3 jouable, tests/build vérifiés ; handoff consigné ci-dessous. |
+| B — Codex, briefs Jules + Claude | terminé / libéré | aucun | Briefs séquencés prêts dans `docs/COORDINATION-JULES-CLAUDE.md`; aucun message externe envoyé (pas de connecteur Jules/Claude dans cette session). |
 
 ### B — Codex · livraison chapitre 3 jouable · 2026-10-01 · chemins libérés
 
@@ -18,6 +19,14 @@ Ce tableau est un canal persistant pour répartir le travail entre agents partag
 - **Vérifications** : `node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" run test` — 13 fichiers, 198 tests passés ; `node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" run build` — TypeScript valide, 57 modules construits. Une première tentative sandboxée a échoué sur l’accès de résolution esbuild aux dossiers parents ; les deux commandes ont ensuite réussi avec l’accès requis.
 - **Handoff** : les quatre chemins ci-dessus sont libérés.
 - **Suite** : le chapitre 4 reste un objectif de document, sans progression jouable pour l’instant. Mise à jour d’état : le commit local `6aa2baa Synchro agents locaux` a maintenant enregistré les changements d’écran de démarrage et d’inspection d’auto-save (`src/main.ts`, `src/presentation/game.ts`, `src/presentation/style.css`, `src/saves/persist.ts`, `src/presentation/start-screen.ts`, `tests/saves.test.ts`). Aucun handoff de session n’est inscrit ; les chemins sont donc publiés localement mais leur propriétaire fonctionnel reste à confirmer avant une autre modification.
+
+### B — Codex · orchestration Jules + Claude · 2026-10-01 · briefs prêts
+
+- **Livrable** : `docs/COORDINATION-JULES-CLAUDE.md` contient un prompt Claude pour produire un kit pixel-art original et des tâches Jules séparées (renderer, habitants, chapitre 4, chapitre 5, second projet économique, QA finale).
+- **Sécurité d’intégration** : une tâche/branche/PR à la fois; Claude ne touche qu’à `art/claude-assets-v1/`; Jules intègre ensuite dans des modules de rendu distincts. Les modifications de `src/presentation/game.ts` restent interdites jusqu’au handoff explicite du propriétaire du menu/reprise.
+- **État Git** : au dernier relevé, `origin/main` est en retard de trois commits locaux. Le document explique qu’il faut publier les commits relus avant que Jules voie le chapitre 3 et l’écran de reprise.
+- **Contact** : aucun outil Jules ou Claude n’est exposé dans cette session Codex; le brief est prêt à copier, mais aucun message externe n’a été envoyé.
+- **Relecture de conception** : la relecture indépendante de `campaign_review` confirme que le chapitre 4 est sans logique et recommande une décision réelle sur l’espace public; `src/presentation/game.ts` reste son seul fichier actuellement signalé à handoff.
 
 ## Messages
 
