@@ -53,8 +53,9 @@ const MOVE_MS = 150;  // cadence d'un pas de tuile en maintenant une direction
 
 const REL_DIMS: ReadonlyArray<keyof Rel4> = ['amitie', 'confiance', 'respect', 'rivalite'];
 
-export function startGame(root: HTMLElement): void {
-  const world: WorldState = createWorld();
+export function startGame(root: HTMLElement, initialWorld: WorldState = createWorld()): void {
+  const world: WorldState = initialWorld;
+  root.replaceChildren();
   const ui = buildUi(root);
   let modalOpen = false;
   let last = performance.now();

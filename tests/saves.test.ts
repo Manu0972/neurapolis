@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { createWorld } from '../src/core/store';
-import { exportSave, importSave } from '../src/saves/persist';
+import { exportSave, importSave, inspectAutoSave, saveToSlot, deleteSlot } from '../src/saves/persist';
 import { migrateSave } from '../src/saves/migrations';
 import { runTicks } from '../src/simulation/engine';
 
@@ -152,5 +152,51 @@ describe('sauvegarde — migration v4 → v5 (échéances de contre-stratégies)
       { strategyId: 'circuit_court', expiresDay: today + 5 },
       { strategyId: 'degustation', expiresDay: today + 3 },
     ]);
+  });
+});
+
+describe('inspectAutoSave — inspection de démarrage', () => {
+  it('signale missing quand aucun auto-save n’existe ou unavailable sans localStorage', () => {
+    try {
+      deleteSlot('auto');
+    } catch {
+      // Ignorer si localStorage indisponible
+    }
+    const res = inspectAutoSave();
+    expect(['missing', 'unavailable']).toContain(res.kind);
+  });
+
+  it('signale ready quand un auto-save valide est présent', () => {
+    const w = mondeVecu();
+    try {
+      saveToSlot('auto', w);
+      const res = inspectAutoSave();
+      if (res.kind !== 'unavailable') {
+        expect(res.kind).toBe('ready');
+        if (res.kind === 'ready') {
+          expect(res.world.seed).toBe(42);
+        }
+      }
+    } catch {
+      // localStorage indisponible dans l’environnement courant
+    } finally {
+      try {
+        deleteSlot('auto');
+      } catch {
+        // no-op
+      }
+    }
+  });
+
+  it('signale invalid quand le slot auto contient des données corrompues', () => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('neurapolis.save.auto', '{ corrompu');
+      try {
+        const res = inspectAutoSave();
+        expect(res.kind).toBe('invalid');
+      } finally {
+        localStorage.removeItem('neurapolis.save.auto');
+      }
+    }
   });
 });

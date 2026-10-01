@@ -44,6 +44,26 @@ export function listSlots(): string[] {
   return out;
 }
 
+export type AutoSaveInspection =
+  | { kind: 'unavailable' }
+  | { kind: 'missing' }
+  | { kind: 'ready'; world: WorldState }
+  | { kind: 'invalid'; message: string };
+
+/** Lit et migre l’auto-save sans masquer une sauvegarde corrompue. */
+export function inspectAutoSave(): AutoSaveInspection {
+  if (!storage()) return { kind: 'unavailable' };
+  if (!listSlots().includes('auto')) return { kind: 'missing' };
+  try {
+    return { kind: 'ready', world: loadFromSlot('auto') };
+  } catch (error) {
+    return {
+      kind: 'invalid',
+      message: error instanceof Error ? error.message : 'La sauvegarde automatique est illisible.',
+    };
+  }
+}
+
 export function exportSave(w: WorldState): string {
   return JSON.stringify(w, null, 2);
 }

@@ -32,6 +32,47 @@ body {
 
 #app { position: relative; }
 
+.start-screen {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(ellipse at 50% 35%, #263856 0%, var(--bg) 68%);
+}
+.start-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  width: min(420px, 100%);
+  padding: clamp(24px, 6vw, 42px);
+  background: #131b2bf2;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 20px 80px #0008;
+}
+.start-eyebrow { margin: 0; color: var(--or); font-size: 10px; letter-spacing: .14em; text-align: center; }
+.start-card h1 { margin: 0; color: var(--ink); font-size: clamp(34px, 10vw, 56px); letter-spacing: .08em; text-align: center; }
+.start-subtitle { margin: 0 0 12px; color: var(--ink-dim); text-align: center; }
+.start-status, .start-note { margin: 0; color: var(--ink-dim); font-size: 12px; line-height: 1.5; text-align: center; }
+.start-status:empty { display: none; }
+.start-status.error { color: #ff9bac; }
+.start-button {
+  min-height: 46px;
+  padding: 10px 16px;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 650;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.start-button:hover { background: var(--btn-hover); }
+.start-button:focus-visible { outline: 3px solid var(--or); outline-offset: 3px; }
+.start-button.primary { color: #15120a; background: var(--or); border-color: transparent; }
+.start-button.primary:hover { filter: brightness(1.08); }
+
 .map-canvas { display: block; }
 
 /* ---------- HUD ---------- */
@@ -48,6 +89,25 @@ body {
 
 .hud-clock { font-size: 20px; font-weight: 700; }
 .hud-date { font-size: 12px; opacity: 0.85; }
+
+.campaign-card {
+  display: grid;
+  gap: 2px;
+  max-width: min(340px, calc(100vw - 24px));
+  margin: 5px 0 3px;
+  padding: 7px 10px;
+  color: var(--ink);
+  background: #101827eF;
+  border: 1px solid #ffc94a66;
+  border-left: 3px solid var(--or);
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.35;
+  text-shadow: none;
+}
+.campaign-chapter { color: var(--or); font-size: 10px; letter-spacing: .02em; }
+.campaign-objective { font-weight: 700; }
+.campaign-prompt { color: var(--ink-dim); }
 
 .hud-bars {
   margin-top: 4px;
