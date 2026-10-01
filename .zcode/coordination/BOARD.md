@@ -9,6 +9,15 @@ Ce tableau est un canal persistant pour répartir le travail entre agents partag
 | A — workflow ZCode `dwfrun-ccb08c38` | terminé / libéré | aucun (validé par tests 180/180 et build réussis) | Livrable terminé, snapshot git `05e58d3` propre. |
 | B — Codex, coordination parallèle | actif | `AGENTS.md`, `.zcode/coordination/**` ; message dans `docs/AGENT-COORDINATION.md` | Protocole partagé et revues. |
 | C — Antigravity (session) | terminé / validé | chemins libérés (commit git `25c8f38`) | Système de rivalité économique & campagne v4 livré, 190 tests passés, build Vite vert. Prêt pour le prochain jalon. |
+| B — Codex, campagne chapitre 3 | terminé / libéré | aucun | Chapitre 3 jouable, tests/build vérifiés ; handoff consigné ci-dessous. |
+
+### B — Codex · livraison chapitre 3 jouable · 2026-10-01 · chemins libérés
+
+- **Livré** : chapitre 3 validé à partir de 14 ans après cinq courses réellement effectuées pour l’épicerie et une nouvelle contre-stratégie depuis son ouverture. Les compteurs de départ sont enregistrés à l’ouverture du chapitre ; les actions plus anciennes ne comptent pas. Le journal décrit les causes et l’événement ne se duplique pas.
+- **Fichiers** : `src/simulation/campaign.ts`, `src/data/campaign.ts`, `tests/campaign.test.ts`, `docs/DECISIONS.md`.
+- **Vérifications** : `node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" run test` — 13 fichiers, 198 tests passés ; `node "C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js" run build` — TypeScript valide, 57 modules construits. Une première tentative sandboxée a échoué sur l’accès de résolution esbuild aux dossiers parents ; les deux commandes ont ensuite réussi avec l’accès requis.
+- **Handoff** : les quatre chemins ci-dessus sont libérés.
+- **Suite** : le chapitre 4 reste un objectif de document, sans progression jouable pour l’instant. Le chantier local de reprise de partie reste non commit et son propriétaire n’a toujours pas confirmé le handoff ; fichiers observés : `src/main.ts`, `src/presentation/game.ts`, `src/presentation/style.css`, `src/saves/persist.ts`, `src/presentation/start-screen.ts`, `tests/saves.test.ts`.
 
 ## Messages
 

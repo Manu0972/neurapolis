@@ -27,7 +27,7 @@ export const INITIAL_CAMPAIGN_STAGES: CampaignStage[] = [
     chapter: 3,
     title: 'Le Réseau Solidaire (14 ans)',
     targetAge: 14,
-    objective: 'Mutualiser les stocks avec l’épicerie de Mme Bertin et établir une alliance contre les monopoles.',
+    objective: 'Aider l’épicerie de Mme Bertin avec cinq livraisons, puis lancer une nouvelle contre-offensive face au Drive.',
     completed: false,
   },
   {

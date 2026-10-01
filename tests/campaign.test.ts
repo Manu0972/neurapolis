@@ -3,7 +3,8 @@ import { createWorld } from '../src/core/store';
 import { TICKS_PER_DAY } from '../src/core/types';
 import { npcLine } from '../src/simulation/dialogue';
 import { campaignTick } from '../src/simulation/campaign';
-import { adoptSharedRules, buyStock, createProject, runSalesSession } from '../src/simulation/project';
+import { adoptSharedRules, buyStock, createProject, runCourse, runSalesSession } from '../src/simulation/project';
+import { executeCounterStrategy } from '../src/simulation/rival';
 
 describe('campagne — chapitre 2 et âge du joueur', () => {
   it('fait passer l’âge à 13 ans au premier anniversaire du 1er septembre, une seule fois', () => {
@@ -71,5 +72,40 @@ describe('campagne — chapitre 2 et âge du joueur', () => {
     campaignTick(w);
     expect(w.campaign.completedChapters).toEqual([2]);
     expect(w.events.filter((event) => event.title.includes('Chapitre 2 accompli'))).toHaveLength(1);
+  });
+
+  it('ne crédite au chapitre 3 que les courses et contre-offensives engagées après son ouverture', () => {
+    const w = createWorld();
+    w.campaign.currentChapter = 3;
+    w.player.age = 14;
+    w.flags['courses'] = 5;
+    w.flags['contreStrategiesLancees'] = 1;
+    w.flags['chapitre3CoursesDepart'] = 5;
+    w.flags['chapitre3ContreStrategiesDepart'] = 1;
+
+    expect(campaignTick(w)).toHaveLength(0);
+    expect(w.campaign.currentChapter).toBe(3);
+  });
+
+  it('fait progresser le chapitre 3 après cinq livraisons réelles et une contre-offensive nouvelle', () => {
+    const w = createWorld();
+    w.campaign.currentChapter = 3;
+    w.campaign.stages.find((stage) => stage.chapter === 3)!.targetAge = 13;
+    w.player.age = 13;
+    w.flags['chapitre3CoursesDepart'] = 0;
+    w.flags['chapitre3ContreStrategiesDepart'] = 0;
+    createProject(w);
+
+    for (let i = 0; i < 5; i++) expect(runCourse(w).ok).toBe(true);
+    expect(w.district.vitaliteEpicerie).toBe(50);
+    expect(executeCounterStrategy(w, 'degustation').ok).toBe(true);
+
+    const notifications = campaignTick(w);
+    expect(w.campaign.currentChapter).toBe(4);
+    expect(w.campaign.completedChapters).toContain(3);
+    expect(notifications.some((entry) => entry.text.includes('Chapitre 4 débloqué'))).toBe(true);
+    expect(w.events.find((event) => event.title.includes('Chapitre 3 accompli'))?.causes).toHaveLength(3);
+    campaignTick(w);
+    expect(w.events.filter((event) => event.title.includes('Chapitre 3 accompli'))).toHaveLength(1);
   });
 });

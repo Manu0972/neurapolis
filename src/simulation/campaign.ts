@@ -110,6 +110,10 @@ export function campaignTick(w: WorldState): Notification[] {
       stage.completed = true;
       if (!w.campaign.completedChapters.includes(2)) w.campaign.completedChapters.push(2);
       w.campaign.currentChapter = 3;
+      // Le chapitre 3 demande des actes nouveaux : les courses et tactiques
+      // déjà réalisés avant l’ouverture du Réseau Solidaire ne comptent pas.
+      w.flags['chapitre3CoursesDepart'] = w.flags['courses'] ?? 0;
+      w.flags['chapitre3ContreStrategiesDepart'] = w.flags['contreStrategiesLancees'] ?? 0;
 
       pushEvent(w, {
         type: 'vie',
@@ -129,6 +133,37 @@ export function campaignTick(w: WorldState): Notification[] {
         text: 'On a décidé ensemble comment faire tourner le stand, puis on l’a essayé pour de vrai. Samir nous a proposé de revenir à la Friche.',
       });
       out.push(notify('bien', 'Chapitre 2 complété ! Chapitre 3 débloqué : Le Réseau Solidaire.'));
+    }
+  }
+
+  if (currentChapter === 3) {
+    const stage = w.campaign.stages.find((s) => s.chapter === 3);
+    const coursesSinceOpening = (w.flags['courses'] ?? 0) - (w.flags['chapitre3CoursesDepart'] ?? 0);
+    const strategiesSinceOpening = (w.flags['contreStrategiesLancees'] ?? 0)
+      - (w.flags['chapitre3ContreStrategiesDepart'] ?? 0);
+    if (stage && !stage.completed && w.player.age >= stage.targetAge
+      && coursesSinceOpening >= 5 && strategiesSinceOpening >= 1) {
+      stage.completed = true;
+      if (!w.campaign.completedChapters.includes(3)) w.campaign.completedChapters.push(3);
+      w.campaign.currentChapter = 4;
+
+      pushEvent(w, {
+        type: 'vie',
+        title: 'Chapitre 3 accompli : Le quartier fait front',
+        text: 'Cinq courses ont aidé l’épicerie à garder ses habitués. Face au Drive, vous avez aussi investi dans une nouvelle contre-offensive : l’alliance du quartier commence à peser.',
+        causes: [
+          { facteur: 'âge du joueur', seuil: `${w.player.age} ans`, poids: 1 },
+          { facteur: 'courses livrées pour l’épicerie depuis la Friche', seuil: String(coursesSinceOpening), poids: 2 },
+          { facteur: 'nouvelle contre-stratégie lancée depuis la Friche', seuil: String(strategiesSinceOpening), poids: 2 },
+        ],
+      });
+      w.lifeJournal.push({
+        day,
+        date: dateOf(day).iso,
+        title: 'Le quartier fait front',
+        text: 'Les livraisons maintiennent l’épicerie dans le jeu. Notre contre-offensive a coûté de l’argent et de l’énergie, mais le Drive ne peut plus faire comme si nous n’existions pas.',
+      });
+      out.push(notify('bien', 'Chapitre 3 complété ! Chapitre 4 débloqué : La Voix du Quartier.'));
     }
   }
 
