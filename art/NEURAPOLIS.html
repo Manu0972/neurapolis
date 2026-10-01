@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NEURAPOLIS</title>
+<style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#f7dcc0}canvas{display:block}</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+(function(){
+'use strict';
+var canvas=document.getElementById('c'), ctx=canvas.getContext('2d');
+
+// palette chaude (direction artistique §3.1 — ombres froides, lumières chaudes, contour brun)
+var P={
+  o:'#2a1a14', h:'#6b4a2f', H:'#8a6240', s:'#ffc496', S:'#cf8f74', e:'#2a1a14', m:'#b76a55',
+  t:'#f48c5d', T:'#c25a40', p:'#4a5a7a', b:'#3a2a20'
+};
+
+// ---- le personnage : 16x23, chibi 2-3 têtes, frame par frame ----
+var HEAD=[
+ '.....oooooo.....',
+ '....oHHHHHho....',
+ '...ohhhhhhhho...',
+ '..ohhhhhhhhhho..',
+ '..ohhhhhhhhhho..',
+ '..ohhhhhhhhhho..',
+ '...ohhhhhhho....',
+ '...oSSSSSSSSo...',
+ '...osesssseso...',
+ '...osssmmssso...',
+ '...osssssssso...',
+ '.....oooooo.....'
+];
+var BODY=[
+ '....otttttto....',
+ '...oTttttttto...',
+ '...otttttttto...',
+ '....otttttto....',
+ '....opppppo.....'
+];
+var L_IDLE =['....opp..ppo....','....opp..ppo....','....opp..ppo....','....opp..ppo....','....op...po.....','....bb...bb.....'];
+var L_W0   =['...op.....op....','...op.....op....','...op.....op....','...op.....op....','...opp....opp...','...bb.....bb....'];
+var L_PASS =['....oppppo......','....oppppo......','....oppppo......','....oppppo......','....oppppo......','....bb..bb......'];
+var L_W2   =['....op....op....','....op....op....','....op....op....','....op....op....','....opp...opp...','....bb....bb....'];
+
+function fr(legs){ return HEAD.concat(BODY, legs); }
+var IDLE=fr(L_IDLE), W0=fr(L_W0), PASS=fr(L_PASS), W2=fr(L_W2);
+
+// ---- le chat (petit, assis, queue) ----
+var CAT=[
+ '..oo....oo..',
+ '..oo....oo..',
+ '.oooo..oooo.',
+ '.osos..osso.',
+ '.ooosoosooo.',
+ '..oooooooo..',
+ '..oooooooo..',
+ '..oo....oo..'
+];
+var CATP={ o:'#2a1a14', s:'#f4a25a', e:'#2a1a14' };
+
+function sprite(rows,pal,px,py,s){ for(var r=0;r<rows.length;r++){var row=rows[r]; for(var c=0;c<row.length;c++){var ch=row.charAt(c); if(ch==='.')continue; ctx.fillStyle=pal[ch]; ctx.fillRect(px+c*s,py+r*s,s,s);} } }
+
+function drawScene(t,W,H){
+  var gy=H*0.78;
+  // ciel doré (heure d'or, ~1800K)
+  var g=ctx.createLinearGradient(0,0,0,gy); g.addColorStop(0,'#f2a26a'); g.addColorStop(0.6,'#f7dcc0'); g.addColorStop(1,'#fdecd6');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='rgba(255,220,150,0.9)'; ctx.beginPath(); ctx.arc(W*0.8,H*0.16,22,0,Math.PI*2); ctx.fill();
+
+  // horizon + ville lointaine
+  ctx.fillStyle='#c8a88c'; ctx.beginPath(); ctx.moveTo(0,gy-46); for(var x=0;x<=W;x+=48) ctx.lineTo(x,gy-46-Math.sin(x*0.02+t*0.05)*7); ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#b8957a'; for(var i=0;i<9;i++){var bx=((i*170+t*6)%(W+80))-40; ctx.fillRect(bx,gy-46-20-((i%3)*14),16,20+((i%3)*14));}
+
+  // sol chaud
+  ctx.fillStyle='#d8d2c4'; ctx.fillRect(0,gy-8,W,42);
+  ctx.fillStyle='#c4b8a0'; ctx.fillRect(0,gy+14,W,H-gy-14);
+  ctx.fillStyle='#a89a84'; ctx.fillRect(0,gy+12,W,2);
+
+  // deux bâtiments cozy, fenêtres chaudes
+  function batiment(x,w,h){ var y=gy-8-h; var bg=ctx.createLinearGradient(x,y,x,gy-8); bg.addColorStop(0,'#f9ecd0'); bg.addColorStop(1,'#cfa97f'); ctx.fillStyle=bg; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle='#c15f4a'; ctx.fillRect(x-5,y-13,w+10,14); ctx.fillStyle='#8f3a34'; ctx.fillRect(x+w*0.5,y-13,w*0.5+5,14);
+    for(var wy=0;wy<Math.floor(h/30);wy++)for(var wx=0;wx<Math.floor(w/34);wx++){ var fx=x+12+wx*34,fy=y+16+wy*30; ctx.fillStyle='#ffd98a'; ctx.fillRect(fx,fy,18,20); ctx.fillStyle='rgba(122,82,48,0.9)'; ctx.fillRect(fx,fy,18,2); ctx.fillRect(fx,fy,2,20); }
+    ctx.fillStyle='#8a5a3a'; ctx.fillRect(x+w*0.44,gy-28,18,22); ctx.fillStyle='#ffd98a'; ctx.fillRect(x+w*0.44+13,gy-18,2,2); }
+  batiment(W*0.08,160,130); batiment(W*0.56,150,150);
+
+  // lampadaire + halo chaud
+  var lx=W*0.4, ly=gy-58; ctx.fillStyle='#3a2a20'; ctx.fillRect(lx-2,ly,5,58);
+  ctx.fillStyle='rgba(255,190,100,0.18)'; ctx.beginPath(); ctx.arc(lx,ly,46+Math.sin(t*0.5)*3,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#ffd98a'; ctx.beginPath(); ctx.arc(lx,ly,9,0,Math.PI*2); ctx.fill();
+
+  // arbre qui balance
+  var sway=Math.sin(t*0.7)*3; ctx.fillStyle='#6b4a2f'; ctx.fillRect(W*0.88-4,gy-42,8,42);
+  ctx.fillStyle='#257179'; ctx.beginPath(); ctx.arc(W*0.88+sway,gy-54,26,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#38b764'; ctx.beginPath(); ctx.arc(W*0.88+sway+7,gy-60,19,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#a7f070'; ctx.beginPath(); ctx.arc(W*0.88+sway+4,gy-66,10,0,Math.PI*2); ctx.fill();
+
+  // le chat, assis près de la lampe
+  sprite(CAT,CATP,Math.round(lx+24),gy-8*2,2);
+
+  // feuilles qui dérivent
+  ctx.fillStyle='#a7f070'; for(var l=0;l<6;l++){ var fx=((t*(9+l*3)+l*173)%(W+40))-20, fy=gy-50-((t*12+l*90)%110); ctx.globalAlpha=0.5; ctx.fillRect(fx,fy,3,3); } ctx.globalAlpha=1;
+
+  // vignette chaude
+  var v=ctx.createRadialGradient(W/2,H/2,W*0.25,W/2,H/2,W*0.82); v.addColorStop(0,'rgba(0,0,0,0)'); v.addColorStop(1,'rgba(90,40,10,0.28)'); ctx.fillStyle=v; ctx.fillRect(0,0,W,H);
+}
+
+// ---- le personnage vit : respire, marche, s'arrête ----
+var x=0.32, dir=1, state='walk', stopT=0;
+function update(dt){
+  if(state==='walk'){ x+=dir*0.12*dt; if(x>0.62){state='idle';stopT=0;} if(x<0.1){state='idle';stopT=0;} }
+  else { stopT+=dt; if(stopT>2.4){ state='walk'; dir=-dir; } }
+}
+function curFrame(t){
+  if(state==='idle') return IDLE;
+  return [W0,PASS,W2,PASS][Math.floor(t*6)%4];
+}
+function bob(t){ return state==='idle'?(Math.floor(t*1.6)%2):0; }
+
+function resize(){ var r=window.devicePixelRatio||1; canvas.width=Math.floor(innerWidth*r); canvas.height=Math.floor(innerHeight*r); ctx.setTransform(r,0,0,r,0,0); }
+window.addEventListener('resize',resize); resize();
+
+var start=performance.now();
+function loop(){
+  var now=performance.now(); var t=(now-start)/1000;
+  update(0.016);
+  var W=innerWidth,H=innerHeight,gy=H*0.78;
+  drawScene(t,W,H);
+  var s=Math.max(3,Math.floor(H/190));
+  var px=Math.round(x*W-8*s), py=gy-23*s + bob(t)*s;
+  ctx.fillStyle='rgba(90,40,10,0.25)'; ctx.beginPath(); ctx.ellipse(x*W,gy+2,13*s,3*s,0,0,Math.PI*2); ctx.fill();
+  sprite(curFrame(t),P,px,py,s);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

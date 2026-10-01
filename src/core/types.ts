@@ -1,0 +1,277 @@
+/**
+ * NEURAPOLIS — Schémas de l'état du monde (contrat unique simulation ↔ présentation).
+ * Règle d'or : TOUT ce qui est simulé vit ici ; le rendu ne fait que lire.
+ * Identifiants stables : jamais renommer un id une fois publié.
+ */
+
+// ---------- Identifiants ----------
+export type PlaceId = 'maison' | 'college' | 'epicerie' | 'friche' | 'parc' | 'place';
+export type SkillId =
+  | 'negociation' | 'comptabilite' | 'communication'
+  | 'organisation' | 'technique' | 'recherche';
+export type NeedId = 'fatigue' | 'faim' | 'stress' | 'moral';
+export type GhostId = string; // 'smith', 'marx', … (stables)
+export type NpcId = string;   // 'noah', 'lina', … (stables)
+
+// ---------- Temps ----------
+export type Speed = 0 | 1 | 5 | 20;
+export interface TimeState { tick: number; speed: Speed }
+export const MINUTES_PER_TICK = 10;
+export const TICKS_PER_DAY = 144; // 24h × 6 ticks/h
+export const GAME_START_ISO = '2020-09-01'; // mardi 1er septembre 2020, rentrée
+
+export interface GameDate { y: number; m: number; d: number; weekday: number; iso: string; label: string }
+
+// ---------- Joueur ----------
+/** Les six caractéristiques fondamentales de la Bible de game design (0-100). */
+export interface Characteristics {
+  comprehension: number; // capacité à analyser et apprendre
+  creativite: number;    // imaginer des solutions
+  influence: number;     // convaincre, rassembler
+  discipline: number;    // tenir un engagement
+  adaptabilite: number;  // réagir aux imprévus
+  confiance: number;     // confiance en soi
+}
+export type CharacteristicsId = keyof Characteristics;
+
+export interface Needs { fatigue: number; faim: number; stress: number; moral: number }
+
+export interface Skill { level: 0 | 1 | 2 | 3; xp: number }
+
+/** Apprentissage en 4 étapes (Bible §5) : 1 découverte, 2 explication, 3 application, 4 maîtrise. */
+export type NotionStage = 1 | 2 | 3 | 4;
+export interface Notion { id: string; stage: NotionStage; applications: number }
+
+/** Relations à quatre dimensions (Bible §7) — jamais une jauge unique. */
+export interface Rel4 { amitie: number; confiance: number; respect: number; rivalite: number }
+export const ZERO_REL: Rel4 = { amitie: 0, confiance: 0, respect: 0, rivalite: 0 };
+
+export interface Player {
+  name: string;
+  age: number;
+  characteristics: Characteristics;
+  needs: Needs;
+  skills: Record<SkillId, Skill>;
+  notions: Record<string, Notion>;
+  money: number;          // trésorerie personnelle (€)
+  reputation: number;     // 0-100, réputation dans le quartier
+  relations: Record<NpcId, Rel4>;
+  pos: { x: number; y: number }; // position tuiles sur la carte
+  asleep: boolean;
+}
+
+// ---------- PNJ ----------
+export interface RoutineSlot {
+  from: string; // 'HH:MM'
+  to: string;   // 'HH:MM'
+  place: PlaceId;
+  activity: string; // libellé court affiché
+  weekends?: boolean; // true si ce créneau s'applique aussi le week-end
+}
+
+export interface NpcDef {
+  id: NpcId;
+  name: string;
+  age: number;
+  role: string;
+  traits: string[];
+  color: string;
+  routine: RoutineSlot[];
+  /** Phares de dialogue : thème → répliques (choix multiples gérés côté présentation). */
+  topics: Record<string, string[]>;
+}
+
+export interface NpcState {
+  id: NpcId;
+  place: PlaceId;
+  activity: string;
+  stress: number;   // simplifié niveau A/B
+  moral: number;
+  memory: string[]; // ids d'événements vécus (mémoire sélective, Bible §6)
+  opinion: number;  // -100..100 opinion sur le joueur
+}
+
+// ---------- Fantômes (Conseil) ----------
+export type GhostStatus =
+  | 'inconnu'    // pas encore apparu (silhouette)
+  | 'refuse'     // repoussé à son arrivée ; reviendra plus tard à condition majorée
+  | 'actif'      // voix écoutée (max 4)
+  | 'endormi'    // présent mais silencieux (loyauté −1/jour)
+  | 'hostile'    // loyauté < 20 : perturbe au lieu de conseiller
+  | 'mort'       // oublié (loyauté 0 pendant 3 jours) — silhouette grise
+  | 'fusionne';  // absorbé dans un fantôme composite
+
+export interface GhostAdviceRecord {
+  day: number;
+  adviceId: string;
+  text: string;
+  veracite: 'vraie' | 'exageree' | 'mensonge';
+  followed: boolean;
+  outcome?: 'bien' | 'mal' | 'neutre';
+  /** Véracité secrète : jour de la rétrospection et révélation faite au joueur. */
+  revealDay?: number;
+  revealed?: boolean;
+  /** Le joueur a-t-il répondu au conseil (suivre / ignorer) ? */
+  answered?: boolean;
+}
+
+export interface GhostState {
+  id: GhostId;
+  status: GhostStatus;
+  loyalty: number;      // 0-100, départ 50
+  fiabilite: number;    // 0-100 « fiabilité perçue » (baisse si mensonge révélé)
+  lastWords: string;
+  history: GhostAdviceRecord[];
+  loyaltyZeroDays: number;
+  /** Scène d'arrivée en attente du choix du joueur (écouter / repousser). */
+  arrivalPending?: boolean;
+  /** Refus : jour (index) à partir duquel la voix peut revenir. */
+  returnDay?: number;
+  /** Refus : compteurs au moment du refus — la voix ne revient qu'en ayant avancé. */
+  refusalSnapshot?: RefusalSnapshot;
+  /** Jour du prochain conseil spontané (voix actives). */
+  nextAdviceDay?: number;
+}
+
+/** État des compteurs au refus d'un fantôme (condition de retour majorée). */
+export interface RefusalSnapshot {
+  flags: Record<string, number>;
+  characteristics: Record<string, number>;
+  npcStress: Record<string, number>;
+}
+
+/** Fiche §6.2 du prompt maître — données statiques (src/data/ghosts). */
+export interface GhostDef {
+  id: GhostId;
+  name: string;
+  era: string;                 // époque / tradition
+  generation: 1 | 2 | 3;
+  color: string;               // teinte de présence
+  emoji: string;
+  identity: { portrait: string; life: string; became: string };
+  voice: {
+    favorable: string; neutre: string; hostile: string; victoire: string; echec: string;
+    tics: string[];             // 3 tics de langage
+    sujetsSerieux: string[];    // 3 sujets où il ne plaisante pas
+    sujetsExageres: string[];   // 3 sujets où il exagère
+  };
+  projet: { veut: string; pourquoi: string; cacher: string };
+  faille: { angleMort: string; hypocrisie: string; contradiction: string };
+  arcs: { fidelite: string; rupture: string; fusion: string };
+  mecanique: {
+    debloque: string[];         // actions/options ouvertes
+    bloque: string[];
+    signature80: string;        // capacité à loyauté > 80
+    hostile20: string;          // comportement à loyauté < 20
+  };
+  relations: { allies: GhostId[]; rivaux: GhostId[] };
+  apparition: { declencheur: string; condition: (w: WorldState) => boolean; sceneId: string };
+}
+
+export interface FusionDef {
+  id: string;                   // 'marche_des_communs'
+  name: string;
+  from: [GhostId, GhostId];
+  conditions: { marches: number; communs: number }; // décisions cumulées requises
+  affinite: number;             // affinité minimale de la paire (contrat M6 : 6)
+  sceneId: string;
+  debloque: string;
+}
+
+// ---------- Projet ----------
+export interface LedgerEntry { day: number; date: string; label: string; amount: number } // amount>0 entrée, <0 sortie
+
+export type RepartitionMode = 'egalite' | 'equite' | 'incitation';
+
+export interface ProjectState {
+  id: 'stand_des_roses';
+  active: boolean;
+  stock: number;              // unités en stock
+  price: number;              // prix de vente €/unité
+  members: NpcId[];           // coéquipiers recrutés
+  rules: { collectif: boolean; contratSecurite: boolean };
+  sessionsDone: number;
+  coursesDone: number;        // services de courses pour l'épicerie
+  ledger: LedgerEntry[];
+  lastRepartition?: RepartitionMode; // mode choisi pour la prochaine répartition (défaut : égalité)
+  balance: number;            // caisse du stand (€) — invariant : Σ(entrées − sorties) = balance
+  /** Résultat hebdomadaire en cours (trésorerie ≠ résultat : le solde est cumulé, la semaine se répartit). */
+  week: { index: number; revenue: number; expenses: number; distributed: boolean };
+  /** Travail fourni dans la semaine, en unités de 20 min — clé 'player' + un clé par membre (équité). */
+  work: Record<string, number>;
+  /** Prévision de demande en attente, comparée à la prochaine session (déclencheur Simon). */
+  lastForecast?: { expected: number; day: number };
+}
+
+// ---------- Territoire ----------
+export type Meteo = 'soleil' | 'nuages' | 'pluie';
+
+export interface DistrictState {
+  vitaliteEpicerie: number;   // 0-100 (départ 45 ; <35 fermeture envisagée ; >60 embauche)
+  confianceQuartier: number;  // 0-100
+  frequentationParc: number;  // 0-100
+  meteo: Meteo;
+}
+
+// ---------- Événements & journaux ----------
+export interface CauseFactor { facteur: string; seuil?: string; poids: number } // poids 1-3
+
+export type EventType =
+  | 'vie' | 'opportunite' | 'conflit' | 'decouverte' | 'consequence'
+  | 'conseil' | 'fusion' | 'antagonisme' | 'quartier' | 'systeme';
+
+export interface GameEvent {
+  id: string;
+  day: number;
+  date: string;
+  type: EventType;
+  title: string;
+  text: string;
+  causes: CauseFactor[];      // journal des causes — « pourquoi ceci ? »
+}
+
+export interface LifeJournalEntry { day: number; date: string; title: string; text: string }
+
+export interface Notification {
+  kind: 'info' | 'bien' | 'alerte' | 'fantome' | 'journal';
+  text: string;
+  ghost?: GhostId;
+}
+
+// ---------- Conseil ----------
+/** Doctrine d'une décision clé : marché, communs, autorité, solidarité. */
+export type DoctrineKey = 'marche' | 'communs' | 'autorite' | 'solidarite';
+
+/** Progression d'une fusion : décisions prises avec les deux voix actives. */
+export interface FusionProgress { marches: number; communs: number }
+
+export interface CouncilState {
+  ghosts: Record<GhostId, GhostState>;
+  /** Compteurs de décisions alignées par doctrine, pour les apparitions et fusions. */
+  decisions: { marche: number; communs: number; autorite: number; solidarite: number };
+  fusionProgress: Record<string, FusionProgress>; // ex. 'smith+ostrom'
+  fusionsDone: string[];
+  /** Affinité par paire de voix (clé triée 'a+b') : +1 quand les deux approuvent la même décision. */
+  affinities: Record<string, number>;
+  /** Fusion prête : id du FusionDef dont la scène attend le joueur. */
+  pendingFusion?: string;
+  contratSecurite: { active: boolean; sinceDay?: number; proposedDay?: number } | null;
+  allianceDesOmbres: number;   // jauge teaser super-antagoniste
+}
+
+// ---------- Monde ----------
+export interface WorldState {
+  version: number;
+  seed: number;
+  rng: number;                // état courant du PRNG (mulberry32)
+  time: TimeState;
+  player: Player;
+  npcs: Record<NpcId, NpcState>;
+  council: CouncilState;
+  project?: ProjectState;
+  district: DistrictState;
+  events: GameEvent[];        // journal des événements (cap 250)
+  lifeJournal: LifeJournalEntry[];
+  flags: Record<string, number>; // compteurs libres (ventes, conflits, prévisions ratées…)
+  seen: Record<string, boolean>; // événements déjà déclenchés (once)
+}

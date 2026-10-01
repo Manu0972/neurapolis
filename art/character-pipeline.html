@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEURAPOLIS — pipeline personnage</title>
+<style>
+  :root{--bg:#0a0e17;--panel:#131b2b;--line:#243250;--text:#eaf2ff;--dim:#8a9bb8}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Inter,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+  header{display:flex;align-items:center;gap:12px;padding:12px 20px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+  header h1{font-size:15px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;background:linear-gradient(135deg,#4ea1ff,#b78bff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .badge{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;border:1px solid #ffc94a;color:#ffc94a;letter-spacing:.08em}
+  .btns{margin-left:auto;display:flex;gap:6px}
+  .btns button{font:inherit;font-size:12px;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid var(--line);background:#19243a;color:var(--text)}
+  .btns button.on{background:#4ea1ff;border-color:#4ea1ff;color:#fff}
+  main{flex:1;display:flex;align-items:center;justify-content:center;padding:24px}
+  canvas{border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.55);max-width:96vw}
+  footer{padding:14px 20px;font-size:11.5px;color:var(--dim);text-align:center;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <h1>NEURAPOLIS · pipeline personnage</h1>
+  <span class="badge">PROTOTYPE TECHNIQUE</span>
+  <div class="btns">
+    <button id="sprite" class="on">🎨 Sprite (assets)</button>
+    <button id="debug">🦴 Squelette (debug)</button>
+    <button id="anim" class="on">🚶 Marche</button>
+  </div>
+</header>
+<main><canvas id="c" width="960" height="360"></canvas></main>
+<footer>Rig (pose) et rendu sont SÉPARÉS : le rig calcule la pose (IK, appui, poids), le renderer dessine. « Squelette » montre la pose, « Sprite » la dessine avec des assets pixel édités (remplaçables par de vrais sprites d'artiste sans toucher au rig).</footer>
+<script src="character-pipeline.js"></script>
+<script>
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  let mode = 'sprite', walk = true;
+
+  const rig = NeurPipeline.makeRig({ scale: 1.6, hair: '#5b3a29', skin: '#eab78a', shirt: '#e76f51', pants: '#3a4a6b', shoes: '#2a2a2a' });
+  const st = NeurPipeline.makeState();
+  st.targetSpeed = 30; st.speed = 30;
+  let x = 120, dir = 1;
+
+  document.getElementById('sprite').onclick = () => { mode = 'sprite'; set('sprite'); };
+  document.getElementById('debug').onclick = () => { mode = 'debug'; set('debug'); };
+  document.getElementById('anim').onclick = () => { walk = !walk; st.targetSpeed = walk ? 30 : 0; document.getElementById('anim').classList.toggle('on', walk); };
+  function set(id) { document.querySelectorAll('.btns button').forEach(b => b.classList.remove('on')); document.getElementById(id).classList.add('on'); }
+
+  let t = 0;
+  function loop() {
+    t += 0.16;
+    const groundY = 280;
+    // fond
+    const g = ctx.createLinearGradient(0, 0, 0, groundY);
+    g.addColorStop(0, '#8fd4ee'); g.addColorStop(1, '#d9f1f8');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, 960, groundY);
+    ctx.fillStyle = '#b9b2a4'; ctx.fillRect(0, groundY, 960, 360 - groundY);
+    ctx.strokeStyle = 'rgba(0,0,0,0.06)'; for (let i = 0; i < 960; i += 24) { ctx.beginPath(); ctx.moveTo(i, groundY); ctx.lineTo(i, 360); ctx.stroke(); }
+
+    // simulation + rendu
+    const pose = NeurPipeline.computePose(rig, st, 0.16, x, groundY);
+    x += st.speed * 0.16 * dir; if (x > 900) dir = -1; if (x < 60) dir = 1;
+
+    ctx.fillStyle = 'rgba(40,28,16,0.25)';
+    ctx.beginPath(); ctx.ellipse(pose.hipX, groundY + 2, 16, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+    if (mode === 'debug') NeurPipeline.drawDebug(ctx, pose, rig, {});
+    else NeurPipeline.drawCharacter(ctx, pose, rig, NeurPipeline.SAMPLE_ART, 0);
+
+    requestAnimationFrame(loop);
+  }
+  loop();
+</script>
+</body>
+</html>

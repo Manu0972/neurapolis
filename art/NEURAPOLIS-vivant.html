@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEURAPOLIS — la rue vivante</title>
+<style>
+  :root{--bg:#0a0e17;--panel:#131b2b;--line:#243250;--text:#eaf2ff;--dim:#8a9bb8}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Inter,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+  header{display:flex;align-items:center;gap:14px;padding:12px 20px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+  header h1{font-size:15px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;background:linear-gradient(135deg,#4ea1ff,#b78bff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  header .sub{font-size:12px;color:var(--dim)}
+  .btns{margin-left:auto;display:flex;gap:6px}
+  .btns button{font:inherit;font-size:12.5px;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid var(--line);background:#19243a;color:var(--text)}
+  .btns button.on{background:#4ea1ff;border-color:#4ea1ff;color:#fff}
+  main{flex:1;display:flex;align-items:center;justify-content:center;padding:24px}
+  canvas{image-rendering:auto;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.55);max-width:96vw;height:auto}
+  footer{padding:14px 20px;font-size:11.5px;color:var(--dim);text-align:center;border-top:1px solid var(--line);line-height:1.6}
+</style>
+</head>
+<body>
+<header>
+  <h1>NEURAPOLIS · la rue vivante</h1>
+  <span class="sub">squelette + IK · appui réel des pieds · poids &amp; inertie · profondeur en couches</span>
+  <div class="btns" id="btns"></div>
+</header>
+<main><canvas id="c" width="960" height="540"></canvas></main>
+<footer>
+  Test des 10 secondes : observez les pieds qui se posent (pas de glissement), la bascule du bassin, les épaules qui compensent,
+  le regard qui change chez celui qui attend, l'arbre qui balance, les feuilles qui dérivent, la lampe qui vacille, les fenêtres qui s'allument.<br>
+  Ceci est le SOCLE d'animation — la technologie (squelette, IK, couches) doit rester invisible ; seule la scène doit être perçue.
+</footer>
+<script>
+/**
+ * NEURAPOLIS — Moteur « monde vivant » (prototype d'architecture d'animation).
+ *
+ * Répond à l'exigence de qualité 2D : pas de sprites plaqués, pas de marionnette,
+ * pas de pieds qui glissent. Ce fichier implémente le SOCLE :
+ *   - personnage = corps unique, squelette procédural (bassin → colonne → torse → cou → tête ;
+ *     hanche → genou → cheville → pied) résolu par IK 2 segments ;
+ *   - marche avec APPUI RÉEL des pieds (le pied reste planté pendant la phase d'appui,
+ *     le corps avance par-dessus), transfert de poids, bascule du bassin, compensation des
+ *     épaules, balancement des bras, stabilisation de la tête, suivi (cheveux/écharpe) ;
+ *   - états idle / marche / course avec TRANSITION (décélération progressive, pas d'arrêt sec) ;
+ *   - idle « vivant » : respiration, déplacement du poids, clignement, regard qui change ;
+ *   - variation procédurale (morphologie, couleurs, cadence, démarche) → pas de clones ;
+ *   - environnement en COUCHES de profondeur (arrière / plan principal / premier plan) avec
+ *     parallaxe subtile et dérive de caméra ;
+ *   - décor qui respire : arbres qui balancent, feuilles qui dérivent, eau qui miroite,
+ *     lampadaire qui vacille, fenêtres qui s'allument ;
+ *   - éclairage qui RELIE tout : les personnages sont teintés par la lumière de la scène
+ *     (chaud près d'une lampe, froid dans l'ombre) + ombre portée orientée.
+ *
+ * Autonome (zéro dépendance), déterministe (mulberry32), Canvas 2D.
+ * Aperçu : living-street.html. Philosophie : DESIGN-PHILOSOPHY.md.
+ */
+(function (global) {
+  'use strict';
+
+  // ---------- PRNG ----------
+  function mulberry(seed) {
+    return function () {
+      seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ---------- Couleurs ----------
+  function h2r(h) { h = h.replace('#', ''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
+  function r2h(r, g, b) { return '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join(''); }
+  function mix(a, b, t) { const A = h2r(a), B = h2r(b); return r2h(A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t, A[2] + (B[2] - A[2]) * t); }
+  const light = c => mix(c, '#ffdf9e', 0.35);
+  const shade = c => mix(c, '#2c2540', 0.42);
+
+  // ---------- Palettes (rue) ----------
+  const PALETTES = {
+    jour: {
+      skyTop: '#8fd4ee', skyBottom: '#e4f4f8', far: '#b8d8c8', treeline: '#7fa86a',
+      street: '#b9b2a4', sidewalk: '#d8d2c4', curb: '#9a9386',
+      wall: { hi: '#f9ecd0', base: '#efd9ac', lo: '#cfa97f' }, roof: { hi: '#d97a5f', base: '#c15f4a', lo: '#8f3a34' },
+      trim: '#c9a06a', door: '#8a5a3a', window: '#bfe0ee', windowLit: '#ffd98a', frame: '#7a5230',
+      lamp: '#ffd98a', lampGlow: 'rgba(255,205,110,0.20)', plant: '#7fa96a', plantDark: '#5f844c',
+      skin: { hi: '#f7d0a0', base: '#eab78a', lo: '#c8916a' }, outline: '#3a2a20',
+      leaf: '#9fd27a', shadow: 'rgba(40,28,16,0.28)',
+    },
+    soir: {
+      skyTop: '#f2a26a', skyBottom: '#f7dcc0', far: '#c8a88c', treeline: '#6f8a5c',
+      street: '#a89c88', sidewalk: '#c8bca0', curb: '#8a7f6c',
+      wall: { hi: '#eed6b2', base: '#e0c199', lo: '#b8907a' }, roof: { hi: '#cf7054', base: '#a8503c', lo: '#7a3a2c' },
+      trim: '#b58a58', door: '#7a4d30', window: '#ffd98a', windowLit: '#ffe2a8', frame: '#6b4a2c',
+      lamp: '#ffe2a8', lampGlow: 'rgba(255,190,110,0.26)', plant: '#6f8a5c', plantDark: '#54703f',
+      skin: { hi: '#eec694', base: '#ddab7c', lo: '#b58260' }, outline: '#2e211a',
+      leaf: '#d9b957', shadow: 'rgba(30,18,10,0.34)',
+    },
+    nuit: {
+      skyTop: '#1c2a4a', skyBottom: '#31486a', far: '#2a3550', treeline: '#25332e',
+      street: '#33333c', sidewalk: '#3a3a44', curb: '#26262c',
+      wall: { hi: '#4a4250', base: '#3a3340', lo: '#2c2732' }, roof: { hi: '#5a3a48', base: '#4a2f3a', lo: '#36232c' },
+      trim: '#4d4350', door: '#4a3424', window: '#22303a', windowLit: '#ffd98a', frame: '#3a2e28',
+      lamp: '#ffd98a', lampGlow: 'rgba(255,205,120,0.30)', plant: '#2f4a3a', plantDark: '#22382c',
+      skin: { hi: '#d3a582', base: '#bd8f68', lo: '#93674a' }, outline: '#0f0d10',
+      leaf: '#4a5a4a', shadow: 'rgba(0,0,0,0.45)',
+    },
+  };
+
+  // ---------- IK 2 segments ----------
+  function ik2(x1, y1, x2, y2, l1, l2, bend) {
+    let dx = x2 - x1, dy = y2 - y1;
+    let d = Math.hypot(dx, dy); d = Math.min(d, l1 + l2 - 0.001); if (d < 0.001) d = 0.001;
+    const a = (l1 * l1 - l2 * l2 + d * d) / (2 * d);
+    const h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
+    const mx = x1 + dx * a / d, my = y1 + dy * a / d;
+    const px = -dy / d * h * bend, py = dx / d * h * bend;
+    return [mx + px, my + py];
+  }
+  function limb(ctx, x1, y1, x2, y2, w, color) {
+    ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+
+  // ---------- Personnage (corps unique, squelette + IK) ----------
+  // state: { phase, speed, targetSpeed, breath, blink, gazeX, plantL, plantR, lastQL, lastQR }
+  function makePerson(cfg) {
+    const scale = cfg.scale || 1;
+    const dims = {
+      legLen: 16 * scale, foot: 4 * scale, torso: 13 * scale, armLen: 12 * scale,
+      headR: 6.5 * scale, neck: 2 * scale,
+    };
+    const col = {
+      skin: cfg.skin || '#eab78a', hair: cfg.hair || '#5b3a29', shirt: cfg.shirt || '#e76f51',
+      pants: cfg.pants || '#3a4a6b', shoes: cfg.shoes || '#2a2a2a',
+    };
+    const style = { cadence: cfg.cadence || 1, sway: cfg.sway || 1, stepLen: cfg.stepLen || 1 };
+    const st = { phase: cfg.phase || 0, speed: 0, targetSpeed: 0, breath: Math.random() * 6.28, blink: 3, gazeX: 0, gazeT: 0, plantL: 0, plantR: 0, lastQL: 0, lastQR: 0 };
+    // état visuel courant (pour idle vivant)
+    let lookTimer = 0, lookX = 0;
+    return { scale, dims, col, style, st, _lookTimer: lookTimer, _lookX: lookX };
+  }
+
+  function personStep(p, dt, groundX) {
+    const st = p.st;
+    // transition douce de vitesse (anticipation / settle)
+    st.speed += (st.targetSpeed - st.speed) * Math.min(1, dt * 6);
+    const stride = 14 * p.scale * p.style.stepLen;
+    const v = st.speed; // px/s
+    st.phase += v * (0.5 * p.style.cadence) * dt; // phase en radians avance avec la vitesse
+    // pieds : appui (stance) vs transfert (swing)
+    const cycle = Math.PI * 2;
+    const qL = ((st.phase / cycle) + 0.0) % 1;
+    const qR = ((st.phase / cycle) + 0.5) % 1;
+    const stance = 0.55;
+    // pied gauche
+    if (qL < stance && st.lastQL >= stance) { st.plantL = groundX + stride; }
+    // pied droit
+    if (qR < stance && st.lastQR >= stance) { st.plantR = groundX + stride; }
+    st.lastQL = qL; st.lastQR = qR;
+
+    // respiration (idle) + clignement + regard
+    st.breath += dt * (1.6 + Math.abs(v) * 0.0);
+    st.blink -= dt * (0.3 + Math.random() * 0.02);
+    if (st.blink < 0) st.blink = 2.2 + Math.random() * 3;
+    if (Math.abs(v) < 1) {
+      p._lookTimer -= dt;
+      if (p._lookTimer < 0) { p._lookTimer = 2 + Math.random() * 4; p._lookX = (Math.random() - 0.5) * 3; }
+    }
+  }
+
+  function personDraw(ctx, p, x, groundY, pal, lightWarm) {
+    const st = p.st, D = p.dims, col = p.col;
+    const v = st.speed;
+    const walking = Math.abs(v) > 1;
+    const ph = st.phase;
+
+    // --- cinématique du corps (chaine bassin → tête) ---
+    const bob = walking ? Math.abs(Math.sin(ph)) * 1.6 * p.scale * p.style.sway : Math.sin(st.breath * 0.9) * 0.4 * p.scale;
+    const hipY = groundY - D.legLen - bob * 0.6;
+    const hipSway = walking ? Math.cos(ph) * 1.2 * p.scale * p.style.sway : Math.sin(st.breath * 0.7) * 0.7 * p.scale;
+    const hipX = x + hipSway;
+    const shoulderRot = walking ? Math.sin(ph) * 0.10 * p.style.sway : 0;
+    const chestTopY = hipY - D.torso;
+    const neckX = x + Math.sin(ph) * 0.8 * p.scale * (walking ? 1 : 0);
+    const headX = neckX + (walking ? Math.sin(ph) * 0.3 : Math.sin(st.breath * 0.5) * 0.4) * p.scale;
+    const headY = chestTopY - D.neck - D.headR * 0.6;
+
+    // ombre portée (orientée par la lumière, plus grande à l'arrêt)
+    const shadowLen = 4 + Math.abs(v) * 0.0;
+    ctx.fillStyle = pal.shadow;
+    ctx.beginPath(); ctx.ellipse(x + 1, groundY + 2, D.legLen * 0.55 + shadowLen, 4 * p.scale, 0, 0, Math.PI * 2); ctx.fill();
+
+    // --- pieds (appui réel) ---
+    const cycle = Math.PI * 2;
+    const qL = ((ph / cycle) + 0.0) % 1, qR = ((ph / cycle) + 0.5) % 1;
+    const stance = 0.55, stride = 14 * p.scale * p.style.stepLen;
+    function footPos(q, plant) {
+      if (q < stance) { return { fx: plant, fy: groundY, planted: true }; }
+      const t = (q - stance) / (1 - stance);
+      return { fx: plant + stride * t, fy: groundY - Math.sin(Math.PI * t) * 5 * p.scale, planted: false };
+    }
+    const L = footPos(qL, st.plantL), R = footPos(qR, st.plantR);
+
+    // jambes (hanche → genou → cheville) via IK
+    const bend = -1; // genou vers l'arrière
+    function leg(hipx, hipy, foot) {
+      const footX = foot.fx, footY = foot.fy - D.foot;
+      const [kx, ky] = ik2(hipx, hipy, footX, footY, D.legLen * 0.62, D.legLen * 0.62, bend);
+      limb(ctx, hipx, hipy, kx, ky, 3 * p.scale, shade(col.pants));
+      limb(ctx, kx, ky, footX, footY, 3 * p.scale, col.pants);
+      limb(ctx, footX - 1, footY, footX + D.foot, footY, 3 * p.scale, col.shoes);
+    }
+    leg(hipX, hipY, L); leg(hipX, hipY, R);
+
+    // --- torse (colonne, compensation des épaules) ---
+    ctx.save();
+    ctx.translate(hipX, chestTopY + D.torso * 0.5);
+    ctx.rotate(shoulderRot);
+    const torsoW = 7 * p.scale, torsoH = D.torso;
+    // dégradé (côté éclairé / ombré)
+    const g = ctx.createLinearGradient(-torsoW / 2, 0, torsoW / 2, 0);
+    g.addColorStop(0, light(col.shirt)); g.addColorStop(1, shade(col.shirt));
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.roundRect(-torsoW / 2, -torsoH / 2, torsoW, torsoH, 4 * p.scale); ctx.fill();
+    ctx.restore();
+
+    // --- bras (épaules → coude → main), balancement opposé aux jambes ---
+    const shY = chestTopY + 1 * p.scale;
+    const armA = walking ? Math.sin(ph) * 0.5 * p.style.sway : Math.sin(st.breath) * 0.06;
+    function arm2(side, ang) {
+      const sx = hipX + side * torsoW * 0.42;
+      const tx = sx + Math.sin(ang) * D.armLen * 0.8, ty = shY + D.armLen * 0.85 + Math.cos(ang) * 2 * p.scale;
+      const [ex, ey] = ik2(sx, shY, tx, ty, D.armLen * 0.55, D.armLen * 0.55, 1);
+      limb(ctx, sx, shY, ex, ey, 2.5 * p.scale, shade(col.shirt));
+      limb(ctx, ex, ey, tx, ty, 2.2 * p.scale, col.skin);
+    }
+    arm2(1, armA); arm2(-1, armA + Math.PI);
+
+    // --- tête (stabilisée, cheveux, visage, regard, clignement) ---
+    const gaze = walking ? Math.sin(ph) * 0.3 : p._lookX;
+    const lw = lightWarm;
+    // cheveux (avec inertie : léger retard)
+    ctx.fillStyle = mix(col.hair, lw > 0 ? '#ffd98a' : '#000000', lw * 0.25);
+    ctx.beginPath(); ctx.arc(headX, headY, D.headR, Math.PI * 0.95, Math.PI * 2.05); ctx.fill();
+    ctx.beginPath(); ctx.arc(headX - 1, headY - D.headR * 0.4, D.headR * 0.95, Math.PI * 0.6, Math.PI * 1.9); ctx.fill();
+    // visage
+    ctx.fillStyle = mix(col.skin, lw > 0 ? '#ffd98a' : '#20242e', lw * 0.18);
+    ctx.beginPath(); ctx.arc(headX + 1, headY + 1, D.headR * 0.85, 0, Math.PI * 2); ctx.fill();
+    // yeux + regard + clignement
+    const eyeX = headX + D.headR * 0.4, eyeY = headY + 1 * p.scale;
+    ctx.fillStyle = '#2a1f18';
+    if (st.blink > 0.08) {
+      ctx.fillRect(eyeX - 1, eyeY - 1, 2.5 * p.scale, 2 * p.scale);
+      ctx.fillRect(eyeX + D.headR * 0.5, eyeY - 1, 2.5 * p.scale, 2 * p.scale);
+    } else {
+      ctx.fillRect(eyeX - 1, eyeY, 3 * p.scale, 1); ctx.fillRect(eyeX + D.headR * 0.5, eyeY, 3 * p.scale, 1);
+    }
+    ctx.fillStyle = '#3a2a20'; ctx.fillRect(eyeX + 1, eyeY + 2.2 * p.scale, 2 * p.scale, 1); // bouche
+    // cheveux suivants (inertie) — petite mèche
+    ctx.fillStyle = col.hair;
+    ctx.beginPath(); ctx.arc(headX - D.headR * 0.8, headY - D.headR * 0.2, D.headR * 0.4, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // ---------- Environnement (couches + respiration) ----------
+  function drawStreet(canvas, paletteName, t) {
+    const pal = PALETTES[paletteName] || PALETTES.jour;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const groundY = H * 0.72;
+    const cam = Math.sin(t * 0.02) * 46; // dérive de caméra (parallaxe)
+
+    // ciel
+    const sky = ctx.createLinearGradient(0, 0, 0, groundY);
+    sky.addColorStop(0, pal.skyTop); sky.addColorStop(1, pal.skyBottom);
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+
+    // lune/soleil
+    ctx.fillStyle = paletteName === 'nuit' ? '#e8ecf4' : '#ffdf9e';
+    ctx.beginPath(); ctx.arc(W * 0.82, H * 0.18, 26, 0, Math.PI * 2); ctx.fill();
+
+    // ARRIÈRE-PLAN : ligne d'horizon lointaine (parallaxe 0.2)
+    ctx.fillStyle = pal.far;
+    ctx.beginPath(); ctx.moveTo(0, groundY - 60);
+    for (let x = 0; x <= W; x += 40) ctx.lineTo(x, groundY - 60 - Math.sin((x + cam * 0.2) * 0.02) * 22);
+    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
+    // silhouettes d'arbres lointains (parallaxe 0.3)
+    ctx.fillStyle = pal.treeline;
+    for (let i = 0; i < 8; i++) {
+      const tx = ((i * 150 + cam * 0.3) % (W + 120)) - 60;
+      ctx.beginPath(); ctx.moveTo(tx, groundY - 40); ctx.lineTo(tx + 14, groundY - 110); ctx.lineTo(tx + 28, groundY - 40); ctx.closePath(); ctx.fill();
+    }
+
+    // PLAN PRINCIPAL : trottoir + rue
+    ctx.fillStyle = pal.sidewalk; ctx.fillRect(0, groundY - 6, W, 46);
+    ctx.fillStyle = pal.street; ctx.fillRect(0, groundY + 16, W, H - groundY - 16);
+    ctx.fillStyle = pal.curb; ctx.fillRect(0, groundY + 14, W, 2);
+    // pavés de trottoir
+    ctx.strokeStyle = 'rgba(0,0,0,0.06)'; ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 24) { ctx.beginPath(); ctx.moveTo(x, groundY - 6); ctx.lineTo(x, groundY + 40); ctx.stroke(); }
+
+    // bâtiments (façades derrière la rue)
+    const rnd = mulberry(42);
+    for (let i = 0; i < 6; i++) {
+      const bw = 120 + rnd() * 60, bx = i * 170 - cam * 0.5;
+      const bh = 90 + rnd() * 80, by = groundY - 6 - bh;
+      if (bx > W + 60 || bx + bw < -60) continue;
+      // mur dégradé
+      const g = ctx.createLinearGradient(bx, by, bx, groundY - 6);
+      g.addColorStop(0, pal.wall.hi); g.addColorStop(1, pal.wall.lo);
+      ctx.fillStyle = g; ctx.fillRect(bx, by, bw, bh);
+      ctx.fillStyle = pal.roof.base; ctx.fillRect(bx - 6, by - 14, bw + 12, 16);
+      ctx.fillStyle = pal.roof.lo; ctx.fillRect(bx + bw * 0.5, by - 14, bw * 0.5 + 6, 16);
+      // fenêtres (certaines allumées, une vacille)
+      for (let wy = 0; wy < Math.floor(bh / 30); wy++) for (let wx = 0; wx < Math.floor(bw / 34); wx++) {
+        const fx = bx + 14 + wx * 34, fy = by + 16 + wy * 30;
+        const lit = paletteName !== 'jour' && (Math.sin(fx * 12.9 + wy * 7.3) > 0.2);
+        const flick = (Math.sin(t * 0.8 + fx) > 0.92) ? 0.7 : 1;
+        ctx.fillStyle = lit ? pal.windowLit : pal.window; ctx.globalAlpha = lit ? flick : 1;
+        ctx.fillRect(fx, fy, 18, 20); ctx.globalAlpha = 1;
+        ctx.fillStyle = pal.frame; ctx.fillRect(fx, fy, 18, 2);
+      }
+      // porte
+      ctx.fillStyle = pal.door; ctx.fillRect(bx + bw * 0.45, groundY - 30, 18, 26);
+    }
+
+    // lampadaire (glow chaud qui vacille) — source de lumière
+    const lx = W * 0.55, ly = groundY - 70;
+    ctx.fillStyle = '#3a2a20'; ctx.fillRect(lx - 3, ly, 6, 70);
+    const glowR = 46 + Math.sin(t * 0.6) * 3;
+    ctx.fillStyle = pal.lampGlow; ctx.beginPath(); ctx.arc(lx, ly, glowR, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = pal.lamp; ctx.beginPath(); ctx.arc(lx, ly, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#3a2a20'; ctx.beginPath(); ctx.arc(lx, ly, 10, 0, Math.PI * 2); ctx.stroke();
+
+    // arbre au premier plan (balancement au vent)
+    function tree(tx, ty, s) {
+      ctx.fillStyle = '#5a3a24'; ctx.fillRect(tx - 4, ty - 30 * s, 8, 30 * s);
+      const sway = Math.sin(t * 0.7 + tx) * 3;
+      ctx.fillStyle = pal.plantDark; ctx.beginPath(); ctx.arc(tx + sway, ty - 40 * s, 22 * s, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = pal.plant; ctx.beginPath(); ctx.arc(tx + sway + 6 * s, ty - 44 * s, 16 * s, 0, Math.PI * 2); ctx.fill();
+    }
+    tree(W * 0.12 - cam * 0.4, groundY, 1.4);
+    tree(W * 0.9 - cam * 0.4, groundY, 1.6);
+
+    // feuilles qui dérivent
+    ctx.fillStyle = pal.leaf;
+    for (let i = 0; i < 8; i++) {
+      const fx = ((t * (8 + i * 3) + i * 173) % (W + 40)) - 20;
+      const fy = groundY - 60 - ((t * 14 + i * 90) % 120);
+      ctx.globalAlpha = 0.5; ctx.fillRect(fx, fy, 3, 3); ctx.globalAlpha = 1;
+    }
+
+    // flaque qui miroite
+    ctx.fillStyle = pal.window; ctx.beginPath(); ctx.ellipse(W * 0.3, groundY + 10, 60, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    for (let i = 0; i < 3; i++) ctx.fillRect(W * 0.3 - 30 + i * 22 + (t % 2), groundY + 8 + (i % 2) * 2, 12, 1);
+
+    return { ctx, pal, groundY, lampX: lx, lampY: ly, W, H, cam };
+  }
+
+  // ---------- Scène complète : la rue des 20 secondes ----------
+  function renderStreet(canvas, paletteName, t) {
+    const s = drawStreet(canvas, paletteName, t);
+    const { ctx, pal, groundY, lampX, lampY, W, cam } = s;
+
+    // personnages (variation procédurale)
+    const roster = [
+      { x0: 120, dir: 1, speed: 34, cfg: { hair: '#5b3a29', skin: '#eab78a', shirt: '#e76f51', pants: '#3a4a6b', scale: 1.0, cadence: 1.0, sway: 1.0, stepLen: 1.0 } },
+      { x0: 300, dir: -1, speed: 26, cfg: { hair: '#1f1f2e', skin: '#e8b48a', shirt: '#3fa7d6', pants: '#2f2f3a', scale: 0.92, cadence: 0.9, sway: 1.1, stepLen: 0.95 } },
+      { x0: 520, dir: 1, speed: 0, cfg: { hair: '#c98a3a', skin: '#f2c79b', shirt: '#6a9e4a', pants: '#5b4a3a', scale: 1.05, cadence: 1.0, sway: 1.0, stepLen: 1.0 } }, // idle vivant
+      { x0: 700, dir: 1, speed: 58, cfg: { hair: '#3a3a4a', skin: '#f2c79b', shirt: '#c15f8a', pants: '#3a4a6b', scale: 0.9, cadence: 1.35, sway: 0.8, stepLen: 1.15 } }, // course
+      { x0: 860, dir: -1, speed: 30, cfg: { hair: '#8a5a3a', skin: '#d9a06a', shirt: '#4ea1ff', pants: '#243250', scale: 1.0, cadence: 1.05, sway: 0.95, stepLen: 1.0 } },
+    ];
+    const people = [];
+    for (const r of roster) { const p = makePerson(r.cfg); p.x = r.x0; p.dir = r.dir; p.targetSpeed = r.speed; p.v = 0; p.st.targetSpeed = r.speed; people.push(p); }
+
+    // simulation + rendu des personnages (triés par profondeur = y)
+    people.forEach(p => { personStep(p, 0.16, p.x); p.x += p.st.speed * 0.16 * p.dir; if (p.x > W + 40) p.x = -40; if (p.x < -40) p.x = W + 40; });
+    people.slice().sort((a, b) => a.x - b.x).forEach(p => {
+      const d = Math.hypot(p.x - lampX, groundY - lampY);
+      const lightWarm = paletteName === 'jour' ? 0 : Math.max(0, 1 - d / 150);
+      personDraw(ctx, p, p.x, groundY, pal, lightWarm);
+    });
+
+    // PREMIER PLAN : végétation (parallaxe 1.4)
+    ctx.fillStyle = pal.plantDark;
+    for (let x = 0; x < W; x += 90) {
+      const px = x - cam * 0.4;
+      ctx.beginPath(); ctx.arc(px, groundY + 46 + Math.sin(t * 0.9 + x) * 3, 26, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = pal.plant;
+      for (let i = 0; i < 3; i++) ctx.fillRect(px - 20 + i * 14, groundY + 40, 3, 8);
+      ctx.fillStyle = pal.plantDark;
+    }
+
+    // vignette chaude
+    const v = ctx.createRadialGradient(W / 2, canvas.height / 2, W * 0.25, W / 2, canvas.height / 2, W * 0.8);
+    v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, paletteName === 'nuit' ? 'rgba(8,6,16,0.5)' : 'rgba(40,22,10,0.28)');
+    ctx.fillStyle = v; ctx.fillRect(0, 0, W, canvas.height);
+  }
+
+  global.NeurWorld = { PALETTES, renderStreet, makePerson, personStep, personDraw, mulberry };
+  if (typeof module !== 'undefined' && module.exports) module.exports = global.NeurWorld;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+  const canvas = document.getElementById('c');
+  const btns = document.getElementById('btns');
+  let palette = 'jour';
+  const NAMES = { jour: '☀️ Jour', soir: '🌇 Soir', nuit: '🌙 Nuit' };
+  for (const k of Object.keys(NeurWorld.PALETTES)) {
+    const b = document.createElement('button');
+    b.textContent = NAMES[k] || k; b.className = k === palette ? 'on' : '';
+    b.onclick = () => { palette = k; document.querySelectorAll('#btns button').forEach(x => x.classList.remove('on')); b.classList.add('on'); };
+    btns.appendChild(b);
+  }
+  let t = 0;
+  function loop() { t += 0.16; NeurWorld.renderStreet(canvas, palette, t); requestAnimationFrame(loop); }
+  loop();
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# Dépendances et sorties compilées
+node_modules/
+dist/
+coverage/
+
+# Secrets et configuration locale
+.env
+.env.*
+!.env.example
+*.local
+
+# Journaux et caches
+*.log
+.vite/
+.vitest/
+
+# Exécutions de workflow locales (les brouillons et le tableau restent partageables)
+.zcode/workflow-runs/*
+!.zcode/workflow-runs/.gitignore

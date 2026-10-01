@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEURAPOLIS — aperçu pixel art</title>
+<style>
+  :root{--bg:#0a0e17;--panel:#131b2b;--line:#243250;--text:#eaf2ff;--dim:#8a9bb8}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,'Segoe UI',Inter,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+  header{display:flex;align-items:center;gap:14px;padding:12px 20px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+  header h1{font-size:15px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;background:linear-gradient(135deg,#4ea1ff,#b78bff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  header .sub{font-size:12px;color:var(--dim)}
+  .btns{display:flex;gap:6px;margin-left:auto}
+  .btns button{font:inherit;font-size:12.5px;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid var(--line);background:#19243a;color:var(--text)}
+  .btns button.on{background:#4ea1ff;border-color:#4ea1ff;color:#fff}
+  main{flex:1;display:flex;align-items:center;justify-content:center;padding:24px}
+  canvas{image-rendering:pixelated;image-rendering:crisp-edges;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.55);max-width:96vw;height:auto;background:#000}
+  footer{padding:14px 20px;font-size:11.5px;color:var(--dim);text-align:center;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <h1>NEURAPOLIS · pixel art</h1>
+  <span class="sub">tuiles · bâtiments · personnages animés — zéro asset externe</span>
+  <div class="btns" id="btns"></div>
+</header>
+<main><canvas id="c" width="960"></canvas></main>
+<footer>Hue shifting (ombre froide / lumière chaude) · palette chaude ~1800K · ciel &amp; nuages · fenêtres qui s'allument la nuit · <a href="DESIGN-PHILOSOPHY.md" style="color:#8a9bb8">philosophie visuelle</a></footer>
+<script src="pixelart.js"></script>
+<script>
+  const canvas = document.getElementById('c');
+  const btns = document.getElementById('btns');
+  let palette = 'jour';
+  const NAMES = { jour: '☀️ Jour', soir: '🌇 Soir', nuit: '🌙 Nuit' };
+  for (const k of Object.keys(NeurArt.PALETTES)) {
+    const b = document.createElement('button');
+    b.textContent = NAMES[k] || k; b.className = k === palette ? 'on' : '';
+    b.onclick = () => { palette = k; document.querySelectorAll('#btns button').forEach(x => x.classList.remove('on')); b.classList.add('on'); };
+    btns.appendChild(b);
+  }
+  let t = 0;
+  function loop() { t++; NeurArt.renderScene(canvas, palette, t); requestAnimationFrame(loop); }
+  loop();
+</script>
+</body>
+</html>
