@@ -3,7 +3,8 @@ import { createWorld } from '../src/core/store';
 import { TICKS_PER_DAY } from '../src/core/types';
 import { npcLine } from '../src/simulation/dialogue';
 import { campaignTick } from '../src/simulation/campaign';
-import { adoptSharedRules, buyStock, createProject, runCourse, runSalesSession } from '../src/simulation/project';
+import { adoptSharedRules, buyStock, createProject, repartition, runCourse, runSalesSession } from '../src/simulation/project';
+import { exportSave, importSave } from '../src/saves/persist';
 import { executeCounterStrategy } from '../src/simulation/rival';
 
 describe('campagne — chapitre 2 et âge du joueur', () => {
@@ -107,5 +108,94 @@ describe('campagne — chapitre 2 et âge du joueur', () => {
     expect(w.events.find((event) => event.title.includes('Chapitre 3 accompli'))?.causes).toHaveLength(3);
     campaignTick(w);
     expect(w.events.filter((event) => event.title.includes('Chapitre 3 accompli'))).toHaveLength(1);
+  });
+});
+
+describe('campagne — vérification bout en bout, invariants & persistance', () => {
+  it('garantit que le ledger reste invariant et que tous les événements ont des causes (causes.length >= 1)', () => {
+    const w = createWorld();
+    createProject(w);
+    buyStock(w);
+    runCourse(w);
+    runSalesSession(w, 'place');
+
+    expect(w.project).toBeDefined();
+    if (w.project) {
+      expect(w.project.balance).toBe(
+        w.project.ledger.reduce((sum, entry) => sum + entry.amount, 0),
+      );
+    }
+
+    for (const event of w.events) {
+      expect(event.causes.length).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('déroule la campagne complète de 12 à 16 ans (Chapitres 1 à 5) et vérifie la persistance mid-campagne et post-fin', () => {
+    const w = createWorld({ seed: 100 });
+
+    // Chapitre 1
+    createProject(w);
+    w.project!.members.push('noah');
+    buyStock(w); // 15 € -> stock = 20
+    runSalesSession(w, 'place'); // vente 1
+    w.player.money = 15;
+    buyStock(w); // stock = 20
+    runSalesSession(w, 'place'); // vente 2
+    w.player.money = 15;
+    expect(executeCounterStrategy(w, 'circuit_court').ok).toBe(true); // coûte 5 €
+    buyStock(w); // racheter du stock
+    runSalesSession(w, 'place'); // vente 3
+    campaignTick(w);
+    expect(w.campaign.completedChapters).toContain(1);
+    expect(w.campaign.currentChapter).toBe(2);
+
+    // Sauvegarde mid-campagne au Chapitre 2
+    const midJson = exportSave(w);
+    const wMidLoaded = importSave(midJson);
+    expect(wMidLoaded.campaign.currentChapter).toBe(2);
+
+    // Chapitre 2
+    w.time.tick = 365 * TICKS_PER_DAY + 43; // 13 ans
+    npcLine(w, 'samir', 'coop');
+    w.project!.rules.collectif = true;
+    buyStock(w);
+    runSalesSession(w, 'place');
+    campaignTick(w);
+    expect(w.campaign.completedChapters).toContain(2);
+    expect(w.campaign.currentChapter).toBe(3);
+
+    // Chapitre 3
+    w.time.tick = 365 * 2 * TICKS_PER_DAY + 43; // 14 ans
+    w.flags['chapitre3CoursesDepart'] = 0;
+    w.flags['chapitre3ContreStrategiesDepart'] = 0;
+    for (let i = 0; i < 5; i++) runCourse(w);
+    executeCounterStrategy(w, 'degustation');
+    campaignTick(w);
+    expect(w.campaign.completedChapters).toContain(3);
+    expect(w.campaign.currentChapter).toBe(4);
+
+    // Chapitre 4
+    w.time.tick = 365 * 3 * TICKS_PER_DAY + 43; // 15 ans
+    w.flags['dilemmesJustice'] = 3;
+    campaignTick(w);
+    expect(w.campaign.completedChapters).toContain(4);
+    expect(w.campaign.currentChapter).toBe(5);
+
+    // Chapitre 5 (Fin de campagne)
+    w.time.tick = (365 * 4 + 10) * TICKS_PER_DAY + 43; // 16 ans (après anniversaire)
+    w.player.reputation = 75;
+    campaignTick(w);
+    expect(w.campaign.completedChapters).toContain(5);
+
+    // Sauvegarde post-fin
+    const endJson = exportSave(w);
+    const wEndLoaded = importSave(endJson);
+    expect(wEndLoaded.campaign.completedChapters).toContain(5);
+
+    // Vérification globale des causes sur tous les événements générés durant la campagne
+    for (const event of wEndLoaded.events) {
+      expect(event.causes.length).toBeGreaterThanOrEqual(1);
+    }
   });
 });

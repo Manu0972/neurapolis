@@ -167,6 +167,59 @@ export function campaignTick(w: WorldState): Notification[] {
     }
   }
 
+  if (currentChapter === 4) {
+    const stage = w.campaign.stages.find((s) => s.chapter === 4);
+    const dilemmes = (w.flags['dilemmesJustice'] ?? 0) >= 3;
+    if (stage && !stage.completed && w.player.age >= stage.targetAge && dilemmes) {
+      stage.completed = true;
+      if (!w.campaign.completedChapters.includes(4)) w.campaign.completedChapters.push(4);
+      w.campaign.currentChapter = 5;
+
+      pushEvent(w, {
+        type: 'vie',
+        title: 'Chapitre 4 accompli : La Voix du Quartier s’élève',
+        text: 'Lors du conseil de quartier, tes arbitrages et l’appui des fantômes ont influencé le plan de réaménagement.',
+        causes: [
+          { facteur: 'âge du joueur', seuil: `${w.player.age} ans`, poids: 1 },
+          { facteur: 'dilemmes et arbitrages tranchés', seuil: String(w.flags['dilemmesJustice']), poids: 3 },
+        ],
+      });
+      w.lifeJournal.push({
+        day,
+        date: dateOf(day).iso,
+        title: 'La Voix du Quartier',
+        text: 'Le réaménagement tiendra compte des petits commerces et des espaces collectifs.',
+      });
+      out.push(notify('bien', 'Chapitre 4 complété ! Chapitre 5 débloqué : L’Héritage de Val-Ferrand.'));
+    }
+  }
+
+  if (currentChapter === 5) {
+    const stage = w.campaign.stages.find((s) => s.chapter === 5);
+    const repOk = w.player.reputation >= 60 || w.district.vitaliteEpicerie >= 50;
+    if (stage && !stage.completed && w.player.age >= stage.targetAge && repOk) {
+      stage.completed = true;
+      if (!w.campaign.completedChapters.includes(5)) w.campaign.completedChapters.push(5);
+
+      pushEvent(w, {
+        type: 'vie',
+        title: 'Chapitre 5 accompli : L’Héritage de NEURAPOLIS',
+        text: 'À 16 ans, tu as façonné le modèle économique de Val-Ferrand. La cité des Roses porte les traces de chaque décision, de chaque fantôme écouté.',
+        causes: [
+          { facteur: 'âge de maturité', seuil: `${w.player.age} ans`, poids: 2 },
+          { facteur: 'modèle coopératif et solidaire établi', poids: 3 },
+        ],
+      });
+      w.lifeJournal.push({
+        day,
+        date: dateOf(day).iso,
+        title: 'L’Héritage de Val-Ferrand',
+        text: 'L’aventure de NEURAPOLIS s’achève. Le quartier est vivant, les esprits sont éveillés.',
+      });
+      out.push(notify('bien', 'Campagne accomplie avec succès ! L’héritage de Val-Ferrand est scellé.'));
+    }
+  }
+
   return out;
 }
 
