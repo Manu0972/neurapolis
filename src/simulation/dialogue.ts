@@ -5,7 +5,7 @@
  */
 import type { NpcId, Rel4, WorldState } from '../core/types';
 import { rngPick } from '../core/rng';
-import { NPC_BY_ID } from '../data/npcs';
+import { NPC_BY_ID, NPC_MEMORY_TOPICS } from '../data/npcs';
 import { DIALOGUE_REPLIES } from '../data/dialogue';
 import { addXp } from './skills';
 import { bump } from './events';
@@ -19,7 +19,25 @@ export function dialogueTopics(npcId: NpcId): string[] {
 
 /** Une réplique du PNJ tirée au PRNG dans le sujet choisi. */
 export function npcLine(w: WorldState, npcId: NpcId, topic: string): string | null {
-  const lines = NPC_BY_ID[npcId]?.topics[topic];
+  const st = w.npcs[npcId];
+  let candidateLines: string[] | undefined;
+
+  // Si le PNJ possède des souvenirs réactifs pour ce sujet, on les priorise
+  if (st && st.memory && st.memory.length > 0) {
+    const memConfigs = NPC_MEMORY_TOPICS[npcId];
+    if (memConfigs) {
+      for (let i = st.memory.length - 1; i >= 0; i--) {
+        const memId = st.memory[i];
+        const match = memConfigs.find((mc) => mc.memoryId === memId && mc.topic === topic);
+        if (match && match.lines.length > 0) {
+          candidateLines = match.lines;
+          break;
+        }
+      }
+    }
+  }
+
+  const lines = candidateLines ?? NPC_BY_ID[npcId]?.topics[topic];
   if (!lines || lines.length === 0) return null;
   const line = rngPick(w, lines);
   if (npcId === 'bertin') bump(w, 'marchandages'); // parler prix et rareté avec l'épicière

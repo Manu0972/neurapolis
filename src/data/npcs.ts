@@ -135,3 +135,121 @@ export const NPCS: NpcDef[] = [
 ];
 
 export const NPC_BY_ID: Record<string, NpcDef> = Object.fromEntries(NPCS.map((n) => [n.id, n]));
+
+export interface MemoryTopicLine {
+  memoryId: string;
+  topic: string;
+  lines: string[];
+}
+
+export const NPC_MEMORY_TOPICS: Record<string, MemoryTopicLine[]> = {
+  bertin: [
+    {
+      memoryId: 'mem_epicerie_difficulte',
+      topic: 'accueil',
+      lines: [
+        'Le drive me fait du mal... L’épicerie est vraiment en difficulté ces temps-ci.',
+        'Les clients se font rares avec cette grande surface. Je ne sais pas combien de temps je vais tenir.',
+      ],
+    },
+    {
+      memoryId: 'mem_epicerie_difficulte',
+      topic: 'epicerie',
+      lines: [
+        'Si la vitalité de la boutique baisse encore, je devrai fermer plus tôt.',
+      ],
+    },
+    {
+      memoryId: 'mem_epicerie_embauche',
+      topic: 'accueil',
+      lines: [
+        'L’activité repart fort ! Je cherche même quelqu’un pour m’aider à l’épicerie.',
+        'C’est un plaisir de voir du monde en boutique. On revit !',
+      ],
+    },
+    {
+      memoryId: 'mem_epicerie_embauche',
+      topic: 'epicerie',
+      lines: [
+        'Les affaires marchent tellement bien que j’envisage d’embaucher un renfort.',
+      ],
+    },
+    {
+      memoryId: 'mem_soutien_courses',
+      topic: 'service',
+      lines: [
+        'Merci pour les livraisons de courses. Ce soutien me redonne vraiment du baume au cœur.',
+        'Grâce aux livraisons que vous faites aux anciens, la boutique garde un lien fort avec le quartier.',
+      ],
+    },
+    {
+      memoryId: 'mem_soutien_courses',
+      topic: 'accueil',
+      lines: [
+        'Ah, te voilà ! Merci encore pour le coup de main avec les courses des aînés.',
+      ],
+    },
+  ],
+  noah: [
+    {
+      memoryId: 'mem_stand_reussite_collective',
+      topic: 'projet',
+      lines: [
+        'Notre stand collectif marche du tonnerre ! C’est trop fort de bosser ensemble avec l’équipe.',
+        'T’as vu les ventes ? Le travail d’équipe paye vraiment !',
+      ],
+    },
+    {
+      memoryId: 'mem_stand_reussite_collective',
+      topic: 'accueil',
+      lines: [
+        'Salut ! Je repensais au stand collectif, on a géré de ouf !',
+      ],
+    },
+    {
+      memoryId: 'mem_soutien_quartier',
+      topic: 'accueil',
+      lines: [
+        'Tout le monde parle en bien de nos initiatives dans le quartier, ça fait trop plaisir !',
+      ],
+    },
+  ],
+  samir: [
+    {
+      memoryId: 'mem_stand_reussite_collective',
+      topic: 'coop',
+      lines: [
+        'La réussite collective de votre stand prouve la force du modèle coopératif : une voix, de la solidarité !',
+        'Voir les jeunes réussir ensemble au stand, c’est exactement l’esprit qu’on veut insuffler à TaretCoop.',
+      ],
+    },
+    {
+      memoryId: 'mem_stand_reussite_collective',
+      topic: 'accueil',
+      lines: [
+        'Bravo pour le succès du stand collectif. Vous montrez la voie à tout le quartier !',
+      ],
+    },
+    {
+      memoryId: 'mem_soutien_quartier',
+      topic: 'accueil',
+      lines: [
+        'Quand le quartier se serre les coudes, la friche et les commerces locaux revivent.',
+      ],
+    },
+    {
+      memoryId: 'mem_soutien_quartier',
+      topic: 'conseil',
+      lines: [
+        'Le soutien du quartier est notre plus grand atout. Continuez d’associer les habitants à vos projets.',
+      ],
+    },
+    {
+      memoryId: 'mem_epicerie_difficulte',
+      topic: 'accueil',
+      lines: [
+        'L’épicerie de Mme Bertin souffre face à la grande surface, il faut trouver des solutions collectives.',
+      ],
+    },
+  ],
+};
