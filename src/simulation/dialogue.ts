@@ -12,13 +12,23 @@ import { bump } from './events';
 import { isIrritable } from './needs';
 
 /** Sujets disponibles pour un PNJ (clés de ses topics). */
-export function dialogueTopics(npcId: NpcId): string[] {
+export function dialogueTopics(npcId: NpcId, w?: WorldState): string[] {
   const def = NPC_BY_ID[npcId];
-  return def ? Object.keys(def.topics) : [];
+  const topics = def ? [...Object.keys(def.topics)] : [];
+  if (w && npcId === 'bertin' && w.campaign.currentChapter === 3) {
+    if (!topics.includes('reseau')) {
+      topics.push('reseau');
+    }
+  }
+  return topics;
 }
 
 /** Une réplique du PNJ tirée au PRNG dans le sujet choisi. */
 export function npcLine(w: WorldState, npcId: NpcId, topic: string): string | null {
+  if (npcId === 'bertin' && topic === 'reseau' && w.campaign.currentChapter === 3) {
+    bump(w, 'chapitre3DiscussionBertinReseau');
+    return 'Pour résister au Drive HyperVal et consolider l’épicerie, nous devons structurer le Réseau Solidaire entre le Stand et la boutique. Quelle stratégie préfères-tu adopter ?';
+  }
   const lines = NPC_BY_ID[npcId]?.topics[topic];
   if (!lines || lines.length === 0) return null;
   const line = rngPick(w, lines);
