@@ -52,16 +52,16 @@ function drawAtmosphere(ctx: CanvasRenderingContext2D, w: WorldState, cam: Camer
     ctx.fillRect(0, 0, cw, ch);
   }
 
-  // L’épicerie reste un repère chaleureux quand la rue s’assombrit.
-  if (night > 0.06) {
+  // L’épicerie Bertin et les lanternes restent des repères chaleureux au soleil couchant/soir.
+  if (night > 0.04 || golden > 0.04) {
     const anchor = { x: 23.5, y: 7.5 };
     const cx = anchor.x * cam.ts - cam.ox;
     const cy = anchor.y * cam.ts - cam.oy;
-    const glow = ctx.createRadialGradient(cx, cy, 2, cx, cy, cam.ts * 3.2);
-    glow.addColorStop(0, `rgba(255,190,99,${night * 0.42})`);
-    glow.addColorStop(1, 'rgba(255,190,99,0)');
+    const glow = ctx.createRadialGradient(cx, cy, 2, cx, cy, cam.ts * 4.5);
+    glow.addColorStop(0, 'rgba(255,200,120,0.48)');
+    glow.addColorStop(1, 'rgba(255,200,120,0)');
     ctx.fillStyle = glow;
-    ctx.fillRect(cx - cam.ts * 3.2, cy - cam.ts * 3.2, cam.ts * 6.4, cam.ts * 6.4);
+    ctx.fillRect(cx - cam.ts * 4.5, cy - cam.ts * 4.5, cam.ts * 9.0, cam.ts * 9.0);
   }
 
   if (w.district.meteo === 'nuages') {
@@ -138,6 +138,16 @@ export function renderWorld(
         ctx.fillRect(sx + inset, sy + inset, cam.ts * 0.6, cam.ts * 0.58);
         ctx.fillStyle = 'rgba(255,255,255,0.35)';
         ctx.fillRect(sx + inset, sy + inset, cam.ts * 0.6, Math.max(1, cam.ts * 0.05));
+
+        // Panneau et enseigne détaillée styleboard pour l'Épicerie Bertin
+        if (t.place === 'epicerie') {
+          ctx.fillStyle = '#2e7d5a';
+          ctx.fillRect(sx - cam.ts * 0.8, sy - cam.ts * 0.9, cam.ts * 2.2, cam.ts * 0.45);
+          ctx.fillStyle = '#fef08a';
+          ctx.font = `bold ${Math.max(9, Math.floor(cam.ts * 0.28))}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.fillText('ÉPICERIE BERTIN', sx + cam.ts * 0.3, sy - cam.ts * 0.58);
+        }
       } else if (t.kind === 'mur') {
         ctx.fillStyle = 'rgba(255,255,255,0.07)';
         ctx.fillRect(sx, sy, cam.ts + 0.5, 2);
