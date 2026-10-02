@@ -2,12 +2,18 @@
  * Avatars SVG procéduraux par seed (contrat M7) : un visage simple et lisible,
  * déterministe — hash stable de la clé + mulberry32 (core/rng), jamais Math.random.
  * La présentation ne fait que dessiner : aucune donnée de simulation ici.
+ * Assainissement Sentinel : Sanitisation SVG anti-XSS et création d'éléments sécurisée.
  */
 import { makeSeed, rngInt, rngNext } from '../core/rng';
 import { TOKENS } from './tokens';
 
 const SKINS = ['#f2c9a5', '#e8b98c', '#d9a06b', '#c68a5a', '#8a5a3b'];
 const HAIRS = ['#3a2c22', '#1f1a26', '#5b3a24', '#2c2c33', '#a3542a'];
+
+/** Assainit les valeurs insérées dans les attributs SVG pour empêcher toute injection d'événement ou balise */
+function sanitizeColor(val: string): string {
+  return val.replace(/[^#a-zA-Z0-9().,\s%]/g, '');
+}
 
 /** FNV-1a 32 bits : clé stable (« pnj:noah », « joueur:Camille ») → seed numérique. */
 function hash32(key: string): number {
@@ -34,7 +40,7 @@ function partsFor(seedKey: string, color: string): AvatarParts {
     skin: SKINS[rngInt(rng, 0, SKINS.length - 1)] ?? SKINS[0] ?? '#f2c9a5',
     hair: HAIRS[rngInt(rng, 0, HAIRS.length - 1)] ?? HAIRS[0] ?? '#3a2c22',
     hairStyle: rngInt(rng, 0, 2),
-    shirt: color,
+    shirt: sanitizeColor(color),
     glasses: rngNext(rng) < 0.18,
     smile: rngInt(rng, 0, 2),
   };
@@ -43,13 +49,16 @@ function partsFor(seedKey: string, color: string): AvatarParts {
 /** SVG complet du visage, teinté par la couleur du personnage. */
 export function avatarSvg(seedKey: string, color: string, size = 48): string {
   const p = partsFor(seedKey, color);
+  const safeShirt = sanitizeColor(p.shirt);
+  const safeSkin = sanitizeColor(p.skin);
+  const safeHair = sanitizeColor(p.hair);
 
   const hair =
     p.hairStyle === 0
-      ? `<path d="M12 26 Q10 9 24 9 Q38 9 36 26 L34 22 Q33 12 24 12 Q15 12 14 22 Z" fill="${p.hair}"/>`
+      ? `<path d="M12 26 Q10 9 24 9 Q38 9 36 26 L34 22 Q33 12 24 12 Q15 12 14 22 Z" fill="${safeHair}"/>`
       : p.hairStyle === 1
-        ? `<path d="M12 26 Q9 10 24 10 Q39 10 36 26 Q36 17 33 15 Q29 19 27 15 Q25 18 24 15 Q23 19 21 15 Q19 18 15 15 Q12 17 12 26 Z" fill="${p.hair}"/>`
-        : `<path d="M12 26 Q10 12 24 12 Q38 12 36 26 Q30 20 24 20 Q18 20 12 26 Z" fill="${p.hair}"/>`;
+        ? `<path d="M12 26 Q9 10 24 10 Q39 10 36 26 Q36 17 33 15 Q29 19 27 15 Q25 18 24 15 Q23 19 21 15 Q19 18 15 15 Q12 17 12 26 Z" fill="${safeHair}"/>`
+        : `<path d="M12 26 Q10 12 24 12 Q38 12 36 26 Q30 20 24 20 Q18 20 12 26 Z" fill="${safeHair}"/>`;
 
   const mouth =
     p.smile === 0
@@ -66,9 +75,9 @@ export function avatarSvg(seedKey: string, color: string, size = 48): string {
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img">` +
     `<rect width="${size}" height="${size}" rx="${size * 0.22}" fill="${TOKENS.panel}"/>` +
-    `<circle cx="${size / 2}" cy="${size / 2}" r="${size * 0.42}" fill="${color}" fill-opacity="0.14"/>` +
-    `<circle cx="${size / 2}" cy="${size + 8}" r="${size * 0.34}" fill="${p.shirt}"/>` +
-    `<circle cx="${size / 2}" cy="${size * 0.55}" r="${size * 0.27}" fill="${p.skin}"/>` +
+    `<circle cx="${size / 2}" cy="${size / 2}" r="${size * 0.42}" fill="${safeShirt}" fill-opacity="0.14"/>` +
+    `<circle cx="${size / 2}" cy="${size + 8}" r="${size * 0.34}" fill="${safeShirt}"/>` +
+    `<circle cx="${size / 2}" cy="${size * 0.55}" r="${size * 0.27}" fill="${safeSkin}"/>` +
     hair +
     `<circle cx="${size * 0.365}" cy="${size * 0.53}" r="1.8" fill="#1c1620"/>` +
     `<circle cx="${size * 0.635}" cy="${size * 0.53}" r="1.8" fill="#1c1620"/>` +

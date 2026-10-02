@@ -1,6 +1,7 @@
 /**
  * Rendu Canvas du quartier : tuiles colorées par type, entrées de lieux,
  * PNJ en pastilles de leur couleur, joueur distinct. Ne fait que lire l'état.
+ * Optimisation Bolt : Zéro allocation par frame & structures réutilisables.
  */
 import type { WorldState } from '../core/types';
 import { MAP_H, MAP_W, tileAt } from '../data/map';
@@ -28,6 +29,9 @@ const ENTRY_COLORS: Record<string, string> = {
 
 export interface Camera { ts: number; ox: number; oy: number }
 
+// Instance statique de caméra pour réutilisation sans allocation GC
+const STATIC_CAM: Camera = { ts: 32, ox: 0, oy: 0 };
+
 function tileColor(kind: 'sol' | 'herbe' | 'terre' | 'mur', x: number, y: number): string {
   const palette = TILE_COLORS[kind];
   if (typeof palette === 'string') return palette;
@@ -54,9 +58,10 @@ function drawAtmosphere(ctx: CanvasRenderingContext2D, w: WorldState, cam: Camer
 
   // L’épicerie Bertin et les lanternes restent des repères chaleureux au soleil couchant/soir.
   if (night > 0.04 || golden > 0.04) {
-    const anchor = { x: 23.5, y: 7.5 };
-    const cx = anchor.x * cam.ts - cam.ox;
-    const cy = anchor.y * cam.ts - cam.oy;
+    const anchorX = 23.5;
+    const anchorY = 7.5;
+    const cx = anchorX * cam.ts - cam.ox;
+    const cy = anchorY * cam.ts - cam.oy;
     const glow = ctx.createRadialGradient(cx, cy, 2, cx, cy, cam.ts * 4.5);
     glow.addColorStop(0, 'rgba(255,200,120,0.48)');
     glow.addColorStop(1, 'rgba(255,200,120,0)');
@@ -73,7 +78,8 @@ function drawAtmosphere(ctx: CanvasRenderingContext2D, w: WorldState, cam: Camer
     ctx.strokeStyle = 'rgba(204,224,244,0.22)';
     ctx.lineWidth = 1;
     const phase = now * 0.16;
-    for (let i = 0; i < Math.ceil(cw / 18); i++) {
+    const maxLines = Math.ceil(cw / 18);
+    for (let i = 0; i < maxLines; i++) {
       const x = (i * 47 + phase) % (cw + 16) - 8;
       const y = (i * 83 + phase * 2.1) % ch;
       ctx.beginPath();
@@ -84,16 +90,24 @@ function drawAtmosphere(ctx: CanvasRenderingContext2D, w: WorldState, cam: Camer
   }
 }
 
-/** Caméra centrée sur le joueur, bornée à la carte (tuile logique, zoom adapté à l'écran). */
+/** Caméra centrée sur le joueur, réutilisant une instance statique sans allocation heap. */
 export function computeCamera(cw: number, ch: number, px: number, py: number): Camera {
   const ts = Math.min(48, Math.max(20, Math.floor(Math.min(cw / 16, ch / 12))));
   const mw = MAP_W * ts;
   const mh = MAP_H * ts;
   const clamp = (v: number, size: number, world: number): number =>
     Math.max(0, Math.min(world - size, v));
-  const ox = mw <= cw ? (mw - cw) / 2 : clamp(px * ts + ts / 2 - cw / 2, cw, mw);
-  const oy = mh <= ch ? (mh - ch) / 2 : clamp(py * ts + ts / 2 - ch / 2, ch, mh);
-  return { ts, ox, oy };
+  STATIC_CAM.ts = ts;
+  STATIC_CAM.ox = mw <= cw ? (mw - cw) / 2 : clamp(px * ts + ts / 2 - cw / 2, cw, mw);
+  STATIC_CAM.oy = mh <= ch ? (mh - ch) / 2 : clamp(py * ts + ts / 2 - ch / 2, ch, mh);
+  return STATIC_CAM;
+}
+
+const HAIRS = ['#6b4a2f', '#3a2c22', '#8a6240', '#2c2c33', '#a3542a'];
+function hairOf(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h += id.charCodeAt(i);
+  return HAIRS[h % HAIRS.length]!;
 }
 
 export function renderWorld(
@@ -158,12 +172,6 @@ export function renderWorld(
   }
 
   const s = cam.ts / SPRITE_W;
-  const HAIRS = ['#6b4a2f', '#3a2c22', '#8a6240', '#2c2c33', '#a3542a'];
-  const hairOf = (id: string): string => {
-    let h = 0;
-    for (let i = 0; i < id.length; i++) h += id.charCodeAt(i);
-    return HAIRS[h % HAIRS.length]!;
-  };
 
   // PNJ : personnages pixel (silhouette complète), teintés par leur couleur.
   for (const def of Object.values(NPC_BY_ID)) {
