@@ -51,6 +51,7 @@ import { renderWorld } from './renderer';
 import { buildUi, el, resizeCanvas, updateHud, type UiRefs } from './ui';
 import { TOKENS } from './tokens';
 import { avatarElement } from './avatar';
+import { loadAssetKit } from './asset-loader';
 
 const TICK_MS = 1000; // 1 tick simulé (10 min) par seconde à vitesse 1
 const MOVE_MS = 150;  // cadence d'un pas de tuile en maintenant une direction
@@ -69,6 +70,20 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   const input = createInput(root, interact);
   window.addEventListener('resize', () => resizeCanvas(ui, root));
 
+  // Charger les assets pixel-art en arrière-plan (le renderer bascule automatiquement)
+  loadAssetKit().catch(() => { /* fallback procédural si le chargement échoue */ });
+
+  // Contrôle de vitesse (×1, ×2, ×4)
+  for (const btn of root.querySelectorAll<HTMLButtonElement>('.speed-btn')) {
+    btn.addEventListener('click', () => {
+      world.time.speed = (Number(btn.dataset.speed) || 1) as import('../core/types').Speed;
+      for (const b of root.querySelectorAll<HTMLButtonElement>('.speed-btn')) {
+        b.style.background = Number(b.dataset.speed) === world.time.speed ? 'var(--or)' : 'var(--panel2)';
+        b.style.color = Number(b.dataset.speed) === world.time.speed ? 'var(--bg)' : 'var(--ink)';
+      }
+    });
+  }
+
   // Outil d'inspection (Bible Partie XII) : l'état du monde reste lisible depuis la console
   // et depuis les tests E2E. Lecture/écriture directe = leviers de QA, jamais du gameplay.
   (window as unknown as { __NEURAPOLIS__: { world: WorldState } }).__NEURAPOLIS__ = { world };
@@ -84,6 +99,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   function interact(): void {
     if (modalOpen) return;
+    if (world.player.asleep) return;
     const place = placeAtAdjacent(world);
     if (place) {
       openPlacePanel(place);

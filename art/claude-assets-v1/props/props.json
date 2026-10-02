@@ -1,0 +1,92 @@
+{
+ "lampadaire_off": {
+  "w": 16,
+  "h": 64,
+  "ancre": "bas-centre"
+ },
+ "lampadaire_on": {
+  "w": 16,
+  "h": 64,
+  "ancre": "bas-centre"
+ },
+ "banc": {
+  "w": 40,
+  "h": 22,
+  "ancre": "bas-centre"
+ },
+ "jardiniere": {
+  "w": 20,
+  "h": 26,
+  "ancre": "bas-centre"
+ },
+ "cageots_fruits": {
+  "w": 34,
+  "h": 26,
+  "ancre": "bas-centre"
+ },
+ "poubelle": {
+  "w": 14,
+  "h": 20,
+  "ancre": "bas-centre"
+ },
+ "chat_0": {
+  "w": 16,
+  "h": 14,
+  "ancre": "bas-centre"
+ },
+ "chat_1": {
+  "w": 16,
+  "h": 14,
+  "ancre": "bas-centre"
+ },
+ "arbre": {
+  "w": 44,
+  "h": 60,
+  "ancre": "bas-centre"
+ },
+ "cerisier": {
+  "w": 44,
+  "h": 60,
+  "ancre": "bas-centre"
+ },
+ "buisson_rosiers": {
+  "w": 28,
+  "h": 18,
+  "ancre": "bas-centre"
+ },
+ "ardoise_pain": {
+  "w": 20,
+  "h": 28,
+  "ancre": "bas-centre"
+ },
+ "cloture": {
+  "w": 32,
+  "h": 18,
+  "ancre": "bas-centre"
+ },
+ "fumee_0": {
+  "w": 18,
+  "h": 18,
+  "ancre": "bas-centre"
+ },
+ "fumee_1": {
+  "w": 18,
+  "h": 18,
+  "ancre": "bas-centre"
+ },
+ "fumee_2": {
+  "w": 18,
+  "h": 18,
+  "ancre": "bas-centre"
+ },
+ "feuille_0": {
+  "w": 4,
+  "h": 4,
+  "ancre": "bas-centre"
+ },
+ "feuille_1": {
+  "w": 4,
+  "h": 4,
+  "ancre": "bas-centre"
+ }
+}

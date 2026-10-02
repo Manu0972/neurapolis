@@ -1,8 +1,8 @@
 /**
- * Tokens visuels cozy NEURAPOLIS — palette pixel-art chaleureuse.
- * Remplacement drop-in de l'ancienne palette néon sombre (#0a0e17).
- * Toutes les valeurs viennent de la palette core 32 (art/claude-assets-v1/palette/palette.json).
- * Mêmes clés que l'existant : aucun appelant à changer.
+ * PROPOSITION (non appliquée) — remplacement drop-in de src/presentation/tokens.ts.
+ * Mêmes clés que l'existant (bg, panel, panel2, ink, inkDim, or, vert, rouge, bleu, violet, cyan) : aucun appelant à changer.
+ * Toutes les valeurs viennent de la palette core 32 (palette/palette.json). Plus de fond néon sombre #0a0e17.
+ * Fichier propriété de la session « présentation » : à intégrer par Jules (J1), pas par ce kit.
  */
 export const TOKENS = {
   bg: '#2a1a14',      // brun chaud profond (contour) — remplace #0a0e17

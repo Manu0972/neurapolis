@@ -1,0 +1,37 @@
+{
+ "epicerie_jour": {
+  "w": 160,
+  "h": 128,
+  "ancre": "bas-gauche : le bas du sprite pose sur la ligne de sol"
+ },
+ "epicerie_allume": {
+  "w": 160,
+  "h": 128,
+  "ancre": "bas-gauche : le bas du sprite pose sur la ligne de sol"
+ },
+ "maison_jour": {
+  "w": 112,
+  "h": 128,
+  "ancre": "bas-gauche : le bas du sprite pose sur la ligne de sol"
+ },
+ "maison_allume": {
+  "w": 112,
+  "h": 128,
+  "ancre": "bas-gauche : le bas du sprite pose sur la ligne de sol"
+ },
+ "immeuble_jour": {
+  "w": 112,
+  "h": 128,
+  "ancre": "bas-gauche : le bas du sprite pose sur la ligne de sol"
+ },
+ "immeuble_allume": {
+  "w": 112,
+  "h": 128,
+  "ancre": "bas-gauche : le bas du sprite pose sur la ligne de sol"
+ },
+ "_notes": {
+  "epicerie": "porte x=126..152 ; vitrine x=12..116,y=66..110 ; enseigne ÉPICERIE BERTIN",
+  "maison": "cheminée x=76..90 (fumée) ; rosiers grimpants",
+  "immeuble": "balcons, linge, entrée n°12"
+ }
+}

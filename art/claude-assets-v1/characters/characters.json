@@ -1,0 +1,45 @@
+{
+ "cellule": [
+  16,
+  24
+ ],
+ "ancre": "bas-centre (pieds) : (8,23)",
+ "colonnes": [
+  "idle0",
+  "idle1",
+  "walk0",
+  "walk1",
+  "walk2",
+  "walk3"
+ ],
+ "lignes": [
+  "down",
+  "up",
+  "left"
+ ],
+ "droite": "miroir horizontal de la ligne left",
+ "cadence": "idle ~1.6 Hz (2 frames) ; marche 6 Hz (walk0..walk3 en boucle)",
+ "feuilles": {
+  "joueur": {
+   "fichier": "joueur.png",
+   "taille": [
+    96,
+    72
+   ]
+  },
+  "camarade": {
+   "fichier": "camarade.png",
+   "taille": [
+    96,
+    72
+   ]
+  },
+  "adulte": {
+   "fichier": "adulte.png",
+   "taille": [
+    96,
+    72
+   ]
+  }
+ }
+}

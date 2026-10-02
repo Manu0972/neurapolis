@@ -1,0 +1,60 @@
+{
+ "heures": {
+  "jour": {
+   "mul": [
+    255,
+    255,
+    255
+   ],
+   "k": 0.0,
+   "shadow": 0.22,
+   "shlen": 22,
+   "vig": 0.3,
+   "lamp": 0.0,
+   "win": 0.0
+  },
+  "soir": {
+   "mul": [
+    255,
+    196,
+    150
+   ],
+   "k": 0.55,
+   "shadow": 0.42,
+   "shlen": 44,
+   "vig": 0.45,
+   "lamp": 0.55,
+   "win": 0.6
+  },
+  "nuit": {
+   "mul": [
+    84,
+    104,
+    180
+   ],
+   "k": 0.8,
+   "shadow": 0.0,
+   "shlen": 0,
+   "vig": 0.55,
+   "lamp": 0.95,
+   "win": 0.95
+  }
+ },
+ "couleur_ombre_portee": [
+  90,
+  74,
+  120
+ ],
+ "couleur_fenetre": [
+  255,
+  214,
+  138
+ ],
+ "couleur_lampe": [
+  255,
+  205,
+  120
+ ],
+ "ordre": "scène -> multiplication mul*k -> halos en screen/lighter -> vignette",
+ "note": "les surcouches PNG de ce dossier sont HORS palette core (alpha et teinte chaude) ; elles sont tramées en paliers nets"
+}

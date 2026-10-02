@@ -78,6 +78,18 @@ export function buildUi(root: HTMLElement): UiRefs {
     barEls[id] = bar;
   }
   hud.appendChild(bars);
+
+  // Contrôle de vitesse
+  const speedRow = el('div', 'speed-row');
+  speedRow.style.cssText = 'display:flex;gap:4px;margin-top:4px;pointer-events:auto;';
+  for (const spd of [1, 5, 20]) {
+    const btn = el('button', 'speed-btn', `×${spd}`);
+    btn.dataset.speed = String(spd);
+    btn.style.cssText = 'font-size:10px;padding:2px 6px;border-radius:3px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);cursor:pointer;font-weight:700;';
+    speedRow.appendChild(btn);
+  }
+  hud.appendChild(speedRow);
+
   root.appendChild(hud);
 
   const navEl = el('div', 'hud-nav');

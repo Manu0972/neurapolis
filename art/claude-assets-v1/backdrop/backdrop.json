@@ -1,0 +1,9 @@
+{
+ "parallaxe_conseillee": {
+  "ciel": 0.0,
+  "nuages": 0.05,
+  "skyline": 0.15,
+  "haie": 0.4
+ },
+ "note": "les nuages dérivent de ~2 px/s ; la skyline contient la cheminée de l’usine Taret"
+}

@@ -1,0 +1,46 @@
+tiles/tiles.png                                       256x96   couleurs=15
+characters/adulte.png                                  96x72   couleurs=19
+characters/camarade.png                                96x72   couleurs=13
+characters/joueur.png                                  96x72   couleurs=15
+buildings/epicerie_allume.png                         160x128  couleurs=21
+buildings/epicerie_jour.png                           160x128  couleurs=22
+buildings/immeuble_allume.png                         112x128  couleurs=21
+buildings/immeuble_jour.png                           112x128  couleurs=19
+buildings/maison_allume.png                           112x128  couleurs=21
+buildings/maison_jour.png                             112x128  couleurs=22
+props/arbre.png                                        44x60   couleurs= 7
+props/ardoise_pain.png                                 20x28   couleurs= 9
+props/banc.png                                         40x22   couleurs= 6
+props/buisson_rosiers.png                              28x18   couleurs= 7
+props/cageots_fruits.png                               34x26   couleurs=10
+props/cerisier.png                                     44x60   couleurs= 8
+props/chat_0.png                                       16x14   couleurs= 4
+props/chat_1.png                                       16x14   couleurs= 4
+props/cloture.png                                      32x18   couleurs= 4
+props/feuille_0.png                                     4x4    couleurs= 3
+props/feuille_1.png                                     4x4    couleurs= 5
+props/fumee_0.png                                      18x18   couleurs= 2
+props/fumee_1.png                                      18x18   couleurs= 2
+props/fumee_2.png                                      18x18   couleurs= 2
+props/jardiniere.png                                   20x26   couleurs=11
+props/lampadaire_off.png                               16x64   couleurs= 6
+props/lampadaire_on.png                                16x64   couleurs= 5
+props/poubelle.png                                     14x20   couleurs= 4
+backdrop/ciel_jour_480x128.png                        480x128  couleurs= 3
+backdrop/ciel_soir_480x128.png                        480x128  couleurs= 3
+backdrop/nuages_200x40.png                            200x40   couleurs= 3
+backdrop/skyline_cite_480x80.png                      480x80   couleurs= 6
+light/flaque_sol_128x48.png                           128x48   couleurs= 1
+light/halo_chaud_96.png                                96x96   couleurs= 1
+light/halo_fenetre_64.png                              64x64   couleurs= 1
+light/vignette_480x270.png                            480x270  couleurs= 1
+preview/scene_jour_480x270.png                        480x270  couleurs=180
+preview/scene_jour_x2.png                             960x540  couleurs=180
+preview/scene_nuit_480x270.png                        480x270  couleurs=995
+preview/scene_nuit_x2.png                             960x540  couleurs=995
+preview/scene_soir_480x270.png                        480x270  couleurs=1013
+preview/scene_soir_x2.png                             960x540  couleurs=1013
+preview/styleboard.png                               1560x764  couleurs=32
+
+Palette core : 32 couleurs. JSON : tous valides.
+RÉSULTAT : OK

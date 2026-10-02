@@ -1,0 +1,155 @@
+{
+ "tile": 32,
+ "colonnes": 8,
+ "tuiles": {
+  "pave_a": {
+   "x": 0,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "overlay": false
+  },
+  "pave_b": {
+   "x": 32,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "overlay": false
+  },
+  "pave_c": {
+   "x": 64,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "overlay": false
+  },
+  "pave_d": {
+   "x": 96,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "overlay": false
+  },
+  "herbe_a": {
+   "x": 128,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "overlay": false
+  },
+  "herbe_b": {
+   "x": 160,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "overlay": false
+  },
+  "herbe_c": {
+   "x": 192,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "overlay": false
+  },
+  "herbe_d": {
+   "x": 224,
+   "y": 0,
+   "w": 32,
+   "h": 32,
+   "overlay": false
+  },
+  "terre_a": {
+   "x": 0,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "overlay": false
+  },
+  "terre_b": {
+   "x": 32,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "overlay": false
+  },
+  "haie_a": {
+   "x": 64,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "overlay": false
+  },
+  "haie_b": {
+   "x": 96,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "overlay": false
+  },
+  "plancher_a": {
+   "x": 128,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "overlay": false
+  },
+  "plancher_b": {
+   "x": 160,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "overlay": false
+  },
+  "damier": {
+   "x": 192,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "overlay": false
+  },
+  "pave_e": {
+   "x": 224,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "overlay": false
+  },
+  "bord_herbe_n": {
+   "x": 0,
+   "y": 64,
+   "w": 32,
+   "h": 32,
+   "overlay": true
+  },
+  "bord_herbe_s": {
+   "x": 32,
+   "y": 64,
+   "w": 32,
+   "h": 32,
+   "overlay": true
+  },
+  "bord_herbe_e": {
+   "x": 64,
+   "y": 64,
+   "w": 32,
+   "h": 32,
+   "overlay": true
+  },
+  "bord_herbe_w": {
+   "x": 96,
+   "y": 64,
+   "w": 32,
+   "h": 32,
+   "overlay": true
+  }
+ },
+ "usage": {
+  "sol": "pave_a..e (aléatoire stable par hash de tuile)",
+  "herbe": "herbe_a..d",
+  "terre": "terre_a/b",
+  "haie": "haie_a/b",
+  "plancher": "plancher_a/b",
+  "carrelage": "damier",
+  "transition": "bord_herbe_* à poser PAR-DESSUS le pavé voisin"
+ }
+}

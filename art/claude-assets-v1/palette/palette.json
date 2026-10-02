@@ -1,0 +1,112 @@
+{
+ "core": {
+  "O": "#2a1a14",
+  "skS": "#d99a78",
+  "sk": "#ffc496",
+  "skL": "#ffd9b0",
+  "haD": "#2c2230",
+  "haS": "#4a3220",
+  "ha": "#6b4a2f",
+  "haL": "#8a6240",
+  "coS": "#c25a40",
+  "co": "#f48c5d",
+  "coL": "#ffb08a",
+  "blS": "#34406a",
+  "bl": "#4f67a3",
+  "blL": "#7f9bd0",
+  "wo": "#bc7e4d",
+  "woL": "#d8a878",
+  "waS": "#b99a86",
+  "wa": "#efd9ac",
+  "waL": "#f9ecd0",
+  "roS": "#8f3a34",
+  "ro": "#c15f4a",
+  "roL": "#d97a5f",
+  "stS": "#8e8a9a",
+  "st": "#c8b9a0",
+  "stL": "#e4d3b4",
+  "grS": "#3d7a6a",
+  "gr": "#6fb06a",
+  "grL": "#b5d977",
+  "sky": "#6fb4e0",
+  "gl": "#7fa8c4",
+  "li": "#ffd98a",
+  "liL": "#ffe9b8"
+ },
+ "count": 32,
+ "ramps_ombre_base_lumiere": {
+  "skin": [
+   "#d99a78",
+   "#ffc496",
+   "#ffd9b0"
+  ],
+  "hairB": [
+   "#4a3220",
+   "#6b4a2f",
+   "#8a6240"
+  ],
+  "hairD": [
+   "#2c2230",
+   "#4a3220",
+   "#6b4a2f"
+  ],
+  "hairG": [
+   "#8e8a9a",
+   "#c8b9a0",
+   "#e4d3b4"
+  ],
+  "coral": [
+   "#c25a40",
+   "#f48c5d",
+   "#ffb08a"
+  ],
+  "blue": [
+   "#34406a",
+   "#4f67a3",
+   "#7f9bd0"
+  ],
+  "wood": [
+   "#6b4a2f",
+   "#bc7e4d",
+   "#d8a878"
+  ],
+  "wall": [
+   "#b99a86",
+   "#efd9ac",
+   "#f9ecd0"
+  ],
+  "roof": [
+   "#8f3a34",
+   "#c15f4a",
+   "#d97a5f"
+  ],
+  "stone": [
+   "#8e8a9a",
+   "#c8b9a0",
+   "#e4d3b4"
+  ],
+  "grass": [
+   "#3d7a6a",
+   "#6fb06a",
+   "#b5d977"
+  ],
+  "mustard": [
+   "#bc7e4d",
+   "#ffd98a",
+   "#ffe9b8"
+  ]
+ },
+ "swaps_peau_hors_core": {
+  "brun_chaud": {
+   "skS": "#8a5238",
+   "sk": "#b47a56",
+   "skL": "#d19a72"
+  },
+  "brun_profond": {
+   "skS": "#5e3a2c",
+   "sk": "#8a5a40",
+   "skL": "#aa7656"
+  }
+ },
+ "regle": "ombres froides (bleu/violet), lumières chaudes (ambre), contour brun chaud #2a1a14, jamais de noir pur"
+}

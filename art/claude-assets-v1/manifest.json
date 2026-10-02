@@ -1,0 +1,187 @@
+{
+ "version": "claude-assets-v1",
+ "tuile": 32,
+ "palette": "palette/palette.json",
+ "tuiles": {
+  "image": "tiles/tiles.png",
+  "meta": "tiles/tiles.json"
+ },
+ "personnages": {
+  "joueur": {
+   "image": "characters/joueur.png",
+   "cellule": [
+    16,
+    24
+   ]
+  },
+  "camarade": {
+   "image": "characters/camarade.png",
+   "cellule": [
+    16,
+    24
+   ]
+  },
+  "adulte": {
+   "image": "characters/adulte.png",
+   "cellule": [
+    16,
+    24
+   ]
+  }
+ },
+ "batiments": {
+  "epicerie_jour": {
+   "image": "buildings/epicerie_jour.png",
+   "w": 160,
+   "h": 128
+  },
+  "epicerie_allume": {
+   "image": "buildings/epicerie_allume.png",
+   "w": 160,
+   "h": 128
+  },
+  "maison_jour": {
+   "image": "buildings/maison_jour.png",
+   "w": 112,
+   "h": 128
+  },
+  "maison_allume": {
+   "image": "buildings/maison_allume.png",
+   "w": 112,
+   "h": 128
+  },
+  "immeuble_jour": {
+   "image": "buildings/immeuble_jour.png",
+   "w": 112,
+   "h": 128
+  },
+  "immeuble_allume": {
+   "image": "buildings/immeuble_allume.png",
+   "w": 112,
+   "h": 128
+  }
+ },
+ "props": {
+  "lampadaire_off": {
+   "image": "props/lampadaire_off.png",
+   "w": 16,
+   "h": 64,
+   "ancre": "bas-centre"
+  },
+  "lampadaire_on": {
+   "image": "props/lampadaire_on.png",
+   "w": 16,
+   "h": 64,
+   "ancre": "bas-centre"
+  },
+  "banc": {
+   "image": "props/banc.png",
+   "w": 40,
+   "h": 22,
+   "ancre": "bas-centre"
+  },
+  "jardiniere": {
+   "image": "props/jardiniere.png",
+   "w": 20,
+   "h": 26,
+   "ancre": "bas-centre"
+  },
+  "cageots_fruits": {
+   "image": "props/cageots_fruits.png",
+   "w": 34,
+   "h": 26,
+   "ancre": "bas-centre"
+  },
+  "poubelle": {
+   "image": "props/poubelle.png",
+   "w": 14,
+   "h": 20,
+   "ancre": "bas-centre"
+  },
+  "chat_0": {
+   "image": "props/chat_0.png",
+   "w": 16,
+   "h": 14,
+   "ancre": "bas-centre"
+  },
+  "chat_1": {
+   "image": "props/chat_1.png",
+   "w": 16,
+   "h": 14,
+   "ancre": "bas-centre"
+  },
+  "arbre": {
+   "image": "props/arbre.png",
+   "w": 44,
+   "h": 60,
+   "ancre": "bas-centre"
+  },
+  "cerisier": {
+   "image": "props/cerisier.png",
+   "w": 44,
+   "h": 60,
+   "ancre": "bas-centre"
+  },
+  "buisson_rosiers": {
+   "image": "props/buisson_rosiers.png",
+   "w": 28,
+   "h": 18,
+   "ancre": "bas-centre"
+  },
+  "ardoise_pain": {
+   "image": "props/ardoise_pain.png",
+   "w": 20,
+   "h": 28,
+   "ancre": "bas-centre"
+  },
+  "cloture": {
+   "image": "props/cloture.png",
+   "w": 32,
+   "h": 18,
+   "ancre": "bas-centre"
+  },
+  "fumee_0": {
+   "image": "props/fumee_0.png",
+   "w": 18,
+   "h": 18,
+   "ancre": "bas-centre"
+  },
+  "fumee_1": {
+   "image": "props/fumee_1.png",
+   "w": 18,
+   "h": 18,
+   "ancre": "bas-centre"
+  },
+  "fumee_2": {
+   "image": "props/fumee_2.png",
+   "w": 18,
+   "h": 18,
+   "ancre": "bas-centre"
+  },
+  "feuille_0": {
+   "image": "props/feuille_0.png",
+   "w": 4,
+   "h": 4,
+   "ancre": "bas-centre"
+  },
+  "feuille_1": {
+   "image": "props/feuille_1.png",
+   "w": 4,
+   "h": 4,
+   "ancre": "bas-centre"
+  }
+ },
+ "decor": [
+  "backdrop/ciel_jour_480x128.png",
+  "backdrop/ciel_soir_480x128.png",
+  "backdrop/nuages_200x40.png",
+  "backdrop/skyline_cite_480x80.png"
+ ],
+ "lumiere": [
+  "light/halo_chaud_96.png",
+  "light/flaque_sol_128x48.png",
+  "light/halo_fenetre_64.png",
+  "light/vignette_480x270.png"
+ ],
+ "grading": "light/grading.json"
+}

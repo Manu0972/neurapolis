@@ -1,0 +1,33 @@
+/* PROPOSITION (non appliquée) — habillage chaud pour src/presentation/style.css (fichier à handoff : ne pas écraser sans accord).
+   Remplace le thème « néon sombre » ; mêmes noms de variables que l'existant. */
+:root {
+  --bg: #2a1a14;  --panel: #4a3220;  --panel2: #6b4a2f;
+  --ink: #f9ecd0; --ink-dim: #c8b9a0;
+  --or: #ffd98a;  --vert: #6fb06a;  --rouge: #c25a40;  --bleu: #7f9bd0;  --violet: #8e8a9a;  --cyan: #7fa8c4;
+  --line: #2a1a14;               /* liserés = contour brun, pas de blanc translucide */
+  --btn-hover: #8a6240;
+  --violet-soft: #8e8a9a33;
+}
+canvas, .map-canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+
+/* Texte HUD : ombre brune, jamais noire */
+.hud { text-shadow: 0 1px 0 #2a1a14, 1px 0 0 #2a1a14; }
+.need-track { background: #2a1a14; border: 2px solid #2a1a14; border-radius: 3px; }
+.need-fill  { border-radius: 1px; box-shadow: inset 0 2px 0 #ffffff30; }
+
+/* Panneaux & boutons « bois » : biseau 1 px clair en haut, ombre froide en bas */
+.panel, .screen, .council {
+  background: var(--panel); color: var(--ink);
+  border: 3px solid var(--bg); border-radius: 4px;
+  box-shadow: inset 0 2px 0 #8a6240, inset 0 -2px 0 #34406a55;
+}
+button { background: var(--panel2); color: var(--ink); border: 2px solid var(--bg); border-radius: 3px;
+         box-shadow: inset 0 2px 0 #8a6240, 0 2px 0 var(--bg); font-weight: 700; }
+button:hover { background: var(--btn-hover); }
+button:active { transform: translateY(2px); box-shadow: inset 0 2px 0 #8a6240; }
+
+/* Étiquettes de lieux/PNJ : plaque crème bordée de brun (remplace la pastille noire translucide) */
+.world-label, .interact-prompt {
+  background: #f9ecd0; color: #4a3220; border: 2px solid #2a1a14; border-radius: 3px;
+  box-shadow: 0 2px 0 #2a1a14; padding: 2px 8px; font-weight: 700;
+}
