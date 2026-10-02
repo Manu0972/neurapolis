@@ -5,13 +5,54 @@
  * Fallback transparent sur le Canvas 2D en l'absence de WebGL.
  */
 import * as THREE from 'three';
-import type { GhostId, WorldState } from '../core/types';
+import type { GhostId, PlaceId, WorldState } from '../core/types';
 import { DECORATIONS, MAP_H, MAP_W, tileAt, type WorldPropId } from '../data/map';
 import { minutesOfDay } from '../core/clock';
 import { NPC_BY_ID } from '../data/npcs';
 import { npcPosition } from '../simulation/npc';
 import { TOKENS, HYGGE_1800K } from './tokens';
 import { GHOST_DEFS_BY_ID } from '../data/ghosts/registry';
+import { createInteriorDiorama, type InteriorDiorama } from './interiors3d';
+
+/**
+ * Calcule le vecteur de déplacement relatif à l'orientation de la caméra (par quarts de tour).
+ * 0°   -> (dx, dy)
+ * 90°  -> (-dy, dx)  (sens horaire)
+ * 180° -> (-dx, -dy)
+ * 270° -> (dy, -dx)
+ */
+export function getCameraRelativeInput(
+  dx: number,
+  dy: number,
+  quarterTurn: number,
+): { x: number; y: number } {
+  const q = ((quarterTurn % 4) + 4) % 4;
+  let rx = dx;
+  let ry = dy;
+  switch (q) {
+    case 1:
+      rx = -dy;
+      ry = dx;
+      break;
+    case 2:
+      rx = -dx;
+      ry = -dy;
+      break;
+    case 3:
+      rx = dy;
+      ry = -dx;
+      break;
+    case 0:
+    default:
+      rx = dx;
+      ry = dy;
+      break;
+  }
+  return {
+    x: rx === 0 ? 0 : rx,
+    y: ry === 0 ? 0 : ry,
+  };
+}
 
 export interface Renderer3DOptions {
   walkingEntities?: Record<string, boolean>;
@@ -22,6 +63,19 @@ export interface Renderer3DOptions {
 export class WorldRenderer3D {
   public canvas: HTMLCanvasElement;
   public isWebGLAvailable = false;
+  public onContextLost?: () => void;
+
+  private static activeInstance: WorldRenderer3D | null = null;
+
+  public static getActiveRenderer(): WorldRenderer3D | null {
+    return WorldRenderer3D.activeInstance;
+  }
+
+  public static setActiveRenderer(renderer: WorldRenderer3D | null): void {
+    WorldRenderer3D.activeInstance = renderer;
+  }
+
+  private handleContextLost: (event: Event) => void;
 
   private renderer: THREE.WebGLRenderer | null = null;
   private scene: THREE.Scene | null = null;
@@ -40,6 +94,11 @@ export class WorldRenderer3D {
   private playerMesh: THREE.Group | null = null;
   private ghostsGroup: THREE.Group | null = null;
   private fontaineWaters: THREE.Mesh[] = [];
+
+  // Scène d'intérieur dédiée (Diorama 3D)
+  private currentDiorama: InteriorDiorama | null = null;
+  private interiorPlaceId: PlaceId | null = null;
+  private interiorRoomId: string | null = null;
 
   // Cache/Pool de meshes pour éviter toute fuite mémoire GPU et réallocation à 60 FPS
   private npcMeshes: Map<string, THREE.Group> = new Map();
@@ -61,7 +120,38 @@ export class WorldRenderer3D {
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
+    WorldRenderer3D.activeInstance = this;
+
+    this.handleContextLost = (event: Event) => {
+      event.preventDefault();
+      console.warn('WebGL context lost! Signalement du repli Canvas 2D.');
+      this.isWebGLAvailable = false;
+      if (this.onContextLost) {
+        this.onContextLost();
+      }
+    };
+
+    if (this.canvas && typeof this.canvas.addEventListener === 'function') {
+      this.canvas.addEventListener('webglcontextlost', this.handleContextLost);
+    }
+
     this.initWebGL();
+  }
+
+  public initHeadless(): void {
+    if (!this.scene) {
+      this.scene = new THREE.Scene();
+      this.scene.background = new THREE.Color(TOKENS.bg);
+      this.scene.fog = new THREE.FogExp2(0x2a1a14, 0.018);
+      const initialW = (this.canvas && this.canvas.clientWidth) || 800;
+      const initialH = (this.canvas && this.canvas.clientHeight) || 600;
+      this.lastWidth = initialW;
+      this.lastHeight = initialH;
+      const aspect = initialW / initialH;
+      this.camera = new THREE.PerspectiveCamera(38, aspect, 0.5, 200);
+      this.setupLighting();
+      this.buildWorldGeometry();
+    }
   }
 
   public initWebGL(): boolean {
@@ -90,6 +180,7 @@ export class WorldRenderer3D {
 
       this.scene = new THREE.Scene();
       this.scene.background = new THREE.Color(TOKENS.bg);
+      this.scene.fog = new THREE.FogExp2(0x2a1a14, 0.018);
 
       // Caméra perspective isométrique stylisée
       const aspect = initialW / initialH;
@@ -430,6 +521,78 @@ export class WorldRenderer3D {
   }
 
   /* ─────────────────────────────────────────────────────────────
+   * GESTION DES SCÈNES D'INTÉRIEUR (DIORAMAS 3D)
+   * ───────────────────────────────────────────────────────────── */
+  public setInteriorScene(placeId: PlaceId, roomId: string): void {
+    if (!this.scene) {
+      this.initHeadless();
+    }
+
+    if (this.currentDiorama) {
+      if (this.scene) {
+        this.scene.remove(this.currentDiorama.roomGroup);
+      }
+      this.currentDiorama.dispose();
+      this.currentDiorama = null;
+    }
+
+    this.currentDiorama = createInteriorDiorama(placeId, roomId);
+    this.interiorPlaceId = placeId;
+    this.interiorRoomId = roomId;
+
+    if (this.scene) {
+      this.scene.add(this.currentDiorama.roomGroup);
+      if (this.mapGroup) this.mapGroup.visible = false;
+      if (this.propsGroup) this.propsGroup.visible = false;
+      if (this.npcsGroup) this.npcsGroup.visible = false;
+    }
+  }
+
+  public clearInteriorScene(): void {
+    if (this.currentDiorama) {
+      if (this.scene) {
+        this.scene.remove(this.currentDiorama.roomGroup);
+      }
+      this.currentDiorama.dispose();
+      this.currentDiorama = null;
+    }
+    this.interiorPlaceId = null;
+    this.interiorRoomId = null;
+
+    if (this.scene) {
+      if (this.mapGroup) this.mapGroup.visible = true;
+      if (this.propsGroup) this.propsGroup.visible = true;
+      if (this.npcsGroup) this.npcsGroup.visible = true;
+    }
+  }
+
+  public getCurrentDiorama(): InteriorDiorama | null {
+    return this.currentDiorama;
+  }
+
+  public getCurrentInterior(): { placeId: PlaceId; roomId: string } | null {
+    return this.interiorPlaceId && this.interiorRoomId
+      ? { placeId: this.interiorPlaceId, roomId: this.interiorRoomId }
+      : null;
+  }
+
+  public isInteriorActive(): boolean {
+    return this.currentDiorama !== null;
+  }
+
+  public getScene(): THREE.Scene | null {
+    return this.scene;
+  }
+
+  public getCamera(): THREE.PerspectiveCamera | null {
+    return this.camera;
+  }
+
+  public getMapGroup(): THREE.Group | null {
+    return this.mapGroup;
+  }
+
+  /* ─────────────────────────────────────────────────────────────
    * BOUCLE DE RENDU 3D
    * ───────────────────────────────────────────────────────────── */
   public render(world: WorldState, width: number, height: number, timeMs: number, opts: Renderer3DOptions = {}): void {
@@ -489,11 +652,15 @@ export class WorldRenderer3D {
     const isMoving = opts.walkingEntities?.player ?? false;
 
     if (this.playerMesh) {
-      this.playerMesh.position.x = px;
-      this.playerMesh.position.z = py;
+      if (this.currentDiorama) {
+        this.playerMesh.position.set(0, 0, 0);
+      } else {
+        this.playerMesh.position.x = px;
+        this.playerMesh.position.z = py;
+      }
 
       // Animation de marche low-poly
-      if (isMoving) {
+      if (isMoving && !this.currentDiorama) {
         this.playerMesh.position.y = Math.abs(Math.sin(this.playerAnimTimer)) * 0.12;
         const jg = this.playerMesh.getObjectByName('jambeG');
         const jd = this.playerMesh.getObjectByName('jambeD');
@@ -513,7 +680,7 @@ export class WorldRenderer3D {
     }
 
     // 3. Mise à jour des PNJs (réutilisation des meshes en cache)
-    if (this.npcsGroup) {
+    if (this.npcsGroup && !this.currentDiorama) {
       for (const [id, npcDef] of Object.entries(NPC_BY_ID)) {
         let npcMesh = this.npcMeshes.get(id);
         if (!npcMesh) {
@@ -528,7 +695,7 @@ export class WorldRenderer3D {
     }
 
     // 4. Fantômes spectraux (réutilisation des meshes en cache)
-    if (this.ghostsGroup) {
+    if (this.ghostsGroup && !this.currentDiorama) {
       const activeGhosts = [...(opts.whisperingGhosts || []), ...(opts.debatingGhosts || [])];
       for (const [gid, gm] of this.ghostMeshes.entries()) {
         if (!activeGhosts.includes(gid)) {
@@ -552,9 +719,15 @@ export class WorldRenderer3D {
     // 5. Mise à jour fluide de la caméra
     // Interpolation de l'angle
     this.currentCameraAngle += (this.targetCameraAngle - this.currentCameraAngle) * 0.1;
-    // Suivi fluide du joueur
-    this.camTarget.x += (px - this.camTarget.x) * 0.08;
-    this.camTarget.z += (py - this.camTarget.z) * 0.08;
+    if (this.currentDiorama) {
+      // Dans la vue intérieure diorama, centrer sur le centre de la pièce (0, 0, 0)
+      this.camTarget.x += (0 - this.camTarget.x) * 0.1;
+      this.camTarget.z += (0 - this.camTarget.z) * 0.1;
+    } else {
+      // Suivi fluide du joueur
+      this.camTarget.x += (px - this.camTarget.x) * 0.08;
+      this.camTarget.z += (py - this.camTarget.z) * 0.08;
+    }
 
     if (this.isTopDown) {
       this.camera.position.set(this.camTarget.x, this.cameraHeight * 1.5, this.camTarget.z);
@@ -566,10 +739,25 @@ export class WorldRenderer3D {
       this.camera.lookAt(this.camTarget.x, 1.0, this.camTarget.z);
     }
 
-    this.renderer.render(this.scene, this.camera);
+    try {
+      this.renderer.render(this.scene, this.camera);
+    } catch (e) {
+      console.warn('Erreur durant le rendu Three.js WebGL, repli vers Canvas 2D:', e);
+      this.isWebGLAvailable = false;
+      if (this.onContextLost) {
+        this.onContextLost();
+      }
+    }
   }
 
   public dispose(): void {
+    if (this.canvas && typeof this.canvas.removeEventListener === 'function') {
+      this.canvas.removeEventListener('webglcontextlost', this.handleContextLost);
+    }
+    this.clearInteriorScene();
+    if (WorldRenderer3D.activeInstance === this) {
+      WorldRenderer3D.activeInstance = null;
+    }
     if (this.renderer) {
       this.renderer.dispose();
       this.renderer = null;

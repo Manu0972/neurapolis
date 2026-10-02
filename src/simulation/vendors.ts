@@ -2,6 +2,7 @@
  * NEURAPOLIS — Moteur de Relation avec les Marchands et Paliers de Fidélité (Tiers).
  */
 import type { Notification, VendorId, VendorRelationship, VendorTier, WorldState } from '../core/types';
+import { dateOf, dayIndexOf } from '../core/clock';
 import { createInitialVendorsState, VENDOR_DEFS } from '../data/vendors';
 import { notify } from './events';
 
@@ -65,10 +66,11 @@ export function recordVendorTrade(
 
       const notifMsg = `Relation marchande renforcée avec ${def.name} : Palier ${tier} (${ben.title}) ! ${ben.description}`;
       notifs.push(notify('bien', notifMsg));
+      const day = (w.time as { tick: number; day?: number }).day ?? dayIndexOf(w.time.tick);
       w.events.unshift({
         id: `vendor_tier_${vendorId}_${tier}_${w.time.tick}`,
-        day: Math.floor(w.time.tick / 144),
-        date: new Date().toISOString().slice(0, 10),
+        day,
+        date: dateOf(day).iso,
         type: 'consequence',
         title: `Palier marchand atteint : ${def.name}`,
         text: notifMsg,

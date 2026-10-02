@@ -3,11 +3,13 @@
  * le moteur de rendu 3D Three.js avec caméra rotative et les scènes d'intérieur détaillées.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
+import * as THREE from 'three';
 import { createWorld } from '../src/core/store';
 import { audio } from '../src/presentation/audio';
 import { INTERIOR_PLACES } from '../src/data/interiors';
 import { openDetailedInteriorModal } from '../src/presentation/interiors';
-import { WorldRenderer3D } from '../src/presentation/renderer3d';
+import { WorldRenderer3D, getCameraRelativeInput } from '../src/presentation/renderer3d';
+import { createInteriorDiorama } from '../src/presentation/interiors3d';
 
 // Mock minimal du DOM pour l'environnement Node.js de Vitest
 function setupDomMock(): void {
@@ -70,7 +72,10 @@ function setupDomMock(): void {
           if (!listeners[event]) return;
           listeners[event] = listeners[event]!.filter((fn) => fn !== handler);
         },
-        dispatchEvent: (event: { type: string }) => {
+        dispatchEvent: (event: { type: string; preventDefault?: () => void }) => {
+          if (!event.preventDefault) {
+            event.preventDefault = () => {};
+          }
           const list = listeners[event.type] || [];
           for (const fn of list) fn(event);
         },
@@ -258,4 +263,213 @@ describe('Rendu 3D Three.js & Caméra Rotative', () => {
       renderer3d.dispose();
     }).not.toThrow();
   });
+
+  it('calcule la transformation directionnelle de caméra getCameraRelativeInput pour les 4 quarts de tour', () => {
+    // 0° (isométrique standard) : identité (dx, dy) -> (dx, dy)
+    expect(getCameraRelativeInput(0, -1, 0)).toEqual({ x: 0, y: -1 }); // Haut -> Haut
+    expect(getCameraRelativeInput(1, 0, 0)).toEqual({ x: 1, y: 0 });   // Droite -> Droite
+    expect(getCameraRelativeInput(0, 1, 0)).toEqual({ x: 0, y: 1 });   // Bas -> Bas
+    expect(getCameraRelativeInput(-1, 0, 0)).toEqual({ x: -1, y: 0 }); // Gauche -> Gauche
+
+    // 90° (sens horaire) : (dx, dy) -> (-dy, dx)
+    // Haut (0, -1) sur écran correspond à Droite (1, 0) dans le monde
+    expect(getCameraRelativeInput(0, -1, 1)).toEqual({ x: 1, y: 0 });
+    // Droite (1, 0) correspond à Bas (0, 1)
+    expect(getCameraRelativeInput(1, 0, 1)).toEqual({ x: 0, y: 1 });
+    // Bas (0, 1) correspond à Gauche (-1, 0)
+    expect(getCameraRelativeInput(0, 1, 1)).toEqual({ x: -1, y: 0 });
+    // Gauche (-1, 0) correspond à Haut (0, -1)
+    expect(getCameraRelativeInput(-1, 0, 1)).toEqual({ x: 0, y: -1 });
+
+    // 180° : (dx, dy) -> (-dx, -dy)
+    expect(getCameraRelativeInput(0, -1, 2)).toEqual({ x: 0, y: 1 });   // Haut -> Bas
+    expect(getCameraRelativeInput(1, 0, 2)).toEqual({ x: -1, y: 0 });   // Droite -> Gauche
+    expect(getCameraRelativeInput(0, 1, 2)).toEqual({ x: 0, y: -1 });   // Bas -> Haut
+    expect(getCameraRelativeInput(-1, 0, 2)).toEqual({ x: 1, y: 0 });   // Gauche -> Droite
+
+    // 270° : (dx, dy) -> (dy, -dx)
+    expect(getCameraRelativeInput(0, -1, 3)).toEqual({ x: -1, y: 0 });  // Haut -> Gauche
+    expect(getCameraRelativeInput(1, 0, 3)).toEqual({ x: 0, y: -1 });   // Droite -> Haut
+    expect(getCameraRelativeInput(0, 1, 3)).toEqual({ x: 1, y: 0 });    // Bas -> Droite
+    expect(getCameraRelativeInput(-1, 0, 3)).toEqual({ x: 0, y: 1 });    // Gauche -> Bas
+
+    // Arithmétique modulaire (tours complets et angles négatifs)
+    expect(getCameraRelativeInput(0, -1, 4)).toEqual({ x: 0, y: -1 });  // 4 == 0
+    expect(getCameraRelativeInput(0, -1, -1)).toEqual({ x: -1, y: 0 }); // -1 == 3
+    expect(getCameraRelativeInput(0, -1, 5)).toEqual({ x: 1, y: 0 });   // 5 == 1
+    expect(getCameraRelativeInput(0, -1, -2)).toEqual({ x: 0, y: 1 });  // -2 == 2
+  });
+
+  it('configure le brouillard atmosphérique Hygge FogExp2 et initialise la géométrie en mode headless', () => {
+    const canvas = document.createElement('canvas');
+    const renderer3d = new WorldRenderer3D(canvas);
+
+    renderer3d.initHeadless();
+    const scene = renderer3d.getScene();
+    expect(scene).toBeDefined();
+    expect(scene?.fog).toBeInstanceOf(THREE.FogExp2);
+
+    const fog = scene?.fog as THREE.FogExp2;
+    expect(fog.color.getHex()).toBe(0x2a1a14);
+    expect(fog.density).toBeCloseTo(0.018, 4);
+
+    renderer3d.dispose();
+  });
+
+  it('gère l’activation, le changement de pièce et le nettoyage des scènes d’intérieur 3D', () => {
+    const canvas = document.createElement('canvas');
+    const renderer3d = new WorldRenderer3D(canvas);
+
+    expect(renderer3d.isInteriorActive()).toBe(false);
+    expect(renderer3d.getCurrentInterior()).toBeNull();
+
+    // 1. Activation d'une scène d'intérieur (Maison - Chambre)
+    renderer3d.setInteriorScene('maison', 'chambre');
+    expect(renderer3d.isInteriorActive()).toBe(true);
+    expect(renderer3d.getCurrentInterior()).toEqual({ placeId: 'maison', roomId: 'chambre' });
+    expect(renderer3d.getCurrentDiorama()).toBeDefined();
+    expect(renderer3d.getMapGroup()?.visible).toBe(false);
+
+    // 2. Bascule vers une autre pièce (Maison - Salon)
+    renderer3d.setInteriorScene('maison', 'salon');
+    expect(renderer3d.isInteriorActive()).toBe(true);
+    expect(renderer3d.getCurrentInterior()).toEqual({ placeId: 'maison', roomId: 'salon' });
+    expect(renderer3d.getCurrentDiorama()?.furnitureMeshes.has('frigo')).toBe(true);
+
+    // 3. Nettoyage de la scène intérieure et retour à la vue extérieure
+    renderer3d.clearInteriorScene();
+    expect(renderer3d.isInteriorActive()).toBe(false);
+    expect(renderer3d.getCurrentInterior()).toBeNull();
+    expect(renderer3d.getCurrentDiorama()).toBeNull();
+    expect(renderer3d.getMapGroup()?.visible).toBe(true);
+
+    renderer3d.dispose();
+  });
+
+  it('réagit à la perte de contexte WebGL et déclenche le fallback', () => {
+    const canvas = document.createElement('canvas');
+    const renderer3d = new WorldRenderer3D(canvas);
+
+    let fallbackSignaled = false;
+    renderer3d.onContextLost = () => {
+      fallbackSignaled = true;
+    };
+
+    // Simulation de l'événement natif webglcontextlost
+    canvas.dispatchEvent({ type: 'webglcontextlost' } as unknown as Event);
+
+    expect(renderer3d.isWebGLAvailable).toBe(false);
+    expect(fallbackSignaled).toBe(true);
+
+    renderer3d.dispose();
+  });
 });
+
+describe('Scènes 3D d’Intérieur Détaillées (createInteriorDiorama)', () => {
+  it('construit un diorama riche avec mobilier pour Maison (Chambre & Salon)', () => {
+    // Chambre de Camille
+    const dioramaChambre = createInteriorDiorama('maison', 'chambre');
+    expect(dioramaChambre.roomGroup).toBeInstanceOf(THREE.Group);
+    expect(dioramaChambre.ambientLight.color.getHex()).toBe(0xffd98a);
+    expect(dioramaChambre.warmAccentLights.length).toBeGreaterThan(0);
+    expect(dioramaChambre.furnitureMeshes.has('lit')).toBe(true);
+    expect(dioramaChambre.furnitureMeshes.has('bureau')).toBe(true);
+    expect(dioramaChambre.furnitureMeshes.has('bibliotheque')).toBe(true);
+    expect(dioramaChambre.furnitureMeshes.has('fenetre')).toBe(true);
+    expect(() => dioramaChambre.dispose()).not.toThrow();
+
+    // Salon & Cuisine
+    const dioramaSalon = createInteriorDiorama('maison', 'salon');
+    expect(dioramaSalon.furnitureMeshes.has('frigo')).toBe(true);
+    expect(dioramaSalon.furnitureMeshes.has('canape')).toBe(true);
+    expect(dioramaSalon.furnitureMeshes.has('table')).toBe(true);
+    expect(dioramaSalon.furnitureMeshes.has('radio')).toBe(true);
+    expect(() => dioramaSalon.dispose()).not.toThrow();
+  });
+
+  it('construit un diorama riche pour Collège (Classe & Cour)', () => {
+    const dioramaClasse = createInteriorDiorama('college', 'classe');
+    expect(dioramaClasse.furnitureMeshes.has('pupitre')).toBe(true);
+    expect(dioramaClasse.furnitureMeshes.has('tableau')).toBe(true);
+    expect(dioramaClasse.furnitureMeshes.has('bureau_prof')).toBe(true);
+    dioramaClasse.dispose();
+
+    const dioramaCour = createInteriorDiorama('college', 'cour');
+    expect(dioramaCour.furnitureMeshes.has('banc_cour')).toBe(true);
+    expect(dioramaCour.furnitureMeshes.has('marelle')).toBe(true);
+    expect(dioramaCour.furnitureMeshes.has('preau')).toBe(true);
+    dioramaCour.dispose();
+  });
+
+  it('construit un diorama riche pour Épicerie (Magasin & Réserve)', () => {
+    const dioramaMagasin = createInteriorDiorama('epicerie', 'magasin');
+    expect(dioramaMagasin.furnitureMeshes.has('caisse')).toBe(true);
+    expect(dioramaMagasin.furnitureMeshes.has('rayonnage_frais')).toBe(true);
+    expect(dioramaMagasin.furnitureMeshes.has('bocal_vrac')).toBe(true);
+    dioramaMagasin.dispose();
+
+    const dioramaReserve = createInteriorDiorama('epicerie', 'reserve');
+    expect(dioramaReserve.furnitureMeshes.has('palette_stock')).toBe(true);
+    expect(dioramaReserve.furnitureMeshes.has('registre_fournisseurs')).toBe(true);
+    dioramaReserve.dispose();
+  });
+
+  it('construit un diorama riche pour Friche (Atelier & Hangar Récup)', () => {
+    const dioramaAtelier = createInteriorDiorama('friche', 'atelier_principal');
+    expect(dioramaAtelier.furnitureMeshes.has('etabli')).toBe(true);
+    expect(dioramaAtelier.furnitureMeshes.has('tour_mecanique')).toBe(true);
+    expect(dioramaAtelier.furnitureMeshes.has('panneau_outils')).toBe(true);
+    dioramaAtelier.dispose();
+
+    const dioramaHangar = createInteriorDiorama('friche', 'hangar_recup');
+    expect(dioramaHangar.furnitureMeshes.has('tas_ferraille')).toBe(true);
+    expect(dioramaHangar.furnitureMeshes.has('banc_diagnostic')).toBe(true);
+    dioramaHangar.dispose();
+  });
+
+  it('construit un diorama avec éléments pour Parc et Place du Marché', () => {
+    const dioramaParc = createInteriorDiorama('parc', 'allees');
+    expect(dioramaParc.furnitureMeshes.has('banc_anciens')).toBe(true);
+    expect(dioramaParc.furnitureMeshes.has('fontaine_parc')).toBe(true);
+    dioramaParc.dispose();
+
+    const dioramaPlace = createInteriorDiorama('place', 'halle');
+    expect(dioramaPlace.furnitureMeshes.has('etal_marche')).toBe(true);
+    expect(dioramaPlace.furnitureMeshes.has('panneau_annonces')).toBe(true);
+    dioramaPlace.dispose();
+  });
+
+  it('synchronise l’ouverture de la modale d’intérieur et le changement d’onglet avec le moteur 3D', () => {
+    const canvas = document.createElement('canvas');
+    const renderer3d = new WorldRenderer3D(canvas);
+    const world = createWorld();
+
+    let modalClosed = false;
+    let modalBody: HTMLElement | null = null;
+
+    openDetailedInteriorModal('epicerie', world, {
+      showModal: (_t, _s, body) => {
+        modalBody = body;
+      },
+      closeModal: () => {
+        modalClosed = true;
+      },
+      openNpcDialogue: () => {},
+      renderer3d,
+    });
+
+    // 1. À l'ouverture de l'épicerie, la pièce par défaut (magasin) est activée en 3D
+    expect(renderer3d.isInteriorActive()).toBe(true);
+    expect(renderer3d.getCurrentInterior()).toEqual({ placeId: 'epicerie', roomId: 'magasin' });
+
+    // 2. Clic sur l'onglet "Réserve" -> mise à jour du rendu 3D
+    const tabButtons = (modalBody as any).querySelectorAll('.room-tab-btn');
+    expect(tabButtons.length).toBe(2);
+    tabButtons[1].dispatchEvent({ type: 'click' }); // Onglet Réserve
+
+    expect(renderer3d.getCurrentInterior()).toEqual({ placeId: 'epicerie', roomId: 'reserve' });
+
+    renderer3d.dispose();
+  });
+});
+

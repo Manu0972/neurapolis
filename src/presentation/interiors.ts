@@ -11,6 +11,7 @@ import { el } from './ui';
 import { audio } from './audio';
 import { applyPlaceAction } from '../simulation/places';
 import { addXp } from '../simulation/skills';
+import { WorldRenderer3D } from './renderer3d';
 
 export interface InteriorModalCallbacks {
   showModal: (title: string, sub: string, body: HTMLElement, wide?: boolean) => void;
@@ -19,6 +20,7 @@ export interface InteriorModalCallbacks {
   openWorkshopModal?: () => void;
   openUrbanDebate?: () => void;
   refreshWorldHud?: () => void;
+  renderer3d?: WorldRenderer3D | null;
 }
 
 export function openDetailedInteriorModal(
@@ -34,6 +36,21 @@ export function openDetailedInteriorModal(
 
   // Lancer l'ambiance sonore de la pièce
   audio.setAmbient(currentRoom.ambientSound);
+
+  // Déclencher la scène 3D d'intérieur correspondante
+  const renderer3D = callbacks.renderer3d ?? WorldRenderer3D.getActiveRenderer();
+  if (renderer3D && typeof renderer3D.setInteriorScene === 'function') {
+    renderer3D.setInteriorScene(placeId, currentRoom.id);
+  }
+
+  // Intercepter la fermeture de la modale pour nettoyer la scène 3D intérieure
+  const origCloseModal = callbacks.closeModal;
+  callbacks.closeModal = () => {
+    if (renderer3D && typeof renderer3D.clearInteriorScene === 'function') {
+      renderer3D.clearInteriorScene();
+    }
+    origCloseModal();
+  };
 
   const container = el('div', 'interior-scene-container');
   container.style.cssText = 'display:flex;flex-direction:column;gap:12px;max-height:75vh;overflow-y:auto;padding:4px;';
@@ -61,6 +78,9 @@ export function openDetailedInteriorModal(
         audio.playFootstep(room.surfaceType);
         currentRoom = room;
         audio.setAmbient(room.ambientSound);
+        if (renderer3D && typeof renderer3D.setInteriorScene === 'function') {
+          renderer3D.setInteriorScene(placeId, room.id);
+        }
         renderRoomContent();
       });
       roomTabs.appendChild(tabBtn);

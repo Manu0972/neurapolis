@@ -1,7 +1,7 @@
 /**
  * NEURAPOLIS — Moteur du Compagnon Fantôme Interactif (Widget Kawaii & Avis Spontané).
  */
-import type { GhostCompanionState, GhostId, WorldState } from '../core/types';
+import type { GhostCompanionState, GhostId, Notification, WorldState } from '../core/types';
 import { GHOST_DEFS_BY_ID } from '../data/ghosts/registry';
 
 export function ensureGhostCompanionState(w: WorldState): GhostCompanionState {
@@ -15,6 +15,10 @@ export function ensureGhostCompanionState(w: WorldState): GhostCompanionState {
       lastAdviceTick: 0,
       unlockedThinkers: [...actives],
     };
+  }
+  if (!w.ghostCompanion.unlockedThinkers) {
+    const actives = Object.values(w.council.ghosts).filter((g) => g.status === 'actif').map((g) => g.id);
+    w.ghostCompanion.unlockedThinkers = [...actives];
   }
   return w.ghostCompanion;
 }
@@ -99,3 +103,86 @@ export function switchCompanionGhost(w: WorldState, nextGhostId: GhostId): { ok:
   gc.activeGhostId = nextGhostId;
   return { ok: true, message: `${def.emoji} ${def.name} t’accompagne désormais au premier plan.` };
 }
+
+export interface ThinkerUnlockRule {
+  ghostId: GhostId;
+  name: string;
+  conditionDescription: string;
+  check: (w: WorldState) => boolean;
+}
+
+export const THINKER_UNLOCK_RULES: ThinkerUnlockRule[] = [
+  // 1. Smith : premier échange commercial
+  {
+    ghostId: 'smith',
+    name: 'Adam Smith',
+    conditionDescription: 'Premier échange commercial réalisé',
+    check: (w) => (w.flags['echanges'] ?? 0) >= 1,
+  },
+  // 2. Walras : études et compréhension
+  {
+    ghostId: 'walras',
+    name: 'Léon Walras',
+    conditionDescription: 'Moyenne scolaire >= 15/20 et Compréhension >= 40',
+    check: (w) => (w.schoolLife?.academicAverage ?? 0) >= 15 && w.player.characteristics.comprehension >= 40,
+  },
+  // 3. Taylor : rigueur et assiduité en classe
+  {
+    ghostId: 'taylor',
+    name: 'Frederick Taylor',
+    conditionDescription: 'Discipline >= 50 et 5 cours consécutifs suivis',
+    check: (w) => w.player.characteristics.discipline >= 50 && (w.schoolLife?.consecutiveClassesAttended ?? 0) >= 5,
+  },
+  // 4. Locke : assiduité et sens de la justice
+  {
+    ghostId: 'locke',
+    name: 'John Locke',
+    conditionDescription: 'Assiduité scolaire >= 95% et première injustice observée',
+    check: (w) => (w.schoolLife?.attendanceRate ?? 0) >= 95 && (w.flags['injustices'] ?? 0) >= 1,
+  },
+  // 5. Ostrom : notion confiance et incitations
+  {
+    ghostId: 'ostrom',
+    name: 'Elinor Ostrom',
+    conditionDescription: 'Notion « Confiance et incitations » maîtrisée (Stade 4)',
+    check: (w) => (w.player.notions['confiance_incitations']?.stage ?? 0) >= 4,
+  },
+  // 6. Marx : notion égalité, équité et incitation
+  {
+    ghostId: 'marx',
+    name: 'Karl Marx',
+    conditionDescription: 'Notion « Égalité, équité, incitation » maîtrisée (Stade 4)',
+    check: (w) => (w.player.notions['egalite_equite_incitation']?.stage ?? 0) >= 4,
+  },
+  // 7. Keynes : notion prévision incertaine
+  {
+    ghostId: 'keynes',
+    name: 'John Maynard Keynes',
+    conditionDescription: 'Notion « Prévoir, c’est parier » maîtrisée (Stade 4)',
+    check: (w) => (w.player.notions['prevision_incertaine']?.stage ?? 0) >= 4,
+  },
+  // 8. Schumpeter : expansion hors quartier et adaptabilité
+  {
+    ghostId: 'schumpeter',
+    name: 'Joseph Schumpeter',
+    conditionDescription: 'Expansion au-delà du quartier et Adaptabilité >= 45',
+    check: (w) => w.actionPlanning?.expansionLevel !== 'quartier' && (w.player.characteristics.adaptabilite ?? 0) >= 45,
+  },
+];
+
+export function checkAndUnlockThinkers(w: WorldState): Notification[] {
+  const gc = ensureGhostCompanionState(w);
+  const notifs: Notification[] = [];
+  for (const rule of THINKER_UNLOCK_RULES) {
+    if (!gc.unlockedThinkers.includes(rule.ghostId) && rule.check(w)) {
+      gc.unlockedThinkers.push(rule.ghostId);
+      notifs.push({
+        kind: 'fantome',
+        text: `🎓 Nouveau penseur révélé dans ton esprit : ${rule.name} ! (${rule.conditionDescription})`,
+        ghost: rule.ghostId,
+      });
+    }
+  }
+  return notifs;
+}
+

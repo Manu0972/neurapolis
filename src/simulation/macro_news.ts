@@ -3,6 +3,7 @@
  */
 import type { MacroNewsItem, MacroNewsState, MacroTrend, Notification, WorldState } from '../core/types';
 import { dateOf, dayIndexOf } from '../core/clock';
+import { rngInt } from '../core/rng';
 import { MACRO_NEWS_TEMPLATES } from '../data/macro_news';
 import { notify } from './events';
 
@@ -58,11 +59,11 @@ export function macroNewsDayTick(w: WorldState): Notification[] {
   const latest = mn.feed[0];
   if (!latest || day >= latest.activeUntilDay) {
     // Tirer un nouveau choc macroéconomique
-    const templateIndex = Math.floor(Math.random() * MACRO_NEWS_TEMPLATES.length);
+    const templateIndex = rngInt(w, 0, MACRO_NEWS_TEMPLATES.length - 1);
     const tpl = MACRO_NEWS_TEMPLATES[templateIndex] ?? MACRO_NEWS_TEMPLATES[0] ?? DEFAULT_TEMPLATE;
 
     const newItem: MacroNewsItem = {
-      id: `news_${day}_${Date.now() % 10000}`,
+      id: `news_${day}_${w.time.tick}`,
       day,
       date: dateOf(day).iso,
       headline: tpl.headline,
@@ -102,7 +103,7 @@ export function triggerCustomMarketShock(w: WorldState, templateIndex = 0): Noti
   const tpl = MACRO_NEWS_TEMPLATES[templateIndex % MACRO_NEWS_TEMPLATES.length] ?? MACRO_NEWS_TEMPLATES[0] ?? DEFAULT_TEMPLATE;
 
   const newItem: MacroNewsItem = {
-    id: `news_custom_${day}_${Date.now() % 10000}`,
+    id: `news_custom_${day}_${w.time.tick}`,
     day,
     date: dateOf(day).iso,
     headline: tpl.headline,

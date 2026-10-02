@@ -10,20 +10,29 @@
 export type SurfaceType = 'pave' | 'herbe' | 'parquet' | 'terre' | 'sol';
 export type AmbientLocation = 'maison' | 'ville' | 'parc' | 'atelier' | 'college' | 'epicerie' | 'place' | 'silence';
 
-class SoundEngine {
+export class SoundEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private ambientGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
 
+  private sharedNoiseBuffer: AudioBuffer | null = null;
+
   private currentAmbientLocation: AmbientLocation = 'silence';
+  private currentAmbientHour = 12;
+  private currentAmbientMeteo?: string;
+  private currentIsNight = false;
+  private currentIsGoldenHour = false;
+  private currentIsRain = false;
+
   private ambientNodes: {
     oscillators: OscillatorNode[];
     gains: GainNode[];
     filters: BiquadFilterNode[];
+    noiseSources: AudioBufferSourceNode[];
     noiseSource?: AudioBufferSourceNode;
     intervalId?: number;
-  } = { oscillators: [], gains: [], filters: [] };
+  } = { oscillators: [], gains: [], filters: [], noiseSources: [] };
 
   private muted = false;
   private masterVolume = 0.6;
@@ -57,6 +66,18 @@ class SoundEngine {
         this.ambientGain.gain.setValueAtTime(this.ambientVolume, this.ctx.currentTime);
         this.ambientGain.connect(this.masterGain);
       }
+
+      // Pré-allocation du buffer de bruit partagé (1 seconde) pour les pas d'herbe et ambiances
+      if (!this.sharedNoiseBuffer) {
+        const noiseDuration = 1.0;
+        const bufferSize = Math.floor(this.ctx.sampleRate * noiseDuration);
+        this.sharedNoiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = this.sharedNoiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * 0.25;
+        }
+      }
+
       this.initialized = true;
       return true;
     } catch {
@@ -72,6 +93,22 @@ class SoundEngine {
       this.ctx.resume().catch(() => {});
     }
     return this.ctx;
+  }
+
+  private getOrCreateSharedNoiseBuffer(ctx: AudioContext): AudioBuffer {
+    if (!this.sharedNoiseBuffer || this.sharedNoiseBuffer.sampleRate !== ctx.sampleRate) {
+      const bufferSize = Math.floor(ctx.sampleRate * 1.0);
+      this.sharedNoiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = this.sharedNoiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * 0.25;
+      }
+    }
+    return this.sharedNoiseBuffer;
+  }
+
+  public getSharedNoiseBuffer(): AudioBuffer | null {
+    return this.sharedNoiseBuffer;
   }
 
   public setMuted(muted: boolean): void {
@@ -107,13 +144,13 @@ class SoundEngine {
     const t = ctx.currentTime;
 
     if (surface === 'parquet') {
-      // Résonance bois chaleureuse (triangles accordés + impact feutré)
+      // Résonance bois chaleureuse (triangle 140 Hz -> 70 Hz, lowpass 450 Hz)
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       const filter = ctx.createBiquadFilter();
 
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(140 + Math.random() * 20, t);
+      osc.frequency.setValueAtTime(140 + (Math.random() * 10 - 5), t);
       osc.frequency.exponentialRampToValueAtTime(70, t + 0.07);
 
       filter.type = 'lowpass';
@@ -129,19 +166,15 @@ class SoundEngine {
       osc.start(t);
       osc.stop(t + 0.08);
     } else if (surface === 'herbe') {
-      // Froissement végétal doux (bruit passe-bande)
-      const bufferSize = ctx.sampleRate * 0.06;
-      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const output = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        output[i] = (Math.random() * 2 - 1) * 0.25;
-      }
+      // Froissement végétal doux (bruit partagé pré-alloué passe-bande 1100-1500 Hz, centré ~1300 Hz)
+      const buffer = this.getOrCreateSharedNoiseBuffer(ctx);
       const whiteNoise = ctx.createBufferSource();
       whiteNoise.buffer = buffer;
+      const offset = Math.random() * Math.max(0, buffer.duration - 0.08);
 
       const filter = ctx.createBiquadFilter();
       filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(1200 + Math.random() * 200, t);
+      filter.frequency.setValueAtTime(1100 + Math.random() * 400, t); // 1100 - 1500 Hz
       filter.Q.setValueAtTime(2.0, t);
 
       const gain = ctx.createGain();
@@ -152,7 +185,7 @@ class SoundEngine {
       filter.connect(gain);
       gain.connect(this.sfxGain);
 
-      whiteNoise.start(t);
+      whiteNoise.start(t, offset, 0.07);
     } else if (surface === 'terre') {
       // Impact sourd et granuleux
       const osc = ctx.createOscillator();
@@ -169,13 +202,13 @@ class SoundEngine {
       osc.start(t);
       osc.stop(t + 0.07);
     } else {
-      // 'pave' / 'sol' : claquement sec sur pierre
+      // 'pave' / 'sol' : claquement sec sur pierre (triangle 340 Hz -> 90 Hz, highpass 200 Hz)
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       const filter = ctx.createBiquadFilter();
 
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(320 + Math.random() * 40, t);
+      osc.frequency.setValueAtTime(340 + (Math.random() * 20 - 10), t);
       osc.frequency.exponentialRampToValueAtTime(90, t + 0.04);
 
       filter.type = 'highpass';
@@ -328,13 +361,95 @@ class SoundEngine {
     });
   }
 
+  /** Validation d'objectif ou d'étape stratégique (carillon ascendant 3 notes : Sol4 392.00 Hz, Do5 523.25 Hz, Sol5 783.99 Hz avec décroissance exponentielle). */
+  public playObjectiveComplete(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain || this.muted) return;
+
+    const t = ctx.currentTime;
+    const notes = [392.00, 523.25, 783.99]; // G4, C5, G5
+    notes.forEach((freq, i) => {
+      const st = t + i * 0.08;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, st);
+
+      gain.gain.setValueAtTime(0.22, st);
+      gain.gain.exponentialRampToValueAtTime(0.001, st + 0.25);
+
+      osc.connect(gain);
+      gain.connect(this.sfxGain!);
+      osc.start(st);
+      osc.stop(st + 0.28);
+    });
+  }
+
+  /** Alerte de marché / choc macroéconomique (2 impulsions descendantes triton D5 587.33 Hz -> Bb4 466.16 Hz avec balayage passe-bas 900 Hz -> 300 Hz). */
+  public playMarketAlert(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain || this.muted) return;
+
+    const t = ctx.currentTime;
+    const tones = [587.33, 466.16]; // D5 -> Bb4 (impulsions descendantes)
+    tones.forEach((freq, i) => {
+      const st = t + i * 0.12;
+      const osc = ctx.createOscillator();
+      const filter = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, st);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(900, st);
+      filter.frequency.exponentialRampToValueAtTime(300, st + 0.18);
+
+      gain.gain.setValueAtTime(0.18, st);
+      gain.gain.exponentialRampToValueAtTime(0.001, st + 0.18);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.sfxGain!);
+
+      osc.start(st);
+      osc.stop(st + 0.2);
+    });
+  }
+
   /* ─────────────────────────────────────────────────────────────
-   * NAPPES D'AMBIANCE PROCÉDURALES PAR LIEU
+   * NAPPES D'AMBIANCE PROCÉDURALES PAR LIEU, HEURE ET MÉTÉO
    * ───────────────────────────────────────────────────────────── */
   public setAmbient(location: AmbientLocation): void {
-    if (this.currentAmbientLocation === location) return;
+    this.updateAmbient(location, this.currentAmbientHour, this.currentAmbientMeteo);
+  }
+
+  public updateAmbient(location: AmbientLocation, hour: number = 12, meteo?: string): void {
+    const isNight = hour < 6 || hour >= 21;
+    const isGoldenHour = hour >= 17 && hour <= 20;
+    const isRain = meteo === 'pluie';
+
+    // Optimisation : si la configuration d'ambiance n'a pas varié, ne pas reconstruire les oscillateurs
+    if (
+      this.currentAmbientLocation === location &&
+      this.currentIsNight === isNight &&
+      this.currentIsGoldenHour === isGoldenHour &&
+      this.currentIsRain === isRain
+    ) {
+      this.currentAmbientHour = hour;
+      this.currentAmbientMeteo = meteo;
+      return;
+    }
+
     this.stopAmbient();
     this.currentAmbientLocation = location;
+    this.currentAmbientHour = hour;
+    this.currentAmbientMeteo = meteo;
+    this.currentIsNight = isNight;
+    this.currentIsGoldenHour = isGoldenHour;
+    this.currentIsRain = isRain;
+
     if (location === 'silence') return;
 
     const ctx = this.ensureContext();
@@ -342,6 +457,7 @@ class SoundEngine {
 
     const t = ctx.currentTime;
 
+    // 1. Couche de base selon le lieu
     if (location === 'maison') {
       // Sérénité Hygge : bourdonnement doux, harmoniques chaleureuses (~1800K)
       const osc1 = ctx.createOscillator();
@@ -353,13 +469,14 @@ class SoundEngine {
       osc1.frequency.setValueAtTime(110, t); // A2
 
       osc2.type = 'triangle';
-      osc2.frequency.setValueAtTime(164.81, t); // E3 (quinte douce)
+      osc2.frequency.setValueAtTime(164.81, t); // E3 (quinte douce 1800K)
 
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(280, t);
+      filter.frequency.setValueAtTime(isGoldenHour ? 320 : 280, t);
 
+      const targetGain = isGoldenHour ? 0.18 : 0.12;
       gain.gain.setValueAtTime(0.001, t);
-      gain.gain.linearRampToValueAtTime(0.12, t + 1.5);
+      gain.gain.linearRampToValueAtTime(targetGain, t + 1.5);
 
       osc1.connect(filter);
       osc2.connect(filter);
@@ -415,11 +532,11 @@ class SoundEngine {
       noise.start(t);
 
       this.ambientNodes.oscillators.push(lfo);
-      this.ambientNodes.noiseSource = noise;
+      this.ambientNodes.noiseSources.push(noise);
       this.ambientNodes.gains.push(gain, lfoGain);
       this.ambientNodes.filters.push(filter);
-    } else if (location === 'atelier' || location === 'friche' as any) {
-      // Atelier en activité : vibration mécanique basse + cliquetis périodiques
+    } else if (location === 'atelier' || (location as string) === 'friche') {
+      // Atelier en activité : vibration mécanique basse + cliquetis
       const osc = ctx.createOscillator();
       const filter = ctx.createBiquadFilter();
       const gain = ctx.createGain();
@@ -451,10 +568,13 @@ class SoundEngine {
       osc1.frequency.setValueAtTime(130.81, t); // C3
 
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(220, t);
+      // Si nuit (< 6h ou >= 21h), filtre passe-bas atténué sur le drone de quartier
+      const droneCutoff = isNight ? 135 : 220;
+      filter.frequency.setValueAtTime(droneCutoff, t);
 
+      const droneGain = isNight ? 0.05 : 0.07;
       gain.gain.setValueAtTime(0.001, t);
-      gain.gain.linearRampToValueAtTime(0.07, t + 1.5);
+      gain.gain.linearRampToValueAtTime(droneGain, t + 1.5);
 
       osc1.connect(filter);
       filter.connect(gain);
@@ -465,9 +585,110 @@ class SoundEngine {
       this.ambientNodes.gains.push(gain);
       this.ambientNodes.filters.push(filter);
     }
+
+    // 2. Harmonique chaude 1800K au crépuscule (17h - 20h)
+    if (isGoldenHour && location !== 'maison') {
+      const warmOsc = ctx.createOscillator();
+      const warmFilter = ctx.createBiquadFilter();
+      const warmGain = ctx.createGain();
+
+      warmOsc.type = 'triangle';
+      warmOsc.frequency.setValueAtTime(164.81, t); // E3 (quinte douce 1800K)
+
+      warmFilter.type = 'lowpass';
+      warmFilter.frequency.setValueAtTime(320, t);
+
+      warmGain.gain.setValueAtTime(0.001, t);
+      warmGain.gain.linearRampToValueAtTime(0.10, t + 1.5);
+
+      warmOsc.connect(warmFilter);
+      warmFilter.connect(warmGain);
+      warmGain.connect(this.ambientGain);
+
+      warmOsc.start(t);
+
+      this.ambientNodes.oscillators.push(warmOsc);
+      this.ambientNodes.gains.push(warmGain);
+      this.ambientNodes.filters.push(warmFilter);
+    }
+
+    // 3. Nuit (< 6h ou >= 21h) : pulsation haute fréquence discrète (grillons à 4500 Hz)
+    if (isNight) {
+      const cricketOsc = ctx.createOscillator();
+      const cricketFilter = ctx.createBiquadFilter();
+      const cricketGain = ctx.createGain();
+
+      cricketOsc.type = 'sine';
+      cricketOsc.frequency.setValueAtTime(4500, t);
+
+      cricketFilter.type = 'bandpass';
+      cricketFilter.frequency.setValueAtTime(4500, t);
+      cricketFilter.Q.setValueAtTime(4.0, t);
+
+      // LFO pulsé pour stridulation périodique discrète (5 Hz)
+      const cricketLfo = ctx.createOscillator();
+      const cricketLfoGain = ctx.createGain();
+      cricketLfo.type = 'square';
+      cricketLfo.frequency.setValueAtTime(5.0, t);
+      cricketLfoGain.gain.setValueAtTime(0.015, t);
+
+      cricketGain.gain.setValueAtTime(0.018, t);
+
+      cricketLfo.connect(cricketLfoGain);
+      cricketLfoGain.connect(cricketGain.gain);
+
+      cricketOsc.connect(cricketFilter);
+      cricketFilter.connect(cricketGain);
+      cricketGain.connect(this.ambientGain);
+
+      cricketOsc.start(t);
+      cricketLfo.start(t);
+
+      this.ambientNodes.oscillators.push(cricketOsc, cricketLfo);
+      this.ambientNodes.gains.push(cricketGain, cricketLfoGain);
+      this.ambientNodes.filters.push(cricketFilter);
+    }
+
+    // 4. Météo Pluie : sous-couche procédurale de bruit de pluie
+    if (isRain) {
+      const rainNoise = ctx.createBufferSource();
+      rainNoise.buffer = this.getOrCreateSharedNoiseBuffer(ctx);
+      rainNoise.loop = true;
+
+      const rainFilter = ctx.createBiquadFilter();
+      rainFilter.type = 'bandpass';
+      rainFilter.frequency.setValueAtTime(850, t);
+      rainFilter.Q.setValueAtTime(1.2, t);
+
+      // Modulation lente simulant les averses
+      const rainLfo = ctx.createOscillator();
+      const rainLfoGain = ctx.createGain();
+      rainLfo.type = 'sine';
+      rainLfoGain.gain.setValueAtTime(150, t);
+      rainLfo.frequency.setValueAtTime(0.3, t);
+      rainLfo.connect(rainLfoGain);
+      rainLfoGain.connect(rainFilter.frequency);
+
+      const rainGain = ctx.createGain();
+      rainGain.gain.setValueAtTime(0.001, t);
+      rainGain.gain.linearRampToValueAtTime(0.12, t + 1.0);
+
+      rainNoise.connect(rainFilter);
+      rainFilter.connect(rainGain);
+      rainGain.connect(this.ambientGain);
+
+      rainNoise.start(t);
+      rainLfo.start(t);
+
+      this.ambientNodes.noiseSources.push(rainNoise);
+      this.ambientNodes.oscillators.push(rainLfo);
+      this.ambientNodes.gains.push(rainGain, rainLfoGain);
+      this.ambientNodes.filters.push(rainFilter);
+    }
   }
 
   public stopAmbient(): void {
+    this.currentAmbientLocation = 'silence';
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     for (const g of this.ambientNodes.gains) {
@@ -476,11 +697,14 @@ class SoundEngine {
       } catch {}
     }
     const nodes = { ...this.ambientNodes };
-    this.ambientNodes = { oscillators: [], gains: [], filters: [] };
+    this.ambientNodes = { oscillators: [], gains: [], filters: [], noiseSources: [] };
 
     setTimeout(() => {
       for (const osc of nodes.oscillators) {
         try { osc.stop(); osc.disconnect(); } catch {}
+      }
+      for (const src of nodes.noiseSources) {
+        try { src.stop(); src.disconnect(); } catch {}
       }
       if (nodes.noiseSource) {
         try { nodes.noiseSource.stop(); nodes.noiseSource.disconnect(); } catch {}
@@ -489,8 +713,6 @@ class SoundEngine {
         clearInterval(nodes.intervalId);
       }
     }, 600);
-
-    this.currentAmbientLocation = 'silence';
   }
 }
 
