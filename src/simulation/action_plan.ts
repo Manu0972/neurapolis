@@ -3,8 +3,17 @@
  */
 import type { ActionPlanCategory, ActionPlanState, ActionPlanningState, TerritorialZoneId, TerritoryNodeState, WorldState } from '../core/types';
 import { dateOf, dayIndexOf } from '../core/clock';
-import { INITIAL_ACTION_PLANS, INITIAL_TERRITORY_NODES } from '../data/action_plans';
+import { INITIAL_ACTION_PLANS, INITIAL_TERRITORY_NODES, type TacticalBranch } from '../data/action_plans';
 import { notify } from './events';
+
+declare module '../core/types' {
+  interface ActionPlanState {
+    selectedBranchId?: string;
+    tacticalBranches?: TacticalBranch[];
+  }
+}
+
+export type ActionPlanInstance = ActionPlanState;
 
 export function ensureActionPlanningState(w: WorldState): ActionPlanningState {
   if (!w.actionPlanning) {
@@ -22,6 +31,8 @@ export function ensureActionPlanningState(w: WorldState): ActionPlanningState {
         completed: false,
         unlockedDay: t.unlockedDay,
         rewardDescription: t.rewardDescription,
+        tacticalBranches: t.tacticalBranches,
+        selectedBranchId: t.tacticalBranches?.[0]?.id,
       };
     }
     w.actionPlanning = {
@@ -30,8 +41,39 @@ export function ensureActionPlanningState(w: WorldState): ActionPlanningState {
       territory: structuredClone(INITIAL_TERRITORY_NODES),
       expansionLevel: 'quartier',
     };
+  } else {
+    for (const t of INITIAL_ACTION_PLANS) {
+      const existing = w.actionPlanning.plans[t.id];
+      if (existing) {
+        if (!existing.tacticalBranches && t.tacticalBranches) {
+          existing.tacticalBranches = t.tacticalBranches;
+        }
+        if (!existing.selectedBranchId && t.tacticalBranches?.[0]?.id) {
+          existing.selectedBranchId = t.tacticalBranches[0].id;
+        }
+      }
+    }
   }
   return w.actionPlanning;
+}
+
+export function selectTacticalBranch(w: WorldState, planId: string, branchId: string): boolean {
+  const ap = ensureActionPlanningState(w);
+  const plan = ap.plans[planId];
+  if (!plan) return false;
+
+  const tmpl = INITIAL_ACTION_PLANS.find((p) => p.id === planId);
+  const branches = plan.tacticalBranches ?? tmpl?.tacticalBranches;
+  if (!branches) return false;
+
+  const branch = branches.find((b) => b.id === branchId);
+  if (!branch) return false;
+
+  plan.selectedBranchId = branchId;
+  if (!plan.tacticalBranches) {
+    plan.tacticalBranches = branches;
+  }
+  return true;
 }
 
 export function activateActionPlan(w: WorldState, planId: string): { ok: boolean; message: string } {

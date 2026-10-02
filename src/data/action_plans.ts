@@ -3,6 +3,16 @@
  */
 import type { ActionPlanState, TerritorialZoneId, TerritoryNodeState } from '../core/types';
 
+export interface TacticalBranch {
+  id: string;
+  label: string;
+  description: string;
+  modifierSummary: string;
+  marginBonus?: number;
+  costModifier?: number;
+  speedBonus?: number;
+}
+
 export interface ActionPlanTemplate {
   id: string;
   title: string;
@@ -13,6 +23,7 @@ export interface ActionPlanTemplate {
   steps: Array<{ id: string; label: string }>;
   unlockedDay: number;
   rewardDescription: string;
+  tacticalBranches?: TacticalBranch[];
 }
 
 export const INITIAL_ACTION_PLANS: ActionPlanTemplate[] = [
@@ -30,6 +41,24 @@ export const INITIAL_ACTION_PLANS: ActionPlanTemplate[] = [
     ],
     unlockedDay: 0,
     rewardDescription: 'Marge bénéficiaire sur les ventes augmentée de 20% et immunité aux petites ruptures de stock.',
+    tacticalBranches: [
+      {
+        id: 'branche_bertin_court',
+        label: 'Épicerie Bertin Circuit Court',
+        description: 'Approvisionnement local direct chez Mme Bertin : produits frais, confiance quartier renforcée, zéro délai logistique.',
+        modifierSummary: 'Marge +15 %, Confiance quartier +2, zéro délai',
+        marginBonus: 0.15,
+        speedBonus: 1.0,
+      },
+      {
+        id: 'branche_docks_volume',
+        label: 'Grossiste Fluvial des Docks',
+        description: 'Achat groupé en gros volume sur les péniches du canal : coûts d’achat réduits mais transport plus lourd.',
+        modifierSummary: 'Coût d’achat -25 %, Risque météo fluvial, volume doublé',
+        costModifier: -0.25,
+        marginBonus: 0.25,
+      },
+    ],
   },
   {
     id: 'plan_optimisation_logistique',
@@ -45,6 +74,22 @@ export const INITIAL_ACTION_PLANS: ActionPlanTemplate[] = [
     ],
     unlockedDay: 2,
     rewardDescription: 'Vitesse de livraison doublée et satisfaction client +15%.',
+    tacticalBranches: [
+      {
+        id: 'branche_triporteurs_rapides',
+        label: 'Flotte de Triporteurs Rapides',
+        description: 'Noah et Karim sillonnent le pavé à vélo cargo pour livrer les commandes en un éclair.',
+        modifierSummary: 'Vitesse de livraison +50 %, Satisfaction +20 %',
+        speedBonus: 0.5,
+      },
+      {
+        id: 'branche_relais_citoyens',
+        label: 'Réseau de Relais Citoyens',
+        description: 'Dépôts de colis chez les concierges et commerçants du quartier avec retrait flexible.',
+        modifierSummary: 'Frais logistiques -40 %, Lien social +25 %',
+        costModifier: -0.4,
+      },
+    ],
   },
   {
     id: 'plan_diplomatie_college',
@@ -60,6 +105,22 @@ export const INITIAL_ACTION_PLANS: ActionPlanTemplate[] = [
     ],
     unlockedDay: 3,
     rewardDescription: 'Autorisation officielle d’activité aux abords du collège sans risque de confiscation.',
+    tacticalBranches: [
+      {
+        id: 'branche_accords_professeurs',
+        label: 'Pacte Académique avec Moreau',
+        description: 'Négociation d’un horaire d’étude aménagé et stand toléré en sortie de cours.',
+        modifierSummary: 'Discipline +5, Risque zéro confiscation',
+        marginBonus: 0.1,
+      },
+      {
+        id: 'branche_delegues_eleves',
+        label: 'Coalition des Délégués d’Élèves',
+        description: 'Mobilisation des camarades de classe pour une coopérative scolaire autogérée.',
+        modifierSummary: 'Popularité +15 %, Solidarité étudiante +10',
+        speedBonus: 0.2,
+      },
+    ],
   },
   {
     id: 'plan_expansion_tramway',
@@ -75,6 +136,22 @@ export const INITIAL_ACTION_PLANS: ActionPlanTemplate[] = [
     ],
     unlockedDay: 5,
     rewardDescription: 'Accès au marché de transit métropolitain (+50% de volume de vente potentiel).',
+    tacticalBranches: [
+      {
+        id: 'branche_kiosque_gare',
+        label: 'Kiosque Fixe de la Gare',
+        description: 'Comptoir permanent au terminus du tramway captant les navetteurs et lycéens.',
+        modifierSummary: 'Volume de vente +40 %, Présence stable',
+        marginBonus: 0.2,
+      },
+      {
+        id: 'branche_coursiers_pendulaires',
+        label: 'Livraison Mobile aux Arrêts',
+        description: 'Vente nomade sur les quais aux heures de pointe matinales et vespérales.',
+        modifierSummary: 'Marge unitaire +25 %, Flexibilité maximale',
+        costModifier: -0.15,
+      },
+    ],
   },
   {
     id: 'plan_export_regional',
@@ -90,6 +167,22 @@ export const INITIAL_ACTION_PLANS: ActionPlanTemplate[] = [
     ],
     unlockedDay: 8,
     rewardDescription: 'Camille devient un acteur économique régional reconnu. Débloque le palier Métropole Régionale.',
+    tacticalBranches: [
+      {
+        id: 'branche_fret_fluvial_ecolo',
+        label: 'Fret Fluvial Décarboné',
+        description: 'Navettes fluviales douces approvisionnant les coopératives de Saint-Ferrand.',
+        modifierSummary: 'Éco-responsabilité +30 %, Reconnaissance régionale',
+        marginBonus: 0.3,
+      },
+      {
+        id: 'branche_reseau_comptoirs',
+        label: 'Centrale d’Achat Métropolitaine',
+        description: 'Connexion directe avec les fablabs et ateliers du grand bassin industriel.',
+        modifierSummary: 'Chiffre d’affaires potentiel +60 %, Synergies industrielles',
+        costModifier: -0.3,
+      },
+    ],
   },
 ];
 

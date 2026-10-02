@@ -51,28 +51,28 @@ import {
   REPARTITION_MODE_LABELS,
 } from '../data/texts';
 import { DATA_SALE, ECO_CHOICE, STAND_CONFIG } from '../data/project';
-import { dateOf } from '../core/clock';
+import { dateOf, dayIndexOf, minutesOfDay } from '../core/clock';
 import type { CharacteristicsId, GhostId, NpcId, Notification, PlaceId, Rel4, RepartitionMode, SkillId, SolidarityTariff, TerritorialZoneId, VendorId, VentureId, VentureRole, WorldState } from '../core/types';
 import { ZERO_REL } from '../core/types';
 import { createInput } from './input';
 import { renderWorld } from './renderer';
-import { buildUi, el, resizeCanvas, updateHud, type UiRefs } from './ui';
+import { buildUi, el, resizeCanvas, updateHud, showGhostAdvicePopup, MOOD_EMOTICONS, type UiRefs } from './ui';
 import { TOKENS } from './tokens';
 import { avatarElement } from './avatar';
 import { loadAssetKit } from './asset-loader';
-import { audio } from './audio';
-import { WorldRenderer3D } from './renderer3d';
+import { audio, type AmbientLocation } from './audio';
+import { getCameraRelativeInput, WorldRenderer3D } from './renderer3d';
 import { openDetailedInteriorModal } from './interiors';
 import { tileAt } from '../data/map';
 import { VENDOR_DEFS } from '../data/vendors';
 import { buyVendorSpecialGood, ensureVendorsState } from '../simulation/vendors';
-import { activateActionPlan, ensureActionPlanningState, payTerritoryConcession, progressActionPlanStep, unlockTerritoryNode } from '../simulation/action_plan';
+import { activateActionPlan, ensureActionPlanningState, payTerritoryConcession, progressActionPlanStep, selectTacticalBranch, unlockTerritoryNode } from '../simulation/action_plan';
 import { VENTURE_DEFS, VENTURE_ROLE_DEFS } from '../data/multi_ventures';
 import { assignVentureRole, ensureMultiVentureState, resolveEconomicHazard, unassignVentureRole, updateVentureSynergies } from '../simulation/multi_ventures';
 import { ensureMacroNewsState, triggerCustomMarketShock } from '../simulation/macro_news';
 import { attendSchoolClass, ensureSchoolLifeState, negotiateWithTeacher, skipSchoolForBusiness, studyEveningHomework, talkWithParents } from '../simulation/school_life';
 import { ensureStreetRecognitionState, handleStreetEncounterChoice } from '../simulation/street_synergies';
-import { askActiveGhostAdvice, getGhostCompanionThought, switchCompanionGhost } from '../simulation/ghost_companions';
+import { askActiveGhostAdvice, checkAndUnlockThinkers, getGhostCompanionThought, switchCompanionGhost } from '../simulation/ghost_companions';
 import { INITIAL_TUTORIALS } from '../data/tutorials';
 
 const TICK_MS = 1000; // 1 tick simulé (10 min) par seconde à vitesse 1
@@ -89,6 +89,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   let last = performance.now();
   let acc = 0;
   let moveAcc = 0;
+  let lastAdviceMood = '';
+  let lastAdviceBubbleTime = 0;
 
   // Initialisation du rendu 3D WebGL / fallback 2D
   let use3D = true;
@@ -113,9 +115,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   }
 
   // Initialisation audio sur première interaction
+  let currentLocation: AmbientLocation = 'ville';
   const initAudioOnce = (): void => {
     audio.init();
-    audio.setAmbient('ville');
+    audio.updateAmbient(currentLocation, minutesOfDay(world.time.tick) / 60, world.district.meteo);
   };
   root.addEventListener('pointerdown', initAudioOnce, { once: true });
   window.addEventListener('keydown', initAudioOnce, { once: true });
@@ -240,11 +243,15 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   }
 
   function openPlacePanel(place: PlaceId): void {
+    const loc: AmbientLocation = place === 'friche' ? 'atelier' : (place as AmbientLocation);
+    currentLocation = loc;
+    audio.updateAmbient(currentLocation, minutesOfDay(world.time.tick) / 60, world.district.meteo);
     openDetailedInteriorModal(place, world, {
       showModal,
       closeModal: () => {
         closeModal();
-        audio.setAmbient('ville');
+        currentLocation = 'ville';
+        audio.updateAmbient('ville', minutesOfDay(world.time.tick) / 60, world.district.meteo);
       },
       openNpcDialogue,
       openWorkshopModal,
@@ -502,6 +509,64 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       card.appendChild(el('p', 'panel-desc', plan.description));
       card.appendChild(el('p', 'panel-note', plan.ghostInsight));
 
+      // Sélecteur de branches tactiques pour les plans avec modificateurs statistiques visuels
+      if (plan.tacticalBranches && plan.tacticalBranches.length > 0) {
+        const branchBox = el('div', 'tactical-branches-box');
+        branchBox.style.cssText = 'margin:10px 0;padding:8px 10px;background:rgba(255,255,255,0.03);border:1px dashed var(--line);border-radius:8px;';
+        branchBox.appendChild(el('h4', 'stat-label', '✦ Arbitrage Tactique & Approvisionnement :'));
+
+        const branchGrid = el('div', 'tactical-branch-grid');
+        branchGrid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;';
+
+        for (const branch of plan.tacticalBranches) {
+          const isSelected = plan.selectedBranchId === branch.id;
+          const bCard = el('div', 'tactical-branch-card');
+          bCard.style.cssText = `padding:8px;border-radius:6px;border:1.5px solid ${isSelected ? 'var(--or)' : 'var(--line)'};background:${isSelected ? 'rgba(255,217,138,0.12)' : 'var(--panel2)'};display:flex;flex-direction:column;justify-content:space-between;gap:4px;cursor:pointer;`;
+
+          const bTitle = el('div', 'branch-title', `${isSelected ? '✓ ' : '○ '}${branch.label}`);
+          bTitle.style.cssText = `font-weight:700;font-size:11px;color:${isSelected ? 'var(--or)' : 'var(--ink)'};`;
+          bCard.appendChild(bTitle);
+
+          const bDesc = el('div', 'branch-desc', branch.description);
+          bDesc.style.cssText = 'font-size:10px;color:var(--ink-muted);line-height:1.3;';
+          bCard.appendChild(bDesc);
+
+          const bMod = el('div', 'branch-modifier', `⚡ ${branch.modifierSummary}`);
+          bMod.style.cssText = 'font-size:10px;font-weight:600;color:var(--bleu);background:rgba(80,140,220,0.14);padding:2px 6px;border-radius:4px;width:fit-content;margin-top:4px;';
+          bCard.appendChild(bMod);
+
+          if (plan.active && !isSelected) {
+            const chooseBtn = el('button', 'btn btn-action', 'Choisir cette branche');
+            chooseBtn.style.fontSize = '10px';
+            chooseBtn.style.padding = '2px 8px';
+            chooseBtn.style.marginTop = '6px';
+            chooseBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              selectTacticalBranch(world, plan.id, branch.id);
+              audio.playUiClick();
+              openStrategieCarte();
+            });
+            bCard.appendChild(chooseBtn);
+          } else if (isSelected) {
+            const activeTag = el('span', 'stat-label', '✦ Branche Active');
+            activeTag.style.cssText = 'font-size:9px;color:var(--or);font-weight:700;margin-top:4px;';
+            bCard.appendChild(activeTag);
+          }
+
+          bCard.addEventListener('click', () => {
+            if (plan.active && !isSelected) {
+              selectTacticalBranch(world, plan.id, branch.id);
+              audio.playUiClick();
+              openStrategieCarte();
+            }
+          });
+
+          branchGrid.appendChild(bCard);
+        }
+        branchBox.appendChild(branchGrid);
+        card.appendChild(branchBox);
+      }
+
       const stepList = el('div', 'journal-list');
       for (const st of plan.steps) {
         const stepRow = el('div', 'stat-row');
@@ -512,6 +577,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           checkBtn.style.padding = '2px 6px';
           checkBtn.addEventListener('click', () => {
             const res = progressActionPlanStep(world, plan.id, st.id);
+            audio.playObjectiveComplete();
             checkBtn.textContent = res.message;
             setTimeout(openStrategieCarte, 800);
           });
@@ -532,8 +598,97 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       body.appendChild(card);
     }
 
-    // Section 2 : Cartographie du Territoire
-    body.appendChild(el('h3', 'panel-sub', 'Cartographie & Concessions Territoriales'));
+    // Section 2 : Cartographie du Territoire (9 nœuds interactifs & liaisons de flux)
+    body.appendChild(el('h3', 'panel-sub', 'Cartographie Interactive & Concessions Territoriales'));
+
+    const nodeCoords: Record<TerritorialZoneId, { x: number; y: number }> = {
+      roses: { x: 310, y: 170 },
+      caves: { x: 170, y: 220 },
+      bassin: { x: 450, y: 220 },
+      hauts: { x: 310, y: 65 },
+      tramway: { x: 160, y: 95 },
+      docks: { x: 460, y: 95 },
+      ville_voisine: { x: 55, y: 160 },
+      metropole_regionale: { x: 565, y: 160 },
+      national: { x: 310, y: 295 },
+    };
+
+    const connections: Array<[TerritorialZoneId, TerritorialZoneId]> = [
+      ['roses', 'caves'],
+      ['roses', 'bassin'],
+      ['roses', 'hauts'],
+      ['caves', 'tramway'],
+      ['bassin', 'docks'],
+      ['hauts', 'tramway'],
+      ['hauts', 'docks'],
+      ['tramway', 'ville_voisine'],
+      ['docks', 'metropole_regionale'],
+      ['caves', 'national'],
+      ['bassin', 'national'],
+      ['ville_voisine', 'national'],
+      ['metropole_regionale', 'national'],
+    ];
+
+    const mapContainer = el('div', 'interactive-cartography-map');
+    mapContainer.style.cssText = 'position:relative;width:100%;height:340px;background:radial-gradient(ellipse at center, rgba(30,22,40,0.9) 0%, rgba(18,12,24,0.98) 100%);border:1.5px solid var(--line);border-radius:10px;margin-bottom:16px;overflow:hidden;box-shadow:inset 0 0 30px rgba(0,0,0,0.55);';
+
+    // SVG liaisons de flux
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svgEl = document.createElementNS(svgNS, 'svg');
+    svgEl.setAttribute('viewBox', '0 0 620 340');
+    svgEl.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;';
+
+    for (const [fromId, toId] of connections) {
+      const fromCoord = nodeCoords[fromId];
+      const toCoord = nodeCoords[toId];
+      const fromNode = ap.territory[fromId];
+      const toNode = ap.territory[toId];
+      const isLinked = !!(fromNode?.unlocked && toNode?.unlocked);
+      const isArranged = !!(fromNode?.activeArrangement && toNode?.activeArrangement);
+
+      const line = document.createElementNS(svgNS, 'line');
+      line.setAttribute('x1', String(fromCoord.x));
+      line.setAttribute('y1', String(fromCoord.y));
+      line.setAttribute('x2', String(toCoord.x));
+      line.setAttribute('y2', String(toCoord.y));
+      line.setAttribute('stroke', isArranged ? '#ffd98a' : isLinked ? '#7850dc' : 'rgba(120,100,140,0.3)');
+      line.setAttribute('stroke-width', isArranged ? '3' : isLinked ? '2' : '1.5');
+      if (!isLinked) {
+        line.setAttribute('stroke-dasharray', '4,4');
+      }
+      svgEl.appendChild(line);
+    }
+    mapContainer.appendChild(svgEl);
+
+    // Éléments interactifs des 9 nœuds sur la carte
+    for (const [nodeId, coord] of Object.entries(nodeCoords) as Array<[TerritorialZoneId, { x: number; y: number }]>) {
+      const node = ap.territory[nodeId];
+      if (!node) continue;
+
+      const nodePin = el('div', `map-node-pin ${node.unlocked ? 'unlocked' : 'locked'}`);
+      const leftPct = (coord.x / 620) * 100;
+      const topPct = (coord.y / 340) * 100;
+      nodePin.style.cssText = `position:absolute;left:${leftPct}%;top:${topPct}%;transform:translate(-50%, -50%);display:flex;flex-direction:column;align-items:center;padding:4px 8px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;background:${node.activeArrangement ? 'rgba(40,30,60,0.95)' : node.unlocked ? 'rgba(30,25,45,0.92)' : 'rgba(20,15,25,0.88)'};border:1.5px solid ${node.activeArrangement ? 'var(--or)' : node.unlocked ? 'var(--bleu)' : 'var(--line)'};color:${node.unlocked ? 'var(--ink)' : 'var(--ink-muted)'};box-shadow:${node.activeArrangement ? '0 0 10px rgba(255,217,138,0.35)' : '0 2px 6px rgba(0,0,0,0.45)'};min-width:68px;text-align:center;user-select:none;`;
+
+      nodePin.innerHTML = `
+        <div style="font-size:11px;">${node.activeArrangement ? '✦' : node.unlocked ? '🔓' : '🔒'}</div>
+        <div style="font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85px;">${node.name.replace(/ \(.*\)/, '')}</div>
+        <div style="font-size:8px;color:${node.unlocked ? 'var(--or)' : 'var(--ink-muted)'};">${node.unlocked ? `${node.ourPresence}% part` : `${node.marketPotential}% pot.`}</div>
+      `;
+
+      nodePin.addEventListener('mouseenter', () => {
+        nodePin.style.transform = 'translate(-50%, -50%) scale(1.1)';
+        nodePin.style.zIndex = '10';
+      });
+      nodePin.addEventListener('mouseleave', () => {
+        nodePin.style.transform = 'translate(-50%, -50%) scale(1)';
+        nodePin.style.zIndex = '1';
+      });
+
+      mapContainer.appendChild(nodePin);
+    }
+    body.appendChild(mapContainer);
+
     const territoryGrid = el('div', 'council-grid');
     for (const node of Object.values(ap.territory)) {
       const box = el('div', 'ghost-detail');
@@ -551,6 +706,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         const arrBtn = el('button', 'btn btn-reply', `Payer Concession (${node.concessionCost} €)`);
         arrBtn.addEventListener('click', () => {
           const res = payTerritoryConcession(world, node.id as TerritorialZoneId);
+          if (res.ok) {
+            audio.playCoin();
+          }
           arrBtn.textContent = res.message;
           setTimeout(openStrategieCarte, 800);
         });
@@ -724,6 +882,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const testShockBtn = el('button', 'btn btn-action', 'Susciter un choc de conjoncture');
     testShockBtn.addEventListener('click', () => {
       triggerCustomMarketShock(world);
+      audio.playMarketAlert();
       openActualitesChocs();
     });
     currentCard.appendChild(testShockBtn);
@@ -877,6 +1036,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     else if (nav === 'Journal') b.addEventListener('click', openJournal);
   }
   ui.ghostCompanionWidgetEl.addEventListener('click', openGhostCompanionModal);
+  ui.ghostAdviceBubbleEl.addEventListener('click', openGhostCompanionModal);
   ui.newsTickerEl.addEventListener('click', openActualitesChocs);
 
   // ---------- Concurrence & Campagne narrative ----------
@@ -1812,15 +1972,26 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
             const tickMs = TICK_MS / speed;
             while (acc >= tickMs) {
               acc -= tickMs;
+              const prevDay = dayIndexOf(world.time.tick);
               const out = tickWorld(world);
+              const curDay = dayIndexOf(world.time.tick);
+              if (curDay !== prevDay) {
+                const unlocks = checkAndUnlockThinkers(world);
+                for (const un of unlocks) {
+                  showGhostBanner(un);
+                  audio.playGhostArrival();
+                }
+              }
               for (const n of out.notifications) {
+                if (n.kind === 'journal') audio.playMarketAlert();
                 if (n.kind === 'fantome' || n.kind === 'journal') showGhostBanner(n);
               }
             }
           }
           moveAcc += dt;
           if (!world.player.asleep) {
-            const d = input.dir();
+            const rawD = input.dir();
+            const d = (use3D && renderer3D) ? getCameraRelativeInput(rawD.x, rawD.y, renderer3D.cameraQuarterTurn) : rawD;
             if (d.x !== 0 || d.y !== 0) {
               while (moveAcc >= MOVE_MS) {
                 moveAcc -= MOVE_MS;
@@ -1837,15 +2008,39 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       moveAcc = 0;
     }
 
-    const d = input.dir();
-    const isPlayerMoving = !world.player.asleep && (d.x !== 0 || d.y !== 0);
+    // Ambiance audio dynamique réactive au lieu, à l'heure du jour et à la météo
+    audio.updateAmbient(currentLocation, minutesOfDay(world.time.tick) / 60, world.district.meteo);
+
+    // Bulle de pensée en temps réel pour le compagnon fantôme lors de seuils critiques
+    if (world.ghostCompanion) {
+      const thought = getGhostCompanionThought(world);
+      if (thought.mood !== lastAdviceMood && (thought.mood === 'inquiet' || thought.mood === 'tactique' || thought.mood === 'enthousiaste' || world.player.money < 10)) {
+        lastAdviceMood = thought.mood;
+        if (now - lastAdviceBubbleTime > 12000) {
+          lastAdviceBubbleTime = now;
+          showGhostAdvicePopup(ui, thought.name, thought.speechBubble, MOOD_EMOTICONS[thought.mood] ?? '💡');
+          audio.playGhostDebate();
+        }
+      }
+    }
+
+    const rawD = input.dir();
+    const isPlayerMoving = !world.player.asleep && (rawD.x !== 0 || rawD.y !== 0);
     const renderOpts = {
       walkingEntities: { player: isPlayerMoving },
       whisperingGhosts: currentBannerGhost ? [currentBannerGhost] : undefined,
     };
 
     if (use3D && renderer3D && renderer3D.isWebGLAvailable) {
-      renderer3D.render(world, ui.cw, ui.ch, now, renderOpts);
+      try {
+        renderer3D.render(world, ui.cw, ui.ch, now, renderOpts);
+      } catch {
+        use3D = false;
+        ui.canvas3d.style.display = 'none';
+        ui.canvas.style.display = 'block';
+        ui.btnToggle3D.textContent = '🎨 2D';
+        renderWorld(ui.ctx, world, ui.cw, ui.ch, now, renderOpts);
+      }
     } else {
       renderWorld(ui.ctx, world, ui.cw, ui.ch, now, renderOpts);
     }

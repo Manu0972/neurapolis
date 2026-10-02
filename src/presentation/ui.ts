@@ -8,8 +8,17 @@ import { dateOf, dayIndexOf, hhmmOfTick } from '../core/clock';
 import { NEED_LABELS } from '../data/places';
 import { SAVE_LABEL } from '../data/texts';
 import { getCampaignProgressSummary } from '../simulation/campaign';
+import { GHOST_DEFS_BY_ID } from '../data/ghosts/registry';
 
 export const NEED_IDS: readonly NeedId[] = ['fatigue', 'faim', 'stress', 'moral'];
+
+export const MOOD_EMOTICONS: Record<string, string> = {
+  curieux: '🧐',
+  enthousiaste: '✨',
+  inquiet: '⚠️',
+  tactique: '💡',
+  malicieux: '😏',
+};
 
 export interface UiRefs {
   canvas: HTMLCanvasElement;
@@ -22,6 +31,8 @@ export interface UiRefs {
   moneyEl: HTMLElement;
   newsTickerEl: HTMLElement;
   ghostCompanionWidgetEl: HTMLElement;
+  ghostAdviceBubbleEl: HTMLElement;
+  ghostAdviceTimer?: number;
   campaignCardEl: HTMLElement;
   campaignChapterEl: HTMLElement;
   campaignObjectiveEl: HTMLElement;
@@ -85,9 +96,35 @@ export function buildUi(root: HTMLElement): UiRefs {
   const newsTickerEl = el('div', 'hud-news-ticker', '📰 Flash Info : Marché stable');
   newsTickerEl.style.cssText = 'flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px;color:var(--ink-muted);background:var(--panel2);padding:2px 6px;border-radius:4px;border:1px solid var(--line);cursor:pointer;';
 
-  // Widget compagnon fantôme Kawaii
+  // Injection styles animations pour le compagnon fantôme
+  const styleEl = document.createElement('style');
+  styleEl.textContent = `
+    @keyframes ghostFloatLevitation {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-3px); }
+    }
+    @keyframes ghostPulseGlow {
+      0%, 100% { box-shadow: 0 0 6px rgba(120, 80, 220, 0.25); }
+      50% { box-shadow: 0 0 14px rgba(120, 80, 220, 0.65); }
+    }
+    @keyframes ghostBubblePop {
+      0% { transform: translateY(8px) scale(0.92); opacity: 0; }
+      100% { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    .hud-ghost-companion:hover {
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 4px 14px rgba(120, 80, 220, 0.45);
+    }
+  `;
+  root.appendChild(styleEl);
+
+  // Widget compagnon fantôme Kawaii flottant
   const ghostCompanionWidgetEl = el('div', 'hud-ghost-companion', '👻 💬');
-  ghostCompanionWidgetEl.style.cssText = 'display:flex;align-items:center;gap:4px;background:rgba(120,80,220,0.18);border:1px solid var(--violet);color:var(--ink);padding:2px 8px;border-radius:12px;font-size:11px;cursor:pointer;font-weight:600;';
+  ghostCompanionWidgetEl.style.cssText = 'display:flex;align-items:center;gap:6px;background:rgba(120,80,220,0.18);border:1.5px solid var(--violet);color:var(--ink);padding:3px 10px;border-radius:14px;font-size:11px;cursor:pointer;font-weight:600;box-shadow:0 0 8px rgba(120,80,220,0.25);animation:ghostFloatLevitation 2.6s ease-in-out infinite;transition:transform 0.2s,box-shadow 0.2s;user-select:none;';
+
+  // Bulle d'avis flottante en temps réel
+  const ghostAdviceBubbleEl = el('div', 'hud-ghost-advice-bubble hidden');
+  ghostAdviceBubbleEl.style.cssText = 'position:absolute;top:44px;right:16px;max-width:320px;background:var(--panel);border:2px solid var(--violet);box-shadow:0 8px 24px rgba(42,26,20,0.4), 0 0 14px rgba(120,80,220,0.35);border-radius:10px;padding:10px 14px;font-size:11px;color:var(--ink);z-index:9999;pointer-events:auto;cursor:pointer;animation:ghostBubblePop 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);line-height:1.45;';
 
   topBar.appendChild(clockEl);
   topBar.appendChild(dateEl);
@@ -95,6 +132,7 @@ export function buildUi(root: HTMLElement): UiRefs {
   topBar.appendChild(newsTickerEl);
   topBar.appendChild(ghostCompanionWidgetEl);
   hud.appendChild(topBar);
+  hud.appendChild(ghostAdviceBubbleEl);
 
   const campaignCardEl = el('div', 'campaign-card');
   const campaignChapterEl = el('div', 'campaign-chapter', '');
@@ -201,6 +239,7 @@ export function buildUi(root: HTMLElement): UiRefs {
   const ui: UiRefs = {
     canvas, canvas3d, ctx, cw: 0, ch: 0,
     clockEl, dateEl, moneyEl, newsTickerEl, ghostCompanionWidgetEl,
+    ghostAdviceBubbleEl, ghostAdviceTimer: undefined,
     campaignCardEl, campaignChapterEl, campaignObjectiveEl, campaignPromptEl,
     barEls, promptEl, modalEl, joyZone, actionBtn, navEl, bannerEl,
     saveEl, cameraToolbarEl, btnRotLeft, btnRotRight, btnCamView, btnToggle3D,
@@ -208,6 +247,32 @@ export function buildUi(root: HTMLElement): UiRefs {
   };
   resizeCanvas(ui, root);
   return ui;
+}
+
+export function showGhostAdvicePopup(
+  ui: UiRefs,
+  speaker: string,
+  text: string,
+  emoticon = '💡',
+): void {
+  if (!ui.ghostAdviceBubbleEl) return;
+  ui.ghostAdviceBubbleEl.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:5px;border-bottom:1px solid rgba(120,80,220,0.25);padding-bottom:3px;">
+      <span style="font-weight:700;color:var(--violet);font-size:11px;display:flex;align-items:center;gap:4px;">
+        <span style="font-size:14px;display:inline-block;animation:ghostFloatLevitation 2s ease-in-out infinite;">${emoticon}</span> ${speaker}
+      </span>
+      <span style="font-size:9px;color:var(--ink-muted);font-style:italic;">Conseil en direct ✦</span>
+    </div>
+    <div style="font-size:11px;color:var(--ink);line-height:1.4;">${text}</div>
+    <div style="margin-top:5px;text-align:right;font-size:9px;color:var(--ink-muted);">Clique pour ouvrir le Conseil</div>
+  `;
+  ui.ghostAdviceBubbleEl.classList.remove('hidden');
+  if (ui.ghostAdviceTimer !== undefined) {
+    window.clearTimeout(ui.ghostAdviceTimer);
+  }
+  ui.ghostAdviceTimer = window.setTimeout(() => {
+    ui.ghostAdviceBubbleEl?.classList.add('hidden');
+  }, 6500);
 }
 
 export function resizeCanvas(ui: UiRefs, root: HTMLElement): void {
@@ -239,12 +304,12 @@ export function updateHud(ui: UiRefs, w: WorldState, prompt: string): void {
   }
 
   if (w.ghostCompanion) {
-    const emoji = w.ghostCompanion.activeGhostId === 'marx' ? '⚙️'
-      : w.ghostCompanion.activeGhostId === 'ostrom' ? '🌱'
-        : w.ghostCompanion.activeGhostId === 'taylor' ? '⏱️'
-          : '📊';
-    ui.ghostCompanionWidgetEl.textContent = `${emoji} « ${w.ghostCompanion.mood} »`;
-    ui.ghostCompanionWidgetEl.title = `${w.ghostCompanion.speechBubble} (Clique pour un conseil)`;
+    const emoticon = MOOD_EMOTICONS[w.ghostCompanion.mood] ?? '🧐';
+    const ghostId = w.ghostCompanion.activeGhostId;
+    const def = ghostId ? GHOST_DEFS_BY_ID[ghostId] : undefined;
+    const ghostName = def?.name ?? 'Conseiller';
+    ui.ghostCompanionWidgetEl.innerHTML = `<span style="font-size:13px;display:inline-block;animation:ghostFloatLevitation 2s ease-in-out infinite;">${emoticon}</span> <span>${ghostName}</span> <span style="opacity:0.85;font-size:10px;">« ${w.ghostCompanion.mood} »</span>`;
+    ui.ghostCompanionWidgetEl.title = `${w.ghostCompanion.speechBubble ?? ''} (Clique pour un conseil)`;
   }
 
   const summary = getCampaignProgressSummary(w);
