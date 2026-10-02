@@ -269,6 +269,8 @@ export const ALL_GHOST_IDS: string[] = [
 export const GHOST_DEFS_BY_ID: Record<string, GhostDef> =
   Object.fromEntries([...GHOST_DEFS, ...COMPOSITE_DEFS].map((g) => [g.id, g]));
 
+export const GHOST_BY_ID = GHOST_DEFS_BY_ID;
+
 /** Fusion signature de la slice : Smith + Ostrom = Le Marché des Communs (contrat M6). */
 export const FUSIONS: FusionDef[] = [
   {
