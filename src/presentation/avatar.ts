@@ -5,6 +5,7 @@
  */
 import { makeSeed, rngInt, rngNext } from '../core/rng';
 import { TOKENS } from './tokens';
+import { escapeHtml } from './ui';
 
 const SKINS = ['#f2c9a5', '#e8b98c', '#d9a06b', '#c68a5a', '#8a5a3b'];
 const HAIRS = ['#3a2c22', '#1f1a26', '#5b3a24', '#2c2c33', '#a3542a'];
@@ -84,6 +85,6 @@ export function avatarElement(seedKey: string, color: string, name: string, size
   wrap.style.width = `${size}px`;
   wrap.style.height = `${size}px`;
   wrap.setAttribute('aria-label', name);
-  wrap.innerHTML = avatarSvg(seedKey, color, size);
+  wrap.innerHTML = avatarSvg(seedKey, escapeHtml(color), size);
   return wrap;
 }
