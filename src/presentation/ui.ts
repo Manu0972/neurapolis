@@ -1,6 +1,7 @@
 /**
- * Interface DOM : HUD (horloge, date, 4 besoins), invite d'interaction,
- * panneau modal (lieu/dialogue), joystick et bouton d'action.
+ * Interface DOM : HUD (horloge, date, 4 besoins, dashboard Big Ambitions),
+ * invite d'interaction, panneau modal (lieu/dialogue), joystick, bouton d'action,
+ * et barre de contrôle de caméra 3D rotative & audio.
  */
 import type { NeedId, WorldState } from '../core/types';
 import { dateOf, dayIndexOf, hhmmOfTick } from '../core/clock';
@@ -12,6 +13,7 @@ export const NEED_IDS: readonly NeedId[] = ['fatigue', 'faim', 'stress', 'moral'
 
 export interface UiRefs {
   canvas: HTMLCanvasElement;
+  canvas3d: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
   cw: number;
   ch: number;
@@ -29,9 +31,17 @@ export interface UiRefs {
   modalEl: HTMLElement;
   joyZone: HTMLElement;
   actionBtn: HTMLElement;
-  navEl: HTMLElement; // écrans : personnage / relations / stratégie / entreprises / marchands / actualités / études / concurrence / conseil / journal
+  navEl: HTMLElement; // navigation : personnage / relations / stratégie / entreprises / marchands / actualités / études / concurrence / conseil / journal
   bannerEl: HTMLElement; // bandeau in-world teinté quand un fantôme parle
   saveEl: HTMLElement;   // « Sauvegardé » en fin de journée de jeu
+  cameraToolbarEl: HTMLElement; // barre de contrôle caméra 3D & audio
+  btnRotLeft: HTMLButtonElement;
+  btnRotRight: HTMLButtonElement;
+  btnCamView: HTMLButtonElement;
+  btnToggle3D: HTMLButtonElement;
+  btnZoomIn: HTMLButtonElement;
+  btnZoomOut: HTMLButtonElement;
+  btnMuteAudio: HTMLButtonElement;
   lastIso: string;       // dernière date affichée (détection du changement de jour)
   saveTimer: number | undefined;
 }
@@ -48,12 +58,20 @@ export function el<K extends keyof HTMLElementTagNameMap>(
 }
 
 export function buildUi(root: HTMLElement): UiRefs {
+  // Canvas 2D Fallback
   const canvas = el('canvas', 'map-canvas');
+  canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;image-rendering:pixelated;';
   root.appendChild(canvas);
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D indisponible.');
 
+  // Canvas 3D WebGL
+  const canvas3d = el('canvas', 'map-canvas-3d');
+  canvas3d.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:2;';
+  root.appendChild(canvas3d);
+
   const hud = el('div', 'hud');
+  hud.style.zIndex = '10';
 
   // Barre supérieure Big Ambitions : horloge, trésorerie & actualités
   const topBar = el('div', 'hud-top-dashboard');
@@ -114,8 +132,34 @@ export function buildUi(root: HTMLElement): UiRefs {
 
   root.appendChild(hud);
 
+  // Barre de contrôle Caméra 3D & Audio (coin supérieur droit)
+  const cameraToolbarEl = el('div', 'camera-toolbar');
+  cameraToolbarEl.style.cssText = 'position:fixed;top:10px;right:10px;display:flex;gap:4px;z-index:20;background:rgba(42,26,20,0.85);padding:4px 6px;border-radius:8px;border:1px solid var(--line);box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+
+  const btnRotLeft = el('button', 'cam-btn', '↺');
+  btnRotLeft.title = 'Pivoter la caméra vers la gauche [R ou clic]';
+  const btnRotRight = el('button', 'cam-btn', '↻');
+  btnRotRight.title = 'Pivoter la caméra vers la droite [T ou clic]';
+  const btnCamView = el('button', 'cam-btn', '📐 Iso');
+  btnCamView.title = 'Basculer vue isométrique / vue du dessus';
+  const btnZoomIn = el('button', 'cam-btn', '🔍+');
+  btnZoomIn.title = 'Zoom avant';
+  const btnZoomOut = el('button', 'cam-btn', '🔍-');
+  btnZoomOut.title = 'Zoom arrière';
+  const btnToggle3D = el('button', 'cam-btn', '🧊 3D');
+  btnToggle3D.title = 'Basculer Rendu 3D WebGL / 2D Canvas';
+  const btnMuteAudio = el('button', 'cam-btn', '🔊');
+  btnMuteAudio.title = 'Activer / Couper le son';
+
+  const camBtns = [btnRotLeft, btnRotRight, btnCamView, btnZoomIn, btnZoomOut, btnToggle3D, btnMuteAudio];
+  for (const b of camBtns) {
+    b.style.cssText = 'font-size:11px;font-weight:700;padding:4px 7px;border-radius:4px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);cursor:pointer;line-height:1;';
+    cameraToolbarEl.appendChild(b);
+  }
+  root.appendChild(cameraToolbarEl);
+
   const navEl = el('div', 'hud-nav');
-  navEl.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;';
+  navEl.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;z-index:10;';
   const navLabels = [
     'Personnage',
     'Relations',
@@ -146,6 +190,7 @@ export function buildUi(root: HTMLElement): UiRefs {
   root.appendChild(promptEl);
 
   const modalEl = el('div', 'modal hidden');
+  modalEl.style.zIndex = '30';
   root.appendChild(modalEl);
 
   const joyZone = el('div', 'joy-zone');
@@ -154,11 +199,12 @@ export function buildUi(root: HTMLElement): UiRefs {
   root.appendChild(actionBtn);
 
   const ui: UiRefs = {
-    canvas, ctx, cw: 0, ch: 0,
+    canvas, canvas3d, ctx, cw: 0, ch: 0,
     clockEl, dateEl, moneyEl, newsTickerEl, ghostCompanionWidgetEl,
     campaignCardEl, campaignChapterEl, campaignObjectiveEl, campaignPromptEl,
     barEls, promptEl, modalEl, joyZone, actionBtn, navEl, bannerEl,
-    saveEl, lastIso: '', saveTimer: undefined,
+    saveEl, cameraToolbarEl, btnRotLeft, btnRotRight, btnCamView, btnToggle3D,
+    btnZoomIn, btnZoomOut, btnMuteAudio, lastIso: '', saveTimer: undefined,
   };
   resizeCanvas(ui, root);
   return ui;
@@ -173,6 +219,13 @@ export function resizeCanvas(ui: UiRefs, root: HTMLElement): void {
   ui.canvas.style.width = `${ui.cw}px`;
   ui.canvas.style.height = `${ui.ch}px`;
   ui.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  if (ui.canvas3d) {
+    ui.canvas3d.width = Math.round(ui.cw * dpr);
+    ui.canvas3d.height = Math.round(ui.ch * dpr);
+    ui.canvas3d.style.width = `${ui.cw}px`;
+    ui.canvas3d.style.height = `${ui.ch}px`;
+  }
 }
 
 export function updateHud(ui: UiRefs, w: WorldState, prompt: string): void {

@@ -60,6 +60,10 @@ import { buildUi, el, resizeCanvas, updateHud, type UiRefs } from './ui';
 import { TOKENS } from './tokens';
 import { avatarElement } from './avatar';
 import { loadAssetKit } from './asset-loader';
+import { audio } from './audio';
+import { WorldRenderer3D } from './renderer3d';
+import { openDetailedInteriorModal } from './interiors';
+import { tileAt } from '../data/map';
 import { VENDOR_DEFS } from '../data/vendors';
 import { buyVendorSpecialGood, ensureVendorsState } from '../simulation/vendors';
 import { activateActionPlan, ensureActionPlanningState, payTerritoryConcession, progressActionPlanStep, unlockTerritoryNode } from '../simulation/action_plan';
@@ -86,8 +90,91 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   let acc = 0;
   let moveAcc = 0;
 
+  // Initialisation du rendu 3D WebGL / fallback 2D
+  let use3D = true;
+  let renderer3D: WorldRenderer3D | null = null;
+  try {
+    renderer3D = new WorldRenderer3D(ui.canvas3d);
+    if (!renderer3D.isWebGLAvailable) {
+      use3D = false;
+      ui.canvas3d.style.display = 'none';
+      ui.canvas.style.display = 'block';
+      ui.btnToggle3D.textContent = '🎨 2D';
+    } else {
+      ui.canvas.style.display = 'none';
+      ui.canvas3d.style.display = 'block';
+      ui.btnToggle3D.textContent = '🧊 3D';
+    }
+  } catch {
+    use3D = false;
+    ui.canvas3d.style.display = 'none';
+    ui.canvas.style.display = 'block';
+    ui.btnToggle3D.textContent = '🎨 2D';
+  }
+
+  // Initialisation audio sur première interaction
+  const initAudioOnce = (): void => {
+    audio.init();
+    audio.setAmbient('ville');
+  };
+  root.addEventListener('pointerdown', initAudioOnce, { once: true });
+  window.addEventListener('keydown', initAudioOnce, { once: true });
+
+  // Contrôles de la barre caméra & audio
+  ui.btnRotLeft.addEventListener('click', () => {
+    audio.playUiClick();
+    renderer3D?.rotateLeft();
+  });
+  ui.btnRotRight.addEventListener('click', () => {
+    audio.playUiClick();
+    renderer3D?.rotateRight();
+  });
+  ui.btnCamView.addEventListener('click', () => {
+    audio.playUiClick();
+    renderer3D?.toggleTopDown();
+    ui.btnCamView.textContent = renderer3D?.isTopDown ? '📐 Top' : '📐 Iso';
+  });
+  ui.btnZoomIn.addEventListener('click', () => {
+    audio.playUiClick();
+    renderer3D?.zoomIn();
+  });
+  ui.btnZoomOut.addEventListener('click', () => {
+    audio.playUiClick();
+    renderer3D?.zoomOut();
+  });
+  ui.btnToggle3D.addEventListener('click', () => {
+    audio.playUiClick();
+    if (!renderer3D || !renderer3D.isWebGLAvailable) return;
+    use3D = !use3D;
+    ui.canvas3d.style.display = use3D ? 'block' : 'none';
+    ui.canvas.style.display = use3D ? 'none' : 'block';
+    ui.btnToggle3D.textContent = use3D ? '🧊 3D' : '🎨 2D';
+  });
+  ui.btnMuteAudio.addEventListener('click', () => {
+    const muted = audio.toggleMute();
+    ui.btnMuteAudio.textContent = muted ? '🔇' : '🔊';
+  });
+
   const input = createInput(root, interact);
   window.addEventListener('resize', () => resizeCanvas(ui, root));
+
+  // Raccourcis caméra (R / T / V)
+  window.addEventListener('keydown', (e) => {
+    if (modalOpen) return;
+    if (e.code === 'KeyR') {
+      audio.playUiClick();
+      renderer3D?.rotateLeft();
+    }
+    if (e.code === 'KeyT') {
+      audio.playUiClick();
+      renderer3D?.rotateRight();
+    }
+    if (e.code === 'KeyV') {
+      audio.playUiClick();
+      renderer3D?.toggleTopDown();
+      ui.btnCamView.textContent = renderer3D?.isTopDown ? '📐 Top' : '📐 Iso';
+    }
+  });
 
   // Charger les assets pixel-art en arrière-plan (le renderer bascule automatiquement)
   loadAssetKit().catch(() => { /* fallback procédural si le chargement échoue */ });
@@ -153,43 +240,17 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   }
 
   function openPlacePanel(place: PlaceId): void {
-    const def = PLACE_BY_ID[place];
-    if (!def) return;
-    const body = el('div', 'panel-body');
-    body.appendChild(el('p', 'panel-desc', def.description));
-
-    const present = npcsAt(world, place);
-    if (present.length > 0) {
-      body.appendChild(el('h3', 'panel-sub', 'Présents ici'));
-      for (const n of present) {
-        const npcDef = NPC_BY_ID[n.id];
-        if (!npcDef) continue;
-        const btn = el('button', 'btn btn-npc', `${npcDef.name} — ${n.activity}`);
-        btn.style.borderLeftColor = npcDef.color;
-        btn.addEventListener('click', () => openNpcDialogue(n.id));
-        body.appendChild(btn);
-      }
-    }
-
-    body.appendChild(el('h3', 'panel-sub', 'Actions'));
-    for (const action of def.actions) {
-      const btn = el('button', 'btn btn-action', action.label);
-      btn.addEventListener('click', () => {
-        if (place === 'place' && action.id === 'debat') {
-          openUrbanDebate();
-          return;
-        }
-        if (place === 'friche' && action.id === 'atelier') {
-          openWorkshopModal();
-          return;
-        }
-        const outcome = applyPlaceAction(world, place, action.id);
-        btn.textContent = outcome.ok ? `${action.label} → ${outcome.message}` : outcome.message;
-        btn.disabled = !outcome.ok;
-      });
-      body.appendChild(btn);
-    }
-    showModal(def.name, 'Intérieur', body);
+    openDetailedInteriorModal(place, world, {
+      showModal,
+      closeModal: () => {
+        closeModal();
+        audio.setAmbient('ville');
+      },
+      openNpcDialogue,
+      openWorkshopModal,
+      openUrbanDebate,
+      refreshWorldHud: () => updateHud(ui, world, promptText()),
+    });
   }
 
   function openNpcDialogue(id: NpcId): void {
@@ -1699,6 +1760,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   function showGhostBanner(n: Notification): void {
     const def = n.ghost ? GHOST_DEFS_BY_ID[n.ghost] : undefined;
     currentBannerGhost = n.ghost;
+    if (n.ghost) audio.playGhostDebate();
     ui.bannerEl.textContent = n.text;
     ui.bannerEl.style.background = def ? `${def.color}22` : `${TOKENS.violet}22`;
     ui.bannerEl.style.borderColor = def?.color ?? TOKENS.violet;
@@ -1707,8 +1769,12 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   }
 
   function step(dx: number, dy: number): void {
-    if (dx !== 0 && tryMove(world, dx, 0)) return;
-    tryMove(world, 0, dy);
+    const moved = (dx !== 0 && tryMove(world, dx, 0)) || tryMove(world, 0, dy);
+    if (moved) {
+      const tile = tileAt(world.player.pos.x, world.player.pos.y);
+      const surface = tile?.kind === 'herbe' ? 'herbe' : tile?.kind === 'terre' ? 'terre' : 'pave';
+      audio.playFootstep(surface);
+    }
   }
 
   function frame(now: number): void {
@@ -1725,14 +1791,17 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       // Épilogue prêt : ouverture de l'écran de conclusion de la campagne
       if (world.campaign.completedChapters.includes(5) && !world.seen['epilogue_modal_shown']) {
         world.seen['epilogue_modal_shown'] = true;
+        audio.playChapterComplete();
         openEpilogueModal();
       } else if (world.council.pendingFusion) {
         // Fusion prête : la scène attend le joueur (M6).
+        audio.playGhostDebate();
         openFusionScene();
       } else {
         // Scène d'arrivée : un fantôme attend le choix du joueur.
         const pend = councilPendingArrivals(world).filter((id) => !deferredArrivals.has(id));
         if (pend.length > 0) {
+          audio.playGhostArrival();
           openArrivalScene(pend[0] ?? '');
         } else if (world.streetRecognition?.spontaneousEncounterPending) {
           openStreetEncounterModal();
@@ -1770,10 +1839,17 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
     const d = input.dir();
     const isPlayerMoving = !world.player.asleep && (d.x !== 0 || d.y !== 0);
-    renderWorld(ui.ctx, world, ui.cw, ui.ch, now, {
+    const renderOpts = {
       walkingEntities: { player: isPlayerMoving },
       whisperingGhosts: currentBannerGhost ? [currentBannerGhost] : undefined,
-    });
+    };
+
+    if (use3D && renderer3D && renderer3D.isWebGLAvailable) {
+      renderer3D.render(world, ui.cw, ui.ch, now, renderOpts);
+    } else {
+      renderWorld(ui.ctx, world, ui.cw, ui.ch, now, renderOpts);
+    }
+
     updateHud(ui, world, promptText());
     requestAnimationFrame(frame);
   }
