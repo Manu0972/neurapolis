@@ -2,23 +2,17 @@ import git
 
 def sync_github():
     try:
-        # Ouvre le dépôt git local dans le dossier courant
         repo = git.Repo(search_parent_directories=True)
-        
-        # Vérifie l'état
         print("--- État du dépôt Git ---")
-        print(repo.git.status())
         
-        # Ajoute tous les fichiers modifiés/nouveaux
-        repo.git.add(A=True)
-        print("Tous les fichiers ont été ajoutés (git add).")
+        # On ajoute uniquement les fichiers nécessaires et sûrs
+        repo.index.add(['agent_assistant.py', 'update_github.py', 'GUIDE-DA.md'])
+        print("Fichiers essentiels ajoutés à l'index.")
         
-        # Commit des modifications
-        commit_message = "Mise à jour : Ajout de l'agent NEURAPOLIS et du code Three.js"
+        commit_message = "Mise à jour : scripts et assistant NEURAPOLIS"
         repo.index.commit(commit_message)
-        print(f"Commit effectué avec le message : '{commit_message}'")
+        print(f"Commit effectué : '{commit_message}'")
         
-        # Push vers la branche principale (main ou master)
         origin = repo.remote(name='origin')
         origin.push()
         print("--- Succès : Tout a été poussé sur GitHub avec succès ! ---")
