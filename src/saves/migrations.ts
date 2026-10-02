@@ -123,6 +123,81 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
     s.version = 6;
     return s;
   },
+  // 6 → 7 : Tiers marchands, Cartographie & Plans, Multi-Entreprises, News Macro, École/Famille, Compagnon Kawaii
+  6: (s) => {
+    s.vendors = s.vendors ?? {
+      vendors: {
+        bertin: {
+          vendorId: 'bertin',
+          name: 'Mme Bertin (Épicerie des Roses)',
+          location: 'epicerie',
+          tier: 0,
+          spentTotal: 0,
+          tradeCount: 0,
+          discountRate: 0,
+          unlockedPerks: ['Accès au rayon standard.'],
+          friendshipDialogueUnlocked: false,
+          specialStockAvailable: false,
+        },
+        karim: {
+          vendorId: 'karim',
+          name: 'Karim (Récup & Atelier Friche)',
+          location: 'friche',
+          tier: 0,
+          spentTotal: 0,
+          tradeCount: 0,
+          discountRate: 0,
+          unlockedPerks: ['Pièces détachées au détail.'],
+          friendshipDialogueUnlocked: false,
+          specialStockAvailable: false,
+        },
+      },
+    };
+    s.actionPlanning = s.actionPlanning ?? {
+      plans: {},
+      territory: {},
+      expansionLevel: 'quartier',
+    };
+    s.multiVentures = s.multiVentures ?? {
+      ventures: {},
+      hazards: [],
+      synergiesActive: [],
+    };
+    s.macroNews = s.macroNews ?? {
+      currentTrend: 'stabilite',
+      costModifier: 0,
+      demandModifier: 0.05,
+      feed: [],
+    };
+    s.schoolLife = s.schoolLife ?? {
+      attendanceRate: 90,
+      consecutiveClassesAttended: 3,
+      skippedClassesCount: 0,
+      academicAverage: 14,
+      parentSentiment: 'satisfait',
+      parentCongratulatedCount: 0,
+      teacherWarningActive: false,
+      negotiatedExemption: false,
+      lastParentInteractionDay: 0,
+      lastParentMessage: 'Prends soin de toi !',
+    };
+    s.streetRecognition = s.streetRecognition ?? {
+      streetReputationLevel: 50,
+      spontaneousEncounterPending: false,
+      lastEncounterDay: 0,
+      hiddenSynergiesUnlocked: [],
+    };
+    s.tutorials = s.tutorials ?? { tutorials: {} };
+    s.ghostCompanion = s.ghostCompanion ?? {
+      activeGhostId: 'smith',
+      mood: 'curieux',
+      speechBubble: 'Observe le marché et les besoins du quartier.',
+      lastAdviceTick: 0,
+      unlockedThinkers: ['smith'],
+    };
+    s.version = 7;
+    return s;
+  },
 };
 
 export const CURRENT_SAVE_VERSION = SAVE_VERSION;

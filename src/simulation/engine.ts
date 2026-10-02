@@ -14,6 +14,10 @@ import { projectDay, projectWeek } from './project';
 import { workshopDay, workshopWeek } from './workshop';
 import { rivalDay } from './rival';
 import { campaignTick } from './campaign';
+import { macroNewsDayTick } from './macro_news';
+import { multiVenturesDayTick } from './multi_ventures';
+import { schoolDayTick } from './school_life';
+import { checkStreetSynergiesAndEncounters } from './street_synergies';
 import { notify } from './events';
 import { saveToSlot } from '../saves/persist';
 
@@ -40,6 +44,7 @@ export function tickWorld(w: WorldState): TickOutput {
   npcTick(w);
   lifeTick(w);
   out.push(...councilTick(w));
+  out.push(...checkStreetSynergiesAndEncounters(w));
 
   if (day !== prevDay) {
     out.push(...rivalDay(w));
@@ -48,6 +53,9 @@ export function tickWorld(w: WorldState): TickOutput {
     projectDay(w);
     out.push(...workshopDay(w));
     out.push(...campaignTick(w));
+    out.push(...macroNewsDayTick(w));
+    out.push(...multiVenturesDayTick(w));
+    out.push(...schoolDayTick(w));
 
     // Hebdomadaire : argent de poche + répartition des gains du stand (M5) + atelier (J5)
     if (weekIndexOf(day) !== prevWeek) {

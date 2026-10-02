@@ -52,7 +52,7 @@ import {
 } from '../data/texts';
 import { DATA_SALE, ECO_CHOICE, STAND_CONFIG } from '../data/project';
 import { dateOf } from '../core/clock';
-import type { CharacteristicsId, GhostId, NpcId, Notification, PlaceId, Rel4, RepartitionMode, SkillId, SolidarityTariff, WorldState } from '../core/types';
+import type { CharacteristicsId, GhostId, NpcId, Notification, PlaceId, Rel4, RepartitionMode, SkillId, SolidarityTariff, TerritorialZoneId, VendorId, VentureId, VentureRole, WorldState } from '../core/types';
 import { ZERO_REL } from '../core/types';
 import { createInput } from './input';
 import { renderWorld } from './renderer';
@@ -60,6 +60,16 @@ import { buildUi, el, resizeCanvas, updateHud, type UiRefs } from './ui';
 import { TOKENS } from './tokens';
 import { avatarElement } from './avatar';
 import { loadAssetKit } from './asset-loader';
+import { VENDOR_DEFS } from '../data/vendors';
+import { buyVendorSpecialGood, ensureVendorsState } from '../simulation/vendors';
+import { activateActionPlan, ensureActionPlanningState, payTerritoryConcession, progressActionPlanStep, unlockTerritoryNode } from '../simulation/action_plan';
+import { VENTURE_DEFS, VENTURE_ROLE_DEFS } from '../data/multi_ventures';
+import { assignVentureRole, ensureMultiVentureState, resolveEconomicHazard, unassignVentureRole, updateVentureSynergies } from '../simulation/multi_ventures';
+import { ensureMacroNewsState, triggerCustomMarketShock } from '../simulation/macro_news';
+import { attendSchoolClass, ensureSchoolLifeState, negotiateWithTeacher, skipSchoolForBusiness, studyEveningHomework, talkWithParents } from '../simulation/school_life';
+import { ensureStreetRecognitionState, handleStreetEncounterChoice } from '../simulation/street_synergies';
+import { askActiveGhostAdvice, getGhostCompanionThought, switchCompanionGhost } from '../simulation/ghost_companions';
+import { INITIAL_TUTORIALS } from '../data/tutorials';
 
 const TICK_MS = 1000; // 1 tick simulé (10 min) par seconde à vitesse 1
 const MOVE_MS = 150;  // cadence d'un pas de tuile en maintenant une direction
@@ -395,13 +405,418 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     showModal('Journal', 'ta vie, et les causes derrière', body, true);
   }
 
-  const navBtns = Array.from(ui.navEl.querySelectorAll('button'));
-  navBtns[0]?.addEventListener('click', openPersonnage);
-  navBtns[1]?.addEventListener('click', openRelations);
-  navBtns[2]?.addEventListener('click', openJournal);
-  navBtns[3]?.addEventListener('click', openProjet);
-  navBtns[4]?.addEventListener('click', openConcurrence);
-  navBtns[5]?.addEventListener('click', openConseil);
+  function checkTutorial(tutoId: string): void {
+    if (!world.tutorials) world.tutorials = { tutorials: structuredClone(INITIAL_TUTORIALS) };
+    const t = world.tutorials.tutorials[tutoId];
+    if (t && !t.seen) {
+      t.seen = true;
+      showMiniTutorial(t.title, t.body);
+    }
+  }
+
+  function showMiniTutorial(title: string, bodyText: string): void {
+    const body = el('div', 'panel-body');
+    body.appendChild(el('p', 'panel-desc', bodyText));
+    const row = el('div', 'reply-row');
+    const okBtn = el('button', 'btn btn-action', 'Compris ! (Continuer)');
+    okBtn.addEventListener('click', closeModal);
+    row.appendChild(okBtn);
+    body.appendChild(row);
+    showModal(title, 'Mini-Guide de Prise en Main (Skippé)', body);
+  }
+
+  function openStrategieCarte(): void {
+    checkTutorial('tuto_plan_action');
+    const ap = ensureActionPlanningState(world);
+    const body = el('div', 'panel-body');
+
+    // Section 1 : Plans d'action
+    body.appendChild(el('h3', 'panel-sub', `Plans d’Action Stratégiques (Palier : ${ap.expansionLevel.toUpperCase()})`));
+    for (const plan of Object.values(ap.plans)) {
+      const card = el('div', 'ghost-detail');
+      if (plan.active) card.style.borderColor = 'var(--or)';
+      const head = el('div', 'avatar-row');
+      head.appendChild(el('span', 'rel-name', `${plan.title} ${plan.completed ? '✓ (Accompli)' : plan.active ? '⚡ (En cours)' : ''}`));
+      card.appendChild(head);
+      card.appendChild(el('p', 'panel-desc', plan.description));
+      card.appendChild(el('p', 'panel-note', plan.ghostInsight));
+
+      const stepList = el('div', 'journal-list');
+      for (const st of plan.steps) {
+        const stepRow = el('div', 'stat-row');
+        stepRow.appendChild(el('span', 'stat-label', `${st.completed ? '✓' : '○'} ${st.label}`));
+        if (!st.completed && plan.active) {
+          const checkBtn = el('button', 'btn btn-action', 'Valider cette étape');
+          checkBtn.style.fontSize = '10px';
+          checkBtn.style.padding = '2px 6px';
+          checkBtn.addEventListener('click', () => {
+            const res = progressActionPlanStep(world, plan.id, st.id);
+            checkBtn.textContent = res.message;
+            setTimeout(openStrategieCarte, 800);
+          });
+          stepRow.appendChild(checkBtn);
+        }
+        stepList.appendChild(stepRow);
+      }
+      card.appendChild(stepList);
+
+      if (!plan.active && !plan.completed) {
+        const actBtn = el('button', 'btn btn-action', 'Activer ce plan stratégique');
+        actBtn.addEventListener('click', () => {
+          activateActionPlan(world, plan.id);
+          openStrategieCarte();
+        });
+        card.appendChild(actBtn);
+      }
+      body.appendChild(card);
+    }
+
+    // Section 2 : Cartographie du Territoire
+    body.appendChild(el('h3', 'panel-sub', 'Cartographie & Concessions Territoriales'));
+    const territoryGrid = el('div', 'council-grid');
+    for (const node of Object.values(ap.territory)) {
+      const box = el('div', 'ghost-detail');
+      box.appendChild(el('h4', 'journal-title', `${node.name} ${node.unlocked ? '🔓' : '🔒'}`));
+      box.appendChild(el('p', 'panel-note', `Potentiel : ${node.marketPotential}% · Présence : ${node.ourPresence}% · Rivaux : ${node.competitorPresence}%`));
+
+      if (!node.unlocked) {
+        const unlBtn = el('button', 'btn btn-action', 'Explorer & Débloquer');
+        unlBtn.addEventListener('click', () => {
+          unlockTerritoryNode(world, node.id as TerritorialZoneId);
+          openStrategieCarte();
+        });
+        box.appendChild(unlBtn);
+      } else if (!node.activeArrangement && node.concessionCost > 0) {
+        const arrBtn = el('button', 'btn btn-reply', `Payer Concession (${node.concessionCost} €)`);
+        arrBtn.addEventListener('click', () => {
+          const res = payTerritoryConcession(world, node.id as TerritorialZoneId);
+          arrBtn.textContent = res.message;
+          setTimeout(openStrategieCarte, 800);
+        });
+        box.appendChild(arrBtn);
+      } else if (node.activeArrangement) {
+        box.appendChild(el('p', 'panel-note', '✓ Concession officielle & arrangements sécurisés.'));
+      }
+      territoryGrid.appendChild(box);
+    }
+    body.appendChild(territoryGrid);
+
+    showModal('Stratégie & Cartographie', 'plans d’action · expansion géographique · concessions', body, true);
+  }
+
+  function openEntreprisesRoles(): void {
+    checkTutorial('tuto_multi_entreprises');
+    const mv = ensureMultiVentureState(world);
+    const body = el('div', 'panel-body');
+
+    // Synergies actives
+    updateVentureSynergies(world);
+    if (mv.synergiesActive.length > 0) {
+      const synBox = el('div', 'ghost-detail');
+      synBox.style.borderColor = 'var(--vert)';
+      synBox.appendChild(el('h4', 'journal-title', '✨ Synergies Inter-Entreprises Actives'));
+      for (const syn of mv.synergiesActive) {
+        synBox.appendChild(el('p', 'panel-note', `✦ ${syn}`));
+      }
+      body.appendChild(synBox);
+    }
+
+    // Aléas économiques (Hazards)
+    const pendingHazards = mv.hazards.filter((h) => !h.resolved);
+    if (pendingHazards.length > 0) {
+      body.appendChild(el('h3', 'panel-sub', '⚠️ Aléas Économiques & Frictions'));
+      for (const h of pendingHazards) {
+        const hBox = el('div', 'ghost-detail');
+        hBox.style.borderColor = 'var(--rouge)';
+        hBox.appendChild(el('h4', 'journal-title', `🚨 ${h.title}`));
+        hBox.appendChild(el('p', 'panel-desc', h.description));
+        hBox.appendChild(el('p', 'panel-note', `Conseil : « ${h.ghostAdviceText} »`));
+        const resBtn = el('button', 'btn btn-action', `Régler cet aléa (${h.costToResolve} €)`);
+        resBtn.addEventListener('click', () => {
+          const res = resolveEconomicHazard(world, h.id);
+          resBtn.textContent = res.message;
+          setTimeout(openEntreprisesRoles, 800);
+        });
+        hBox.appendChild(resBtn);
+        body.appendChild(hBox);
+      }
+    }
+
+    // Liste des entreprises
+    body.appendChild(el('h3', 'panel-sub', 'Portefeuille d’Activités & Attribution des Rôles'));
+    const candidateNpcs: Array<{ id: string; name: string }> = [
+      { id: 'noah', name: 'Noah' },
+      { id: 'lina', name: 'Lina' },
+      { id: 'yasmine', name: 'Yasmine' },
+      { id: 'karim', name: 'Karim' },
+      { id: 'samir', name: 'Samir' },
+      { id: 'monique', name: 'Monique' },
+    ];
+
+    for (const v of Object.values(mv.ventures)) {
+      const vCard = el('div', 'ghost-detail');
+      vCard.appendChild(el('h4', 'journal-title', `${v.name} ${v.active ? '🟢 (Actif)' : '⚪ (En veille)'}`));
+      vCard.appendChild(el('p', 'panel-desc', VENTURE_DEFS[v.id]?.description ?? ''));
+      vCard.appendChild(el('p', 'panel-note', `Rendement estimé : +${v.dailyRevenue} €/j · Frais : −${v.dailyExpenses} €/j`));
+
+      const rolesBox = el('div', 'journal-list');
+      for (const [rKey, rDef] of Object.entries(VENTURE_ROLE_DEFS) as [VentureRole, typeof VENTURE_ROLE_DEFS[VentureRole]][]) {
+        const rRow = el('div', 'stat-row');
+        const assigned = v.roles[rKey];
+        rRow.appendChild(el('span', 'stat-label', `${rDef.title} : ${assigned ? assigned.toUpperCase() : 'Non assigné'}`));
+        if (assigned) {
+          const unBtn = el('button', 'btn btn-reply', 'Libérer');
+          unBtn.style.fontSize = '10px';
+          unBtn.style.padding = '2px 4px';
+          unBtn.addEventListener('click', () => {
+            unassignVentureRole(world, v.id, rKey);
+            openEntreprisesRoles();
+          });
+          rRow.appendChild(unBtn);
+        } else {
+          const selRow = el('div', 'reply-row');
+          for (const cand of candidateNpcs.slice(0, 3)) {
+            const asBtn = el('button', 'btn btn-action', `+ ${cand.name}`);
+            asBtn.style.fontSize = '10px';
+            asBtn.style.padding = '2px 4px';
+            asBtn.addEventListener('click', () => {
+              assignVentureRole(world, v.id, rKey, cand.id);
+              openEntreprisesRoles();
+            });
+            selRow.appendChild(asBtn);
+          }
+          rRow.appendChild(selRow);
+        }
+        rolesBox.appendChild(rRow);
+      }
+      vCard.appendChild(rolesBox);
+      body.appendChild(vCard);
+    }
+
+    showModal('Entreprises & Rôles', 'multi-activités · attribution des postes · synergies & aléas', body, true);
+  }
+
+  function openMarchandsTiers(): void {
+    checkTutorial('tuto_marchands_tiers');
+    const vendors = ensureVendorsState(world);
+    const body = el('div', 'panel-body');
+
+    body.appendChild(el('p', 'panel-desc', 'Commercer régulièrement avec les marchands fait grimper vos Paliers de Fidélité (Tiers 0 à 3), débloquant remises permanentes et stocks réservés.'));
+
+    for (const [vId, def] of Object.entries(VENDOR_DEFS) as [VendorId, typeof VENDOR_DEFS[VendorId]][]) {
+      const rel = vendors[vId] ?? {
+        vendorId: vId, name: def.name, location: def.location, tier: 0, spentTotal: 0, tradeCount: 0, discountRate: 0, unlockedPerks: [], friendshipDialogueUnlocked: false, specialStockAvailable: false,
+      };
+
+      const card = el('div', 'ghost-detail');
+      const head = el('div', 'avatar-row');
+      head.appendChild(el('span', 'rel-name', `${def.name} — Rang : Palier ${rel.tier} (${def.tierBenefits[rel.tier].title})`));
+      card.appendChild(head);
+      card.appendChild(el('p', 'panel-desc', def.description));
+      card.appendChild(el('p', 'panel-note',
+        `Dépensé cumulé : ${rel.spentTotal.toFixed(2)} € · ${rel.tradeCount} transactions · Remise accordée : ${Math.round(rel.discountRate * 100)} %`));
+
+      const perkBox = el('div', 'journal-list');
+      for (const perk of rel.unlockedPerks) {
+        perkBox.appendChild(el('p', 'panel-note', `✓ ${perk}`));
+      }
+      card.appendChild(perkBox);
+
+      if (def.specialGoods.length > 0) {
+        card.appendChild(el('h4', 'journal-title', 'Articles & Concessions Spéciales :'));
+        for (const good of def.specialGoods) {
+          const gRow = el('div', 'stat-row');
+          const discountedPrice = (good.cost * (1 - rel.discountRate)).toFixed(2);
+          gRow.appendChild(el('span', 'stat-label', `${good.name} (${discountedPrice} €)`));
+          const canBuy = rel.tier >= good.requiredTier && world.player.money >= Number(discountedPrice);
+          const buyBtn = el('button', 'btn btn-action', rel.tier < good.requiredTier ? `Requis Tier ${good.requiredTier}` : `Acheter (${discountedPrice} €)`);
+          buyBtn.disabled = !canBuy;
+          if (canBuy) {
+            buyBtn.addEventListener('click', () => {
+              const res = buyVendorSpecialGood(world, vId, good.id);
+              buyBtn.textContent = res.message;
+              setTimeout(openMarchandsTiers, 800);
+            });
+          }
+          gRow.appendChild(buyBtn);
+          card.appendChild(gRow);
+        }
+      }
+
+      body.appendChild(card);
+    }
+
+    showModal('Marchands & Niveaux de Relation', 'fidélité · remises · stocks exclusifs', body, true);
+  }
+
+  function openActualitesChocs(): void {
+    checkTutorial('tuto_chocs_macro');
+    const mn = ensureMacroNewsState(world);
+    const body = el('div', 'panel-body');
+
+    const currentCard = el('div', 'ghost-detail');
+    currentCard.style.borderColor = 'var(--or)';
+    currentCard.appendChild(el('h4', 'journal-title', `Climat Économique Actuel : ${mn.currentTrend.toUpperCase()}`));
+    currentCard.appendChild(el('p', 'panel-desc',
+      `Impact sur les coûts : ${mn.costModifier >= 0 ? '+' : ''}${Math.round(mn.costModifier * 100)} % · Impact sur la demande : ${mn.demandModifier >= 0 ? '+' : ''}${Math.round(mn.demandModifier * 100)} %`));
+
+    const testShockBtn = el('button', 'btn btn-action', 'Susciter un choc de conjoncture');
+    testShockBtn.addEventListener('click', () => {
+      triggerCustomMarketShock(world);
+      openActualitesChocs();
+    });
+    currentCard.appendChild(testShockBtn);
+    body.appendChild(currentCard);
+
+    body.appendChild(el('h3', 'panel-sub', 'Fil des Dépêches Économiques'));
+    const feedList = el('div', 'journal-list');
+    for (const item of mn.feed) {
+      const art = el('article', 'journal-entry');
+      art.appendChild(el('h4', 'journal-title', `${item.date} — ${item.headline}`));
+      art.appendChild(el('p', 'panel-desc', item.summary));
+      art.appendChild(el('p', 'panel-note', `Tendance : ${item.trend} (Coûts : ${item.costModifier >= 0 ? '+' : ''}${Math.round(item.costModifier * 100)}%, Demande : ${item.demandModifier >= 0 ? '+' : ''}${Math.round(item.demandModifier * 100)}%)`));
+      feedList.appendChild(art);
+    }
+    body.appendChild(feedList);
+
+    showModal('Actualités & Chocs Macroéconomiques', 'presse · tendances de marché · opportunités', body, true);
+  }
+
+  function openEtudesFamille(): void {
+    checkTutorial('tuto_etudes_famille');
+    const sl = ensureSchoolLifeState(world);
+    const body = el('div', 'panel-body');
+
+    // Situation scolaire
+    const cardScolaire = el('div', 'ghost-detail');
+    cardScolaire.appendChild(el('h4', 'journal-title', 'Vie Scolaire au Collège Val-Ferrand'));
+    cardScolaire.appendChild(el('p', 'panel-desc',
+      `Moyenne scolaire : ${sl.academicAverage}/20 · Taux d'assiduité : ${sl.attendanceRate}% · Cours séchés : ${sl.skippedClassesCount}`));
+    if (sl.teacherWarningActive) {
+      cardScolaire.appendChild(el('p', 'panel-note', '⚠️ Avertissement professeur : M. Moreau s’inquiète de tes absences.'));
+    }
+    if (sl.negotiatedExemption) {
+      cardScolaire.appendChild(el('p', 'panel-note', '✓ Statut officiel : Convention de projet jeune entrepreneur validée !'));
+    }
+
+    const actRow = el('div', 'reply-row');
+    const coursBtn = el('button', 'btn btn-action', 'Suivre le cours avec attention');
+    coursBtn.addEventListener('click', () => {
+      const res = attendSchoolClass(world);
+      coursBtn.textContent = res.message;
+      setTimeout(openEtudesFamille, 800);
+    });
+    const secherBtn = el('button', 'btn btn-reply', 'Sécher pour une urgence business');
+    secherBtn.addEventListener('click', () => {
+      const res = skipSchoolForBusiness(world);
+      secherBtn.textContent = res.message;
+      setTimeout(openEtudesFamille, 800);
+    });
+    const devoirsBtn = el('button', 'btn btn-action', 'Faire ses devoirs le soir');
+    devoirsBtn.addEventListener('click', () => {
+      const res = studyEveningHomework(world);
+      devoirsBtn.textContent = res.message;
+      setTimeout(openEtudesFamille, 800);
+    });
+    const negoBtn = el('button', 'btn btn-reply', 'Négocier dispense avec M. Moreau');
+    negoBtn.addEventListener('click', () => {
+      const res = negotiateWithTeacher(world);
+      negoBtn.textContent = res.message;
+      setTimeout(openEtudesFamille, 800);
+    });
+
+    actRow.appendChild(coursBtn);
+    actRow.appendChild(secherBtn);
+    actRow.appendChild(devoirsBtn);
+    actRow.appendChild(negoBtn);
+    cardScolaire.appendChild(actRow);
+    body.appendChild(cardScolaire);
+
+    // Sentiment des parents
+    const cardFamille = el('div', 'ghost-detail');
+    cardFamille.appendChild(el('h4', 'journal-title', `Sentiment des Parents : ${sl.parentSentiment.toUpperCase()}`));
+    cardFamille.appendChild(el('p', 'panel-desc', sl.lastParentMessage));
+    const parlerParentsBtn = el('button', 'btn btn-action', 'Discuter avec ses parents à la maison');
+    parlerParentsBtn.addEventListener('click', () => {
+      const res = talkWithParents(world);
+      parlerParentsBtn.textContent = res.message;
+      setTimeout(openEtudesFamille, 800);
+    });
+    cardFamille.appendChild(parlerParentsBtn);
+    body.appendChild(cardFamille);
+
+    showModal('Études, Collège & Famille', 'assiduité · devoirs · dialogue avec les parents', body, true);
+  }
+
+  function openGhostCompanionModal(): void {
+    const thought = getGhostCompanionThought(world);
+    const advice = askActiveGhostAdvice(world);
+    const body = el('div', 'panel-body');
+
+    const card = el('div', 'ghost-detail');
+    card.appendChild(el('h4', 'journal-title', `${thought.emoji} ${thought.name} — Compagnon Actif`));
+    card.appendChild(el('p', 'panel-desc', `Humeur : « ${thought.mood} »`));
+    card.appendChild(el('p', 'panel-note', `Pensée instantanée : « ${thought.speechBubble} »`));
+    card.appendChild(el('p', 'panel-desc', advice.adviceText));
+    body.appendChild(card);
+
+    body.appendChild(el('h3', 'panel-sub', 'Changer de Compagnon'));
+    const actRow = el('div', 'reply-row');
+    const activeGhostIds = Object.values(world.council.ghosts).filter((g) => g.status === 'actif').map((g) => g.id);
+    for (const gid of activeGhostIds) {
+      const def = GHOST_DEFS_BY_ID[gid];
+      if (!def) continue;
+      const btn = el('button', 'btn btn-topic', `${def.emoji} ${def.name}`);
+      btn.addEventListener('click', () => {
+        switchCompanionGhost(world, gid);
+        openGhostCompanionModal();
+      });
+      actRow.appendChild(btn);
+    }
+    body.appendChild(actRow);
+
+    showModal('Conseiller Fantôme Kawaii', 'dialogue rapide & orientation stratégique', body);
+  }
+
+  function openStreetEncounterModal(): void {
+    const sr = ensureStreetRecognitionState(world);
+    const body = el('div', 'panel-body');
+    body.appendChild(el('p', 'panel-desc', sr.lastEncounterDialogue || 'Un habitant du quartier t’interpelle dans la rue avec enthousiasme !'));
+    const choices = el('div', 'reply-row');
+    const acceptBtn = el('button', 'btn btn-action', 'Vendre 3 sachets de biscuits (+6.00 €)');
+    acceptBtn.addEventListener('click', () => {
+      const res = handleStreetEncounterChoice(world, true);
+      closeModal();
+      showGhostBanner({ kind: 'bien', text: res.message });
+    });
+    const refuseBtn = el('button', 'btn btn-reply', 'Discuter poliment et valoriser l’initiative (+1 Influence)');
+    refuseBtn.addEventListener('click', () => {
+      const res = handleStreetEncounterChoice(world, false);
+      closeModal();
+      showGhostBanner({ kind: 'info', text: res.message });
+    });
+    choices.appendChild(acceptBtn);
+    choices.appendChild(refuseBtn);
+    body.appendChild(choices);
+    showModal('Rencontre Spontanée dans la Rue !', 'notoriété populaire · vente sur le pouce', body);
+  }
+
+  for (const b of ui.navEl.querySelectorAll('button')) {
+    const nav = b.dataset.nav;
+    if (nav === 'Personnage') b.addEventListener('click', openPersonnage);
+    else if (nav === 'Relations') b.addEventListener('click', openRelations);
+    else if (nav === 'Stratégie / Carte') b.addEventListener('click', openStrategieCarte);
+    else if (nav === 'Entreprises & Rôles') b.addEventListener('click', openEntreprisesRoles);
+    else if (nav === 'Marchands & Tiers') b.addEventListener('click', openMarchandsTiers);
+    else if (nav === 'Actualités & Chocs') b.addEventListener('click', openActualitesChocs);
+    else if (nav === 'Études & Famille') b.addEventListener('click', openEtudesFamille);
+    else if (nav === 'Projet') b.addEventListener('click', openProjet);
+    else if (nav === 'Concurrence') b.addEventListener('click', openConcurrence);
+    else if (nav === 'Conseil') b.addEventListener('click', openConseil);
+    else if (nav === 'Journal') b.addEventListener('click', openJournal);
+  }
+  ui.ghostCompanionWidgetEl.addEventListener('click', openGhostCompanionModal);
+  ui.newsTickerEl.addEventListener('click', openActualitesChocs);
 
   // ---------- Concurrence & Campagne narrative ----------
 
@@ -1319,6 +1734,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         const pend = councilPendingArrivals(world).filter((id) => !deferredArrivals.has(id));
         if (pend.length > 0) {
           openArrivalScene(pend[0] ?? '');
+        } else if (world.streetRecognition?.spontaneousEncounterPending) {
+          openStreetEncounterModal();
         } else {
           const speed = world.time.speed;
           if (speed !== 0) {

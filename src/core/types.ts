@@ -367,6 +367,202 @@ export interface CampaignState {
   delayedConsequences: DelayedConsequence[];
 }
 
+// ---------- Marchands & Niveaux de profondeur (Tiers) ----------
+export type VendorId = 'bertin' | 'karim' | 'friche_scrap' | 'docks_grossiste' | 'tramway_express';
+export type VendorTier = 0 | 1 | 2 | 3;
+
+export interface VendorRelationship {
+  vendorId: VendorId;
+  name: string;
+  location: PlaceId | string;
+  tier: VendorTier;
+  spentTotal: number;
+  tradeCount: number;
+  discountRate: number; // e.g. 0.05, 0.12, 0.20
+  unlockedPerks: string[];
+  friendshipDialogueUnlocked: boolean;
+  specialStockAvailable: boolean;
+}
+
+export interface VendorsState {
+  vendors: Record<VendorId, VendorRelationship>;
+}
+
+// ---------- Plans d’Action & Cartographie Stratégique ----------
+export type ActionPlanCategory =
+  | 'approvisionnement'
+  | 'optimisation_reseau'
+  | 'expansion_territoire'
+  | 'contre_offensive'
+  | 'diplomatie_locale';
+
+export interface ActionPlanStepState {
+  id: string;
+  label: string;
+  completed: boolean;
+}
+
+export interface ActionPlanState {
+  id: string;
+  title: string;
+  category: ActionPlanCategory;
+  description: string;
+  ghostAdvisorId?: GhostId;
+  ghostInsight: string;
+  steps: ActionPlanStepState[];
+  active: boolean;
+  completed: boolean;
+  unlockedDay: number;
+  rewardDescription: string;
+}
+
+export type TerritorialZoneId =
+  | 'roses'
+  | 'bassin'
+  | 'caves'
+  | 'hauts'
+  | 'tramway'
+  | 'docks'
+  | 'ville_voisine'
+  | 'metropole_regionale'
+  | 'national';
+
+export interface TerritoryNodeState {
+  id: TerritorialZoneId;
+  name: string;
+  unlocked: boolean;
+  marketPotential: number; // 0-100
+  ourPresence: number;      // 0-100
+  competitorPresence: number; // 0-100
+  activeArrangement: boolean;
+  concessionCost: number;
+}
+
+export interface ActionPlanningState {
+  plans: Record<string, ActionPlanState>;
+  activePlanId?: string;
+  territory: Record<TerritorialZoneId, TerritoryNodeState>;
+  expansionLevel: 'quartier' | 'inter_quartiers' | 'ville' | 'regionale' | 'nationale';
+}
+
+// ---------- Multi-Activités & Attribution des Rôles ----------
+export type VentureId =
+  | 'stand_roses'
+  | 'atelier_friche'
+  | 'coursiers_doux'
+  | 'gazette_citoyenne'
+  | 'grossiste_regional';
+
+export type VentureRole =
+  | 'directeur'
+  | 'logistique'
+  | 'negociateur'
+  | 'tresorier'
+  | 'qualite';
+
+export interface VentureState {
+  id: VentureId;
+  name: string;
+  active: boolean;
+  roles: Partial<Record<VentureRole, NpcId>>;
+  dailyRevenue: number;
+  dailyExpenses: number;
+  level: number;
+}
+
+export interface EconomicHazard {
+  id: string;
+  ventureId: VentureId;
+  title: string;
+  description: string;
+  type: 'vol_gouters' | 'erreur_marge' | 'rupture_fournisseur' | 'guerre_prix' | 'controle_concession';
+  severity: number;
+  resolved: boolean;
+  costToResolve: number;
+  ghostAdviceText: string;
+  ghostAdvisorId: GhostId;
+}
+
+export interface MultiVentureState {
+  ventures: Record<VentureId, VentureState>;
+  hazards: EconomicHazard[];
+  synergiesActive: string[];
+}
+
+// ---------- Actualités Macroéconomiques & Chocs de Marché ----------
+export type MacroTrend =
+  | 'inflation'
+  | 'deflation'
+  | 'penurie'
+  | 'greve_transports'
+  | 'croissance_locale'
+  | 'stabilite';
+
+export interface MacroNewsItem {
+  id: string;
+  day: number;
+  date: string;
+  headline: string;
+  summary: string;
+  trend: MacroTrend;
+  costModifier: number;   // +0.20 pour +20% coût intrants
+  demandModifier: number; // +0.15 pour +15% demande
+  activeUntilDay: number;
+}
+
+export interface MacroNewsState {
+  currentTrend: MacroTrend;
+  costModifier: number;
+  demandModifier: number;
+  feed: MacroNewsItem[];
+}
+
+// ---------- Études, École & Dynamique Familiale ----------
+export interface SchoolLifeState {
+  attendanceRate: number;              // 0-100 %
+  consecutiveClassesAttended: number;
+  skippedClassesCount: number;
+  academicAverage: number;             // Note sur 20
+  parentSentiment: 'tres_inquiet' | 'inquiet' | 'neutre' | 'satisfait' | 'tres_fier';
+  parentCongratulatedCount: number;
+  teacherWarningActive: boolean;
+  negotiatedExemption: boolean;
+  lastParentInteractionDay: number;
+  lastParentMessage: string;
+}
+
+// ---------- Combinaisons Cachées & Reconnaissance de Rue ----------
+export interface StreetRecognitionState {
+  streetReputationLevel: number;       // 0-100
+  spontaneousEncounterPending: boolean;
+  lastEncounterDay: number;
+  hiddenSynergiesUnlocked: string[];
+  lastEncounterDialogue?: string;
+}
+
+// ---------- Tutoriels Mini & Accessibilité ----------
+export interface TutorialItem {
+  id: string;
+  title: string;
+  body: string;
+  unlocked: boolean;
+  seen: boolean;
+}
+
+export interface TutorialState {
+  tutorials: Record<string, TutorialItem>;
+  pendingTutorialId?: string;
+}
+
+// ---------- Compagnon Fantôme Kawaii / Mini-Widget ----------
+export interface GhostCompanionState {
+  activeGhostId?: GhostId;
+  mood: 'curieux' | 'enthousiaste' | 'inquiet' | 'tactique' | 'malicieux';
+  speechBubble?: string;
+  lastAdviceTick: number;
+  unlockedThinkers: GhostId[];
+}
+
 // ---------- Monde ----------
 export interface WorldState {
   version: number;
@@ -381,6 +577,14 @@ export interface WorldState {
   district: DistrictState;
   rivals: Record<RivalId, RivalState>;
   campaign: CampaignState;
+  vendors?: VendorsState;
+  actionPlanning?: ActionPlanningState;
+  multiVentures?: MultiVentureState;
+  macroNews?: MacroNewsState;
+  schoolLife?: SchoolLifeState;
+  streetRecognition?: StreetRecognitionState;
+  tutorials?: TutorialState;
+  ghostCompanion?: GhostCompanionState;
   events: GameEvent[];        // journal des événements (cap 250)
   lifeJournal: LifeJournalEntry[];
   flags: Record<string, number>; // compteurs libres (ventes, conflits, prévisions ratées…)

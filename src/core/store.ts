@@ -1,14 +1,19 @@
 /**
  * Création et clonage de l'état du monde. Valeurs initiales = Bible de game design.
  */
-import { STARTING_PLAYER_AGE, type GhostState, type NpcState, type Rel4, type WorldState, type SkillId } from './types';
+import { STARTING_PLAYER_AGE, type GhostState, type NpcState, type Rel4, type WorldState, type SkillId, type ActionPlanState, type VentureId, type VentureState, type MacroNewsItem } from './types';
 import { makeSeed } from './rng';
 import { NPCS } from '../data/npcs';
 import { ALL_GHOST_IDS } from '../data/ghosts/registry';
 import { INITIAL_RIVALS } from '../data/rivals';
 import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
+import { createInitialVendorsState } from '../data/vendors';
+import { INITIAL_ACTION_PLANS, INITIAL_TERRITORY_NODES } from '../data/action_plans';
+import { INITIAL_ECONOMIC_HAZARDS, VENTURE_DEFS } from '../data/multi_ventures';
+import { MACRO_NEWS_TEMPLATES } from '../data/macro_news';
+import { INITIAL_TUTORIALS } from '../data/tutorials';
 
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 
 const SKILL_IDS: SkillId[] = ['negociation', 'comptabilite', 'communication', 'organisation', 'technique', 'recherche'];
 
@@ -37,6 +42,59 @@ export function createWorld(opts: CreateWorldOptions = {}): WorldState {
       lastWords: '', history: [], loyaltyZeroDays: 0,
     };
   }
+
+  // Initialisation des plans d'action
+  const plans: Record<string, ActionPlanState> = {};
+  for (const t of INITIAL_ACTION_PLANS) {
+    plans[t.id] = {
+      id: t.id,
+      title: t.title,
+      category: t.category,
+      description: t.description,
+      ghostAdvisorId: t.ghostAdvisorId,
+      ghostInsight: t.ghostInsight,
+      steps: t.steps.map((s) => ({ id: s.id, label: s.label, completed: false })),
+      active: t.id === INITIAL_ACTION_PLANS[0]?.id,
+      completed: false,
+      unlockedDay: t.unlockedDay,
+      rewardDescription: t.rewardDescription,
+    };
+  }
+
+  // Initialisation des entreprises
+  const ventures: Partial<Record<VentureId, VentureState>> = {};
+  for (const [id, def] of Object.entries(VENTURE_DEFS) as [VentureId, typeof VENTURE_DEFS[VentureId]][]) {
+    ventures[id] = {
+      id,
+      name: def.name,
+      active: def.unlockedByDefault,
+      roles: {},
+      dailyRevenue: def.baseRevenuePerDay,
+      dailyExpenses: def.baseExpensesPerDay,
+      level: 1,
+    };
+  }
+
+  // Initialisation du fil d'actualités macroéconomiques
+  const initialNewsTpl = MACRO_NEWS_TEMPLATES[5] ?? MACRO_NEWS_TEMPLATES[0] ?? {
+    headline: 'Stabilité économique et reprise de la consommation',
+    summary: 'Le climat des affaires reste serein à Val-Ferrand. Les échanges commerciaux suivent leur cours régulier.',
+    trend: 'stabilite' as const,
+    costModifier: 0,
+    demandModifier: 0.05,
+    durationDays: 5,
+  };
+  const initialNews: MacroNewsItem = {
+    id: 'news_init_0',
+    day: 0,
+    date: '2020-09-01',
+    headline: initialNewsTpl.headline,
+    summary: initialNewsTpl.summary,
+    trend: initialNewsTpl.trend,
+    costModifier: initialNewsTpl.costModifier,
+    demandModifier: initialNewsTpl.demandModifier,
+    activeUntilDay: initialNewsTpl.durationDays,
+  };
 
   return {
     version: SAVE_VERSION,
@@ -82,6 +140,52 @@ export function createWorld(opts: CreateWorldOptions = {}): WorldState {
       stages: structuredClone(INITIAL_CAMPAIGN_STAGES),
       completedChapters: [],
       delayedConsequences: [],
+    },
+    vendors: { vendors: createInitialVendorsState() },
+    actionPlanning: {
+      plans,
+      activePlanId: INITIAL_ACTION_PLANS[0]?.id,
+      territory: structuredClone(INITIAL_TERRITORY_NODES),
+      expansionLevel: 'quartier',
+    },
+    multiVentures: {
+      ventures: ventures as Record<VentureId, VentureState>,
+      hazards: structuredClone(INITIAL_ECONOMIC_HAZARDS),
+      synergiesActive: [],
+    },
+    macroNews: {
+      currentTrend: initialNewsTpl.trend,
+      costModifier: initialNewsTpl.costModifier,
+      demandModifier: initialNewsTpl.demandModifier,
+      feed: [initialNews],
+    },
+    schoolLife: {
+      attendanceRate: 92,
+      consecutiveClassesAttended: 3,
+      skippedClassesCount: 0,
+      academicAverage: 14.5,
+      parentSentiment: 'satisfait',
+      parentCongratulatedCount: 0,
+      teacherWarningActive: false,
+      negotiatedExemption: false,
+      lastParentInteractionDay: 0,
+      lastParentMessage: 'Tes parents sont contents de tes débuts au collège : « Travaille bien et ne te disperse pas trop avec tes projets ! »',
+    },
+    streetRecognition: {
+      streetReputationLevel: 45,
+      spontaneousEncounterPending: false,
+      lastEncounterDay: 0,
+      hiddenSynergiesUnlocked: [],
+    },
+    tutorials: {
+      tutorials: structuredClone(INITIAL_TUTORIALS),
+    },
+    ghostCompanion: {
+      activeGhostId: 'smith',
+      mood: 'curieux',
+      speechBubble: 'Observe le marché et les besoins du quartier.',
+      lastAdviceTick: 0,
+      unlockedThinkers: ['smith'],
     },
     events: [],
     lifeJournal: [

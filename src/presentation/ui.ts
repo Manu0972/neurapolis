@@ -17,6 +17,9 @@ export interface UiRefs {
   ch: number;
   clockEl: HTMLElement;
   dateEl: HTMLElement;
+  moneyEl: HTMLElement;
+  newsTickerEl: HTMLElement;
+  ghostCompanionWidgetEl: HTMLElement;
   campaignCardEl: HTMLElement;
   campaignChapterEl: HTMLElement;
   campaignObjectiveEl: HTMLElement;
@@ -26,7 +29,7 @@ export interface UiRefs {
   modalEl: HTMLElement;
   joyZone: HTMLElement;
   actionBtn: HTMLElement;
-  navEl: HTMLElement; // écrans : personnage / relations / journal / conseil
+  navEl: HTMLElement; // écrans : personnage / relations / stratégie / entreprises / marchands / actualités / études / concurrence / conseil / journal
   bannerEl: HTMLElement; // bandeau in-world teinté quand un fantôme parle
   saveEl: HTMLElement;   // « Sauvegardé » en fin de journée de jeu
   lastIso: string;       // dernière date affichée (détection du changement de jour)
@@ -51,10 +54,29 @@ export function buildUi(root: HTMLElement): UiRefs {
   if (!ctx) throw new Error('Canvas 2D indisponible.');
 
   const hud = el('div', 'hud');
+
+  // Barre supérieure Big Ambitions : horloge, trésorerie & actualités
+  const topBar = el('div', 'hud-top-dashboard');
+  topBar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;margin-bottom:4px;';
+
   const clockEl = el('div', 'hud-clock', '--:--');
   const dateEl = el('div', 'hud-date', '');
-  hud.appendChild(clockEl);
-  hud.appendChild(dateEl);
+  const moneyEl = el('div', 'hud-money', '💰 15.00 €');
+  moneyEl.style.cssText = 'font-weight:700;color:var(--or);background:var(--panel2);padding:2px 6px;border-radius:4px;border:1px solid var(--line);font-size:11px;';
+
+  const newsTickerEl = el('div', 'hud-news-ticker', '📰 Flash Info : Marché stable');
+  newsTickerEl.style.cssText = 'flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px;color:var(--ink-muted);background:var(--panel2);padding:2px 6px;border-radius:4px;border:1px solid var(--line);cursor:pointer;';
+
+  // Widget compagnon fantôme Kawaii
+  const ghostCompanionWidgetEl = el('div', 'hud-ghost-companion', '👻 💬');
+  ghostCompanionWidgetEl.style.cssText = 'display:flex;align-items:center;gap:4px;background:rgba(120,80,220,0.18);border:1px solid var(--violet);color:var(--ink);padding:2px 8px;border-radius:12px;font-size:11px;cursor:pointer;font-weight:600;';
+
+  topBar.appendChild(clockEl);
+  topBar.appendChild(dateEl);
+  topBar.appendChild(moneyEl);
+  topBar.appendChild(newsTickerEl);
+  topBar.appendChild(ghostCompanionWidgetEl);
+  hud.appendChild(topBar);
 
   const campaignCardEl = el('div', 'campaign-card');
   const campaignChapterEl = el('div', 'campaign-chapter', '');
@@ -93,8 +115,24 @@ export function buildUi(root: HTMLElement): UiRefs {
   root.appendChild(hud);
 
   const navEl = el('div', 'hud-nav');
-  for (const label of ['Personnage', 'Relations', 'Journal', 'Projet', 'Concurrence', 'Conseil']) {
-    navEl.appendChild(el('button', 'hud-nav-btn', label));
+  navEl.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;';
+  const navLabels = [
+    'Personnage',
+    'Relations',
+    'Stratégie / Carte',
+    'Entreprises & Rôles',
+    'Marchands & Tiers',
+    'Actualités & Chocs',
+    'Études & Famille',
+    'Projet',
+    'Concurrence',
+    'Conseil',
+    'Journal',
+  ];
+  for (const label of navLabels) {
+    const b = el('button', 'hud-nav-btn', label);
+    b.dataset.nav = label;
+    navEl.appendChild(b);
   }
   root.appendChild(navEl);
 
@@ -117,7 +155,7 @@ export function buildUi(root: HTMLElement): UiRefs {
 
   const ui: UiRefs = {
     canvas, ctx, cw: 0, ch: 0,
-    clockEl, dateEl,
+    clockEl, dateEl, moneyEl, newsTickerEl, ghostCompanionWidgetEl,
     campaignCardEl, campaignChapterEl, campaignObjectiveEl, campaignPromptEl,
     barEls, promptEl, modalEl, joyZone, actionBtn, navEl, bannerEl,
     saveEl, lastIso: '', saveTimer: undefined,
@@ -141,6 +179,20 @@ export function updateHud(ui: UiRefs, w: WorldState, prompt: string): void {
   const day = dayIndexOf(w.time.tick);
   ui.clockEl.textContent = hhmmOfTick(w.time.tick);
   ui.dateEl.textContent = dateOf(day).label;
+  ui.moneyEl.textContent = `💰 ${w.player.money.toFixed(2)} €`;
+
+  if (w.macroNews && w.macroNews.feed[0]) {
+    ui.newsTickerEl.textContent = `📰 ${w.macroNews.feed[0].headline}`;
+  }
+
+  if (w.ghostCompanion) {
+    const emoji = w.ghostCompanion.activeGhostId === 'marx' ? '⚙️'
+      : w.ghostCompanion.activeGhostId === 'ostrom' ? '🌱'
+        : w.ghostCompanion.activeGhostId === 'taylor' ? '⏱️'
+          : '📊';
+    ui.ghostCompanionWidgetEl.textContent = `${emoji} « ${w.ghostCompanion.mood} »`;
+    ui.ghostCompanionWidgetEl.title = `${w.ghostCompanion.speechBubble} (Clique pour un conseil)`;
+  }
 
   const summary = getCampaignProgressSummary(w);
   ui.campaignChapterEl.textContent = summary.chapterLabel;
