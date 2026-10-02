@@ -101,6 +101,28 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
     s.version = 5;
     return s;
   },
+  // 5 → 6 : Atelier de la Friche (J5) — second projet avec Karim
+  5: (s) => {
+    if (s.workshop && typeof s.workshop === 'object') {
+      const ws = s.workshop as AnySave;
+      ws.id = ws.id ?? 'atelier_friche';
+      ws.active = ws.active ?? true;
+      ws.partner = ws.partner ?? 'karim';
+      ws.members = Array.isArray(ws.members) ? ws.members : ['karim'];
+      ws.partsStock = typeof ws.partsStock === 'number' ? ws.partsStock : 4;
+      ws.toolCondition = typeof ws.toolCondition === 'number' ? ws.toolCondition : 100;
+      ws.orders = Array.isArray(ws.orders) ? ws.orders : [];
+      ws.tariffMode = ws.tariffMode ?? 'standard';
+      ws.solidarityRate = typeof ws.solidarityRate === 'number' ? ws.solidarityRate : 0.20;
+      ws.solidarityFund = typeof ws.solidarityFund === 'number' ? ws.solidarityFund : 0;
+      ws.balance = typeof ws.balance === 'number' ? ws.balance : 0;
+      ws.ledger = Array.isArray(ws.ledger) ? ws.ledger : [];
+      ws.work = (typeof ws.work === 'object' && ws.work !== null) ? ws.work : { player: 0, karim: 0 };
+      ws.completedRepairsCount = typeof ws.completedRepairsCount === 'number' ? ws.completedRepairsCount : 0;
+    }
+    s.version = 6;
+    return s;
+  },
 };
 
 export const CURRENT_SAVE_VERSION = SAVE_VERSION;

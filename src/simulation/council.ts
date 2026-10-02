@@ -107,6 +107,12 @@ function giveAdvice(w: WorldState, def: GhostDef, st: GhostState, out: Notificat
     revealed: false,
     answered: false,
   });
+  // Éviction : garder au max 30 entrées, supprimer les plus anciennes déjà répondues en premier
+  const MAX_HISTORY = 30;
+  if (st.history.length > MAX_HISTORY) {
+    const answeredIdx = st.history.findIndex((r) => r.answered);
+    st.history.splice(answeredIdx >= 0 ? answeredIdx : 0, 1);
+  }
   st.lastWords = rec.text;
   st.nextAdviceDay = day + rngInt(w, 1, 3);
   pushEvent(w, {

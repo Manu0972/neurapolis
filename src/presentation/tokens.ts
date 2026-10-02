@@ -1,20 +1,35 @@
 /**
  * Tokens visuels cozy NEURAPOLIS — palette pixel-art chaleureuse.
- * Remplacement drop-in de l'ancienne palette néon sombre (#0a0e17).
- * Toutes les valeurs viennent de la palette core 32 (art/claude-assets-v1/palette/palette.json).
- * Mêmes clés que l'existant : aucun appelant à changer.
+ * Remplacement drop-in harmonisé avec la palette officielle 28 couleurs.
+ * Conforme au contrat : hygge 1800K (#ffd98a), contour (#2a1a14), ombres froides (#2c2540), kraft (#e8d6b0), bois (#8a5a3a).
  */
+import {
+  OUTLINE,
+  HYGGE_1800K,
+  SHADOW_COOL,
+  KRAFT_BG,
+  WOOD_WARM,
+  INK_WARM,
+  AUXILIARY_COLORS,
+} from './assets/palette';
+
 export const TOKENS = {
-  bg: '#2a1a14',      // brun chaud profond (contour) — remplace #0a0e17
-  panel: '#4a3220',   // panneaux
-  panel2: '#6b4a2f',  // second niveau / boutons
-  ink: '#f9ecd0',     // texte (crème)
-  inkDim: '#c8b9a0',  // texte secondaire
-  or: '#ffd98a',      // accent ~1900 K (fenêtre allumée)
-  vert: '#6fb06a',
-  rouge: '#c25a40',   // terracotta, jamais de rouge pur
-  bleu: '#7f9bd0',
-  violet: '#8e8a9a',  // gris-violet des ombres froides
-  cyan: '#7fa8c4',
+  bg: OUTLINE,            // brun chaud profond (#2a1a14) — jamais de noir pur
+  panel: '#4a3220',       // panneaux bois foncé
+  panel2: '#6b4a2f',      // second niveau / boutons bois moyen
+  ink: INK_WARM,          // texte ivoire chaud (#f9ecd0)
+  inkDim: AUXILIARY_COLORS.inkDim, // texte secondaire (#c8b9a0)
+  or: HYGGE_1800K,        // accent chaleureux ~1800K (#ffd98a)
+  vert: '#6fb06a',        // vert parc & végétation
+  rouge: '#c25a40',       // corail / terracotta (#c25a40)
+  bleu: '#7f9bd0',        // denim / bleu ardoise
+  violet: '#8e8a9a',      // gris-violet des ombres froides
+  cyan: '#73eff7',        // étincelle d'eau claire
+  kraft: KRAFT_BG,        // papier kraft naturel (#e8d6b0)
+  bois: WOOD_WARM,        // bois d'artisan (#8a5a3a)
+  shadow: SHADOW_COOL,    // teinte des ombres (#2c2540)
 } as const;
+
 export type TokenId = keyof typeof TOKENS;
+
+export { OUTLINE, HYGGE_1800K, SHADOW_COOL, KRAFT_BG, WOOD_WARM, INK_WARM };

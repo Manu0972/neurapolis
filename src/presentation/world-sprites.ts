@@ -1,6 +1,7 @@
 /** Petits sprites pixel-art du quartier, dessinés sur la grille logique. */
 import type { PlaceId } from '../core/types';
 import type { WorldPropId } from '../data/map';
+import { drawStreetLifeProp, type StreetPropKind } from './assets/environments/street-life';
 
 type Pixel = '.' | 'o' | 'd' | 'b' | 'B' | 'g' | 'G' | 'l' | 'L' | 't' | 'w' | 'W' | 'r' | 'R' | 'y' | 'Y' | 'p';
 interface PixelSprite { rows: readonly string[]; palette: Partial<Record<Pixel, string>> }
@@ -33,6 +34,16 @@ const LAMP: PixelSprite = {
     '................',
   ],
   palette: { Y: '#ffe0a0', y: '#ffbd5d', o: '#60463a', G: '#8a6240' },
+};
+const LAMP_OFF: PixelSprite = {
+  rows: [
+    '.......YYYY......', '......YyyyyY.....', '......YyYYyY.....',
+    '.......YYYY......', '........oo........', '........oo........',
+    '........oo........', '........oo........', '........oo........',
+    '........oo........', '.......oGGGo.......', '......oooooooo....',
+    '................',
+  ],
+  palette: { Y: '#7c7c88', y: '#60606a', o: '#60463a', G: '#8a6240' },
 };
 const FOUNTAIN: PixelSprite = {
   rows: [
@@ -80,20 +91,54 @@ function drawPixels(ctx: CanvasRenderingContext2D, sprite: PixelSprite, x: numbe
 
 export function drawWorldProp(
   ctx: CanvasRenderingContext2D,
-  prop: WorldPropId,
+  prop: WorldPropId | StreetPropKind,
   tileX: number,
   tileY: number,
   tileSize: number,
   now: number,
+  isDark = false,
 ): void {
   const x = tileX + tileSize / 2;
   const base = tileY + tileSize * 0.88;
   const scale = tileSize / 16;
+
+  if (
+    prop === 'boite_lettres' ||
+    prop === 'chat_muret' ||
+    prop === 'moineau' ||
+    prop === 'pigeon' ||
+    prop === 'flaque'
+  ) {
+    drawStreetLifeProp(ctx, x, base, prop, scale, now, isDark);
+    return;
+  }
+
+  // Lueur chaude du lampadaire allumé en soirée / nuit
+  if (prop === 'lampadaire' && isDark) {
+    const glow = ctx.createRadialGradient(x, base - scale * 10, 2, x, base - scale * 10, tileSize * 1.35);
+    glow.addColorStop(0, 'rgba(255,220,130,0.5)');
+    glow.addColorStop(0.5, 'rgba(255,180,80,0.18)');
+    glow.addColorStop(1, 'rgba(255,180,80,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, base - scale * 10, tileSize * 1.35, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   ctx.fillStyle = 'rgba(54,42,35,0.24)';
   ctx.beginPath();
   ctx.ellipse(x, base, tileSize * 0.34, tileSize * 0.08, 0, 0, Math.PI * 2);
   ctx.fill();
-  const sprite = prop === 'arbre' ? TREE : prop === 'banc' ? BENCH : prop === 'lampadaire' ? LAMP : prop === 'fontaine' ? FOUNTAIN : PLANTER;
+
+  const sprite = prop === 'arbre'
+    ? TREE
+    : prop === 'banc'
+      ? BENCH
+      : prop === 'lampadaire'
+        ? (isDark ? LAMP : LAMP_OFF)
+        : prop === 'fontaine'
+          ? FOUNTAIN
+          : PLANTER;
   drawPixels(ctx, sprite, x, base, scale);
 
   if (prop === 'fontaine') {

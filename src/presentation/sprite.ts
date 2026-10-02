@@ -137,3 +137,63 @@ export function drawShadow(
   ctx.ellipse(x, y, SPRITE_W * 0.4 * scale, 2.5 * scale, 0, 0, Math.PI * 2);
   ctx.fill();
 }
+
+/**
+ * Silhouette translucide d'un fantôme conseiller (Smith, Marx, Ostrom...)
+ * flottant en lévitation lorsqu'il murmure à l'oreille du joueur ou débat sur la place.
+ */
+export function drawGhostSilhouette(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  scale: number,
+  ghost: { id: string; name: string; color: string; emoji?: string },
+  t: number,
+  mode: 'murmure' | 'debat' = 'murmure',
+): void {
+  ctx.save();
+
+  // Flottement éthéré & pulsation spectrale
+  const floatY = Math.sin(t * 2.8) * (scale * 3);
+  const alpha = 0.55 + 0.15 * Math.sin(t * 3.5);
+  ctx.globalAlpha = Math.max(0.3, Math.min(0.85, alpha));
+
+  const gy = y - scale * 6 + floatY;
+
+  // Halo spectral doux autour du penseur
+  const aura = ctx.createRadialGradient(x, gy - scale * 10, 2, x, gy - scale * 10, SPRITE_W * scale * 1.5);
+  aura.addColorStop(0, `${ghost.color}88`);
+  aura.addColorStop(0.5, `${ghost.color}33`);
+  aura.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = aura;
+  ctx.beginPath();
+  ctx.arc(x, gy - scale * 10, SPRITE_W * scale * 1.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Dessin du corps fantomatique (palette translucide spectrale)
+  drawCharacter(
+    ctx,
+    x,
+    gy,
+    scale,
+    {
+      hair: ghost.color,
+      shirt: ghost.color,
+      skin: '#e8f4fc',
+      pants: '#2f3545',
+      shoes: '#1e2230',
+    },
+    t,
+    false,
+  );
+
+  // Bulle / onde de pensée au-dessus de la tête
+  ctx.font = `bold ${Math.max(7, Math.floor(scale * 4.2))}px monospace`;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = ghost.color;
+  const badge = mode === 'debat' ? `⚡ ${ghost.name}` : `« ${ghost.name} »`;
+  ctx.fillText(badge, x, gy - scale * 26);
+
+  ctx.restore();
+}
+

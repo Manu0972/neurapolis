@@ -4,7 +4,7 @@
  * pouvoir mentir et pouvoir souffrir.
  * Les apparitions sont PROGRESSIVES : déclencheur vécu par le joueur.
  */
-import type { FusionDef, GhostDef, WorldState } from '../../core/types';
+import type { FusionDef, GhostDef, GhostId, WorldState } from '../../core/types';
 import { GHOST_DEFS as GEN1_B_DEFS } from './gen1-b';
 import { GHOST_DEFS as GEN1_C_DEFS } from './gen1-c';
 import { GHOST_DEFS as GEN2_A_DEFS } from './gen2-a';
@@ -268,6 +268,10 @@ export const ALL_GHOST_IDS: string[] = [
 /** Toutes les fiches connues du moteur (G1, G2 et composites G3). */
 export const GHOST_DEFS_BY_ID: Record<string, GhostDef> =
   Object.fromEntries([...GHOST_DEFS, ...COMPOSITE_DEFS].map((g) => [g.id, g]));
+
+export function getGhostDef(id: GhostId): GhostDef | undefined {
+  return GHOST_DEFS_BY_ID[id];
+}
 
 /** Fusion signature de la slice : Smith + Ostrom = Le Marché des Communs (contrat M6). */
 export const FUSIONS: FusionDef[] = [

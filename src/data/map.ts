@@ -56,7 +56,7 @@ export interface Tile {
 }
 
 /** Mobilier fixe du quartier : les cases occupées sont aussi bloquées en jeu. */
-const DECORATIONS: readonly { x: number; y: number; id: WorldPropId }[] = [
+export const DECORATIONS: readonly { x: number; y: number; id: WorldPropId }[] = [
   { x: 18, y: 15, id: 'banc' },
   { x: 21, y: 14, id: 'lampadaire' },
   { x: 23, y: 15, id: 'fontaine' },

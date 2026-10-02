@@ -204,6 +204,50 @@ export interface ProjectState {
   lastForecast?: { expected: number; day: number };
 }
 
+// ---------- Atelier de la Friche (J5) ----------
+export type SolidarityTariff = 'solidaire' | 'standard' | 'soutien';
+export type RepairOrderStatus = 'disponible' | 'en_cours' | 'repare' | 'livre';
+
+export interface RepairOrder {
+  id: string;
+  clientNpc: NpcId;
+  clientName: string;
+  item: string;
+  description: string;
+  difficulty: 1 | 2 | 3;
+  partsRequired: number;
+  basePrice: number;
+  appliedTariff: SolidarityTariff;
+  finalPrice: number;
+  status: RepairOrderStatus;
+  receivedDay: number;
+  deadlineDay?: number;
+}
+
+export interface WorkshopState {
+  id: 'atelier_friche';
+  active: boolean;
+  partner: 'karim';
+  members: NpcId[];
+  partsStock: number;
+  toolCondition: number; // 0-100 % (100 = neuf, s'use à chaque réparation)
+  orders: RepairOrder[];
+  tariffMode: SolidarityTariff;
+  solidarityRate: number; // taux de prélèvement pour le fonds solidaire (ex 0.20)
+  solidarityFund: number; // montant de la réserve solidaire (€)
+  balance: number;        // caisse d'exploitation (€) — invariant : Σ(entrées − sorties) = balance
+  ledger: LedgerEntry[];
+  week: {
+    index: number;
+    revenue: number;
+    expenses: number;
+    repairsCount: number;
+    distributed: boolean;
+  };
+  work: Record<string, number>; // heures de travail investies ('player', 'karim')
+  completedRepairsCount: number;
+}
+
 // ---------- Territoire ----------
 export type Meteo = 'soleil' | 'nuages' | 'pluie';
 
@@ -333,6 +377,7 @@ export interface WorldState {
   npcs: Record<NpcId, NpcState>;
   council: CouncilState;
   project?: ProjectState;
+  workshop?: WorkshopState;
   district: DistrictState;
   rivals: Record<RivalId, RivalState>;
   campaign: CampaignState;

@@ -31,3 +31,11 @@ export function rngPick<T>(state: { rng: number }, arr: readonly T[]): T {
 export function makeSeed(n: number): number {
   return (n ^ 0x9e3779b9) | 0;
 }
+
+/** Factory mulberry32 créant un état PRNG déterministe encapsulé */
+export function mulberry32(seed: number): { rng: number } {
+  return { rng: makeSeed(seed) };
+}
+
+/** Alias pour rngNext */
+export const rngFloat = rngNext;

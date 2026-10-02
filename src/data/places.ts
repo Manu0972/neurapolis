@@ -54,6 +54,7 @@ export const PLACES: PlaceDef[] = [
     description: '38 hectares où l’usine tournait jour et nuit. Aujourd’hui : ronces, murs tagués et projets.',
     actions: [
       { id: 'explorer', label: 'Explorer la friche', needs: { fatigue: 10, moral: 5, stress: 5 }, skill: 'technique', xp: 1 },
+      { id: 'atelier', label: 'Atelier de réparation (Karim)' },
     ],
   },
   {

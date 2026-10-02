@@ -12,14 +12,48 @@
  *
  * Fallback : si les assets ne sont pas encore chargés, utilise le rendu procédural.
  */
-import type { PlaceId, WorldState } from '../core/types';
-import { MAP_H, MAP_W, tileAt } from '../data/map';
+import type { GhostId, PlaceId, WorldState } from '../core/types';
+import { DECORATIONS, MAP_H, MAP_W, tileAt } from '../data/map';
 import { minutesOfDay } from '../core/clock';
 import { NPC_BY_ID } from '../data/npcs';
 import { npcPosition } from '../simulation/npc';
 import { TOKENS } from './tokens';
-import { drawCharacter, drawShadow, SPRITE_W } from './sprite';
+import { drawCharacter, drawGhostSilhouette, drawShadow, SPRITE_W } from './sprite';
+import { drawWorldProp } from './world-sprites';
+import { GHOST_DEFS_BY_ID } from '../data/ghosts/registry';
 import { getAssetKit, type AssetKit } from './asset-loader';
+import {
+  type CamilleAge,
+  drawCamille,
+  drawResident,
+  drawSpectralGhost,
+  type SpectralGhostId,
+} from './assets/index';
+
+export interface RenderWorldOptions {
+  walkingEntities?: Record<string, boolean>;
+  whisperingGhosts?: GhostId[];
+  debatingGhosts?: GhostId[];
+  playerAge?: CamilleAge;
+}
+
+const entityMotionState = new Map<string, { lastX: number; lastY: number; lastMoveTime: number }>();
+
+function getEntityWalking(id: string, x: number, y: number, now: number, explicit?: boolean): boolean {
+  if (explicit !== undefined) return explicit;
+  const prev = entityMotionState.get(id);
+  if (!prev) {
+    entityMotionState.set(id, { lastX: x, lastY: y, lastMoveTime: 0 });
+    return false;
+  }
+  if (prev.lastX !== x || prev.lastY !== y) {
+    prev.lastX = x;
+    prev.lastY = y;
+    prev.lastMoveTime = now;
+    return true;
+  }
+  return (now - prev.lastMoveTime) < 450;
+}
 
 /* ── Constants ───────────────────────────────────────────────── */
 
@@ -145,6 +179,7 @@ function renderWithAssets(
   ch: number,
   now: number,
   kit: AssetKit,
+  options?: RenderWorldOptions,
 ): void {
   const { off, g } = getOffscreen();
   const cam = nativeCamera(w.player.pos.x, w.player.pos.y);
@@ -254,16 +289,13 @@ function renderWithAssets(
     g.drawImage(immeubleImg, bx, by);
   }
 
-  // 4. Props (décorations de la carte)
-  // TODO: itérer les tuiles 'decor' et placer les props PNG correspondants
-
-  // 5. Personnages triés par Y
-  interface RenderEntity {
-    id: string; name: string; x: number; y: number;
-    color: string; hair: string; isPlayer: boolean;
+  // 4 & 5. Props et personnages triés en profondeur Y (2.5D)
+  interface DepthItem {
+    sortY: number;
+    draw: (tg: CanvasRenderingContext2D) => void;
   }
+  const depthItems: DepthItem[] = [];
 
-  const entities: RenderEntity[] = [];
   const HAIRS = ['#6b4a2f', '#3a2c22', '#8a6240', '#2c2c33', '#a3542a'];
   const hairOf = (id: string): string => {
     let h = 0;
@@ -271,33 +303,138 @@ function renderWithAssets(
     return HAIRS[h % HAIRS.length]!;
   };
 
+  const s = TILE / SPRITE_W; // échelle sprite = 2 (32/16)
+
+  // PNJ
   for (const def of Object.values(NPC_BY_ID)) {
     const st = w.npcs[def.id];
     if (!st) continue;
     const p = npcPosition(w, def.id);
-    entities.push({ id: def.id, name: def.name, x: p.x, y: p.y, color: def.color, hair: hairOf(def.id), isPlayer: false });
-  }
-  entities.push({ id: 'player', name: w.player.name, x: w.player.pos.x, y: w.player.pos.y, color: TOKENS.or, hair: '#3a2c22', isPlayer: true });
-  entities.sort((a, b) => a.y - b.y);
-
-  const s = TILE / SPRITE_W; // échelle sprite = 2 (32/16)
-
-  for (const ent of entities) {
-    const cx = ent.x * TILE + TILE / 2 - cam.ox;
-    const cy = ent.y * TILE + TILE / 2 - cam.oy;
+    const cx = p.x * TILE + TILE / 2 - cam.ox;
+    const cy = p.y * TILE + TILE / 2 - cam.oy;
     if (cx < -TILE * 2 || cx > NATIVE_W + TILE * 2 || cy < -TILE * 2 || cy > NATIVE_H + TILE * 2) continue;
+    const isWalking = getEntityWalking(def.id, p.x, p.y, now, options?.walkingEntities?.[def.id]);
+    const hair = hairOf(def.id);
+    const sortY = p.y * TILE + TILE * 0.62;
 
-    drawShadow(g as unknown as CanvasRenderingContext2D, cx, cy + TILE * 0.12, s);
-    drawCharacter(g as unknown as CanvasRenderingContext2D, cx, cy + TILE * 0.12, s, { hair: ent.hair, shirt: ent.color }, now, false);
+    depthItems.push({
+      sortY,
+      draw: (tg) => {
+        drawShadow(tg, cx, cy + TILE * 0.12, s);
+        if (['noah', 'lina', 'bertin', 'samir', 'karim'].includes(def.id)) {
+          drawResident(tg, cx, cy + TILE * 0.12, s, def.id, now, isWalking);
+        } else {
+          drawCharacter(tg, cx, cy + TILE * 0.12, s, { hair, shirt: def.color }, now, isWalking);
+        }
+      },
+    });
+  }
 
-    if (ent.isPlayer) {
-      g.font = 'bold 8px monospace';
-      g.textAlign = 'center';
-      g.fillStyle = '#2a1a14';
-      g.fillText(ent.name, cx + 1, cy - TILE * 0.8 + 1);
-      g.fillStyle = TOKENS.or;
-      g.fillText(ent.name, cx, cy - TILE * 0.8);
+  // Joueur (Camille évolutif)
+  const pcx = w.player.pos.x * TILE + TILE / 2 - cam.ox;
+  const pcy = w.player.pos.y * TILE + TILE / 2 - cam.oy;
+  const pWalking = getEntityWalking('player', w.player.pos.x, w.player.pos.y, now, options?.walkingEntities?.['player']);
+  const pSortY = w.player.pos.y * TILE + TILE * 0.62;
+
+  const camilleAge: CamilleAge = options?.playerAge ?? (
+    w.player.age >= 16 ? '16' : w.player.age >= 14 ? '14' : '12'
+  );
+
+  depthItems.push({
+    sortY: pSortY,
+    draw: (tg) => {
+      drawShadow(tg, pcx, pcy + TILE * 0.12, s);
+      drawCamille(tg, pcx, pcy + TILE * 0.12, s, camilleAge, now, pWalking);
+      tg.font = 'bold 8px monospace';
+      tg.textAlign = 'center';
+      tg.fillStyle = '#2a1a14';
+      tg.fillText(w.player.name, pcx + 1, pcy - TILE * 0.8 + 1);
+      tg.fillStyle = TOKENS.or;
+      tg.fillText(w.player.name, pcx, pcy - TILE * 0.8);
+    },
+  });
+
+  // Props du décor (arbres, bancs, lampadaires allumés le soir, jardinières, fontaine)
+  for (const prop of DECORATIONS) {
+    const px = prop.x * TILE + TILE / 2 - cam.ox;
+    const py = prop.y * TILE + TILE * 0.88 - cam.oy;
+    if (px < -64 || px > NATIVE_W + 64 || py < -64 || py > NATIVE_H + 64) continue;
+    const sortY = prop.y * TILE + TILE * 0.88;
+
+    depthItems.push({
+      sortY,
+      draw: (tg) => {
+        if (prop.id === 'arbre' && kit.props['arbre']) {
+          tg.drawImage(kit.props['arbre'], Math.round(px - 22), Math.round(py - 60));
+        } else if (prop.id === 'banc' && kit.props['banc']) {
+          tg.drawImage(kit.props['banc'], Math.round(px - 20), Math.round(py - 22));
+        } else if (prop.id === 'lampadaire') {
+          const lampImg = isDark ? kit.props['lampadaire_on'] : kit.props['lampadaire_off'];
+          if (lampImg) {
+            tg.drawImage(lampImg, Math.round(px - 8), Math.round(py - 64));
+          } else {
+            drawWorldProp(tg, prop.id, prop.x * TILE - cam.ox, prop.y * TILE - cam.oy, TILE, now, isDark);
+          }
+        } else if (prop.id === 'jardiniere' && kit.props['jardiniere']) {
+          tg.drawImage(kit.props['jardiniere'], Math.round(px - 10), Math.round(py - 26));
+        } else {
+          drawWorldProp(tg, prop.id, prop.x * TILE - cam.ox, prop.y * TILE - cam.oy, TILE, now, isDark);
+        }
+      },
+    });
+  }
+
+  // Silhouettes translucides des fantômes conseillers (Smith, Marx, Ostrom...)
+  const whispering = options?.whisperingGhosts ?? [];
+  for (let i = 0; i < whispering.length; i++) {
+    const gid = whispering[i]!;
+    const gdef = GHOST_DEFS_BY_ID[gid];
+    if (!gdef) continue;
+    const gx = pcx + (i % 2 === 0 ? 22 : -22);
+    const gy = pcy - 4;
+    depthItems.push({
+      sortY: pSortY + (i % 2 === 0 ? 1 : -1),
+      draw: (tg) => {
+        if (['smith', 'marx', 'ostrom', 'keynes', 'taylor'].includes(gid)) {
+          drawSpectralGhost(tg, gx, gy, gid as SpectralGhostId, now, s, 'murmure');
+        } else {
+          drawGhostSilhouette(tg, gx, gy, s, gdef, now, 'murmure');
+        }
+      },
+    });
+  }
+
+  // Fantômes en débat citoyen ou mobilisation du conseil
+  const debating = options?.debatingGhosts ?? (
+    (w.flags['chapitre4ConseilMobilise'] ?? 0) > 0
+      ? (['smith', 'marx', 'ostrom'] as GhostId[]).filter((id) => w.council.ghosts[id]?.status === 'actif')
+      : []
+  );
+  if (debating.length > 0 && whispering.length === 0) {
+    for (let i = 0; i < debating.length; i++) {
+      const gid = debating[i]!;
+      const gdef = GHOST_DEFS_BY_ID[gid];
+      if (!gdef) continue;
+      const angle = (i / debating.length) * Math.PI * 2 + now * 0.0006;
+      const gx = pcx + Math.cos(angle) * 34;
+      const gy = pcy + Math.sin(angle) * 16 - 6;
+      depthItems.push({
+        sortY: pSortY + Math.sin(angle) * 16,
+        draw: (tg) => {
+          if (['smith', 'marx', 'ostrom', 'keynes', 'taylor'].includes(gid)) {
+            drawSpectralGhost(tg, gx, gy, gid as SpectralGhostId, now, s, 'debat');
+          } else {
+            drawGhostSilhouette(tg, gx, gy, s, gdef, now, 'debat');
+          }
+        },
+      });
     }
+  }
+
+  // Tri strict en profondeur Y
+  depthItems.sort((a, b) => a.sortY - b.sortY);
+  for (const item of depthItems) {
+    item.draw(g as unknown as CanvasRenderingContext2D);
   }
 
   // 6. Étalonnage couleur (grading multiply)
@@ -365,15 +502,16 @@ const LIGHT_SOURCES: ReadonlyArray<{ x: number; y: number; color: string; radius
 function drawAtmosphere(ctx: CanvasRenderingContext2D, w: WorldState, cam: Camera, cw: number, ch: number, now: number): void {
   const hour = minutesOfDay(w.time.tick) / 60;
   const night = hour < 5 ? 0.44 : hour < 7 ? 0.44 * (7 - hour) / 2 : hour >= 21 ? 0.44 : hour > 19 ? 0.44 * (hour - 19) / 2 : 0;
-  const dawn = hour >= 5 && hour < 7.5 ? 0.14 * Math.sin(((hour - 5) / 2.5) * Math.PI) : 0;
-  const golden = hour >= 17 && hour < 20 ? 0.16 * Math.sin(((hour - 17) / 3) * Math.PI) : 0;
+  const dawn = hour >= 5 && hour < 7.5 ? 0.16 * Math.sin(((hour - 5) / 2.5) * Math.PI) : 0;
+  const golden = hour >= 17 && hour < 20.5 ? 0.22 * Math.sin(((hour - 17) / 3.5) * Math.PI) : 0;
 
+  // 1. Nuit indigo chaleureuse
   if (night > 0) {
-    ctx.fillStyle = `rgba(8,14,38,${night})`;
+    ctx.fillStyle = `rgba(12, 20, 40, ${night})`;
     ctx.fillRect(0, 0, cw, ch);
     if (night > 0.25 && w.district.meteo === 'soleil') {
-      ctx.fillStyle = 'rgba(235,245,255,0.45)';
-      for (let i = 0; i < 28; i++) {
+      ctx.fillStyle = 'rgba(255, 235, 180, 0.55)';
+      for (let i = 0; i < 32; i++) {
         const starX = (i * 97 + 13) % cw;
         const starY = (i * 53 + 7) % Math.floor(ch * 0.4);
         const twinkle = (Math.sin(now * 0.003 + i) + 1) * 0.5;
@@ -381,9 +519,22 @@ function drawAtmosphere(ctx: CanvasRenderingContext2D, w: WorldState, cam: Camer
       }
     }
   }
-  if (dawn > 0) { ctx.fillStyle = `rgba(255,175,130,${dawn})`; ctx.fillRect(0, 0, cw, ch); }
-  if (golden > 0) { ctx.fillStyle = `rgba(255,148,65,${golden})`; ctx.fillRect(0, 0, cw, ch); }
 
+  // 2. Aube / Matin rosée douce
+  if (dawn > 0) {
+    ctx.fillStyle = `rgba(255, 175, 130, ${dawn})`;
+    ctx.fillRect(0, 0, cw, ch);
+  }
+
+  // 3. Crépuscule doré 1800K (Golden Hour hygge) avec ombres douces violettes
+  if (golden > 0) {
+    ctx.fillStyle = `rgba(255, 196, 120, ${golden * 0.85})`;
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.fillStyle = `rgba(44, 37, 64, ${golden * 0.22})`;
+    ctx.fillRect(0, Math.floor(ch * 0.4), cw, Math.ceil(ch * 0.6));
+  }
+
+  // 4. Halos lumineux radiaux 1800K pour les lanternes de nuit
   if (night > 0.05) {
     for (const light of LIGHT_SOURCES) {
       const lx = light.x * cam.ts - cam.ox;
@@ -392,45 +543,80 @@ function drawAtmosphere(ctx: CanvasRenderingContext2D, w: WorldState, cam: Camer
       const flicker = Math.sin(now * 0.004 + light.x * 5) * 0.08;
       const r = cam.ts * (light.radiusFactor + flicker);
       const glow = ctx.createRadialGradient(lx, ly, 2, lx, ly, r);
-      glow.addColorStop(0, `${light.color}${night * 0.52})`);
-      glow.addColorStop(0.5, `${light.color}${night * 0.20})`);
-      glow.addColorStop(1, `${light.color}0)`);
+      glow.addColorStop(0, `rgba(255, 217, 138, ${night * 0.58})`);
+      glow.addColorStop(0.5, `rgba(255, 180, 80, ${night * 0.22})`);
+      glow.addColorStop(1, 'rgba(255, 180, 80, 0)');
       ctx.fillStyle = glow;
       ctx.fillRect(lx - r, ly - r, r * 2, r * 2);
     }
   }
 
+  // 5. Brume matinale sur le canal (entre 5h et 9h30)
+  if (hour >= 5 && hour <= 9.5) {
+    const mistAlpha = hour < 7 ? 0.22 : 0.22 * (9.5 - hour) / 2.5;
+    ctx.fillStyle = `rgba(240, 248, 255, ${mistAlpha})`;
+    const mistPhase = now * 0.015;
+    for (let m = 0; m < 5; m++) {
+      const my = ch * 0.55 + m * 14 + Math.sin(mistPhase * 0.05 + m) * 6;
+      const mx = ((mistPhase * (10 + m * 3) + m * 80) % (cw + 120)) - 60;
+      ctx.beginPath();
+      ctx.ellipse(mx, my, 70 + m * 10, 10 + m * 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // 6. Météo dynamique
   if (w.district.meteo === 'nuages') {
-    ctx.fillStyle = 'rgba(32,44,64,0.14)';
+    ctx.fillStyle = 'rgba(32, 44, 64, 0.14)';
     ctx.fillRect(0, 0, cw, ch);
   } else if (w.district.meteo === 'pluie') {
-    ctx.fillStyle = 'rgba(28,42,62,0.22)';
+    ctx.fillStyle = 'rgba(28, 42, 62, 0.22)';
     ctx.fillRect(0, 0, cw, ch);
-    ctx.strokeStyle = 'rgba(205,228,250,0.28)';
+    ctx.strokeStyle = 'rgba(205, 228, 250, 0.32)';
     ctx.lineWidth = 1;
     const phase = now * 0.22;
     for (let i = 0; i < Math.ceil(cw / 16); i++) {
       const rx = (i * 43 + phase) % (cw + 24) - 12;
       const ry = (i * 79 + phase * 2.4) % ch;
-      ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx - 4, ry + 12); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(rx, ry);
+      ctx.lineTo(rx - 4, ry + 12);
+      ctx.stroke();
+
+      // Ondulation d'impact de goutte au sol
+      if (i % 3 === 0) {
+        ctx.strokeStyle = 'rgba(115, 239, 247, 0.25)';
+        ctx.beginPath();
+        const rip = (now * 0.04 + i * 2) % 4;
+        ctx.ellipse(rx - 4, ry + 12, rip * 1.5, rip * 0.5, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
   } else if (w.district.meteo === 'soleil') {
-    ctx.fillStyle = golden > 0 ? 'rgba(255,215,140,0.25)' : 'rgba(255,255,255,0.18)';
-    for (let i = 0; i < 14; i++) {
+    ctx.fillStyle = golden > 0 ? 'rgba(255, 215, 140, 0.25)' : 'rgba(255, 255, 255, 0.18)';
+    for (let i = 0; i < 16; i++) {
       const mx = ((now * 0.02 * (1 + i * 0.1) + i * 83) % (cw + 20)) - 10;
       const my = ((now * 0.01 * (1 + i * 0.05) + i * 127 + Math.sin(now * 0.002 + i) * 15) % ch);
       ctx.fillRect(mx, my, 2, 2);
     }
   }
 
+  // 7. Vignette douce
   const vig = ctx.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * 0.45, cw / 2, ch / 2, Math.max(cw, ch) * 0.75);
   vig.addColorStop(0, 'rgba(0,0,0,0)');
-  vig.addColorStop(1, 'rgba(0,0,0,0.28)');
+  vig.addColorStop(1, 'rgba(42, 26, 20, 0.28)');
   ctx.fillStyle = vig;
   ctx.fillRect(0, 0, cw, ch);
 }
 
-function renderFallback(ctx: CanvasRenderingContext2D, w: WorldState, cw: number, ch: number, now: number): void {
+function renderFallback(
+  ctx: CanvasRenderingContext2D,
+  w: WorldState,
+  cw: number,
+  ch: number,
+  now: number,
+  options?: RenderWorldOptions,
+): void {
   const cam = computeCamera(cw, ch, w.player.pos.x, w.player.pos.y);
   ctx.fillStyle = TOKENS.bg;
   ctx.fillRect(0, 0, cw, ch);
@@ -481,36 +667,132 @@ function renderFallback(ctx: CanvasRenderingContext2D, w: WorldState, cw: number
     }
   }
 
-  // Personnages
-  interface RE { id: string; name: string; x: number; y: number; color: string; hair: string; isPlayer: boolean }
-  const entities: RE[] = [];
+  // Props, personnages et fantômes triés en profondeur Y
+  interface DepthItem {
+    sortY: number;
+    draw: (c: CanvasRenderingContext2D) => void;
+  }
+  const depthItems: DepthItem[] = [];
+
   const HAIRS = ['#6b4a2f', '#3a2c22', '#8a6240', '#2c2c33', '#a3542a'];
   const hairOf = (id: string): string => { let h = 0; for (let i = 0; i < id.length; i++) h += id.charCodeAt(i); return HAIRS[h % HAIRS.length]!; };
 
+  const s = cam.ts / SPRITE_W;
+
+  // PNJ
   for (const def of Object.values(NPC_BY_ID)) {
     const st = w.npcs[def.id];
     if (!st) continue;
     const p = npcPosition(w, def.id);
-    entities.push({ id: def.id, name: def.name, x: p.x, y: p.y, color: def.color, hair: hairOf(def.id), isPlayer: false });
-  }
-  entities.push({ id: 'player', name: w.player.name, x: w.player.pos.x, y: w.player.pos.y, color: TOKENS.or, hair: '#3a2c22', isPlayer: true });
-  entities.sort((a, b) => a.y - b.y);
-
-  const s = cam.ts / SPRITE_W;
-  for (const ent of entities) {
-    const cx = ent.x * cam.ts + cam.ts / 2 - cam.ox;
-    const cy = ent.y * cam.ts + cam.ts / 2 - cam.oy;
+    const cx = p.x * cam.ts + cam.ts / 2 - cam.ox;
+    const cy = p.y * cam.ts + cam.ts / 2 - cam.oy;
     if (cx < -cam.ts * 2 || cx > cw + cam.ts * 2 || cy < -cam.ts * 2 || cy > ch + cam.ts * 2) continue;
-    drawShadow(ctx, cx, cy + cam.ts * 0.12, s);
-    drawCharacter(ctx, cx, cy + cam.ts * 0.12, s, { hair: ent.hair, shirt: ent.color }, now, false);
-    if (ent.isPlayer) {
-      ctx.font = `bold ${Math.max(10, Math.floor(cam.ts * 0.36))}px system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(0,0,0,0.85)';
-      ctx.fillText(ent.name, cx + 1, cy - cam.ts * 1.55 + 1);
-      ctx.fillStyle = TOKENS.or;
-      ctx.fillText(ent.name, cx, cy - cam.ts * 1.55);
+    const isWalking = getEntityWalking(def.id, p.x, p.y, now, options?.walkingEntities?.[def.id]);
+    const hair = hairOf(def.id);
+    const sortY = p.y * cam.ts + cam.ts * 0.62;
+
+    depthItems.push({
+      sortY,
+      draw: (c) => {
+        drawShadow(c, cx, cy + cam.ts * 0.12, s);
+        if (['noah', 'lina', 'bertin', 'samir', 'karim'].includes(def.id)) {
+          drawResident(c, cx, cy + cam.ts * 0.12, s, def.id, now, isWalking);
+        } else {
+          drawCharacter(c, cx, cy + cam.ts * 0.12, s, { hair, shirt: def.color }, now, isWalking);
+        }
+      },
+    });
+  }
+
+  // Joueur (Camille évolutif)
+  const pcx = w.player.pos.x * cam.ts + cam.ts / 2 - cam.ox;
+  const pcy = w.player.pos.y * cam.ts + cam.ts / 2 - cam.oy;
+  const pWalking = getEntityWalking('player', w.player.pos.x, w.player.pos.y, now, options?.walkingEntities?.['player']);
+  const pSortY = w.player.pos.y * cam.ts + cam.ts * 0.62;
+
+  const camilleAge: CamilleAge = options?.playerAge ?? (
+    w.player.age >= 16 ? '16' : w.player.age >= 14 ? '14' : '12'
+  );
+
+  depthItems.push({
+    sortY: pSortY,
+    draw: (c) => {
+      drawShadow(c, pcx, pcy + cam.ts * 0.12, s);
+      drawCamille(c, pcx, pcy + cam.ts * 0.12, s, camilleAge, now, pWalking);
+      c.font = `bold ${Math.max(10, Math.floor(cam.ts * 0.36))}px system-ui, sans-serif`;
+      c.textAlign = 'center';
+      c.fillStyle = 'rgba(42,26,20,0.85)';
+      c.fillText(w.player.name, pcx + 1, pcy - cam.ts * 1.55 + 1);
+      c.fillStyle = TOKENS.or;
+      c.fillText(w.player.name, pcx, pcy - cam.ts * 1.55);
+    },
+  });
+
+  // Props du décor (arbres, bancs, lampadaires allumés le soir, jardinières, fontaine)
+  for (const prop of DECORATIONS) {
+    const px = prop.x * cam.ts + cam.ts / 2 - cam.ox;
+    const py = prop.y * cam.ts + cam.ts * 0.88 - cam.oy;
+    if (px < -cam.ts * 3 || px > cw + cam.ts * 3 || py < -cam.ts * 3 || py > ch + cam.ts * 3) continue;
+    const sortY = prop.y * cam.ts + cam.ts * 0.88;
+
+    depthItems.push({
+      sortY,
+      draw: (c) => {
+        drawWorldProp(c, prop.id, prop.x * cam.ts - cam.ox, prop.y * cam.ts - cam.oy, cam.ts, now, isDark);
+      },
+    });
+  }
+
+  // Silhouettes translucides des fantômes conseillers (Smith, Marx, Ostrom...)
+  const whispering = options?.whisperingGhosts ?? [];
+  for (let i = 0; i < whispering.length; i++) {
+    const gid = whispering[i]!;
+    const gdef = GHOST_DEFS_BY_ID[gid];
+    if (!gdef) continue;
+    const gx = pcx + (i % 2 === 0 ? cam.ts * 0.9 : -cam.ts * 0.9);
+    const gy = pcy - cam.ts * 0.2;
+    depthItems.push({
+      sortY: pSortY + (i % 2 === 0 ? 1 : -1),
+      draw: (c) => {
+        if (['smith', 'marx', 'ostrom', 'keynes', 'taylor'].includes(gid)) {
+          drawSpectralGhost(c, gx, gy, gid as SpectralGhostId, now, s, 'murmure');
+        } else {
+          drawGhostSilhouette(c, gx, gy, s, gdef, now, 'murmure');
+        }
+      },
+    });
+  }
+
+  // Fantômes en débat citoyen ou mobilisation du conseil
+  const debating = options?.debatingGhosts ?? (
+    (w.flags['chapitre4ConseilMobilise'] ?? 0) > 0
+      ? (['smith', 'marx', 'ostrom'] as GhostId[]).filter((id) => w.council.ghosts[id]?.status === 'actif')
+      : []
+  );
+  if (debating.length > 0 && whispering.length === 0) {
+    for (let i = 0; i < debating.length; i++) {
+      const gid = debating[i]!;
+      const gdef = GHOST_DEFS_BY_ID[gid];
+      if (!gdef) continue;
+      const angle = (i / debating.length) * Math.PI * 2 + now * 0.0006;
+      const gx = pcx + Math.cos(angle) * (cam.ts * 1.2);
+      const gy = pcy + Math.sin(angle) * (cam.ts * 0.5) - cam.ts * 0.2;
+      depthItems.push({
+        sortY: pSortY + Math.sin(angle) * (cam.ts * 0.5),
+        draw: (c) => {
+          if (['smith', 'marx', 'ostrom', 'keynes', 'taylor'].includes(gid)) {
+            drawSpectralGhost(c, gx, gy, gid as SpectralGhostId, now, s, 'debat');
+          } else {
+            drawGhostSilhouette(c, gx, gy, s, gdef, now, 'debat');
+          }
+        },
+      });
     }
+  }
+
+  depthItems.sort((a, b) => a.sortY - b.sortY);
+  for (const item of depthItems) {
+    item.draw(ctx);
   }
 
   drawAtmosphere(ctx, w, cam, cw, ch, now);
@@ -524,11 +806,12 @@ export function renderWorld(
   cw: number,
   ch: number,
   now: number,
+  options?: RenderWorldOptions,
 ): void {
   const kit = getAssetKit();
   if (kit) {
-    renderWithAssets(ctx, w, cw, ch, now, kit);
+    renderWithAssets(ctx, w, cw, ch, now, kit, options);
   } else {
-    renderFallback(ctx, w, cw, ch, now);
+    renderFallback(ctx, w, cw, ch, now, options);
   }
 }

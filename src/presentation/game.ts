@@ -19,6 +19,14 @@ import {
   sellCustomerData, setPrice, setRepartitionMode, weeklyResult,
 } from '../simulation/project';
 import {
+  acceptOrder, buySalvageParts, createWorkshop, deliverOrder,
+  ledgerInvariantHolds as workshopLedgerInvariantHolds,
+  ledgerBalance as workshopLedgerBalance,
+  maintainTools, repairOrder, scavengeParts, setTariffMode,
+  workshopWeeklyDistribution,
+} from '../simulation/workshop';
+import { TARIFF_GRID, WORKSHOP_CONFIG } from '../data/workshop';
+import {
   councilAnswerAdvice, councilArrivalChoose, councilColumns, councilPendingArrivals,
   councilSleep, councilWake, ghostSignature, mobilizeCouncilForDebate,
 } from '../simulation/council';
@@ -44,7 +52,7 @@ import {
 } from '../data/texts';
 import { DATA_SALE, ECO_CHOICE, STAND_CONFIG } from '../data/project';
 import { dateOf } from '../core/clock';
-import type { CharacteristicsId, GhostId, NpcId, Notification, PlaceId, Rel4, RepartitionMode, SkillId, WorldState } from '../core/types';
+import type { CharacteristicsId, GhostId, NpcId, Notification, PlaceId, Rel4, RepartitionMode, SkillId, SolidarityTariff, WorldState } from '../core/types';
 import { ZERO_REL } from '../core/types';
 import { createInput } from './input';
 import { renderWorld } from './renderer';
@@ -63,6 +71,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   root.replaceChildren();
   const ui = buildUi(root);
   let modalOpen = false;
+  const deferredArrivals = new Set<string>();
   let last = performance.now();
   let acc = 0;
   let moveAcc = 0;
@@ -158,6 +167,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       btn.addEventListener('click', () => {
         if (place === 'place' && action.id === 'debat') {
           openUrbanDebate();
+          return;
+        }
+        if (place === 'friche' && action.id === 'atelier') {
+          openWorkshopModal();
           return;
         }
         const outcome = applyPlaceAction(world, place, action.id);
@@ -639,8 +652,17 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const p = world.project;
     const body = el('div', 'panel-body');
 
+    // Onglets de bascule entre projets économiques
+    const projTabs = el('div', 'reply-row');
+    const standBtn = el('button', 'btn btn-topic selected', 'Stand des Roses');
+    const atelierBtn = el('button', 'btn btn-topic', 'Atelier de la Friche (Karim)');
+    atelierBtn.addEventListener('click', openWorkshopModal);
+    projTabs.appendChild(standBtn);
+    projTabs.appendChild(atelierBtn);
+    body.appendChild(projTabs);
+
     if (!p || !p.active) {
-      body.appendChild(el('p', 'panel-desc', 'Pas encore de projet. Le quartier regorge d’idées : pourquoi pas un stand de goûters à la récré ?'));
+      body.appendChild(el('p', 'panel-desc', 'Pas encore de stand actif. Le quartier regorge d’idées : pourquoi pas un stand de goûters à la récré ?'));
       const btn = el('button', 'btn btn-action', 'Lancer le Stand des Roses');
       btn.addEventListener('click', () => {
         const r = createProject(world);
@@ -820,6 +842,184 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     showModal('Le Stand des Roses', 'stock · prix · équipe · comptes · répartition', body, true);
   }
 
+  // ---------- J5 : L’Atelier de la Friche (Karim Bensalah) ----------
+
+  function openWorkshopModal(): void {
+    const ws = world.workshop;
+    const body = el('div', 'panel-body');
+
+    // Onglets de bascule entre projets économiques
+    const projTabs = el('div', 'reply-row');
+    const standBtn = el('button', 'btn btn-topic', 'Stand des Roses');
+    standBtn.addEventListener('click', openProjet);
+    const atelierBtn = el('button', 'btn btn-topic selected', 'Atelier de la Friche (Karim)');
+    projTabs.appendChild(standBtn);
+    projTabs.appendChild(atelierBtn);
+    body.appendChild(projTabs);
+
+    if (!ws || !ws.active) {
+      body.appendChild(el('p', 'panel-desc',
+        'Karim Bensalah nettoie une carcasse de moteur dans la Friche : « Ici, y’a tout pour un atelier populaire. Il manque juste quelqu’un qui croit. »'));
+      const btn = el('button', 'btn btn-action', 'Créer l’Atelier de la Friche avec Karim');
+      btn.addEventListener('click', () => {
+        const r = createWorkshop(world);
+        btn.textContent = r.message;
+        btn.disabled = !r.ok;
+        if (r.ok) openWorkshopModal();
+      });
+      body.appendChild(btn);
+      showModal('Atelier de la Friche', 'projet économique & solidaire avec Karim', body, true);
+      return;
+    }
+
+    // Vue d'ensemble de l'Atelier
+    const summaryBox = el('div', 'ghost-detail');
+    summaryBox.appendChild(statRow('Caisse de l’atelier',
+      `${ws.balance.toFixed(2)} € (Livre : ${workshopLedgerBalance(ws).toFixed(2)} € · ${workshopLedgerInvariantHolds(ws) ? 'invariants vérifiés ✓' : 'divergence ⚠'})`));
+    summaryBox.appendChild(statRow('Fonds solidaire du quartier',
+      `${ws.solidarityFund.toFixed(2)} € (prélèvement solidaire : ${Math.round(ws.solidarityRate * 100)} %)`));
+    summaryBox.appendChild(statRow('Stock de pièces de rechange',
+      `${ws.partsStock} pièce(s) de récupération`));
+    summaryBox.appendChild(statRow('État des outils d’établi',
+      `${ws.toolCondition} % ${ws.toolCondition < WORKSHOP_CONFIG.minToolConditionForRepair ? '(trop usés pour réparer !)' : ''}`));
+    summaryBox.appendChild(statRow('Réparations achevées',
+      `${ws.completedRepairsCount} objets rendus aux habitants`));
+    body.appendChild(summaryBox);
+
+    // Actions rapides
+    body.appendChild(el('h3', 'panel-sub', 'Gestion & Approvisionnement'));
+    const quickActions = el('div', 'reply-row');
+
+    const scavengeBtn = el('button', 'btn btn-action', 'Fouiller la Friche (pièces)');
+    scavengeBtn.addEventListener('click', () => {
+      const r = scavengeParts(world);
+      scavengeBtn.textContent = r.message;
+      openWorkshopModal();
+    });
+    quickActions.appendChild(scavengeBtn);
+
+    const buyPartsBtn = el('button', 'btn btn-action', `Acheter lot de pièces (${WORKSHOP_CONFIG.partsBatchCost} € — 6 pièces)`);
+    buyPartsBtn.addEventListener('click', () => {
+      const r = buySalvageParts(world);
+      buyPartsBtn.textContent = r.message;
+      openWorkshopModal();
+    });
+    quickActions.appendChild(buyPartsBtn);
+
+    const maintainBtn = el('button', 'btn btn-action', `Réviser les outils (${WORKSHOP_CONFIG.maintenanceCost} € → 100 %)`);
+    maintainBtn.addEventListener('click', () => {
+      const r = maintainTools(world);
+      maintainBtn.textContent = r.message;
+      openWorkshopModal();
+    });
+    quickActions.appendChild(maintainBtn);
+    body.appendChild(quickActions);
+
+    // Grille tarifaire
+    body.appendChild(el('h3', 'panel-sub', 'Politique tarifaire'));
+    const tariffRow = el('div', 'reply-row');
+    for (const tKey of ['solidaire', 'standard', 'soutien'] as SolidarityTariff[]) {
+      const tDef = TARIFF_GRID[tKey];
+      const tBtn = el('button', 'btn btn-topic', tDef.label);
+      if (ws.tariffMode === tKey) tBtn.classList.add('selected');
+      tBtn.addEventListener('click', () => {
+        setTariffMode(world, tKey);
+        openWorkshopModal();
+      });
+      tariffRow.appendChild(tBtn);
+    }
+    body.appendChild(tariffRow);
+    body.appendChild(el('p', 'panel-note',
+      `${TARIFF_GRID[ws.tariffMode].description} (Alimente la caisse solidaire à hauteur de ${Math.round(TARIFF_GRID[ws.tariffMode].solidarityContributionFactor * 100)} %).`));
+
+    // Commandes
+    body.appendChild(el('h3', 'panel-sub', 'Commandes des habitants'));
+    const ordersList = el('div', 'journal-list');
+
+    const repaired = ws.orders.filter((o) => o.status === 'repare');
+    const pending = ws.orders.filter((o) => o.status === 'en_cours');
+    const available = ws.orders.filter((o) => o.status === 'disponible');
+
+    if (repaired.length > 0) {
+      ordersList.appendChild(el('h4', 'journal-title', 'Prêts pour livraison :'));
+      for (const ord of repaired) {
+        const art = el('article', 'journal-entry');
+        art.appendChild(el('p', 'panel-desc', `✦ ${ord.item} (${ord.clientName}) — Tarif : ${ord.finalPrice.toFixed(2)} € [${TARIFF_GRID[ord.appliedTariff].label}]`));
+        const delBtn = el('button', 'btn btn-reply', 'Livrer & Encaisser (+ part solidaire)');
+        delBtn.addEventListener('click', () => {
+          deliverOrder(world, ord.id);
+          openWorkshopModal();
+        });
+        art.appendChild(delBtn);
+        ordersList.appendChild(art);
+      }
+    }
+
+    if (pending.length > 0) {
+      ordersList.appendChild(el('h4', 'journal-title', 'En cours à l’établi :'));
+      for (const ord of pending) {
+        const art = el('article', 'journal-entry');
+        art.appendChild(el('p', 'panel-desc', `⚙ ${ord.item} (${ord.clientName}) — Pièces nécessaires : ${ord.partsRequired} · Difficulté : ${ord.difficulty}/3 · Tarif : ${ord.finalPrice.toFixed(2)} €`));
+        const repBtn = el('button', 'btn btn-action', `Réparer (${ord.partsRequired} pièces, −${ord.difficulty * 6 + 4} % usure)`);
+        repBtn.disabled = ws.partsStock < ord.partsRequired || ws.toolCondition < WORKSHOP_CONFIG.minToolConditionForRepair;
+        repBtn.addEventListener('click', () => {
+          repairOrder(world, ord.id);
+          openWorkshopModal();
+        });
+        art.appendChild(repBtn);
+        ordersList.appendChild(art);
+      }
+    }
+
+    if (available.length > 0) {
+      ordersList.appendChild(el('h4', 'journal-title', 'Commandes disponibles du quartier :'));
+      for (const ord of available) {
+        const art = el('article', 'journal-entry');
+        art.appendChild(el('p', 'panel-desc', `📥 ${ord.item} — Client : ${ord.clientName}. « ${ord.description} »`));
+        art.appendChild(el('p', 'panel-note', `Prix standard : ${ord.basePrice.toFixed(2)} € · Pièces requises : ${ord.partsRequired} · Difficulté : ${ord.difficulty}/3`));
+        const acceptRow = el('div', 'reply-row');
+        for (const t of ['solidaire', 'standard', 'soutien'] as SolidarityTariff[]) {
+          const calcPrice = (ord.basePrice * TARIFF_GRID[t].multiplier).toFixed(2);
+          const aBtn = el('button', 'btn btn-reply', `${TARIFF_GRID[t].label} (${calcPrice} €)`);
+          aBtn.addEventListener('click', () => {
+            acceptOrder(world, ord.id, t);
+            openWorkshopModal();
+          });
+          acceptRow.appendChild(aBtn);
+        }
+        art.appendChild(acceptRow);
+        ordersList.appendChild(art);
+      }
+    }
+    body.appendChild(ordersList);
+
+    // Grand Livre
+    body.appendChild(el('h3', 'panel-sub', `Grand Livre (Σ entrées−sorties = ${workshopLedgerBalance(ws).toFixed(2)} €)`));
+    const ledgerBox = el('div', 'journal-list');
+    for (const e of [...ws.ledger].reverse().slice(0, 10)) {
+      const art = el('article', 'journal-entry');
+      art.appendChild(el('p', 'panel-note', `${dateOf(e.day).label} — ${e.label} : ${e.amount >= 0 ? '+' : ''}${e.amount.toFixed(2)} €`));
+      ledgerBox.appendChild(art);
+    }
+    body.appendChild(ledgerBox);
+
+    // Répartition hebdomadaire
+    body.appendChild(el('h3', 'panel-sub', 'Répartition hebdomadaire des bénéfices'));
+    const distRow = el('div', 'reply-row');
+    for (const m of ['equite', 'egalite', 'incitation'] as RepartitionMode[]) {
+      const dBtn = el('button', 'btn btn-action', `Répartir (${m})`);
+      dBtn.addEventListener('click', () => {
+        const r = workshopWeeklyDistribution(world, m);
+        dBtn.textContent = r.message;
+        openWorkshopModal();
+      });
+      distRow.appendChild(dBtn);
+    }
+    body.appendChild(distRow);
+
+    showModal('L’Atelier de la Friche', 'réparations · outillage · pièces · comptabilité solidaire', body, true);
+  }
+
   // ---------- M4 : Le Conseil ----------
 
   function openArrivalScene(id: GhostId): void {
@@ -858,8 +1058,14 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       const next = councilPendingArrivals(world);
       if (next.length > 0) openArrivalScene(next[0] ?? '');
     });
+    const deferBtn = el('button', 'btn btn-reply', 'Accéder au Conseil (mettre en attente)');
+    deferBtn.addEventListener('click', () => {
+      deferredArrivals.add(id);
+      openConseil();
+    });
     choices.appendChild(listenBtn);
     choices.appendChild(refuseBtn);
+    choices.appendChild(deferBtn);
     body.appendChild(choices);
     showModal(`Une voix s’éveille — ${def.name}`, 'scène d’arrivée', body);
   }
@@ -1024,7 +1230,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       }
       if (st.status === 'actif') {
         const b = el('button', 'btn btn-action', 'Endormir cette voix (−1 loyauté/jour)');
-        b.addEventListener('click', () => selectGhost(gid, councilSleep(world, gid).message));
+        b.addEventListener('click', () => {
+          deferredArrivals.clear();
+          selectGhost(gid, councilSleep(world, gid).message);
+        });
         detail.appendChild(b);
       }
       if (st.status === 'endormi') {
@@ -1071,8 +1280,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   // ---------- Bandeau in-world (un fantôme parle) ----------
 
   let bannerUntil = 0;
+  let currentBannerGhost: GhostId | undefined = undefined;
   function showGhostBanner(n: Notification): void {
     const def = n.ghost ? GHOST_DEFS_BY_ID[n.ghost] : undefined;
+    currentBannerGhost = n.ghost;
     ui.bannerEl.textContent = n.text;
     ui.bannerEl.style.background = def ? `${def.color}22` : `${TOKENS.violet}22`;
     ui.bannerEl.style.borderColor = def?.color ?? TOKENS.violet;
@@ -1092,6 +1303,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (bannerUntil > 0 && now >= bannerUntil) {
       ui.bannerEl.classList.add('hidden');
       bannerUntil = 0;
+      currentBannerGhost = undefined;
     }
 
     if (!modalOpen) {
@@ -1104,7 +1316,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         openFusionScene();
       } else {
         // Scène d'arrivée : un fantôme attend le choix du joueur.
-        const pend = councilPendingArrivals(world);
+        const pend = councilPendingArrivals(world).filter((id) => !deferredArrivals.has(id));
         if (pend.length > 0) {
           openArrivalScene(pend[0] ?? '');
         } else {
@@ -1139,7 +1351,12 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       moveAcc = 0;
     }
 
-    renderWorld(ui.ctx, world, ui.cw, ui.ch, now);
+    const d = input.dir();
+    const isPlayerMoving = !world.player.asleep && (d.x !== 0 || d.y !== 0);
+    renderWorld(ui.ctx, world, ui.cw, ui.ch, now, {
+      walkingEntities: { player: isPlayerMoving },
+      whisperingGhosts: currentBannerGhost ? [currentBannerGhost] : undefined,
+    });
     updateHud(ui, world, promptText());
     requestAnimationFrame(frame);
   }

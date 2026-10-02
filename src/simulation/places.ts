@@ -22,6 +22,9 @@ export function applyPlaceAction(w: WorldState, placeId: PlaceId, actionId: stri
   if (placeId === 'place' && actionId === 'debat') {
     return { ok: false, message: 'Ouvre le débat citoyen pour choisir un projet et en voir le coût.' };
   }
+  if (placeId === 'friche' && actionId === 'atelier') {
+    return { ok: true, message: 'Accès à l’Atelier de la Friche.' };
+  }
   if (action.money !== undefined && w.player.money + action.money < 0) {
     return { ok: false, message: 'Pas assez d’argent pour ça.' };
   }
