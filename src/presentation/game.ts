@@ -56,7 +56,7 @@ import type { CharacteristicsId, GhostId, NpcId, Notification, PlaceId, Rel4, Re
 import { ZERO_REL } from '../core/types';
 import { createInput } from './input';
 import { renderWorld } from './renderer';
-import { buildUi, el, resizeCanvas, updateHud, showGhostAdvicePopup, MOOD_EMOTICONS, type UiRefs } from './ui';
+import { buildUi, el, escapeHtml, resizeCanvas, updateHud, showGhostAdvicePopup, MOOD_EMOTICONS, type UiRefs } from './ui';
 import { TOKENS } from './tokens';
 import { avatarElement } from './avatar';
 import { loadAssetKit } from './asset-loader';
@@ -672,7 +672,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
       nodePin.innerHTML = `
         <div style="font-size:11px;">${node.activeArrangement ? '✦' : node.unlocked ? '🔓' : '🔒'}</div>
-        <div style="font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85px;">${node.name.replace(/ \(.*\)/, '')}</div>
+        <div style="font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85px;">${escapeHtml(node.name.replace(/ \(.*\)/, ''))}</div>
         <div style="font-size:8px;color:${node.unlocked ? 'var(--or)' : 'var(--ink-muted)'};">${node.unlocked ? `${node.ourPresence}% part` : `${node.marketPotential}% pot.`}</div>
       `;
 
