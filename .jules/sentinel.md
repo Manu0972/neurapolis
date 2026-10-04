@@ -1,0 +1,4 @@
+## 2026-03-31 - DOM XSS in Custom UI Template Interpolation
+**Vulnerability:** Unescaped dynamic strings (`speaker`, `text`, `ghostName`, `mood`, `node.name`) interpolated directly into `innerHTML` template strings in `src/presentation/ui.ts` and `src/presentation/game.ts`.
+**Learning:** Because this project uses vanilla TypeScript and template strings to build UI markup without a framework like React or Svelte (which auto-escapes JSX values), dynamic properties injected into HTML strings are vulnerable to DOM-based XSS if user-controlled or external data contains HTML/JavaScript.
+**Prevention:** Always wrap non-static dynamic strings with `escapeHtml(...)` before inserting them into template strings passed to `.innerHTML`, or build DOM elements using standard DOM APIs (`textContent`, `createElement`).
