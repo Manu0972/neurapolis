@@ -1,24 +1,46 @@
-import git
+import subprocess
+import sys
+from datetime import datetime
 
-def sync_github():
-    try:
-        repo = git.Repo(search_parent_directories=True)
-        print("--- État du dépôt Git ---")
-        
-        # On ajoute uniquement les fichiers nécessaires et sûrs
-        repo.index.add(['agent_assistant.py', 'update_github.py', 'GUIDE-DA.md'])
-        print("Fichiers essentiels ajoutés à l'index.")
-        
-        commit_message = "Mise à jour : scripts et assistant NEURAPOLIS"
-        repo.index.commit(commit_message)
-        print(f"Commit effectué : '{commit_message}'")
-        
-        origin = repo.remote(name='origin')
-        origin.push()
-        print("--- Succès : Tout a été poussé sur GitHub avec succès ! ---")
-        
-    except Exception as e:
-        print(f"Erreur lors de la synchronisation Git : {e}")
+def exec_cmd(cmd):
+    res = subprocess.run(cmd, shell=True, text=True, capture_output=True)
+    if res.returncode != 0:
+        print(f"Erreur lors de l'exécution de : {cmd}")
+        print(res.stderr.strip())
+        return False
+    if res.stdout.strip():
+        print(res.stdout.strip())
+    return True
+
+def sync():
+    print("--- Synchronisation GitHub (NEURAPOLIS) ---")
+
+    # 1. Vérification des modifications locales
+    status = subprocess.run("git status --porcelain", shell=True, text=True, capture_output=True)
+    if not status.stdout.strip():
+        print("Aucune modification à synchroniser. Le dépôt est déjà à jour.")
+        return
+
+    # 2. Indexation de tous les fichiers
+    print("Indexation des fichiers modifiés...")
+    if not exec_cmd("git add -A"):
+        sys.exit(1)
+
+    # 3. Message de commit (horodaté par défaut)
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    msg = f"sync: mise à jour multi-agents ({timestamp})"
+
+    print(f"Commit : {msg}")
+    if not exec_cmd(f'git commit -m "{msg}"'):
+        sys.exit(1)
+
+    # 4. Envoi sur la branche distante
+    print("Envoi vers origin/main...")
+    if not exec_cmd("git push origin main"):
+        print("\nÉchec du push. Si des modifications existent en ligne, lance d'abord : git pull --rebase origin main")
+        sys.exit(1)
+
+    print("Synchronisation réussie.")
 
 if __name__ == "__main__":
-    sync_github()
+    sync()
