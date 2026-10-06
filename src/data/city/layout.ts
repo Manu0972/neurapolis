@@ -409,8 +409,24 @@ export function buildCityLayout(): CityLayout {
     props.push({ kind: 'fontaine', x: cx - 1, y: cy - 1, blocks: true });
     // Kiosque du marché : l'entrée du lieu « place ».
     special({ id: 'kiosque_marche', x: cx - 3, y: cy - 16, w: 6, d: 5, floors: 1, style: 'civique', roof: 'deux_pans', front: 's', label: 'Kiosque du marché', place: 'place' });
+    // Étals du marché : emplacements loués à la journée (premier pas après le stand).
+    // On se tient sur la tuile de l'étal pour vendre ; elle reste donc franchissable.
     for (let i = 0; i < 6; i++) {
-      props.push({ kind: 'etal', x: b.x + 12 + i * 9, y: cy + 12, blocks: true });
+      const x = b.x + 12 + i * 9;
+      const y = cy + 12;
+      props.push({ kind: 'etal', x, y, blocks: false });
+      unitCounter += 1;
+      units.push({
+        id: `etal_${i + 1}`,
+        address: `Étal n° ${i + 1}, place du Marché`,
+        street: 'Place du Marché',
+        district: 'centre',
+        sizeM2: 6,
+        baseRentPerDay: 4 + (i % 3),
+        footTraffic: streetTraffic('Place du Marché'),
+        door: { x, y },
+        buildingId: `etal_${i + 1}`,
+      });
     }
     for (const [dx, dy] of [[8, 8], [b.w - 9, 8], [8, 40], [b.w - 9, 40], [20, 20], [b.w - 21, 20]] as const) {
       props.push({ kind: 'arbre', x: b.x + dx, y: b.y + dy, blocks: true });

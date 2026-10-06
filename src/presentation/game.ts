@@ -63,6 +63,10 @@ import { loadAssetKit } from './asset-loader';
 import { audio, type AmbientLocation } from './audio';
 import { CityRenderer } from './city3d/CityRenderer';
 import { moveToTile } from '../simulation/movement';
+import { openPhone, type PhoneApp } from './phone';
+import { BUSINESS_TYPE_BY_ID, WHOLESALER_BY_ID } from '../data/economy';
+import { UNIT_BY_ID, ensureEconomy, pickUpOrder, pickupPoint, unloadAt, businessDoor } from '../simulation/economy';
+import { unitAt } from '../data/map';
 import { openDetailedInteriorModal } from './interiors';
 import { tileAt } from '../data/map';
 import { VENDOR_DEFS } from '../data/vendors';
@@ -95,6 +99,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   let acc = 0;
   let moveAcc = 0;
   let footstepAcc = 0;
+  let hudFrame = 0;
   let lastAdviceMood = '';
   let lastAdviceBubbleTime = 0;
 
@@ -222,10 +227,101 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     /** Capture du rendu 3D (QA) : fonctionne même fenêtre masquée. */
     snapshot: (opts?: { frames?: number; yaw?: number; pitch?: number; dist?: number; move?: { x: number; y: number }; running?: boolean }) =>
       renderer3D?.snapshot(world, ui.cw || 1280, ui.ch || 720, opts),
+    /** Leviers de QA (tests E2E) : mêmes chemins que le clavier, sans attendre une image. */
+    qa: {
+      interact: () => interact(),
+      prompt: () => promptText(),
+      phone: (app?: PhoneApp) => openPhoneUi(app),
+      units: () => Object.values(UNIT_BY_ID).map((u) => ({ id: u.id, door: u.door, address: u.address })),
+      pickup: (id: string) => pickupPoint(id),
+    },
   };
+
+  // ---------- Économie : interactions physiques et téléphone ----------
+
+  const ecoToastEl = el('div', 'eco-toast hidden', '');
+  root.appendChild(ecoToastEl);
+  let ecoToastTimer: number | undefined;
+  function toast(text: string, ok: boolean): void {
+    ecoToastEl.textContent = text;
+    ecoToastEl.classList.toggle('bad', !ok);
+    ecoToastEl.classList.remove('hidden');
+    window.clearTimeout(ecoToastTimer);
+    ecoToastTimer = window.setTimeout(() => ecoToastEl.classList.add('hidden'), 4200);
+    if (ok) audio.playUiClick();
+  }
+
+  function openPhoneUi(app: PhoneApp = 'commerces', focus?: { businessId?: string; unitId?: string }): void {
+    openPhone({
+      world,
+      showModal,
+      closeModal,
+      toast,
+      onChange: () => { syncSigns(); updateHud(ui, world, promptText()); },
+    }, app, focus);
+  }
+
+  const nearTile = (p: { x: number; y: number }, d = 3): boolean =>
+    Math.abs(world.player.pos.x - p.x) <= d && Math.abs(world.player.pos.y - p.y) <= d;
+
+  /** Action économique possible ici (déchargement, retrait, porte de local), la plus prioritaire d'abord. */
+  function economyActionHere(): { label: string; run: () => void } | null {
+    const e = ensureEconomy(world);
+    for (const b of Object.values(e.businesses)) {
+      const q = e.carried.filter((c) => c.businessId === b.id).reduce((s, c) => s + c.qty, 0);
+      if (q > 0 && nearTile(businessDoor(b))) {
+        return { label: `E — Décharger ${q} unités dans ${b.name}`, run: () => { const r = unloadAt(world, b.id); toast(r.message, r.ok); } };
+      }
+    }
+    for (const o of e.orders) {
+      if (o.status !== 'a_retirer') continue;
+      const pt = pickupPoint(o.wholesalerId);
+      if (pt && nearTile(pt)) {
+        const units = o.lines.reduce((s, l) => s + l.qty, 0);
+        return { label: `E — Charger les cartons (${units} unités, ${WHOLESALER_BY_ID[o.wholesalerId]?.name ?? ''})`, run: () => { const r = pickUpOrder(world, o.id); toast(r.message, r.ok); } };
+      }
+    }
+    const { x, y } = world.player.pos;
+    for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const unitId = unitAt(x + dx, y + dy);
+      if (!unitId) continue;
+      const u = UNIT_BY_ID[unitId]!;
+      const biz = Object.values(e.businesses).find((b) => b.unitId === unitId);
+      if (biz) return { label: `E — Gérer ${biz.name}`, run: () => openPhoneUi('commerces', { businessId: biz.id }) };
+      if (e.leases[unitId]) return { label: `E — Créer ton commerce (${u.address})`, run: () => openPhoneUi('immobilier', { unitId }) };
+      return { label: `E — ${u.buildingId.startsWith('etal_') ? 'Étal' : 'Local'} à louer : ${u.address}`, run: () => openPhoneUi('immobilier', { unitId }) };
+    }
+    return null;
+  }
+
+  // Enseignes : le nom du commerce remplace « À LOUER » dans la ville.
+  let signsKey = '';
+  function syncSigns(): void {
+    const e = world.economy;
+    if (!e || !renderer3D) return;
+    const key = JSON.stringify([Object.keys(e.leases), Object.values(e.businesses).map((b) => [b.unitId, b.name, b.open])]);
+    if (key === signsKey) return;
+    signsKey = key;
+    for (const u of Object.values(UNIT_BY_ID)) {
+      if (u.buildingId.startsWith('etal_')) continue;
+      const biz = Object.values(e.businesses).find((b) => b.unitId === u.id);
+      if (biz) renderer3D.setUnitSign(u.id, `${BUSINESS_TYPE_BY_ID[biz.typeId]?.icon ?? ''} ${biz.name}`, biz.open ? '#2f5d3a' : '#5b4a3a');
+      else if (e.leases[u.id]) renderer3D.setUnitSign(u.id, 'BIENTÔT OUVERT', '#6b4a1f');
+      else renderer3D.setUnitSign(u.id, 'À LOUER', '#5b5249');
+    }
+  }
+  syncSigns();
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'KeyP' && !modalOpen) {
+      e.preventDefault();
+      openPhoneUi();
+    }
+  });
 
   function promptText(): string {
     if (world.player.asleep) return '😴 Tu dors. La nuit passe…';
+    const eco = economyActionHere();
+    if (eco) return eco.label;
     const place = placeAtAdjacent(world);
     if (place) return `E — Entrer : ${PLACE_BY_ID[place]?.name ?? place}`;
     const near = npcsNearby(world, 2);
@@ -236,6 +332,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   function interact(): void {
     if (modalOpen) return;
     if (world.player.asleep) return;
+    const eco = economyActionHere();
+    if (eco) {
+      eco.run();
+      return;
+    }
     const place = placeAtAdjacent(world);
     if (place) {
       openPlacePanel(place);
@@ -1050,7 +1151,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   for (const b of ui.navEl.querySelectorAll('button')) {
     const nav = b.dataset.nav;
-    if (nav === 'Personnage') b.addEventListener('click', openPersonnage);
+    if (nav === '📱 Téléphone') b.addEventListener('click', () => openPhoneUi());
+    else if (nav === 'Personnage') b.addEventListener('click', openPersonnage);
     else if (nav === 'Relations') b.addEventListener('click', openRelations);
     else if (nav === 'Stratégie / Carte') b.addEventListener('click', openStrategieCarte);
     else if (nav === 'Entreprises & Rôles') b.addEventListener('click', openEntreprisesRoles);
@@ -2080,6 +2182,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       });
     }
 
+    if (++hudFrame % 30 === 0) syncSigns();
     updateHud(ui, world, promptText());
     requestAnimationFrame(frame);
   }

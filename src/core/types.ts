@@ -620,6 +620,8 @@ export interface GhostCompanionState {
 }
 
 // ---------- Monde ----------
+import type { EconomyState } from './economy_types';
+
 export interface WorldState {
   version: number;
   seed: number;
@@ -641,6 +643,8 @@ export interface WorldState {
   streetRecognition?: StreetRecognitionState;
   tutorials?: TutorialState;
   ghostCompanion?: GhostCompanionState;
+  /** Économie « Big Ambitions » : baux, commerces, employés, prêts (save v13). */
+  economy?: EconomyState;
   events: GameEvent[];        // journal des événements (cap 250)
   lifeJournal: LifeJournalEntry[];
   flags: Record<string, number>; // compteurs libres (ventes, conflits, prévisions ratées…)

@@ -213,14 +213,29 @@ export interface LoanState {
   termDays: number;
 }
 
+export type OrderStatus = 'en_livraison' | 'a_retirer' | 'livree';
+
 export interface PendingOrder {
   id: string;
   businessId: string;
   wholesalerId: string;
+  /** Quantités restant à livrer ou à retirer (diminuent au fil des retraits). */
   lines: { productId: string; qty: number; unitCost: number }[];
   orderDay: number;
+  /** Jour de livraison prévu (commandes livrées) ; jour de mise à disposition (retrait). */
   arrivalDay: number;
   total: number;
+  /** « a_retirer » : le joueur doit aller chercher les cartons chez le grossiste (logistique physique). */
+  status: OrderStatus;
+}
+
+/** Cartons portés par le joueur entre le grossiste et sa boutique. */
+export interface CarriedGoods {
+  orderId: string;
+  businessId: string;
+  productId: string;
+  qty: number;
+  unitCost: number;
 }
 
 export interface EconomyState {
@@ -233,6 +248,26 @@ export interface EconomyState {
   jobMarket: { refreshedDay: number; candidateIds: string[] };
   loans: LoanState[];
   orders: PendingOrder[];
+  /** Marchandises dans les bras (ou sur le diable) du joueur. */
+  carried: CarriedGoods[];
+  /** Unités transportables d'un coup : 40 à la main, davantage avec un diable ou un vélo-cargo. */
+  carryCapacity: number;
   /** Compteur monotone pour fabriquer des identifiants stables. */
   nextId: number;
+}
+
+/** État économique vide (nouvelle partie ou migration). `sandbox` débloque tout dès le départ. */
+export function createEconomyState(sandbox = false): EconomyState {
+  return {
+    sandbox,
+    leases: {},
+    businesses: {},
+    employees: {},
+    jobMarket: { refreshedDay: -1, candidateIds: [] },
+    loans: [],
+    orders: [],
+    carried: [],
+    carryCapacity: 40,
+    nextId: 1,
+  };
 }

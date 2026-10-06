@@ -19,6 +19,7 @@ import { multiVenturesDayTick } from './multi_ventures';
 import { schoolDayTick } from './school_life';
 import { checkStreetSynergiesAndEncounters } from './street_synergies';
 import { notify } from './events';
+import { economyTick } from './economy';
 import { saveToSlot } from '../saves/persist';
 
 // L'échec du stockage ne fait pas partie de WorldState : retenir l'alerte par monde évite le spam quotidien.
@@ -31,6 +32,7 @@ export function tickWorld(w: WorldState): TickOutput {
   const prevDay = dayIndexOf(w.time.tick);
   const prevWeek = weekIndexOf(prevDay);
 
+  const prevTick = w.time.tick;
   w.time.tick += 1;
 
   const day = dayIndexOf(w.time.tick);
@@ -48,6 +50,7 @@ export function tickWorld(w: WorldState): TickOutput {
   lifeTick(w);
   out.push(...councilTick(w));
   out.push(...checkStreetSynergiesAndEncounters(w));
+  out.push(...economyTick(w, prevTick));
 
   if (day !== prevDay) {
     out.push(...rivalDay(w));

@@ -13,8 +13,9 @@ import { INITIAL_ECONOMIC_HAZARDS, VENTURE_DEFS } from '../data/multi_ventures';
 import { MACRO_NEWS_TEMPLATES } from '../data/macro_news';
 import { INITIAL_TUTORIALS } from '../data/tutorials';
 import { PLACE_ANCHORS } from '../data/map';
+import { createEconomyState } from './economy_types';
 
-export const SAVE_VERSION = 12;
+export const SAVE_VERSION = 13;
 
 const SKILL_IDS: SkillId[] = ['negociation', 'comptabilite', 'communication', 'organisation', 'technique', 'recherche'];
 
@@ -22,7 +23,12 @@ export function rel(amitie: number, confiance: number, respect: number, rivalite
   return { amitie, confiance, respect, rivalite };
 }
 
-export interface CreateWorldOptions { seed?: number; playerName?: string }
+export interface CreateWorldOptions {
+  seed?: number;
+  playerName?: string;
+  /** Mode bac à sable : économie entièrement débloquée dès le départ (docs/VISION.md §4.2). */
+  sandbox?: boolean;
+}
 
 export function createWorld(opts: CreateWorldOptions = {}): WorldState {
   const seed = opts.seed ?? 20200901;
@@ -185,6 +191,7 @@ export function createWorld(opts: CreateWorldOptions = {}): WorldState {
     tutorials: {
       tutorials: structuredClone(INITIAL_TUTORIALS),
     },
+    economy: createEconomyState(opts.sandbox ?? false),
     ghostCompanion: {
       activeGhostId: 'smith',
       mood: 'curieux',

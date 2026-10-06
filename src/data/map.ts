@@ -74,6 +74,11 @@ for (const b of CITY.buildings) {
     }) as Tile);
   }
 }
+// Étals du marché : entrée d'un local sans bâtiment, sur la place pavée.
+for (const u of CITY.units) {
+  if (!u.buildingId.startsWith('etal_')) continue;
+  special.set(idx(u.door.x, u.door.y), Object.freeze({ kind: 'entree', surface: 'pave', unitId: u.id }) as Tile);
+}
 // 5. Mobilier bloquant.
 const PROP_AS_DECORATION: Partial<Record<CityPropKind, WorldPropId>> = {
   arbre: 'arbre', banc: 'banc', lampadaire: 'lampadaire', fontaine: 'fontaine', jardiniere: 'jardiniere',

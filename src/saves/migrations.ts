@@ -8,6 +8,7 @@ import {
 } from '../core/types';
 import { SAVE_VERSION } from '../core/store';
 import { PLACE_ANCHORS } from '../data/map';
+import { createEconomyState } from '../core/economy_types';
 import { INITIAL_RIVALS } from '../data/rivals';
 import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
 import { COUNTER_STRATEGIES } from '../data/rivals';
@@ -311,6 +312,12 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
     player.pos = { ...PLACE_ANCHORS.maison };
     s.player = player;
     s.version = 12;
+    return s;
+  },
+  // 12 → 13 : économie « Big Ambitions » (baux, commerces, employés, prêts) — état vide.
+  12: (s) => {
+    if (typeof s.economy !== 'object' || s.economy === null) s.economy = createEconomyState();
+    s.version = 13;
     return s;
   },
 };

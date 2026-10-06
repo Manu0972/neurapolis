@@ -199,6 +199,7 @@ export function buildUi(root: HTMLElement): UiRefs {
   const navEl = el('div', 'hud-nav');
   navEl.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;z-index:10;';
   const navLabels = [
+    '📱 Téléphone',
     'Personnage',
     'Relations',
     'Stratégie / Carte',

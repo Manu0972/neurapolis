@@ -78,9 +78,9 @@ describe('Ville — grille et lieux', () => {
     expect(ids.size).toBe(CITY.units.length);
     for (const u of CITY.units) {
       expect(unitAt(u.door.x, u.door.y)).toBe(u.id);
-      expect(u.sizeM2).toBeGreaterThan(60);
+      expect(u.sizeM2).toBeGreaterThan(u.buildingId.startsWith('etal_') ? 4 : 60);
       expect(u.baseRentPerDay).toBeGreaterThan(0);
-      expect(u.address).toMatch(/^\d+ /);
+      expect(u.address).toMatch(u.buildingId.startsWith('etal_') ? /^Étal n° \d+/ : /^\d+ /);
     }
     // L'avenue Jean-Jaurès est plus passante, donc plus chère au m², qu'une rue calme.
     const jaures = CITY.units.filter((u) => u.street === 'Avenue Jean-Jaurès');
