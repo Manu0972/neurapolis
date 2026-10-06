@@ -1119,23 +1119,34 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       box.appendChild(el('p', 'panel-desc',
         `Prix rival : ${rival.price.toFixed(2)} € · Stratégie : ${rival.strategy} · Agressivité : ${rival.aggressiveness}/100`));
 
-      const barRow = el('div', 'stat-row');
-      barRow.appendChild(el('span', 'stat-label', `Ta part : ${playerShare}% | Rival : ${rivalShare}%`));
-      const track = el('div', 'need-track');
-      const fill = el('div', 'need-fill');
-      fill.style.width = `${playerShare}%`;
-      fill.style.background = TOKENS.vert;
-      track.appendChild(fill);
-      barRow.appendChild(track);
-      box.appendChild(barRow);
+      const lastClosed = rival.marketObservation.lastClosed;
+      if (lastClosed) {
+        const observedPlayerShare = 100 - rival.marketShare;
+        const barRow = el('div', 'stat-row');
+        barRow.appendChild(el('span', 'stat-label', `Bilan du jour ${lastClosed.day} : toi ${observedPlayerShare}% | rival ${rival.marketShare}% (${lastClosed.sessions} sessions)`));
+        const track = el('div', 'need-track');
+        const fill = el('div', 'need-fill');
+        fill.style.width = `${observedPlayerShare}%`;
+        fill.style.background = TOKENS.vert;
+        track.appendChild(fill);
+        barRow.appendChild(track);
+        box.appendChild(barRow);
+      } else {
+        box.appendChild(el('p', 'panel-note', 'Aucune part mesurée pour l’instant : joue une session de vente puis laisse passer une journée.'));
+      }
+      box.appendChild(el('p', 'panel-note',
+        `Projection avant la prochaine vente : toi ${playerShare}% | rival ${rivalShare}%. Le bilan réel est recalculé après les sessions jouées.`));
 
       if (rival.id === 'drive_hyper') {
-        const impactText = rivalShare >= 65
+        const impactText = rival.marketShare >= 65
           ? '⚠ Le Drive écrase l’épicerie de Mme Bertin (−0,20/jour)'
-          : rivalShare >= 45
+          : rival.marketShare >= 45
             ? 'Équilibre fragile : l’épicerie résiste (−0,10/jour)'
             : '✓ Vos circuits courts protègent l’épicerie (+0,10/jour) !';
-        box.appendChild(el('p', 'panel-note', impactText));
+        const pressureSource = lastClosed
+          ? `Pression du quartier après le bilan du jour ${lastClosed.day} : `
+          : 'Pression de fond estimée, avant une première vente mesurée : ';
+        box.appendChild(el('p', 'panel-note', pressureSource + impactText));
       }
 
       body.appendChild(box);
@@ -1263,7 +1274,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
 
     // Récit narratif complet
-    body.appendChild(el('h3', 'panel-sub', 'La traversée de Camille (12 → 16 ans)'));
+    body.appendChild(el('h3', 'panel-sub', `La traversée de ${world.player.name} (12 → 16 ans)`));
     for (const para of epilogue.epilogueText.split('\n\n')) {
       body.appendChild(el('p', 'panel-desc', para));
     }

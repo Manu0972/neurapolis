@@ -90,11 +90,12 @@ export function createWorkshop(w: WorldState): WorkshopAction {
     ],
   });
 
+  const pName = w.player.name || 'Le joueur';
   w.lifeJournal.push({
     day,
     date: dateOf(day).iso,
     title: 'Ouverture de l’Atelier de la Friche',
-    text: `Camille et Karim ont posé les premiers outils à la Friche Taret. Les habitants pourront y faire réparer vélos, petit électroménager et matériel du quartier.`,
+    text: `${pName} et Karim ont posé les premiers outils à la Friche Taret. Les habitants pourront y faire réparer vélos, petit électroménager et matériel du quartier.`,
   });
 
   return { ok: true, message: 'L’Atelier de la Friche est ouvert avec Karim.' };
@@ -316,7 +317,7 @@ export function repairOrder(w: WorldState, orderId: string): WorkshopAction {
     text: `À l’établi, avec les conseils de Karim, vous avez remis en état « ${order.item} ». Consommation : ${order.partsRequired} pièce(s), usure outillage : −${toolWear} %.`,
     causes: [
       { facteur: 'pièces de récupération utilisées', seuil: String(order.partsRequired), poids: 2 },
-      { facteur: 'travail conjoint Camille et Karim', poids: 2 },
+      { facteur: `travail conjoint ${w.player.name} et Karim`, poids: 2 },
     ],
   });
 
@@ -428,7 +429,7 @@ export function workshopWeeklyDistribution(w: WorldState, mode: RepartitionMode 
     postWorkshop(w, `Rémunération hebdomadaire Karim (${mode})`, -karimShare);
   }
   if (playerShare > 0) {
-    postWorkshop(w, `Rémunération hebdomadaire Camille (${mode})`, -playerShare);
+    postWorkshop(w, `Rémunération hebdomadaire ${w.player.name} (${mode})`, -playerShare);
     w.player.money = round2(w.player.money + playerShare);
   }
 
@@ -443,7 +444,7 @@ export function workshopWeeklyDistribution(w: WorldState, mode: RepartitionMode 
 
   return {
     ok: true,
-    message: `Répartition effectuée : ${playerShare} € pour Camille, ${karimShare} € pour Karim (mode : ${mode}).`,
+    message: `Répartition effectuée : ${playerShare} € pour ${w.player.name}, ${karimShare} € pour Karim (mode : ${mode}).`,
   };
 }
 

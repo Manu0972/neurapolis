@@ -106,16 +106,17 @@ export function talkWithParents(w: WorldState): { ok: boolean; message: string; 
   const day = dayIndexOf(w.time.tick);
   sl.lastParentInteractionDay = day;
 
+  const pName = w.player.firstName || w.player.name || 'mon grand';
   let msg = '';
   if (sl.parentSentiment === 'tres_fier' || sl.parentSentiment === 'satisfait') {
-    msg = '« Camille, on est tellement fiers de toi ! Tu gères tes cours avec brio tout en montant de belles choses dans le quartier. Continue comme ça ! »';
+    msg = `« ${pName}, on est tellement fiers de toi ! Tu gères tes cours avec brio tout en montant de belles choses dans le quartier. Continue comme ça ! »`;
     w.player.needs.moral = Math.min(100, w.player.needs.moral + 15);
     w.player.characteristics.confiance = Math.min(100, w.player.characteristics.confiance + 3);
   } else if (sl.parentSentiment === 'neutre') {
     msg = '« On voit que tu travailles dur, mais fais attention à ne pas te surmener. Prends le temps de te reposer et mange un bon goûter. »';
     w.player.needs.moral = Math.min(100, w.player.needs.moral + 5);
   } else {
-    msg = '« Camille, on s’inquiète beaucoup… Tes professeurs nous ont signalé des absences et tes notes baissent. Promets-nous de réviser ce soir. »';
+    msg = `« ${pName}, on s’inquiète beaucoup… Tes professeurs nous ont signalé des absences et tes notes baissent. Promets-nous de réviser ce soir. »`;
     w.player.needs.stress = Math.max(0, w.player.needs.stress - 5);
   }
 

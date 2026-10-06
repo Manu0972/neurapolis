@@ -3,11 +3,13 @@
  * Aller-retour export/import JSON identique ; chaîne de migrations
  * v0 → v1 (météo) → v2 (champs du Conseil, M4) → v3 (affinités & fusions, M6).
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createWorld } from '../src/core/store';
-import { exportSave, importSave, inspectAutoSave, saveToSlot, deleteSlot } from '../src/saves/persist';
+import { exportSave, importSave, inspectAutoSave, saveToSlot, loadFromSlot, deleteSlot } from '../src/saves/persist';
 import { CURRENT_SAVE_VERSION, migrateSave } from '../src/saves/migrations';
 import { runTicks } from '../src/simulation/engine';
+import { buyStock, createProject } from '../src/simulation/project';
+import { MAX_PENDING_DELIVERIES } from '../src/core/types';
 
 interface SauvegardeBrute {
   version: number;
@@ -39,9 +41,40 @@ describe('sauvegarde — aller-retour export/import', () => {
     expect(JSON.parse(json)).toMatchObject({ version: CURRENT_SAVE_VERSION, seed: 42 });
     expect(exportSave(importSave(json))).toBe(json); // clé pour clé, ordre compris
   });
+
+  it('une partie P-PERSO en v10 se recharge par le chemin réel localStorage → loadFromSlot', () => {
+    const storage = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      get length() { return storage.size; },
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => { storage.set(key, value); },
+      removeItem: (key: string) => { storage.delete(key); },
+      key: (index: number) => [...storage.keys()][index] ?? null,
+    });
+
+    try {
+      const world = createWorld({ seed: 83, playerName: 'Samia Belkacem' });
+      world.player.firstName = 'Samia';
+      world.player.lastName = 'Belkacem';
+      world.player.gender = 'fille';
+      world.player.appearance = {
+        skinTone: 'ebene', hairColor: 'noir', hairStyle: 'couettes', outfitStyle: 'sportif', outfitColor: 'indigo',
+      };
+      saveToSlot('auto', world);
+
+      const resumed = loadFromSlot('auto');
+      expect(resumed.version).toBe(CURRENT_SAVE_VERSION);
+      expect(resumed.player).toMatchObject({
+        firstName: 'Samia', lastName: 'Belkacem', gender: 'fille', appearance: world.player.appearance,
+      });
+      expect(resumed.rivals).toEqual(world.rivals);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
-describe('sauvegarde — migration v0 → v7 (météo, Conseil, affinités, rivaux, atelier, extensions v7)', () => {
+describe('sauvegarde — migration v0 → v10 (météo, Conseil, rivaux, atelier et identité)', () => {
   it('une sauvegarde v0 sans météo migre jusqu’à CURRENT_SAVE_VERSION avec la météo par défaut « soleil »', () => {
     const raw = JSON.parse(exportSave(mondeVecu())) as SauvegardeBrute;
     raw.version = 0;
@@ -199,6 +232,169 @@ describe('sauvegarde — migration v4 → v6 (échéances de contre-stratégies 
     expect(migre.vendors).toBeDefined();
     expect(migre.schoolLife).toBeDefined();
     expect(migre.multiVentures).toBeDefined();
+  });
+});
+
+describe('sauvegarde — migration v7 → v9 (observations de marché)', () => {
+  it('ajoute un relevé de marché sûr aux anciens rivaux et préserve leur part initiale', () => {
+    const raw = JSON.parse(exportSave(mondeVecu())) as unknown as {
+      version: number;
+      time: { tick: number };
+      rivals: Record<string, { marketShare: number; marketObservation?: unknown }>;
+    };
+    raw.version = 7;
+    delete raw.rivals.drive_hyper!.marketObservation;
+    delete raw.rivals.distributeur_college!.marketObservation;
+    const currentDay = Math.floor(raw.time.tick / 144);
+
+    const migrated = migrateSave(raw);
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.rivals.drive_hyper.marketShare).toBe(65);
+    expect(migrated.rivals.drive_hyper.marketObservation).toEqual({
+      day: currentDay, playerUnitsSold: 0, rivalUnitsServed: 0, sessions: 0, lastClosed: null,
+    });
+  });
+
+  it('la migration v9 → v10 ajoute l’identité et l’apparence sans perdre le bilan rival', () => {
+    const raw = JSON.parse(exportSave(mondeVecu())) as Record<string, unknown> & {
+      player: Record<string, unknown>;
+      rivals: Record<string, { marketObservation: unknown }>;
+    };
+    raw.version = 9;
+    delete raw.player.firstName;
+    delete raw.player.lastName;
+    delete raw.player.gender;
+    delete raw.player.appearance;
+    raw.player.name = 'Amina Kone';
+    const driveHyper = raw.rivals['drive_hyper'];
+    if (driveHyper) {
+      driveHyper.marketObservation = {
+        day: 4, playerUnitsSold: 7, rivalUnitsServed: 9, sessions: 2,
+        lastClosed: { day: 3, playerUnitsSold: 5, rivalUnitsServed: 8, sessions: 1 },
+      };
+    }
+
+    const migrated = migrateSave(raw);
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.player).toMatchObject({
+      name: 'Amina Kone', firstName: 'Amina Kone', lastName: '', gender: 'non-binaire',
+      appearance: { skinTone: 'claire', hairColor: 'chatain', hairStyle: 'court', outfitStyle: 'ecolier', outfitColor: 'coral' },
+    });
+    expect(migrated.rivals['drive_hyper']?.marketObservation).toEqual(driveHyper?.marketObservation);
+  });
+
+  it('le round-trip garde les compteurs de transactions d’un jour actif', () => {
+    const world = mondeVecu();
+    world.rivals.drive_hyper.marketObservation = {
+      day: Math.floor(world.time.tick / 144), playerUnitsSold: 6, rivalUnitsServed: 8, sessions: 2, lastClosed: null,
+    };
+    expect(importSave(exportSave(world)).rivals.drive_hyper.marketObservation)
+      .toEqual(world.rivals.drive_hyper.marketObservation);
+  });
+
+  it('migra v8 sans inventer un bilan historique mesuré et préserve les compteurs du jour', () => {
+    const raw = JSON.parse(exportSave(mondeVecu())) as unknown as {
+      version: number;
+      rivals: Record<string, { marketObservation?: unknown }>;
+    };
+    raw.version = 8;
+    raw.rivals.drive_hyper!.marketObservation = {
+      day: 4, playerUnitsSold: 3, rivalUnitsServed: 5, sessions: 1,
+    };
+    const migrated = migrateSave(raw);
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.rivals.drive_hyper.marketObservation.lastClosed).toBeNull();
+    expect(migrated.rivals.drive_hyper.marketObservation).toMatchObject({
+      day: 4, playerUnitsSold: 3, rivalUnitsServed: 5, sessions: 1,
+    });
+  });
+
+  it('migre v9 vers v10 en ajoutant firstName, lastName, gender et appearance sans perte', () => {
+    const raw = JSON.parse(exportSave(mondeVecu())) as unknown as {
+      version: number;
+      player: {
+        name?: string;
+        firstName?: string;
+        lastName?: string;
+        gender?: string;
+        appearance?: unknown;
+      };
+    };
+    raw.version = 9;
+    raw.player.name = 'Morgane Legrand';
+    delete raw.player.firstName;
+    delete raw.player.lastName;
+    delete raw.player.gender;
+    delete raw.player.appearance;
+
+    const migrated = migrateSave(raw);
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.player.name).toBe('Morgane Legrand');
+    expect(migrated.player.firstName).toBe('Morgane Legrand');
+    expect(migrated.player.gender).toBe('non-binaire');
+    expect(migrated.player.appearance).toMatchObject({
+      skinTone: 'claire',
+      hairColor: 'chatain',
+      hairStyle: 'court',
+      outfitStyle: 'ecolier',
+      outfitColor: 'coral',
+    });
+  });
+});
+
+describe('sauvegarde — migration v10 → v11 (historique des commandes du Stand)', () => {
+  function mondeAvecStand(): ReturnType<typeof createWorld> {
+    const w = mondeVecu();
+    createProject(w);
+    w.player.money = 1000;
+    buyStock(w);
+    buyStock(w);
+    return w;
+  }
+
+  it('aller-retour : les commandes du Stand survivent à export/import', () => {
+    const w = mondeAvecStand();
+    const back = importSave(exportSave(w));
+    expect(back.version).toBe(CURRENT_SAVE_VERSION);
+    expect(back.project?.pendingDeliveries).toEqual(w.project?.pendingDeliveries);
+    expect(back.project?.pendingDeliveries).toHaveLength(2);
+    const ids = back.project?.pendingDeliveries?.map((d) => d.id) ?? [];
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('une sauvegarde v10 sans historique migre avec une liste vide', () => {
+    const raw = JSON.parse(exportSave(mondeAvecStand())) as { version: number; project: Record<string, unknown> };
+    raw.version = 10;
+    delete raw.project.pendingDeliveries;
+    const migrated = migrateSave(raw);
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.project?.pendingDeliveries).toEqual([]);
+  });
+
+  it('écarte les entrées corrompues et borne l’historique sans toucher la caisse', () => {
+    const w = mondeAvecStand();
+    const raw = JSON.parse(exportSave(w)) as { version: number; project: Record<string, unknown> };
+    const valide = { id: 'cmd', orderDay: 1, arrivalDay: 1, units: 20, cost: 15, supplier: 'Épicerie Bertin', delivered: true };
+    raw.version = 10;
+    raw.project.pendingDeliveries = [
+      null, { id: 3 }, 'texte',
+      ...Array.from({ length: MAX_PENDING_DELIVERIES + 5 }, (_, i) => ({ ...valide, id: `cmd_${i}` })),
+    ];
+    const migrated = migrateSave(raw);
+    const list = migrated.project?.pendingDeliveries ?? [];
+    expect(list).toHaveLength(MAX_PENDING_DELIVERIES);
+    expect(list[0]?.id).toBe('cmd_5');
+    expect(migrated.project?.balance).toBe(w.project?.balance);
+    expect(migrated.project?.stock).toBe(w.project?.stock);
+  });
+
+  it('buyStock garde l’historique borné à MAX_PENDING_DELIVERIES', () => {
+    const w = mondeAvecStand();
+    w.player.money = 100000;
+    for (let i = 0; i < MAX_PENDING_DELIVERIES + 3; i++) buyStock(w);
+    const list = w.project?.pendingDeliveries ?? [];
+    expect(list).toHaveLength(MAX_PENDING_DELIVERIES);
+    expect(new Set(list.map((d) => d.id)).size).toBe(MAX_PENDING_DELIVERIES);
   });
 });
 

@@ -124,7 +124,7 @@ export function createInteriorDiorama(placeId: PlaceId, roomId: string): Interio
 
   // 5. Nettoyage mémoire
   const dispose = (): void => {
-    roomGroup.traverse((obj) => {
+    roomGroup.traverse((obj: THREE.Object3D) => {
       if ((obj as THREE.Mesh).isMesh) {
         const mesh = obj as THREE.Mesh;
         if (mesh.geometry) {
@@ -132,9 +132,9 @@ export function createInteriorDiorama(placeId: PlaceId, roomId: string): Interio
         }
         if (mesh.material) {
           if (Array.isArray(mesh.material)) {
-            mesh.material.forEach((m) => m.dispose());
+            mesh.material.forEach((m: THREE.Material) => m.dispose());
           } else {
-            mesh.material.dispose();
+            (mesh.material as THREE.Material).dispose();
           }
         }
       }

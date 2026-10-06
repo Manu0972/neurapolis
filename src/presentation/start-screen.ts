@@ -1,8 +1,10 @@
 /** Écran d’accueil : reprise fiable de l’auto-sauvegarde ou nouvelle partie. */
 import { createWorld } from '../core/store';
+import { createCustomWorld } from '../core/player_customization';
 import type { WorldState } from '../core/types';
 import { inspectAutoSave, saveToSlot } from '../saves/persist';
 import { startGame } from './game';
+import { mountCharacterCreation } from './character-creator';
 
 function button(label: string, primary = false): HTMLButtonElement {
   const element = document.createElement('button');
@@ -65,14 +67,22 @@ export function mountStartScreen(root: HTMLElement): void {
   const fresh = button(savedWorld ? 'Nouvelle partie' : 'Commencer');
   fresh.addEventListener('click', () => {
     if (hasAutoSave && !window.confirm('La nouvelle partie remplacera la sauvegarde automatique existante. Continuer ?')) return;
-    const world = createWorld();
-    try {
-      saveToSlot('auto', world);
-    } catch {
-      status.textContent = 'La sauvegarde locale est indisponible. Tu peux jouer, mais la reprise automatique ne sera pas possible.';
-      status.classList.add('error');
-    }
-    startGame(root, world);
+    mountCharacterCreation(
+      root,
+      (customization) => {
+        const world: WorldState = createCustomWorld({ customization });
+        try {
+          saveToSlot('auto', world);
+        } catch {
+          status.textContent = 'La sauvegarde locale est indisponible. Tu peux jouer, mais la reprise automatique ne sera pas possible.';
+          status.classList.add('error');
+        }
+        startGame(root, world);
+      },
+      () => {
+        mountStartScreen(root);
+      }
+    );
   });
   card.appendChild(fresh);
 

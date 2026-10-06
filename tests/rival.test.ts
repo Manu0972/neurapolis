@@ -138,8 +138,11 @@ describe('Rivalité économique — réactions des rivaux & territoire', () => {
 
     const share = calculateMarketShares(w, 'place').playerShare;
     expect(share).toBeGreaterThanOrEqual(50);
+    w.project!.stock = 100;
+    runSalesSession(w, 'place');
 
     const initialPrice = w.rivals.drive_hyper.price;
+    w.time.tick = TICKS_PER_DAY;
     const notifs = rivalDay(w);
 
     expect(w.rivals.drive_hyper.strategy).toBe('prix_casse');
@@ -158,9 +161,13 @@ describe('Rivalité économique — réactions des rivaux & territoire', () => {
     buyStock(w);
     w.player.money = 50;
     executeCounterStrategy(w, 'circuit_court');
-    setPrice(w, 0.60);
+    setPrice(w, 0.50);
+    w.player.reputation = 100;
+    w.project!.stock = 100;
+    runSalesSession(w, 'place');
 
     const vitInitiale = w.district.vitaliteEpicerie;
+    w.time.tick = TICKS_PER_DAY;
     rivalDay(w);
     // Comme le Drive est contenu (<45% de part), l'épicerie ne s'effondre pas et reprend même de la vitalité
     expect(w.district.vitaliteEpicerie).toBeGreaterThanOrEqual(vitInitiale);
@@ -176,5 +183,49 @@ describe('Rivalité économique — réactions des rivaux & territoire', () => {
     const res = runSalesSession(w, 'place');
     expect(res.ok).toBe(true);
     expect(ledgerInvariantHolds(w.project!)).toBe(true);
+  });
+
+  it('clôture la part observée à partir des unités réellement vendues', () => {
+    const w = createWorld();
+    createProject(w);
+    buyStock(w);
+    setPrice(w, 0.5);
+    w.project!.stock = 100; // isoler le partage de marché d'une rupture de stock
+
+    const session = runSalesSession(w, 'place');
+    const observation = w.rivals.drive_hyper.marketObservation;
+    expect(session.ok).toBe(true);
+    expect(observation.sessions).toBe(1);
+    expect(observation.playerUnitsSold).toBe(session.sold);
+    expect(observation.rivalUnitsServed).toBeGreaterThan(0);
+
+    w.time.tick = TICKS_PER_DAY;
+    rivalDay(w);
+    const total = observation.playerUnitsSold + observation.rivalUnitsServed;
+    expect(w.rivals.drive_hyper.marketShare).toBeCloseTo(observation.rivalUnitsServed / total * 100, 2);
+    expect(w.rivals.drive_hyper.marketObservation.lastClosed).toMatchObject({
+      day: 0,
+      playerUnitsSold: session.sold,
+      rivalUnitsServed: observation.rivalUnitsServed,
+      sessions: 1,
+    });
+    expect(w.events.some((event) => event.title === 'Bilan du marché : Drive HyperVal')).toBe(true);
+  });
+
+  it('ne fait pas réagir un rival sur une projection si aucune vente réelle n’a eu lieu', () => {
+    const w = createWorld();
+    createProject(w);
+    buyStock(w);
+    w.project!.stock = 100;
+    setPrice(w, 0.5);
+    const initialPrice = w.rivals.drive_hyper.price;
+    expect(calculateMarketShares(w, 'place').playerShare).toBeGreaterThanOrEqual(50);
+
+    w.time.tick = TICKS_PER_DAY;
+    rivalDay(w);
+    expect(w.rivals.drive_hyper.price).toBe(initialPrice);
+    expect(w.rivals.drive_hyper.reactionCooldown).toBe(0);
+    expect(w.rivals.drive_hyper.marketObservation.lastClosed).toBeNull();
+    expect(w.events.some((event) => event.title.includes('Guerre des prix'))).toBe(false);
   });
 });

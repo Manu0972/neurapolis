@@ -293,41 +293,94 @@ export function resizeCanvas(ui: UiRefs, root: HTMLElement): void {
   }
 }
 
+interface HudCache {
+  clock?: string;
+  date?: string;
+  money?: string;
+  headline?: string;
+  companionKey?: string;
+  campaignKey?: string;
+  needsKey?: string;
+  prompt?: string;
+}
+
+const hudCache = new WeakMap<UiRefs, HudCache>();
+
 export function updateHud(ui: UiRefs, w: WorldState, prompt: string): void {
+  let cache = hudCache.get(ui);
+  if (!cache) {
+    cache = {};
+    hudCache.set(ui, cache);
+  }
+
   const day = dayIndexOf(w.time.tick);
-  ui.clockEl.textContent = hhmmOfTick(w.time.tick);
-  ui.dateEl.textContent = dateOf(day).label;
-  ui.moneyEl.textContent = `💰 ${w.player.money.toFixed(2)} €`;
+  const clockStr = hhmmOfTick(w.time.tick);
+  if (cache.clock !== clockStr) {
+    ui.clockEl.textContent = clockStr;
+    cache.clock = clockStr;
+  }
+
+  const dateStr = dateOf(day).label;
+  if (cache.date !== dateStr) {
+    ui.dateEl.textContent = dateStr;
+    cache.date = dateStr;
+  }
+
+  const moneyStr = `💰 ${w.player.money.toFixed(2)} €`;
+  if (cache.money !== moneyStr) {
+    ui.moneyEl.textContent = moneyStr;
+    cache.money = moneyStr;
+  }
 
   if (w.macroNews && w.macroNews.feed[0]) {
-    ui.newsTickerEl.textContent = `📰 ${w.macroNews.feed[0].headline}`;
+    const headlineStr = `📰 ${w.macroNews.feed[0].headline}`;
+    if (cache.headline !== headlineStr) {
+      ui.newsTickerEl.textContent = headlineStr;
+      cache.headline = headlineStr;
+    }
   }
 
   if (w.ghostCompanion) {
-    const emoticon = MOOD_EMOTICONS[w.ghostCompanion.mood] ?? '🧐';
-    const ghostId = w.ghostCompanion.activeGhostId;
-    const def = ghostId ? GHOST_DEFS_BY_ID[ghostId] : undefined;
-    const ghostName = def?.name ?? 'Conseiller';
-    ui.ghostCompanionWidgetEl.innerHTML = `<span style="font-size:13px;display:inline-block;animation:ghostFloatLevitation 2s ease-in-out infinite;">${emoticon}</span> <span>${ghostName}</span> <span style="opacity:0.85;font-size:10px;">« ${w.ghostCompanion.mood} »</span>`;
-    ui.ghostCompanionWidgetEl.title = `${w.ghostCompanion.speechBubble ?? ''} (Clique pour un conseil)`;
+    const companionKey = `${w.ghostCompanion.activeGhostId}_${w.ghostCompanion.mood}_${w.ghostCompanion.speechBubble}`;
+    if (cache.companionKey !== companionKey) {
+      cache.companionKey = companionKey;
+      const emoticon = MOOD_EMOTICONS[w.ghostCompanion.mood] ?? '🧐';
+      const ghostId = w.ghostCompanion.activeGhostId;
+      const def = ghostId ? GHOST_DEFS_BY_ID[ghostId] : undefined;
+      const ghostName = def?.name ?? 'Conseiller';
+      ui.ghostCompanionWidgetEl.innerHTML = `<span style="font-size:13px;display:inline-block;animation:ghostFloatLevitation 2s ease-in-out infinite;">${emoticon}</span> <span>${ghostName}</span> <span style="opacity:0.85;font-size:10px;">« ${w.ghostCompanion.mood} »</span>`;
+      ui.ghostCompanionWidgetEl.title = `${w.ghostCompanion.speechBubble ?? ''} (Clique pour un conseil)`;
+    }
   }
 
   const summary = getCampaignProgressSummary(w);
-  ui.campaignChapterEl.textContent = summary.chapterLabel;
-  ui.campaignObjectiveEl.textContent = summary.title;
-  ui.campaignPromptEl.textContent = summary.prompt;
-
-  for (const id of NEED_IDS) {
-    const fill = ui.barEls[id].querySelector<HTMLElement>('.need-fill');
-    if (!fill) continue;
-    const v = w.player.needs[id];
-    fill.style.width = `${Math.round(v)}%`;
-    fill.dataset.level = v > 70 ? 'high' : v < 30 ? 'low' : 'ok';
+  const campaignKey = `${summary.chapterLabel}_${summary.title}_${summary.prompt}`;
+  if (cache.campaignKey !== campaignKey) {
+    cache.campaignKey = campaignKey;
+    ui.campaignChapterEl.textContent = summary.chapterLabel;
+    ui.campaignObjectiveEl.textContent = summary.title;
+    ui.campaignPromptEl.textContent = summary.prompt;
   }
-  ui.promptEl.textContent = prompt;
-  ui.promptEl.classList.toggle('hidden', prompt === '');
-  // Indicateur de l'auto-sauvegarde de fin de journée (l'UI lit l'état, la
-  // sauvegarde elle-même vit dans la simulation — engine.ts).
+
+  const needsKey = `${Math.round(w.player.needs.fatigue)}_${Math.round(w.player.needs.faim)}_${Math.round(w.player.needs.stress)}_${Math.round(w.player.needs.moral)}`;
+  if (cache.needsKey !== needsKey) {
+    cache.needsKey = needsKey;
+    for (const id of NEED_IDS) {
+      const fill = ui.barEls[id]?.querySelector<HTMLElement>('.need-fill');
+      if (!fill) continue;
+      const v = w.player.needs[id];
+      fill.style.width = `${Math.round(v)}%`;
+      fill.dataset.level = v > 70 ? 'high' : v < 30 ? 'low' : 'ok';
+    }
+  }
+
+  if (cache.prompt !== prompt) {
+    cache.prompt = prompt;
+    ui.promptEl.textContent = prompt;
+    ui.promptEl.classList.toggle('hidden', prompt === '');
+  }
+
+  // Indicateur de l'auto-sauvegarde de fin de journée
   const iso = dateOf(day).iso;
   if (ui.lastIso !== '' && iso !== ui.lastIso) {
     ui.saveEl.classList.remove('hidden');

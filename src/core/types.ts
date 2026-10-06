@@ -39,6 +39,35 @@ export interface Needs { fatigue: number; faim: number; stress: number; moral: n
 
 export interface Skill { level: 0 | 1 | 2 | 3; xp: number }
 
+/** Apparence persistée du joueur, choisie à la création de partie. */
+export type PlayerGender = 'fille' | 'garcon' | 'non-binaire';
+export type PlayerSkinTone = 'claire' | 'chaude' | 'doree' | 'ebene';
+export type PlayerHairColor = 'brun' | 'chatain' | 'blond' | 'roux' | 'noir';
+export type PlayerHairStyle = 'court' | 'mi-long' | 'boucle' | 'tresse' | 'couettes';
+export type PlayerOutfitStyle = 'ecolier' | 'artisan' | 'sportif' | 'citoyen';
+export type PlayerOutfitColor = 'denim' | 'coral' | 'vert' | 'ocre' | 'indigo';
+export interface PlayerAppearance {
+  skinTone: PlayerSkinTone;
+  hairColor: PlayerHairColor;
+  hairStyle: PlayerHairStyle;
+  outfitStyle: PlayerOutfitStyle;
+  outfitColor: PlayerOutfitColor;
+}
+/** Valeurs permises — source unique pour la création de personnage et les migrations. */
+export const VALID_GENDERS: readonly PlayerGender[] = ['fille', 'garcon', 'non-binaire'];
+export const VALID_SKIN_TONES: readonly PlayerSkinTone[] = ['claire', 'chaude', 'doree', 'ebene'];
+export const VALID_HAIR_COLORS: readonly PlayerHairColor[] = ['brun', 'chatain', 'blond', 'roux', 'noir'];
+export const VALID_HAIR_STYLES: readonly PlayerHairStyle[] = ['court', 'mi-long', 'boucle', 'tresse', 'couettes'];
+export const VALID_OUTFIT_STYLES: readonly PlayerOutfitStyle[] = ['ecolier', 'artisan', 'sportif', 'citoyen'];
+export const VALID_OUTFIT_COLORS: readonly PlayerOutfitColor[] = ['denim', 'coral', 'vert', 'ocre', 'indigo'];
+export const DEFAULT_PLAYER_APPEARANCE: PlayerAppearance = {
+  skinTone: 'claire',
+  hairColor: 'chatain',
+  hairStyle: 'court',
+  outfitStyle: 'ecolier',
+  outfitColor: 'coral',
+};
+
 /** Apprentissage en 4 étapes (Bible §5) : 1 découverte, 2 explication, 3 application, 4 maîtrise. */
 export type NotionStage = 1 | 2 | 3 | 4;
 export interface Notion { id: string; stage: NotionStage; applications: number }
@@ -49,6 +78,10 @@ export const ZERO_REL: Rel4 = { amitie: 0, confiance: 0, respect: 0, rivalite: 0
 
 export interface Player {
   name: string;
+  firstName: string;
+  lastName: string;
+  gender: PlayerGender;
+  appearance: PlayerAppearance;
   age: number;
   characteristics: Characteristics;
   needs: Needs;
@@ -184,6 +217,9 @@ export interface LedgerEntry { day: number; date: string; label: string; amount:
 
 export type RepartitionMode = 'egalite' | 'equite' | 'incitation';
 
+/** Historique de commandes conservé dans la sauvegarde (les plus récentes). */
+export const MAX_PENDING_DELIVERIES = 50;
+
 export interface ProjectState {
   id: 'stand_des_roses';
   active: boolean;
@@ -202,6 +238,9 @@ export interface ProjectState {
   work: Record<string, number>;
   /** Prévision de demande en attente, comparée à la prochaine session (déclencheur Simon). */
   lastForecast?: { expected: number; day: number };
+  /** Commandes logistiques (Big Ambitions), bornées aux MAX_PENDING_DELIVERIES plus récentes (save v11). */
+  // Champ optionnel : les ateliers créés hors du Stand n'ont pas de commandes.
+  pendingDeliveries?: Array<{ id: string; orderDay: number; arrivalDay: number; units: number; cost: number; supplier: string; delivered: boolean }>;
 }
 
 // ---------- Atelier de la Friche (J5) ----------
@@ -309,6 +348,21 @@ export type RivalId = 'drive_hyper' | 'distributeur_college';
 
 export type RivalStrategy = 'prix_casse' | 'campagne_com' | 'fidelite' | 'standard';
 
+/** Résultat des transactions d'un lieu pendant une journée de marché. */
+export interface RivalMarketObservation {
+  day: number;
+  playerUnitsSold: number;
+  rivalUnitsServed: number;
+  sessions: number;
+  /** Dernière journée réellement observée; null tant qu'aucune session n'a été clôturée. */
+  lastClosed: {
+    day: number;
+    playerUnitsSold: number;
+    rivalUnitsServed: number;
+    sessions: number;
+  } | null;
+}
+
 export interface RivalState {
   id: RivalId;
   name: string;
@@ -320,6 +374,8 @@ export interface RivalState {
   strategy: RivalStrategy;
   activeCounterActions: ActiveCounterAction[]; // contre-stratégies actives et date d'expiration (jour exclusif)
   reactionCooldown: number;  // jours avant prochaine réaction tactique
+  /** Unités réellement vendues par le joueur; le rival sert la demande restante (stock abstrait illimité). */
+  marketObservation: RivalMarketObservation;
 }
 
 export interface ActiveCounterAction {

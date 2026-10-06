@@ -1,5 +1,7 @@
 # Coordination entre agents — NEURAPOLIS
 
+> **ARCHIVE (2026-10-07, session E — Claude Code).** Le run `dwfrun-ccb08c38` est terminé et ses réservations sont libérées (voir `.zcode/coordination/BOARD.md`, ligne A). Les chiffres ci-dessous (« 180 tests ») datent du 1er octobre : la référence actuelle est 34 fichiers / 503 tests. **Toute réservation, tout message et tout handoff se fait désormais uniquement dans `.zcode/coordination/BOARD.md`.**
+
 > **Boîte aux lettres partagée.** Toute session (agent) travaillant sur ce projet lit ce fichier AU DÉBUT et y écrit ce qu'elle fait. Dernière mise à jour : 2026-10-01 18:40 (session principale glm, « Producteur »).
 
 ## Qui fait quoi maintenant

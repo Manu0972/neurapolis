@@ -2,7 +2,10 @@
  * Chaîne de migrations de sauvegardes — non destructive, versionnée, testée.
  * Règle : chaque changement de schéma => version +1 et un migrateur ici.
  */
-import type { WorldState } from '../core/types';
+import {
+  DEFAULT_PLAYER_APPEARANCE, MAX_PENDING_DELIVERIES, VALID_GENDERS, VALID_HAIR_COLORS, VALID_HAIR_STYLES,
+  VALID_OUTFIT_COLORS, VALID_OUTFIT_STYLES, VALID_SKIN_TONES, type WorldState,
+} from '../core/types';
 import { SAVE_VERSION } from '../core/store';
 import { INITIAL_RIVALS } from '../data/rivals';
 import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
@@ -196,6 +199,108 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
       unlockedThinkers: ['smith'],
     };
     s.version = 7;
+    return s;
+  },
+  // 7 → 8 : observation quotidienne des ventes par lieu pour une concurrence fondée sur les transactions
+  7: (s) => {
+    const initial = structuredClone(INITIAL_RIVALS) as unknown as Record<string, AnySave>;
+    const rivals = (s.rivals ?? {}) as Record<string, AnySave>;
+    const time = s.time as AnySave | undefined;
+    const day = dayIndexOf(Number(time?.tick ?? 0));
+    for (const [id, defaultRival] of Object.entries(initial)) {
+      const rival = rivals[id] ?? defaultRival;
+      const observation = rival.marketObservation;
+      if (typeof observation !== 'object' || observation === null) {
+        rival.marketObservation = { day, playerUnitsSold: 0, rivalUnitsServed: 0, sessions: 0, lastClosed: null };
+      } else {
+        const market = observation as AnySave;
+        rival.marketObservation = {
+          day: typeof market.day === 'number' ? market.day : day,
+          playerUnitsSold: typeof market.playerUnitsSold === 'number' ? market.playerUnitsSold : 0,
+          rivalUnitsServed: typeof market.rivalUnitsServed === 'number' ? market.rivalUnitsServed : 0,
+          sessions: typeof market.sessions === 'number' ? market.sessions : 0,
+          lastClosed: null,
+        };
+      }
+      rivals[id] = rival;
+    }
+    s.rivals = rivals;
+    s.version = 8;
+    return s;
+  },
+  // 8 → 9 : séparer la période en cours du dernier bilan réellement clôturé
+  8: (s) => {
+    const rivals = (s.rivals ?? {}) as Record<string, AnySave>;
+    const time = s.time as AnySave | undefined;
+    const day = dayIndexOf(Number(time?.tick ?? 0));
+    for (const rival of Object.values(rivals)) {
+      const raw = rival.marketObservation as AnySave | undefined;
+      rival.marketObservation = {
+        day: typeof raw?.day === 'number' ? raw.day : day,
+        playerUnitsSold: typeof raw?.playerUnitsSold === 'number' ? raw.playerUnitsSold : 0,
+        rivalUnitsServed: typeof raw?.rivalUnitsServed === 'number' ? raw.rivalUnitsServed : 0,
+        sessions: typeof raw?.sessions === 'number' ? raw.sessions : 0,
+        lastClosed: null,
+      };
+    }
+    s.rivals = rivals;
+    s.version = 9;
+    return s;
+  },
+  // 9 → 10 : identité et apparence persistées à la création du personnage
+  9: (s) => {
+    const player = (s.player ?? {}) as AnySave;
+    const name = typeof player.name === 'string' && player.name.trim() ? player.name.trim() : 'Camille';
+    player.firstName = typeof player.firstName === 'string' && player.firstName.trim()
+      ? player.firstName.trim()
+      : name;
+    player.lastName = typeof player.lastName === 'string' ? player.lastName.trim() : '';
+
+    player.gender = typeof player.gender === 'string' && (VALID_GENDERS as readonly string[]).includes(player.gender)
+      ? player.gender
+      : 'non-binaire';
+
+    const sourceAppearance = typeof player.appearance === 'object' && player.appearance !== null
+      ? player.appearance as AnySave
+      : {};
+    player.appearance = {
+      skinTone: typeof sourceAppearance.skinTone === 'string' && (VALID_SKIN_TONES as readonly string[]).includes(sourceAppearance.skinTone)
+        ? sourceAppearance.skinTone
+        : DEFAULT_PLAYER_APPEARANCE.skinTone,
+      hairColor: typeof sourceAppearance.hairColor === 'string' && (VALID_HAIR_COLORS as readonly string[]).includes(sourceAppearance.hairColor)
+        ? sourceAppearance.hairColor
+        : DEFAULT_PLAYER_APPEARANCE.hairColor,
+      hairStyle: typeof sourceAppearance.hairStyle === 'string' && (VALID_HAIR_STYLES as readonly string[]).includes(sourceAppearance.hairStyle)
+        ? sourceAppearance.hairStyle
+        : DEFAULT_PLAYER_APPEARANCE.hairStyle,
+      outfitStyle: typeof sourceAppearance.outfitStyle === 'string' && (VALID_OUTFIT_STYLES as readonly string[]).includes(sourceAppearance.outfitStyle)
+        ? sourceAppearance.outfitStyle
+        : DEFAULT_PLAYER_APPEARANCE.outfitStyle,
+      outfitColor: typeof sourceAppearance.outfitColor === 'string' && (VALID_OUTFIT_COLORS as readonly string[]).includes(sourceAppearance.outfitColor)
+        ? sourceAppearance.outfitColor
+        : DEFAULT_PLAYER_APPEARANCE.outfitColor,
+    };
+    s.player = player;
+    s.version = 10;
+    return s;
+  },
+  // 10 → 11 : historique des commandes du Stand (pendingDeliveries), validé et borné
+  10: (s) => {
+    const project = s.project as AnySave | undefined;
+    if (typeof project === 'object' && project !== null) {
+      const raw = Array.isArray(project.pendingDeliveries) ? project.pendingDeliveries as unknown[] : [];
+      const valid = raw.filter((d): d is AnySave =>
+        typeof d === 'object' && d !== null
+        && typeof (d as AnySave).id === 'string'
+        && typeof (d as AnySave).orderDay === 'number'
+        && typeof (d as AnySave).arrivalDay === 'number'
+        && typeof (d as AnySave).units === 'number'
+        && typeof (d as AnySave).cost === 'number'
+        && typeof (d as AnySave).supplier === 'string'
+        && typeof (d as AnySave).delivered === 'boolean');
+      project.pendingDeliveries = valid.slice(-MAX_PENDING_DELIVERIES);
+    }
+    s.version = 11;
     return s;
   },
 };

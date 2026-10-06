@@ -13,6 +13,156 @@ import { npcPosition } from '../simulation/npc';
 import { TOKENS, HYGGE_1800K } from './tokens';
 import { GHOST_DEFS_BY_ID } from '../data/ghosts/registry';
 import { createInteriorDiorama, type InteriorDiorama } from './interiors3d';
+import { drawCharacter, SPRITE_W, SPRITE_H, type SpriteColors } from './sprite';
+
+/**
+ * Empreintes au sol et hauteurs de référence des bâtiments pour la 3D
+ * Épicerie 2.6 m, Collège 3.2 m, Maison 3.6 m, Toit +0.5 m, Linteau porte 1.7 m
+ */
+export interface BuildingFootprint {
+  placeId: PlaceId;
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  doorX: number;
+  doorY: number;
+  wallHeight: number;
+  roofHeight: number;
+}
+
+export const BUILDING_FOOTPRINTS: readonly BuildingFootprint[] = [
+  { placeId: 'college', minX: 2, maxX: 14, minY: 2, maxY: 8, doorX: 8, doorY: 8, wallHeight: 3.2, roofHeight: 3.7 },
+  { placeId: 'epicerie', minX: 20, maxX: 26, minY: 3, maxY: 7, doorX: 23, doorY: 7, wallHeight: 2.6, roofHeight: 3.1 },
+  { placeId: 'maison', minX: 33, maxX: 43, minY: 10, maxY: 15, doorX: 38, doorY: 15, wallHeight: 3.6, roofHeight: 4.1 },
+];
+
+export function getBuildingFootprintAt(x: number, y: number): BuildingFootprint | null {
+  for (const b of BUILDING_FOOTPRINTS) {
+    if (x >= b.minX && x <= b.maxX && y >= b.minY && y <= b.maxY) {
+      return b;
+    }
+  }
+  return null;
+}
+
+import type { PlayerAppearance } from '../core/player_customization';
+
+/**
+ * Convertit la personnalisation d'apparence du joueur en palette pour sprite pixel-art
+ */
+export function getPlayerColors(appearance?: PlayerAppearance): SpriteColors {
+  if (!appearance) {
+    return {
+      skin: '#ffc496',
+      hair: '#6b4a2f',
+      shirt: '#3a6ca8',
+      pants: '#4a5a7a',
+      shoes: '#3a2a20',
+    };
+  }
+
+  const skinMap: Record<string, string> = {
+    claire: '#ffc496',
+    chaude: '#f5af7e',
+    doree: '#d89558',
+    ebene: '#7a4d32',
+  };
+
+  const hairMap: Record<string, string> = {
+    brun: '#4a3220',
+    chatain: '#6b4a2f',
+    blond: '#e8c85c',
+    roux: '#c25a30',
+    noir: '#241a18',
+  };
+
+  const outfitMap: Record<string, string> = {
+    denim: '#3a6ca8',
+    coral: '#f48c5d',
+    vert: '#559e50',
+    ocre: '#d49b42',
+    indigo: '#2c3e6b',
+  };
+
+  const pantsMap: Record<string, string> = {
+    ecolier: '#4a5a7a',
+    artisan: '#6b4a2f',
+    sportif: '#241a18',
+    citoyen: '#3a4050',
+  };
+
+  return {
+    skin: skinMap[appearance.skinTone] ?? '#ffc496',
+    hair: hairMap[appearance.hairColor] ?? '#6b4a2f',
+    shirt: outfitMap[appearance.outfitColor] ?? '#3a6ca8',
+    pants: pantsMap[appearance.outfitStyle] ?? '#4a5a7a',
+    shoes: '#3a2a20',
+  };
+}
+
+export function getNpcColors(id: string, color: string): SpriteColors {
+  const hairMap: Record<string, string> = {
+    noah: '#6b4a2f',
+    lina: '#4a3220',
+    bertin: '#a09890',
+    samir: '#241a18',
+    karim: '#3a2a20',
+    yasmine: '#241a18',
+    monique: '#a09890',
+    alex: '#6b4a2f',
+  };
+  return {
+    hair: hairMap[id] ?? '#4a3220',
+    shirt: color,
+    skin: '#ffc496',
+    pants: '#4a5a7a',
+    shoes: '#3a2a20',
+  };
+}
+
+/**
+ * Génère les 6 frames d'animation pixel-art (2 idle, 4 marche) en textures Three.js
+ */
+export function generateSpriteTextures(colors: SpriteColors): THREE.Texture[] {
+  if (typeof document === 'undefined') return [];
+  const testCanvas = document.createElement('canvas');
+  if (!testCanvas || typeof testCanvas.getContext !== 'function') return [];
+  const testCtx = testCanvas.getContext('2d');
+  if (!testCtx) return [];
+
+  const textures: THREE.Texture[] = [];
+  const scale = 2;
+  const w = SPRITE_W * scale;
+  const h = SPRITE_H * scale;
+
+  const frameConfigs = [
+    { walking: false, t: 0 },
+    { walking: false, t: 0.7 },
+    { walking: true, t: 0.0 },
+    { walking: true, t: 0.17 },
+    { walking: true, t: 0.34 },
+    { walking: true, t: 0.51 },
+  ];
+
+  for (const cfg of frameConfigs) {
+    const frameCanvas = document.createElement('canvas');
+    frameCanvas.width = w;
+    frameCanvas.height = h;
+    const ctx = frameCanvas.getContext('2d');
+    if (!ctx) continue;
+    ctx.imageSmoothingEnabled = false;
+    drawCharacter(ctx, w / 2, h, scale, colors, cfg.t, cfg.walking);
+
+    const tex = new THREE.CanvasTexture(frameCanvas);
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;
+    tex.generateMipmaps = false;
+    textures.push(tex);
+  }
+
+  return textures;
+}
 
 /**
  * Calcule le vecteur de déplacement relatif à l'orientation de la caméra (par quarts de tour).
@@ -103,6 +253,15 @@ export class WorldRenderer3D {
   // Cache/Pool de meshes pour éviter toute fuite mémoire GPU et réallocation à 60 FPS
   private npcMeshes: Map<string, THREE.Group> = new Map();
   private ghostMeshes: Map<GhostId, THREE.Group> = new Map();
+
+  // Billboards 2D Face Caméra
+  private playerTextures: THREE.Texture[] = [];
+  private lastPlayerAppearanceKey = '';
+  private npcTextures: Map<string, THREE.Texture[]> = new Map();
+
+  // Coupes dynamiques de toits
+  private buildingRoofs: Map<PlaceId, THREE.Mesh[]> = new Map();
+  private roofCutState: Map<PlaceId, boolean> = new Map();
 
   // Gestion de la caméra rotative
   public cameraQuarterTurn = 0; // 0: 45°, 1: 135°, 2: 225°, 3: 315°

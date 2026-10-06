@@ -17,3 +17,13 @@ coverage/
 # Exécutions de workflow locales (les brouillons et le tableau restent partageables)
 .zcode/workflow-runs/*
 !.zcode/workflow-runs/.gitignore
+
+# Copies, archives et extractions locales (hors source ; ne pas versionner)
+/neurapolis/
+/neurapolis-antigravity/
+/neurapolis-campaign-worktree/
+/files v1/
+/files_v2_extracted/
+/.probe/
+/*.zip
+desktop.ini

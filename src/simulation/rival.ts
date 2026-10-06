@@ -30,6 +30,22 @@ export function counterStrategyDaysRemaining(w: WorldState, rival: RivalState, s
   return action ? Math.max(0, action.expiresDay - dayIndexOf(w.time.tick)) : 0;
 }
 
+/** Enregistre une session jouée. Le rival sert les clients de la demande totale qui n'ont pas acheté au joueur. */
+export function recordMarketSession(w: WorldState, place: PlaceId, potentialCustomers: number, playerUnitsSold: number): void {
+  const rival = getRivalForPlace(w, place);
+  const potential = Math.max(0, Math.floor(potentialCustomers));
+  if (!rival || potential === 0) return;
+
+  const day = dayIndexOf(w.time.tick);
+  if (rival.marketObservation.day !== day) {
+    rival.marketObservation = { day, playerUnitsSold: 0, rivalUnitsServed: 0, sessions: 0, lastClosed: null };
+  }
+  const sold = Math.max(0, Math.min(potential, Math.floor(playerUnitsSold)));
+  rival.marketObservation.playerUnitsSold += sold;
+  rival.marketObservation.rivalUnitsServed += potential - sold;
+  rival.marketObservation.sessions += 1;
+}
+
 /** Récupère le rival présent sur un lieu donné (ex: 'place' -> Drive HyperVal, 'college' -> Distributeur). */
 export function getRivalForPlace(w: WorldState, place: PlaceId): RivalState | undefined {
   return Object.values(w.rivals).find((r) => r.place === place);
@@ -122,14 +138,13 @@ export function executeCounterStrategy(w: WorldState, strategyId: string, startA
   addXp(w, 'negociation', 3);
   bump(w, 'contreStrategiesLancees');
 
-  // Recalcul immédiat de la part de marché
-  const { playerShare, rivalShare } = calculateMarketShares(w, rival.place);
-  rival.marketShare = rivalShare;
+  // Cette valeur est une projection; la part observée ne change qu'après une session de vente réelle.
+  const { playerShare } = calculateMarketShares(w, rival.place);
 
   pushEvent(w, {
     type: 'consequence',
     title: `Contre-offensive : ${def.label}`,
-    text: `${def.description} Résultat : ta part de marché monte à ${playerShare}% face à ${rival.name}.`,
+    text: `${def.description} Projection avant vente : ton attractivité représente ${playerShare}% face à ${rival.name}. La part observée changera après les ventes.`,
     causes: [
       { facteur: 'décision tactique du joueur', poids: 3 },
       { facteur: `investissement financier (${def.costMoney} €)`, poids: 2 },
@@ -138,7 +153,7 @@ export function executeCounterStrategy(w: WorldState, strategyId: string, startA
 
   return {
     ok: true,
-    message: `${def.label} activée avec succès ! (Part de marché : ${playerShare}%).`,
+    message: `${def.label} activée. Projection avant vente : ${playerShare}%.`,
     timeCostTicks: Math.ceil(def.costTimeMinutes / 10),
   };
 }
@@ -149,6 +164,38 @@ export function rivalDay(w: WorldState): Notification[] {
   const day = dayIndexOf(w.time.tick);
 
   for (const rival of Object.values(w.rivals)) {
+    let transactionsObserved = false;
+    const observation = rival.marketObservation;
+    if (observation.day < day) {
+      const totalServed = observation.playerUnitsSold + observation.rivalUnitsServed;
+      if (observation.sessions > 0 && totalServed > 0) {
+        rival.marketShare = round2(clamp((observation.rivalUnitsServed / totalServed) * 100));
+        transactionsObserved = true;
+        observation.lastClosed = {
+          day: observation.day,
+          playerUnitsSold: observation.playerUnitsSold,
+          rivalUnitsServed: observation.rivalUnitsServed,
+          sessions: observation.sessions,
+        };
+        pushEvent(w, {
+          type: 'systeme',
+          title: `Bilan du marché : ${rival.name}`,
+          text: `Après ${observation.sessions} session(s) à ${rival.place}, ${observation.playerUnitsSold} unité(s) ont été vendues par ton stand et ${observation.rivalUnitsServed} par le concurrent. Part observée du rival : ${rival.marketShare}%.`,
+          causes: [
+            { facteur: 'transactions réellement conclues par le stand', seuil: `${observation.playerUnitsSold} unité(s)`, poids: 3 },
+            { facteur: 'demande servie par le rival', seuil: `${observation.rivalUnitsServed} unité(s)`, poids: 2 },
+          ],
+        });
+      }
+      rival.marketObservation = {
+        day,
+        playerUnitsSold: 0,
+        rivalUnitsServed: 0,
+        sessions: 0,
+        lastClosed: observation.lastClosed,
+      };
+    }
+
     const expired = rival.activeCounterActions.filter((action) => day >= action.expiresDay);
     if (expired.length > 0) {
       rival.activeCounterActions = rival.activeCounterActions.filter((action) => day < action.expiresDay);
@@ -170,12 +217,11 @@ export function rivalDay(w: WorldState): Notification[] {
       rival.reactionCooldown -= 1;
     }
 
-    // Calcul de la part de marché effective sur le lieu du rival
-    const { playerShare, rivalShare } = calculateMarketShares(w, rival.place);
-    rival.marketShare = rivalShare;
+    // La prévision sert à la prochaine session; seules les transactions clôturées modifient la part réelle.
+    const playerShare = 100 - rival.marketShare;
 
     // Réaction des rivaux en cas de domination du joueur (> 50% de part de marché)
-    if (playerShare >= 50 && rival.reactionCooldown === 0) {
+    if (transactionsObserved && playerShare >= 50 && rival.reactionCooldown === 0) {
       if (rival.id === 'drive_hyper') {
         // Le Drive réplique par une baisse agressive de ses prix et une hausse de communication
         rival.price = round2(Math.max(0.70, rival.price - 0.15));
@@ -210,7 +256,7 @@ export function rivalDay(w: WorldState): Notification[] {
         });
         out.push(notify('info', 'Le distributeur du collège propose de nouveaux snacks pour regagner du terrain.'));
       }
-    } else if (playerShare < 20 && rival.strategy === 'prix_casse') {
+    } else if (transactionsObserved && playerShare < 20 && rival.strategy === 'prix_casse') {
       // Si le joueur est repoussé, le rival remonte progressivement ses marges
       rival.price = round2(rival.price + 0.10);
       rival.strategy = 'standard';

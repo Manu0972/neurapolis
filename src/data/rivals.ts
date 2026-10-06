@@ -17,6 +17,7 @@ export const INITIAL_RIVALS: Record<RivalId, RivalState> = {
     strategy: 'prix_casse',
     activeCounterActions: [],
     reactionCooldown: 0,
+    marketObservation: { day: 0, playerUnitsSold: 0, rivalUnitsServed: 0, sessions: 0, lastClosed: null },
   },
   distributeur_college: {
     id: 'distributeur_college',
@@ -29,6 +30,7 @@ export const INITIAL_RIVALS: Record<RivalId, RivalState> = {
     strategy: 'standard',
     activeCounterActions: [],
     reactionCooldown: 0,
+    marketObservation: { day: 0, playerUnitsSold: 0, rivalUnitsServed: 0, sessions: 0, lastClosed: null },
   },
 };
 

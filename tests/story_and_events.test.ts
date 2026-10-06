@@ -274,6 +274,21 @@ describe('NEURAPOLIS Axis 2: Histoire, Quartiers, Personnages & Événements', (
       }
     });
 
+    it('un événement du Drive attend un bilan mesuré plutôt que sa part initiale estimée', () => {
+      const w = createWorld();
+      const event = INTERACTIVE_EVENTS_BY_ID['EVT_DRONES_LANCE_PIERRES']!;
+      const drive = w.rivals.drive_hyper!;
+      expect(drive.marketShare).toBeGreaterThanOrEqual(30);
+      expect(event.condition(w)).toBe(false);
+      expect(event.triggerCondition?.(w)).toBe(false);
+
+      drive.marketObservation.lastClosed = {
+        day: 0, playerUnitsSold: 4, rivalUnitsServed: 7, sessions: 1,
+      };
+      expect(event.condition(w)).toBe(true);
+      expect(event.triggerCondition?.(w)).toBe(true);
+    });
+
     it('4.5 — Application déterministe d’un événement sur le WorldState', () => {
       const w = createWorld();
       const initialRep = w.player.reputation;

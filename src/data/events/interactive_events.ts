@@ -527,8 +527,10 @@ export const INTERACTIVE_EVENTS: InteractiveEventDef[] = [
     title: 'L’Interception des Drones du Drive',
     prompt:
       'Le Drive HyperVal teste des drones livreurs vrombissants au-dessus des cours. Les enfants des Roses ripostent au lance-pierres avec des marrons.',
-    condition: (w) => (w.rivals.drive_hyper?.marketShare ?? 0) >= 30,
-    triggerCondition: (w) => (w.rivals.drive_hyper?.marketShare ?? 0) >= 30,
+    condition: (w) => Boolean(w.rivals.drive_hyper?.marketObservation.lastClosed)
+      && (w.rivals.drive_hyper?.marketShare ?? 0) >= 30,
+    triggerCondition: (w) => Boolean(w.rivals.drive_hyper?.marketObservation.lastClosed)
+      && (w.rivals.drive_hyper?.marketShare ?? 0) >= 30,
     choices: [
       {
         text: 'Calmer les enfants et récupérer le drone crashé intact pour pièces',

@@ -21,6 +21,9 @@ import { checkStreetSynergiesAndEncounters } from './street_synergies';
 import { notify } from './events';
 import { saveToSlot } from '../saves/persist';
 
+// L'échec du stockage ne fait pas partie de WorldState : retenir l'alerte par monde évite le spam quotidien.
+const worldsWithAutoSaveFailure = new WeakSet<WorldState>();
+
 export interface TickOutput { notifications: Notification[] }
 
 export function tickWorld(w: WorldState): TickOutput {
@@ -68,8 +71,14 @@ export function tickWorld(w: WorldState): TickOutput {
     // Cadence figée (contrat M0) : auto-sauvegarde en fin de journée de jeu.
     try {
       saveToSlot('auto', w);
+      if (worldsWithAutoSaveFailure.delete(w)) {
+        out.push(notify('info', 'La sauvegarde automatique fonctionne de nouveau.'));
+      }
     } catch {
-      // Pas de stockage disponible (tests Node, navigateur restreint) : on continue sans état.
+      if (!worldsWithAutoSaveFailure.has(w)) {
+        worldsWithAutoSaveFailure.add(w);
+        out.push(notify('alerte', 'La sauvegarde automatique a échoué. Ta progression peut ne pas être conservée.'));
+      }
     }
   }
 
