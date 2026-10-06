@@ -39,9 +39,34 @@ describe('sauvegarde — aller-retour export/import', () => {
     expect(JSON.parse(json)).toMatchObject({ version: CURRENT_SAVE_VERSION, seed: 42 });
     expect(exportSave(importSave(json))).toBe(json); // clé pour clé, ordre compris
   });
+
+  it('conserve les choix du personnage dans un aller-retour JSON', () => {
+    const chosen = createWorld({
+      seed: 73,
+      playerName: 'Noa',
+      playerGender: 'fille',
+      playerCharacteristics: {
+        comprehension: 50,
+        creativite: 50,
+        influence: 50,
+        discipline: 50,
+        adaptabilite: 50,
+        confiance: 50,
+      },
+      playerAppearance: {
+        skinTone: '#c68642',
+        hairStyle: 'boucle',
+        hairColor: '#2b1b17',
+        outfit: 'sport',
+        outfitColor: '#2f6f9f',
+      },
+    });
+
+    expect(importSave(exportSave(chosen))).toEqual(chosen);
+  });
 });
 
-describe('sauvegarde — migration v0 → v7 (météo, Conseil, affinités, rivaux, atelier, extensions v7)', () => {
+describe('sauvegarde — migration v0 → v8 (météo, Conseil, extensions v7 et personnage)', () => {
   it('une sauvegarde v0 sans météo migre jusqu’à CURRENT_SAVE_VERSION avec la météo par défaut « soleil »', () => {
     const raw = JSON.parse(exportSave(mondeVecu())) as SauvegardeBrute;
     raw.version = 0;
@@ -82,6 +107,56 @@ describe('sauvegarde — migration v0 → v7 (météo, Conseil, affinités, riva
   it('une entrée illisible est rejetée avec une erreur claire', () => {
     expect(() => migrateSave(42)).toThrow(/illisible/);
     expect(() => importSave('{ pas du json')).toThrow();
+  });
+});
+
+describe('sauvegarde — migration v7 → v8 (personnage personnalisable)', () => {
+  it('ajoute des valeurs par défaut sûres aux anciennes sauvegardes et les conserve au rechargement', () => {
+    const raw = JSON.parse(exportSave(mondeVecu())) as {
+      version: number;
+      player: Record<string, unknown>;
+    };
+    raw.version = 7;
+    delete raw.player.gender;
+    delete raw.player.appearance;
+
+    const migrated = migrateSave(raw);
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.player.gender).toBe('non-binaire');
+    expect(migrated.player.appearance).toEqual({
+      skinTone: '#e8b888',
+      hairStyle: 'court',
+      hairColor: '#3b2926',
+      outfit: 'casual',
+      outfitColor: '#3a6ca8',
+    });
+    expect(importSave(JSON.stringify(migrated))).toEqual(migrated);
+  });
+
+  it('préserve les choix présents et répare les couleurs d’apparence illisibles', () => {
+    const raw = JSON.parse(exportSave(mondeVecu())) as {
+      version: number;
+      player: Record<string, unknown>;
+    };
+    raw.version = 7;
+    raw.player.gender = 'fille';
+    raw.player.appearance = {
+      skinTone: '#c68642',
+      hairStyle: 'boucle',
+      hairColor: 'not-a-color',
+      outfit: 'sport',
+      outfitColor: '#2f6f9f',
+    };
+
+    const migrated = migrateSave(raw);
+    expect(migrated.player.gender).toBe('fille');
+    expect(migrated.player.appearance).toEqual({
+      skinTone: '#c68642',
+      hairStyle: 'boucle',
+      hairColor: '#3b2926',
+      outfit: 'sport',
+      outfitColor: '#2f6f9f',
+    });
   });
 });
 

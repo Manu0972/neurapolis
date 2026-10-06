@@ -1,13 +1,43 @@
 // src/rendering/ThreeIsoRenderer.ts
 import * as THREE from 'three';
+import { WorldBuilder } from './WorldBuilder';
 import type { WorldRenderer } from './WorldRenderer';
-import type { World3D } from './world3d';
+import type { Block3D, GroundTile, World3D } from './world3d';
+
+const WORLD_GROUP_NAME = 'WorldGroup';
+
+/**
+ * Calcule un identifiant déterministe d'un monde 3D à partir de ses tuiles de sol
+ * et de ses blocs. On l'utilise en dirty-check : tant que le monde ne change pas,
+ * on ne reconstruit pas la scène (LOI 2 — pas de travail GPU inutile par frame).
+ */
+function hashWorld(world: World3D): string {
+  let h = world.ground.length.toString(36) + '|' + world.blocks.length.toString(36);
+  // Petit échantillon borné pour tracer un changement réel (grille 48×32 → coût borné).
+  const groundStep = Math.max(1, Math.floor(world.ground.length / 128));
+  for (let i = 0; i < world.ground.length; i += groundStep) {
+    const t: GroundTile | undefined = world.ground[i];
+    if (t) h += ';' + t.x.toString(36) + ',' + t.z.toString(36);
+  }
+  const blockStep = Math.max(1, Math.floor(world.blocks.length / 128));
+  for (let i = 0; i < world.blocks.length; i += blockStep) {
+    const b: Block3D | undefined = world.blocks[i];
+    if (b) {
+      h += '#' + b.x.toString(36) + ',' + b.y.toString(36) + ',' + b.z.toString(36) +
+        ',' + b.w.toString(36) + ',' + b.h.toString(36) + ',' + b.d.toString(36) +
+        ':' + (b.role ?? '');
+    }
+  }
+  return h;
+}
 
 export class ThreeIsoRenderer implements WorldRenderer {
   private renderer!: THREE.WebGLRenderer;
   private scene!: THREE.Scene;
   private camera!: THREE.OrthographicCamera;
   private container!: HTMLElement;
+  private lastWorldHash = '';
+  private hasBuiltWorld = false;
 
   public init(container: HTMLElement): void {
     this.container = container;
@@ -36,7 +66,10 @@ export class ThreeIsoRenderer implements WorldRenderer {
     // 3. WebGL Renderer avec gestion du pixel-perfect
     this.renderer = new THREE.WebGLRenderer({ antialias: false }); // Désactivé pour préserver le pixel art
     this.renderer.setSize(width, height);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // LOI 2 — integerScale strict : pixelRatio doit être un entier (1 ou 2)
+    // afin d'éviter tout flou bilinéaire / sous-échantillonnage non entier
+    const rawDpr = Math.min(window.devicePixelRatio, 2);
+    this.renderer.setPixelRatio(rawDpr >= 1.5 ? 2 : 1);
     
     // Ajout du canvas au DOM
     container.appendChild(this.renderer.domElement);
@@ -63,7 +96,16 @@ export class ThreeIsoRenderer implements WorldRenderer {
       this.camera.updateProjectionMatrix();
     }
 
-    // Ici sera injectée l'instanciation des blocs 3D issus de world3d.ts
+    // Dirty-check World3D : on ne reconstruit la scène que si les données varient.
+    // buildWorld appartient au pipeline de ZCode (J3D-2) ; on le consomme ici en
+    // calque passif (LOI 1 — aucune réécriture de la simulation).
+    const hash = hashWorld(world);
+    if (!this.hasBuiltWorld || hash !== this.lastWorldHash) {
+      WorldBuilder.buildWorld(this.scene, world);
+      this.lastWorldHash = hash;
+      this.hasBuiltWorld = true;
+    }
+
     this.renderer.render(this.scene, this.camera);
   }
 

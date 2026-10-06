@@ -6,4 +6,8 @@ import './presentation/style.css';
 import { mountStartScreen } from './presentation/start-screen';
 
 const app = document.querySelector<HTMLDivElement>('#app');
-if (app) mountStartScreen(app);
+if (!app) {
+  throw new Error('[Neurapolis] Conteneur #app introuvable dans index.html');
+}
+
+mountStartScreen(app);

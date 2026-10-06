@@ -3,7 +3,7 @@
  * Règle : chaque changement de schéma => version +1 et un migrateur ici.
  */
 import type { WorldState } from '../core/types';
-import { SAVE_VERSION } from '../core/store';
+import { DEFAULT_PLAYER_APPEARANCE, DEFAULT_PLAYER_GENDER, SAVE_VERSION } from '../core/store';
 import { INITIAL_RIVALS } from '../data/rivals';
 import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
 import { COUNTER_STRATEGIES } from '../data/rivals';
@@ -196,6 +196,35 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
       unlockedThinkers: ['smith'],
     };
     s.version = 7;
+    return s;
+  },
+  // 7 → 8 : identité et apparence du personnage personnalisables.
+  7: (s) => {
+    const player = (s.player ?? {}) as AnySave;
+    const allowedGenders = ['fille', 'garcon', 'non-binaire'];
+    if (typeof player.gender !== 'string' || !allowedGenders.includes(player.gender)) {
+      player.gender = DEFAULT_PLAYER_GENDER;
+    }
+
+    const appearance = (player.appearance && typeof player.appearance === 'object'
+      ? player.appearance
+      : {}) as AnySave;
+    const hexColor = (value: unknown): value is string =>
+      typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value);
+    player.appearance = {
+      ...appearance,
+      skinTone: hexColor(appearance.skinTone) ? appearance.skinTone : DEFAULT_PLAYER_APPEARANCE.skinTone,
+      hairStyle: typeof appearance.hairStyle === 'string' && appearance.hairStyle.length > 0
+        ? appearance.hairStyle
+        : DEFAULT_PLAYER_APPEARANCE.hairStyle,
+      hairColor: hexColor(appearance.hairColor) ? appearance.hairColor : DEFAULT_PLAYER_APPEARANCE.hairColor,
+      outfit: typeof appearance.outfit === 'string' && appearance.outfit.length > 0
+        ? appearance.outfit
+        : DEFAULT_PLAYER_APPEARANCE.outfit,
+      outfitColor: hexColor(appearance.outfitColor) ? appearance.outfitColor : DEFAULT_PLAYER_APPEARANCE.outfitColor,
+    };
+    s.player = player;
+    s.version = 8;
     return s;
   },
 };

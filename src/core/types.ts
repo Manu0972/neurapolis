@@ -35,6 +35,18 @@ export interface Characteristics {
 }
 export type CharacteristicsId = keyof Characteristics;
 
+/** Identité choisie par le joueur; les libellés visibles sont traduits dans la présentation. */
+export type PlayerGender = 'fille' | 'garcon' | 'non-binaire';
+
+/** Options cosmétiques consommées par le renderer 3D, sans effet sur la simulation. */
+export interface PlayerAppearance {
+  skinTone: string;
+  hairStyle: string;
+  hairColor: string;
+  outfit: string;
+  outfitColor: string;
+}
+
 export interface Needs { fatigue: number; faim: number; stress: number; moral: number }
 
 export interface Skill { level: 0 | 1 | 2 | 3; xp: number }
@@ -49,6 +61,8 @@ export const ZERO_REL: Rel4 = { amitie: 0, confiance: 0, respect: 0, rivalite: 0
 
 export interface Player {
   name: string;
+  gender: PlayerGender;
+  appearance: PlayerAppearance;
   age: number;
   characteristics: Characteristics;
   needs: Needs;

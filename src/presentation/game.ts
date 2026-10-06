@@ -316,9 +316,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const p = world.player;
     const body = el('div', 'panel-body');
     const head = el('div', 'avatar-row');
-    head.appendChild(avatarElement(`joueur:${p.name}`, TOKENS.or, p.name, 56));
+    head.appendChild(avatarElement(`joueur:${p.name}`, TOKENS.or, p.name, 56, p.appearance));
     const col = el('div', 'avatar-col');
-    col.appendChild(el('span', 'rel-name', `${p.name}, 12 ans`));
+    const genderLabel = p.gender === 'fille' ? 'Fille' : p.gender === 'garcon' ? 'Garçon' : 'Non-binaire';
+    col.appendChild(el('span', 'rel-name', `${p.name}, ${p.age} ans · ${genderLabel}`));
     col.appendChild(el('div', 'rel-role', `${p.money} € · réputation ${p.reputation}`));
     head.appendChild(col);
     body.appendChild(head);

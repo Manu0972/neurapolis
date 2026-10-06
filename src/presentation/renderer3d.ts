@@ -117,6 +117,7 @@ export class WorldRenderer3D {
   private playerAnimTimer = 0;
   private lastWidth = 0;
   private lastHeight = 0;
+  private currentPlayerAppearanceKey = '';
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -410,13 +411,21 @@ export class WorldRenderer3D {
     }
   }
 
-  private createCharacterMesh(bodyColor: number, skinColor: number, name: string): THREE.Group {
+  private createCharacterMesh(
+    bodyColor: number,
+    skinColor: number,
+    name: string,
+    hairColor: number = 0x4a3220,
+    hairStyle: string = 'court',
+    outfit: string = 'casual',
+  ): THREE.Group {
     const char = new THREE.Group();
     char.name = name;
 
     const matBody = new THREE.MeshLambertMaterial({ color: bodyColor });
     const matSkin = new THREE.MeshLambertMaterial({ color: skinColor });
-    const matHair = new THREE.MeshLambertMaterial({ color: 0x4a3220 });
+    const matHair = new THREE.MeshLambertMaterial({ color: hairColor });
+    const matAccent = new THREE.MeshLambertMaterial({ color: 0xffffff });
 
     // Corps / Buste
     const buste = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.65, 0.3), matBody);
@@ -424,16 +433,66 @@ export class WorldRenderer3D {
     buste.castShadow = true;
     char.add(buste);
 
+    // Détails vestimentaires
+    if (outfit === 'sport') {
+      const bande = new THREE.Mesh(new THREE.BoxGeometry(0.47, 0.08, 0.32), matAccent);
+      bande.position.y = 0.65;
+      char.add(bande);
+    } else if (outfit === 'chic') {
+      const col = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.32), matAccent);
+      col.position.y = 0.88;
+      char.add(col);
+    } else if (outfit === 'artisan') {
+      const tablier = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.52, 0.32), new THREE.MeshLambertMaterial({ color: 0x8a5a3a }));
+      tablier.position.y = 0.55;
+      char.add(tablier);
+    } else if (outfit === 'streetwear') {
+      const capuche = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.22, 0.18), matBody);
+      capuche.position.set(0, 0.88, -0.15);
+      char.add(capuche);
+    }
+
     // Tête
     const tete = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), matSkin);
     tete.position.y = 1.15;
     tete.castShadow = true;
     char.add(tete);
 
-    // Cheveux stylisés
-    const cheveux = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.2, 0.38), matHair);
-    cheveux.position.y = 1.32;
-    char.add(cheveux);
+    // Cheveux stylisés selon hairStyle
+    if (hairStyle === 'long') {
+      const top = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.18, 0.38), matHair);
+      top.position.y = 1.32;
+      const dos = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.45, 0.16), matHair);
+      dos.position.set(0, 1.05, -0.18);
+      char.add(top, dos);
+    } else if (hairStyle === 'boucle') {
+      const base = new THREE.Mesh(new THREE.DodecahedronGeometry(0.25, 1), matHair);
+      base.position.set(0, 1.34, 0);
+      const bG = new THREE.Mesh(new THREE.DodecahedronGeometry(0.16, 1), matHair);
+      bG.position.set(-0.18, 1.25, 0);
+      const bD = new THREE.Mesh(new THREE.DodecahedronGeometry(0.16, 1), matHair);
+      bD.position.set(0.18, 1.25, 0);
+      char.add(base, bG, bD);
+    } else if (hairStyle === 'mi-long') {
+      const top = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.2, 0.38), matHair);
+      top.position.y = 1.32;
+      const coteG = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.28, 0.34), matHair);
+      coteG.position.set(-0.18, 1.15, 0);
+      const coteD = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.28, 0.34), matHair);
+      coteD.position.set(0.18, 1.15, 0);
+      char.add(top, coteG, coteD);
+    } else if (hairStyle === 'tresse') {
+      const top = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.2, 0.38), matHair);
+      top.position.y = 1.32;
+      const tresse = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.05, 0.48, 5), matHair);
+      tresse.position.set(0.16, 0.95, -0.15);
+      char.add(top, tresse);
+    } else {
+      // Court
+      const cheveux = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.2, 0.38), matHair);
+      cheveux.position.y = 1.32;
+      char.add(cheveux);
+    }
 
     // Jambes
     const jambeG = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.4, 0.2), matBody);
@@ -650,6 +709,26 @@ export class WorldRenderer3D {
     const px = world.player.pos.x;
     const py = world.player.pos.y;
     const isMoving = opts.walkingEntities?.player ?? false;
+
+    const app = world.player.appearance;
+    const appearanceKey = app
+      ? `${world.player.name}|${world.player.gender}|${app.skinTone}|${app.hairStyle}|${app.hairColor}|${app.outfit}|${app.outfitColor}`
+      : world.player.name;
+
+    if (this.currentPlayerAppearanceKey !== appearanceKey && this.scene) {
+      if (this.playerMesh) {
+        this.scene.remove(this.playerMesh);
+      }
+      const bodyCol = app ? parseInt(app.outfitColor.replace('#', ''), 16) || 0x3a6ca8 : 0x3a6ca8;
+      const skinCol = app ? parseInt(app.skinTone.replace('#', ''), 16) || 0xe8b888 : 0xe8b888;
+      const hairCol = app ? parseInt(app.hairColor.replace('#', ''), 16) || 0x4a3220 : 0x4a3220;
+      const hairStyle = app?.hairStyle || 'court';
+      const outfit = app?.outfit || 'casual';
+
+      this.playerMesh = this.createCharacterMesh(bodyCol, skinCol, world.player.name, hairCol, hairStyle, outfit);
+      this.scene.add(this.playerMesh);
+      this.currentPlayerAppearanceKey = appearanceKey;
+    }
 
     if (this.playerMesh) {
       if (this.currentDiorama) {
