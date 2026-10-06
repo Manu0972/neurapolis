@@ -153,6 +153,8 @@ export class CityRenderer {
   /** Azimut de la caméra autour du joueur (0 = caméra au sud). */
   get cameraYaw(): number { return this.yaw; }
   get isTopDown(): boolean { return this.topDown; }
+  /** Position continue et cap du joueur (mini-carte, repères). */
+  get playerPose(): { x: number; z: number; heading: number } { return { x: this.body.x, z: this.body.z, heading: this.body.heading }; }
 
   private setupScene(): void {
     this.city = buildCityScene();

@@ -66,7 +66,8 @@ import { moveToTile } from '../simulation/movement';
 import { openPhone, type PhoneApp } from './phone';
 import { BUSINESS_TYPE_BY_ID, WHOLESALER_BY_ID } from '../data/economy';
 import { UNIT_BY_ID, ensureEconomy, pickUpOrder, pickupPoint, unloadAt, businessDoor } from '../simulation/economy';
-import { unitAt } from '../data/map';
+import { streetNameAt, unitAt } from '../data/map';
+import { drawMinimap, renderCityMap } from './minimap';
 import { openDetailedInteriorModal } from './interiors';
 import { tileAt } from '../data/map';
 import { VENDOR_DEFS } from '../data/vendors';
@@ -311,10 +312,24 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
   }
   syncSigns();
+
+  function playerPose(): { x: number; z: number; heading: number } {
+    return renderer3D && use3D ? renderer3D.playerPose : { x: world.player.pos.x + 0.5, z: world.player.pos.y + 0.5, heading: 0 };
+  }
+  function openCityMap(): void {
+    showModal('🗺️ Plan de Val-Ferrand', 'Centre-ville · 1 case = 1 mètre', renderCityMap(world, playerPose()), true);
+  }
+  ui.phoneBtn.addEventListener('click', () => { if (!modalOpen) openPhoneUi(); });
+  ui.mapBtn.addEventListener('click', () => { if (!modalOpen) openCityMap(); });
   window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyP' && !modalOpen) {
       e.preventDefault();
       openPhoneUi();
+    } else if (e.code === 'KeyM' && !modalOpen) {
+      e.preventDefault();
+      openCityMap();
+    } else if (e.code === 'Escape' && modalOpen) {
+      closeModal();
     }
   });
 
@@ -2183,6 +2198,12 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
 
     if (++hudFrame % 30 === 0) syncSigns();
+    if (hudFrame % 2 === 0 && ui.minimapCtx) {
+      const pose = playerPose();
+      drawMinimap(ui.minimapCtx, 360, world, pose, pose.heading, renderer3D?.cameraYaw ?? 0);
+      const street = streetNameAt(world.player.pos.x, world.player.pos.y) ?? 'Val-Ferrand';
+      if (ui.streetEl.textContent !== street) ui.streetEl.textContent = street;
+    }
     updateHud(ui, world, promptText());
     requestAnimationFrame(frame);
   }

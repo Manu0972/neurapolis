@@ -53,6 +53,15 @@ export interface UiRefs {
   btnZoomIn: HTMLButtonElement;
   btnZoomOut: HTMLButtonElement;
   btnMuteAudio: HTMLButtonElement;
+  weatherEl: HTMLElement;
+  bizEl: HTMLElement;
+  phoneBtn: HTMLButtonElement;
+  mapBtn: HTMLButtonElement;
+  menuBtn: HTMLButtonElement;
+  menuDrawer: HTMLElement;
+  minimapCanvas: HTMLCanvasElement;
+  minimapCtx: CanvasRenderingContext2D | null;
+  streetEl: HTMLElement;
   lastIso: string;       // dernière date affichée (détection du changement de jour)
   saveTimer: number | undefined;
 }
@@ -81,73 +90,47 @@ export function buildUi(root: HTMLElement): UiRefs {
   canvas3d.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:2;';
   root.appendChild(canvas3d);
 
-  const hud = el('div', 'hud');
-  hud.style.zIndex = '10';
+  // ---------- HUD épuré façon Big Ambitions (docs/VISION.md §5) ----------
+  const hud = el('div', 'hud hud2');
 
-  // Barre supérieure Big Ambitions : horloge, trésorerie & actualités
-  const topBar = el('div', 'hud-top-dashboard');
-  topBar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;margin-bottom:4px;';
-
-  const clockEl = el('div', 'hud-clock', '--:--');
-  const dateEl = el('div', 'hud-date', '');
-  const moneyEl = el('div', 'hud-money', '💰 15.00 €');
-  moneyEl.style.cssText = 'font-weight:700;color:var(--or);background:var(--panel2);padding:2px 6px;border-radius:4px;border:1px solid var(--line);font-size:11px;';
-
-  const newsTickerEl = el('div', 'hud-news-ticker', '📰 Flash Info : Marché stable');
-  newsTickerEl.style.cssText = 'flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px;color:var(--ink-muted);background:var(--panel2);padding:2px 6px;border-radius:4px;border:1px solid var(--line);cursor:pointer;';
-
-  // Injection styles animations pour le compagnon fantôme
+  // Animations du compagnon fantôme.
   const styleEl = document.createElement('style');
   styleEl.textContent = `
-    @keyframes ghostFloatLevitation {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-3px); }
-    }
-    @keyframes ghostPulseGlow {
-      0%, 100% { box-shadow: 0 0 6px rgba(120, 80, 220, 0.25); }
-      50% { box-shadow: 0 0 14px rgba(120, 80, 220, 0.65); }
-    }
-    @keyframes ghostBubblePop {
-      0% { transform: translateY(8px) scale(0.92); opacity: 0; }
-      100% { transform: translateY(0) scale(1); opacity: 1; }
-    }
-    .hud-ghost-companion:hover {
-      transform: translateY(-2px) scale(1.03);
-      box-shadow: 0 4px 14px rgba(120, 80, 220, 0.45);
-    }
+    @keyframes ghostFloatLevitation { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-3px); } }
+    @keyframes ghostBubblePop { 0% { transform: translateY(8px) scale(0.92); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
   `;
   root.appendChild(styleEl);
 
-  // Widget compagnon fantôme Kawaii flottant
-  const ghostCompanionWidgetEl = el('div', 'hud-ghost-companion', '👻 💬');
-  ghostCompanionWidgetEl.style.cssText = 'display:flex;align-items:center;gap:6px;background:rgba(120,80,220,0.18);border:1.5px solid var(--violet);color:var(--ink);padding:3px 10px;border-radius:14px;font-size:11px;cursor:pointer;font-weight:600;box-shadow:0 0 8px rgba(120,80,220,0.25);animation:ghostFloatLevitation 2.6s ease-in-out infinite;transition:transform 0.2s,box-shadow 0.2s;user-select:none;';
+  // Carte d'état (haut gauche) : heure, date, météo, vitesse du temps.
+  const status = el('div', 'hud2-status');
+  const clockRow = el('div', 'hud2-clock-row');
+  const clockEl = el('div', 'hud-clock', '--:--');
+  const dateCol = el('div', 'hud2-date-col');
+  const dateEl = el('div', 'hud-date', '');
+  const weatherEl = el('div', 'hud2-weather', '');
+  dateCol.appendChild(dateEl);
+  dateCol.appendChild(weatherEl);
+  clockRow.appendChild(clockEl);
+  clockRow.appendChild(dateCol);
+  status.appendChild(clockRow);
+  const speedRow = el('div', 'speed-row');
+  for (const [spd, label] of [[0, '⏸'], [1, '▶'], [5, '▶▶'], [20, '▶▶▶']] as const) {
+    const btn = el('button', 'speed-btn', label);
+    btn.dataset.speed = String(spd);
+    btn.title = spd === 0 ? 'Pause' : `Vitesse ×${spd}`;
+    speedRow.appendChild(btn);
+  }
+  status.appendChild(speedRow);
+  hud.appendChild(status);
 
-  // Bulle d'avis flottante en temps réel
-  const ghostAdviceBubbleEl = el('div', 'hud-ghost-advice-bubble hidden');
-  ghostAdviceBubbleEl.style.cssText = 'position:absolute;top:44px;right:16px;max-width:320px;background:var(--panel);border:2px solid var(--violet);box-shadow:0 8px 24px rgba(42,26,20,0.4), 0 0 14px rgba(120,80,220,0.35);border-radius:10px;padding:10px 14px;font-size:11px;color:var(--ink);z-index:9999;pointer-events:auto;cursor:pointer;animation:ghostBubblePop 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);line-height:1.45;';
-
-  topBar.appendChild(clockEl);
-  topBar.appendChild(dateEl);
-  topBar.appendChild(moneyEl);
-  topBar.appendChild(newsTickerEl);
-  topBar.appendChild(ghostCompanionWidgetEl);
-  hud.appendChild(topBar);
-  hud.appendChild(ghostAdviceBubbleEl);
-
-  const campaignCardEl = el('div', 'campaign-card');
-  const campaignChapterEl = el('div', 'campaign-chapter', '');
-  const campaignObjectiveEl = el('div', 'campaign-objective', '');
-  const campaignPromptEl = el('div', 'campaign-prompt', '');
-  campaignCardEl.appendChild(campaignChapterEl);
-  campaignCardEl.appendChild(campaignObjectiveEl);
-  campaignCardEl.appendChild(campaignPromptEl);
-  hud.appendChild(campaignCardEl);
-
-  const bars = el('div', 'hud-bars');
+  // Besoins (sous la carte d'état).
+  const NEED_ICONS: Record<NeedId, string> = { fatigue: '😴', faim: '🍽️', stress: '😣', moral: '🙂' };
+  const bars = el('div', 'hud-bars hud2-needs');
   const barEls = {} as Record<NeedId, HTMLElement>;
   for (const id of NEED_IDS) {
     const bar = el('div', 'need-bar');
-    bar.appendChild(el('span', 'need-label', NEED_LABELS[id]));
+    bar.title = NEED_LABELS[id];
+    bar.appendChild(el('span', 'need-label', `${NEED_ICONS[id]} ${NEED_LABELS[id]}`));
     const track = el('div', 'need-track');
     const fill = el('div', 'need-fill');
     track.appendChild(fill);
@@ -157,47 +140,66 @@ export function buildUi(root: HTMLElement): UiRefs {
   }
   hud.appendChild(bars);
 
-  // Contrôle de vitesse
-  const speedRow = el('div', 'speed-row');
-  speedRow.style.cssText = 'display:flex;gap:4px;margin-top:4px;pointer-events:auto;';
-  for (const spd of [1, 5, 20]) {
-    const btn = el('button', 'speed-btn', `×${spd}`);
-    btn.dataset.speed = String(spd);
-    btn.style.cssText = 'font-size:10px;padding:2px 6px;border-radius:3px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);cursor:pointer;font-weight:700;';
-    speedRow.appendChild(btn);
-  }
-  hud.appendChild(speedRow);
-
+  // Objectif de campagne (repliable d'un clic).
+  const campaignCardEl = el('div', 'campaign-card');
+  const campaignChapterEl = el('div', 'campaign-chapter', '');
+  const campaignObjectiveEl = el('div', 'campaign-objective', '');
+  const campaignPromptEl = el('div', 'campaign-prompt', '');
+  campaignCardEl.appendChild(campaignChapterEl);
+  campaignCardEl.appendChild(campaignObjectiveEl);
+  campaignCardEl.appendChild(campaignPromptEl);
+  campaignCardEl.title = 'Clique pour replier / déplier';
+  campaignCardEl.addEventListener('click', () => campaignCardEl.classList.toggle('folded'));
+  hud.appendChild(campaignCardEl);
   root.appendChild(hud);
 
-  // Barre de contrôle Caméra 3D & Audio (coin supérieur droit)
+  // Colonne droite : argent, affaires, téléphone, plan, menu, compagnon.
+  const right = el('div', 'hud2-right');
+  const moneyEl = el('div', 'hud-money', '15,00 €');
+  const bizEl = el('div', 'hud2-biz hidden', '');
+  const ghostCompanionWidgetEl = el('div', 'hud-ghost-companion', '👻 💬');
+  const ghostAdviceBubbleEl = el('div', 'hud-ghost-advice-bubble hidden');
+  const buttons = el('div', 'hud2-buttons');
+  const phoneBtn = el('button', 'hud2-btn primary', '📱 Téléphone');
+  phoneBtn.title = 'Téléphone [P]';
+  const mapBtn = el('button', 'hud2-btn', '🗺️ Plan');
+  mapBtn.title = 'Plan de la ville [M]';
+  const menuBtn = el('button', 'hud2-btn', '☰');
+  menuBtn.title = 'Tous les panneaux';
+  buttons.appendChild(phoneBtn);
+  buttons.appendChild(mapBtn);
+  buttons.appendChild(menuBtn);
+  right.appendChild(moneyEl);
+  right.appendChild(bizEl);
+  right.appendChild(buttons);
+  right.appendChild(ghostCompanionWidgetEl);
+  root.appendChild(right);
+  root.appendChild(ghostAdviceBubbleEl);
+
+  // Fil d'actualité discret (bas de l'écran).
+  const newsTickerEl = el('div', 'hud-news-ticker', '📰 Flash Info : Marché stable');
+  root.appendChild(newsTickerEl);
+
+  // Tiroir « menu » : tous les panneaux historiques, caméra et son.
+  const menuDrawer = el('div', 'hud2-drawer hidden');
+  menuDrawer.appendChild(el('div', 'hud2-drawer-title', 'Panneaux'));
   const cameraToolbarEl = el('div', 'camera-toolbar');
-  cameraToolbarEl.style.cssText = 'position:fixed;top:10px;right:10px;display:flex;gap:4px;z-index:20;background:rgba(42,26,20,0.85);padding:4px 6px;border-radius:8px;border:1px solid var(--line);box-shadow:0 4px 12px rgba(0,0,0,0.3);';
-
   const btnRotLeft = el('button', 'cam-btn', '↺');
-  btnRotLeft.title = 'Pivoter la caméra vers la gauche [R ou clic]';
+  btnRotLeft.title = 'Pivoter la caméra [R]';
   const btnRotRight = el('button', 'cam-btn', '↻');
-  btnRotRight.title = 'Pivoter la caméra vers la droite [T ou clic]';
-  const btnCamView = el('button', 'cam-btn', '📐 Iso');
-  btnCamView.title = 'Basculer vue isométrique / vue du dessus';
+  btnRotRight.title = 'Pivoter la caméra [T]';
+  const btnCamView = el('button', 'cam-btn', '🎥 Rue');
+  btnCamView.title = 'Vue rue / vue en plongée [V]';
   const btnZoomIn = el('button', 'cam-btn', '🔍+');
-  btnZoomIn.title = 'Zoom avant';
-  const btnZoomOut = el('button', 'cam-btn', '🔍-');
-  btnZoomOut.title = 'Zoom arrière';
+  btnZoomIn.title = 'Zoom avant (molette)';
+  const btnZoomOut = el('button', 'cam-btn', '🔍−');
+  btnZoomOut.title = 'Zoom arrière (molette)';
   const btnToggle3D = el('button', 'cam-btn', '🧊 3D');
-  btnToggle3D.title = 'Basculer Rendu 3D WebGL / 2D Canvas';
+  btnToggle3D.title = 'Rendu 3D / plan 2D de secours';
   const btnMuteAudio = el('button', 'cam-btn', '🔊');
-  btnMuteAudio.title = 'Activer / Couper le son';
-
-  const camBtns = [btnRotLeft, btnRotRight, btnCamView, btnZoomIn, btnZoomOut, btnToggle3D, btnMuteAudio];
-  for (const b of camBtns) {
-    b.style.cssText = 'font-size:11px;font-weight:700;padding:4px 7px;border-radius:4px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);cursor:pointer;line-height:1;';
-    cameraToolbarEl.appendChild(b);
-  }
-  root.appendChild(cameraToolbarEl);
-
+  btnMuteAudio.title = 'Activer / couper le son';
+  for (const b of [btnRotLeft, btnRotRight, btnCamView, btnZoomIn, btnZoomOut, btnToggle3D, btnMuteAudio]) cameraToolbarEl.appendChild(b);
   const navEl = el('div', 'hud-nav');
-  navEl.style.cssText = 'display:flex;flex-wrap:wrap;gap:3px;z-index:10;';
   const navLabels = [
     '📱 Téléphone',
     'Personnage',
@@ -215,9 +217,26 @@ export function buildUi(root: HTMLElement): UiRefs {
   for (const label of navLabels) {
     const b = el('button', 'hud-nav-btn', label);
     b.dataset.nav = label;
+    b.addEventListener('click', () => menuDrawer.classList.add('hidden'));
     navEl.appendChild(b);
   }
-  root.appendChild(navEl);
+  menuDrawer.appendChild(navEl);
+  menuDrawer.appendChild(el('div', 'hud2-drawer-title', 'Caméra et son'));
+  menuDrawer.appendChild(cameraToolbarEl);
+  menuDrawer.appendChild(el('p', 'hud2-help', 'ZQSD / WASD : marcher · Maj : courir · clic glissé : tourner la caméra · molette : zoom · E : interagir · P : téléphone · M : plan'));
+  menuBtn.addEventListener('click', () => menuDrawer.classList.toggle('hidden'));
+  root.appendChild(menuDrawer);
+
+  // Mini-carte (bas gauche) et nom de la rue.
+  const minimapWrap = el('div', 'hud2-minimap');
+  const minimapCanvas = el('canvas', 'hud2-minimap-canvas');
+  minimapCanvas.width = 360;
+  minimapCanvas.height = 360;
+  const minimapCtx = minimapCanvas.getContext('2d');
+  const streetEl = el('div', 'hud2-street', '');
+  minimapWrap.appendChild(minimapCanvas);
+  minimapWrap.appendChild(streetEl);
+  root.appendChild(minimapWrap);
 
   const bannerEl = el('div', 'ghost-banner hidden', '');
   root.appendChild(bannerEl);
@@ -244,7 +263,8 @@ export function buildUi(root: HTMLElement): UiRefs {
     campaignCardEl, campaignChapterEl, campaignObjectiveEl, campaignPromptEl,
     barEls, promptEl, modalEl, joyZone, actionBtn, navEl, bannerEl,
     saveEl, cameraToolbarEl, btnRotLeft, btnRotRight, btnCamView, btnToggle3D,
-    btnZoomIn, btnZoomOut, btnMuteAudio, lastIso: '', saveTimer: undefined,
+    btnZoomIn, btnZoomOut, btnMuteAudio, weatherEl, bizEl, phoneBtn, mapBtn, menuBtn, menuDrawer,
+    minimapCanvas, minimapCtx, streetEl, lastIso: '', saveTimer: undefined,
   };
   resizeCanvas(ui, root);
   return ui;
@@ -303,6 +323,8 @@ interface HudCache {
   campaignKey?: string;
   needsKey?: string;
   prompt?: string;
+  weather?: string;
+  biz?: string;
 }
 
 const hudCache = new WeakMap<UiRefs, HudCache>();
@@ -327,10 +349,25 @@ export function updateHud(ui: UiRefs, w: WorldState, prompt: string): void {
     cache.date = dateStr;
   }
 
-  const moneyStr = `💰 ${w.player.money.toFixed(2)} €`;
+  const moneyStr = `${w.player.money.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
   if (cache.money !== moneyStr) {
     ui.moneyEl.textContent = moneyStr;
     cache.money = moneyStr;
+  }
+
+  const weatherStr = w.district.meteo === 'pluie' ? '🌧️ Pluie' : w.district.meteo === 'nuages' ? '⛅ Nuageux' : '☀️ Beau temps';
+  if (cache.weather !== weatherStr) {
+    ui.weatherEl.textContent = weatherStr;
+    cache.weather = weatherStr;
+  }
+  const eco = w.economy;
+  const bizStr = eco && Object.keys(eco.businesses).length > 0
+    ? `🏪 ${Object.keys(eco.businesses).length} commerce(s) · caisses ${Object.values(eco.businesses).reduce((t, b) => t + b.cash, 0).toFixed(0)} €${eco.carried.length ? ` · 📦 ${eco.carried.reduce((t, c) => t + c.qty, 0)} u.` : ''}`
+    : '';
+  if (cache.biz !== bizStr) {
+    ui.bizEl.textContent = bizStr;
+    ui.bizEl.classList.toggle('hidden', bizStr === '');
+    cache.biz = bizStr;
   }
 
   if (w.macroNews && w.macroNews.feed[0]) {
