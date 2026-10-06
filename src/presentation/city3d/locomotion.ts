@@ -21,9 +21,9 @@ export const RUN_SPEED = 6.2;
 export const BODY_RADIUS = 0.28;
 
 /** Le disque du personnage tient-il entièrement sur des tuiles franchissables ? */
-export function fits(x: number, z: number, walkable: WalkableFn, r = BODY_RADIUS): boolean {
+export function fits(x: number, z: number, walkable: WalkableFn, r = BODY_RADIUS, cell = 1): boolean {
   for (const [dx, dz] of [[-r, -r], [r, -r], [-r, r], [r, r], [0, 0]] as const) {
-    if (!walkable(Math.floor(x + dx), Math.floor(z + dz))) return false;
+    if (!walkable(Math.floor((x + dx) / cell), Math.floor((z + dz) / cell))) return false;
   }
   return true;
 }
@@ -60,10 +60,14 @@ export function stepBody(
   dt: number,
   running: boolean,
   walkable: WalkableFn,
+  /** Taille d'une case de collision en mètres (1 en ville, 0,5 en intérieur). */
+  cell = 1,
+  /** Vitesse maximale (les intérieurs sont plus calmes). */
+  speedScale = 1,
 ): BodyState {
   const dir = cameraRelative(input.x, input.y, camYaw);
   const mag = Math.hypot(dir.x, dir.z);
-  const targetSpeed = mag > 0.05 ? (running ? RUN_SPEED : WALK_SPEED) * Math.min(1, mag) : 0;
+  const targetSpeed = mag > 0.05 ? (running ? RUN_SPEED : WALK_SPEED) * speedScale * Math.min(1, mag) : 0;
   const accel = targetSpeed > body.speed ? 10 : 14;
   const speed = body.speed + Math.sign(targetSpeed - body.speed) * Math.min(Math.abs(targetSpeed - body.speed), accel * dt);
   let { x, z, heading } = body;
@@ -71,9 +75,9 @@ export function stepBody(
   const vx = mag > 0.05 ? (dir.x / mag) * speed : -Math.sin(heading) * speed;
   const vz = mag > 0.05 ? (dir.z / mag) * speed : -Math.cos(heading) * speed;
   const nx = x + vx * dt;
-  if (fits(nx, z, walkable)) x = nx;
+  if (fits(nx, z, walkable, BODY_RADIUS, cell)) x = nx;
   const nz = z + vz * dt;
-  if (fits(x, nz, walkable)) z = nz;
+  if (fits(x, nz, walkable, BODY_RADIUS, cell)) z = nz;
   const moved = Math.hypot(x - body.x, z - body.z) / Math.max(dt, 1e-6);
   return { x, z, heading, speed: Math.min(speed, moved + 0.01) };
 }

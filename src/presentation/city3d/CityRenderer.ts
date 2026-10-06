@@ -20,6 +20,7 @@ import { createSkyDome, skyAt } from './sky';
 import { createAmbient, type Ambient } from './ambient';
 import { createCharacter, type Character3D } from './simpleCharacter';
 import { findPath, stepBody, tileOf, type BodyState } from './locomotion';
+import { INTERIOR_CELL, buildInterior, nearestHotspot, type BuiltInterior, type Hotspot, type InteriorSpec } from './interior3d';
 
 export interface CityFrameInput {
   /** Direction demandée (clavier/joystick), x vers la droite, y vers le bas de l'écran. */
@@ -239,6 +240,10 @@ export class CityRenderer {
   frame(world: WorldState, dt: number, input: CityFrameInput, cw: number, ch: number): void {
     if (!this.renderer || !this.city) return;
     this.frameCount++;
+    if (this.interior) {
+      this.frameInterior(world, dt, input, cw, ch);
+      return;
+    }
     this.syncPlayer(world, dt, input);
     this.syncNpcs(world, dt);
     this.syncGhost(world, dt);
@@ -508,6 +513,166 @@ export class CityRenderer {
     if (size.x !== w || size.y !== h) this.renderer!.setSize(w, h, false);
   }
   private lastCamClip?: number;
+
+  // ---------- Intérieurs praticables ----------
+  private interior?: BuiltInterior;
+  private interiorScene = new THREE.Scene();
+  private cityBody?: BodyState;
+  private cityCam?: { yaw: number; pitch: number; dist: number };
+  private interiorNpcs: { id: string; ch: Character3D }[] = [];
+  private customers: { ch: Character3D; path: { x: number; z: number }[]; i: number; t: number; speed: number; pos: THREE.Vector3 }[] = [];
+
+  get inInterior(): boolean { return !!this.interior; }
+  get interiorSpec(): InteriorSpec | undefined { return this.interior?.spec; }
+
+  /** Point d'interaction à portée dans l'intérieur courant. */
+  get interiorHotspot(): Hotspot | null {
+    return this.interior ? nearestHotspot(this.interior.spec, this.body.x, this.body.z) : null;
+  }
+
+  /** Entre dans un intérieur : la ville est mise en pause visuelle, le joueur apparaît sur le seuil. */
+  enterInterior(spec: InteriorSpec, world: WorldState, opts: { customers?: number } = {}): void {
+    if (!this.player) return;
+    const same = this.interior?.spec.key === spec.key;
+    if (same) return;
+    const wasInside = !!this.interior;
+    this.clearInterior();
+    if (!wasInside) {
+      this.cityBody = { ...this.body };
+      this.cityCam = { yaw: this.yawTarget, pitch: this.pitchTarget, dist: this.distTarget };
+    }
+    this.interior = buildInterior(spec);
+    this.interiorScene.add(this.interior.group);
+    this.interiorScene.background = new THREE.Color('#1c140f');
+    this.interiorScene.add(this.player.root);
+    if (this.ghost) this.interiorScene.add(this.ghost);
+    this.body = { x: this.interior.spawn.x, z: this.interior.spawn.z, heading: this.interior.spawn.heading, speed: 0 };
+    this.yaw = this.yawTarget = 0;
+    this.pitch = this.pitchTarget = 0.95;
+    this.dist = this.distTarget = Math.max(7, Math.max(spec.w, spec.d) * 0.85);
+    this.camTarget.set(this.body.x, 1.2, this.body.z);
+    // Habitants présents dans ce lieu : chacun à son poste.
+    if (spec.placeId) {
+      const present = Object.values(world.npcs).filter((n) => n.place === spec.placeId && n.activity !== 'dort');
+      present.slice(0, spec.npcSlots.length).forEach((n, i) => {
+        const def = NPC_BY_ID[n.id];
+        const ch = createCharacter({ appearance: npcAppearance(n.id), heightM: heightForAge(def?.age ?? 30), bodyColor: def?.color });
+        const slot = spec.npcSlots[i]!;
+        ch.root.position.set(slot.x, 0, slot.z);
+        ch.setHeading(slot.face);
+        this.interiorScene.add(ch.root);
+        this.interiorNpcs.push({ id: n.id, ch });
+      });
+    }
+    // Clients d'un commerce ouvert : ils flânent entre les rayons et la caisse.
+    for (let i = 0; i < (opts.customers ?? 0); i++) {
+      const r = (k: number): number => ((Math.sin((i + 1) * 91.7 + k * 12.3) * 43758.5) % 1 + 1) % 1;
+      const ch = createCharacter({
+        appearance: npcAppearance(`client${i}`),
+        heightM: 1.55 + r(1) * 0.3,
+        bodyColor: ['#5a6b7a', '#7a5a4a', '#3f4f3f', '#a0522d', '#6b4e71'][i % 5],
+      });
+      const pts = [
+        { x: spec.w / 2, z: spec.d - 1.2 },
+        ...spec.hotspots.filter((h) => h.kind !== 'sortie').map((h) => ({ x: h.x, z: h.z })),
+        ...spec.items.slice(0, 3).map((it) => ({ x: it.x, z: Math.min(spec.d - 1.5, it.z + it.d / 2 + 0.8) })),
+      ];
+      this.interiorScene.add(ch.root);
+      this.customers.push({ ch, path: pts, i: i % pts.length, t: r(2), speed: 0.9 + r(3) * 0.4, pos: new THREE.Vector3(pts[0]!.x, 0, pts[0]!.z) });
+    }
+  }
+
+  /** Ressort dans la rue, devant la porte. */
+  exitInterior(): void {
+    if (!this.interior) return;
+    this.clearInterior();
+    if (this.player) this.scene.add(this.player.root);
+    if (this.ghost) this.scene.add(this.ghost);
+    if (this.cityBody) this.body = { ...this.cityBody, speed: 0, heading: this.cityBody.heading + Math.PI };
+    if (this.cityCam) {
+      this.yaw = this.yawTarget = this.cityCam.yaw;
+      this.pitch = this.pitchTarget = this.cityCam.pitch;
+      this.dist = this.distTarget = this.cityCam.dist;
+    }
+    this.camTarget.set(this.body.x, 1.3, this.body.z);
+  }
+
+  private clearInterior(): void {
+    if (!this.interior) return;
+    for (const n of this.interiorNpcs) n.ch.dispose();
+    for (const c of this.customers) c.ch.dispose();
+    this.interiorNpcs = [];
+    this.customers = [];
+    this.interiorScene.remove(this.interior.group);
+    this.interior.dispose();
+    this.interior = undefined;
+  }
+
+  private frameInterior(world: WorldState, dt: number, input: CityFrameInput, cw: number, ch: number): void {
+    const it = this.interior!;
+    const move = input.canMove ? input.move : { x: 0, y: 0 };
+    this.body = stepBody(this.body, move, this.yaw, Math.min(dt, 0.05), input.running, it.walkable, INTERIOR_CELL, 0.75);
+    if (this.player) {
+      this.player.root.position.set(this.body.x, 0, this.body.z);
+      this.player.setHeading(this.body.heading);
+      this.player.update(dt, this.body.speed);
+      this.player.root.visible = true;
+    }
+    for (const n of this.interiorNpcs) {
+      // Les habitants regardent le joueur quand il s'approche.
+      const dx = this.body.x - n.ch.root.position.x;
+      const dz = this.body.z - n.ch.root.position.z;
+      if (Math.hypot(dx, dz) < 3) n.ch.setHeading(Math.atan2(-dx, -dz));
+      n.ch.update(dt, 0);
+    }
+    for (const c of this.customers) {
+      const a = c.path[c.i]!;
+      const b = c.path[(c.i + 1) % c.path.length]!;
+      const len = Math.max(0.01, Math.hypot(b.x - a.x, b.z - a.z));
+      c.t += (c.speed * dt) / len;
+      let speed = c.speed;
+      if (c.t >= 1) {
+        // Pause devant chaque rayon (le client choisit).
+        if (c.t < 1 + 2.5 / len * c.speed) { speed = 0; } else { c.t = 0; c.i = (c.i + 1) % c.path.length; }
+      }
+      const t = Math.min(1, c.t);
+      const a2 = c.path[c.i]!;
+      const b2 = c.path[(c.i + 1) % c.path.length]!;
+      c.pos.set(a2.x + (b2.x - a2.x) * t, 0, a2.z + (b2.z - a2.z) * t);
+      c.ch.root.position.copy(c.pos);
+      if (speed > 0) c.ch.setHeading(Math.atan2(-(b2.x - a2.x), -(b2.z - a2.z)));
+      c.ch.update(dt, speed);
+    }
+    this.syncGhost(world, dt);
+    // Caméra : plongée douce, murs côté caméra escamotés (vue en coupe).
+    const k = Math.min(1, dt * 7);
+    this.yaw += (this.yawTarget - this.yaw) * k;
+    this.pitch += (Math.max(0.55, this.pitchTarget) - this.pitch) * k;
+    this.dist += (Math.min(14, this.distTarget) - this.dist) * k;
+    const target = new THREE.Vector3(this.body.x, 1.1, this.body.z);
+    this.camTarget.lerp(target, Math.min(1, dt * 8));
+    const dir = new THREE.Vector3(Math.sin(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), Math.cos(this.yaw) * Math.cos(this.pitch));
+    this.camera.position.copy(this.camTarget).addScaledVector(dir, this.dist);
+    this.camera.lookAt(this.camTarget);
+    const flat = new THREE.Vector3(dir.x, 0, dir.z).normalize();
+    for (const wl of it.walls) {
+      const facing = wl.normal.dot(flat) > 0.25;
+      wl.mesh.scale.y = facing ? 0.12 : 1;
+      wl.mesh.position.y = (facing ? 0.12 : 1) * 2.9 / 2;
+    }
+    const w = Math.max(1, cw);
+    const h = Math.max(1, ch);
+    if (this.camera.aspect !== w / h) { this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); }
+    const size = this.renderer!.getSize(new THREE.Vector2());
+    if (size.x !== w || size.y !== h) this.renderer!.setSize(w, h, false);
+    this.renderer!.toneMappingExposure = 1.05;
+    try {
+      this.renderer!.render(this.interiorScene, this.camera);
+    } catch (err) {
+      console.warn('Rendu intérieur interrompu.', err);
+      this.onContextLost?.();
+    }
+  }
 
   /**
    * Outil de QA (inspection) : rend `frames` images d'affilée sans boucle d'animation, puis

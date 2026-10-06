@@ -68,6 +68,10 @@ import { BUSINESS_TYPE_BY_ID, WHOLESALER_BY_ID } from '../data/economy';
 import { UNIT_BY_ID, ensureEconomy, pickUpOrder, pickupPoint, unloadAt, businessDoor } from '../simulation/economy';
 import { streetNameAt, unitAt } from '../data/map';
 import { drawMinimap, renderCityMap } from './minimap';
+import { businessInteriorSpec, placeHasInterior, placeInteriorSpec } from './city3d/interior3d';
+import { useFurniture } from '../simulation/interior_actions';
+import { appeal } from '../simulation/economy';
+import * as economyApi from '../simulation/economy';
 import { openDetailedInteriorModal } from './interiors';
 import { tileAt } from '../data/map';
 import { VENDOR_DEFS } from '../data/vendors';
@@ -235,6 +239,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       phone: (app?: PhoneApp) => openPhoneUi(app),
       units: () => Object.values(UNIT_BY_ID).map((u) => ({ id: u.id, door: u.door, address: u.address })),
       pickup: (id: string) => pickupPoint(id),
+      eco: economyApi,
+      enterBusiness: (id: string) => enterBusiness(id),
     },
   };
 
@@ -288,7 +294,12 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       if (!unitId) continue;
       const u = UNIT_BY_ID[unitId]!;
       const biz = Object.values(e.businesses).find((b) => b.unitId === unitId);
-      if (biz) return { label: `E — Gérer ${biz.name}`, run: () => openPhoneUi('commerces', { businessId: biz.id }) };
+      if (biz) {
+        if (renderer3D && use3D && !u.buildingId.startsWith('etal_')) {
+          return { label: `E — Entrer dans ${biz.name}`, run: () => enterBusiness(biz.id) };
+        }
+        return { label: `E — Gérer ${biz.name}`, run: () => openPhoneUi('commerces', { businessId: biz.id }) };
+      }
       if (e.leases[unitId]) return { label: `E — Créer ton commerce (${u.address})`, run: () => openPhoneUi('immobilier', { unitId }) };
       return { label: `E — ${u.buildingId.startsWith('etal_') ? 'Étal' : 'Local'} à louer : ${u.address}`, run: () => openPhoneUi('immobilier', { unitId }) };
     }
@@ -333,8 +344,77 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
   });
 
+  // ---------- Intérieurs praticables ----------
+
+  function enterBusiness(bizId: string): void {
+    const b = world.economy?.businesses[bizId];
+    if (!b || !renderer3D) return;
+    const customers = b.open ? Math.max(1, Math.min(5, Math.round(appeal(b) * 2))) : 0;
+    renderer3D.enterInterior(businessInteriorSpec(b), world, { customers });
+    audio.playUiClick();
+  }
+
+  function enterPlace(place: PlaceId, roomId?: string): boolean {
+    if (!renderer3D || !use3D || !placeHasInterior(place)) return false;
+    const spec = placeInteriorSpec(place, roomId);
+    if (!spec) return false;
+    renderer3D.enterInterior(spec, world);
+    currentLocation = place === 'friche' ? 'atelier' : (place as AmbientLocation);
+    audio.updateAmbient(currentLocation, minutesOfDay(world.time.tick) / 60, world.district.meteo);
+    return true;
+  }
+
+  function exitInterior(): void {
+    renderer3D?.exitInterior();
+    currentLocation = 'ville';
+    audio.updateAmbient('ville', minutesOfDay(world.time.tick) / 60, world.district.meteo);
+  }
+
+  /** Action du point d'interaction à portée, à l'intérieur. */
+  function interiorActionHere(): { label: string; run: () => void } | null {
+    const spec = renderer3D?.interiorSpec;
+    const h = renderer3D?.interiorHotspot;
+    if (!spec || !h) return null;
+    const label = `E — ${h.label}`;
+    if (h.kind === 'sortie') return { label, run: exitInterior };
+    if (h.kind === 'piece' && spec.placeId) return { label, run: () => { enterPlace(spec.placeId!, h.target); } };
+    if (h.kind === 'gestion' && spec.businessId) return { label, run: () => openPhoneUi('commerces', { businessId: spec.businessId }) };
+    if (h.kind === 'decharger' && spec.businessId) {
+      return {
+        label,
+        run: () => {
+          const r = unloadAt(world, spec.businessId!);
+          toast(r.message, r.ok);
+          if (r.ok) enterBusiness(spec.businessId!);
+        },
+      };
+    }
+    if (h.kind === 'mobilier' && spec.placeId && h.target) {
+      const place = spec.placeId;
+      const target = h.target;
+      return {
+        label,
+        run: () => {
+          const r = useFurniture(world, place, target);
+          if (r.special === 'open_workshop') { openWorkshopModal(); return; }
+          if (r.special === 'open_debate') { openUrbanDebate(); return; }
+          toast(r.message, r.ok);
+          updateHud(ui, world, promptText());
+        },
+      };
+    }
+    return null;
+  }
+
   function promptText(): string {
     if (world.player.asleep) return '😴 Tu dors. La nuit passe…';
+    if (renderer3D?.inInterior) {
+      const inside = interiorActionHere();
+      if (inside) return inside.label;
+      const nearNpc = npcsNearby(world, 2)[0];
+      if (nearNpc) return `E — Parler à ${NPC_BY_ID[nearNpc.id]?.name ?? 'quelqu’un'}`;
+      return `${renderer3D.interiorSpec?.title ?? ''} · approche-toi d’un objet (icône) pour agir`;
+    }
     const eco = economyActionHere();
     if (eco) return eco.label;
     const place = placeAtAdjacent(world);
@@ -347,6 +427,13 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   function interact(): void {
     if (modalOpen) return;
     if (world.player.asleep) return;
+    if (renderer3D?.inInterior) {
+      const inside = interiorActionHere();
+      if (inside) { inside.run(); return; }
+      const nearNpc = npcsNearby(world, 2)[0];
+      if (nearNpc) openNpcDialogue(nearNpc.id);
+      return;
+    }
     const eco = economyActionHere();
     if (eco) {
       eco.run();
@@ -354,6 +441,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
     const place = placeAtAdjacent(world);
     if (place) {
+      if (enterPlace(place)) return;
       openPlacePanel(place);
       return;
     }
