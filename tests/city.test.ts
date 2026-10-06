@@ -103,3 +103,15 @@ describe('Ville — grille et lieux', () => {
     expect(tileAt(CITY_W, 0)).toBeNull();
   });
 });
+
+describe('Ville — domiciles des habitants', () => {
+  it('chaque habitant nommé a un domicile franchissable, relié à pied', () => {
+    const home = PLACE_ANCHORS.maison;
+    const reach = reachableFrom(home.x, home.y);
+    for (const [id, h] of Object.entries(CITY.npcHomes)) {
+      expect(isWalkable(h.x, h.y), id).toBe(true);
+      expect(reach.has(h.y * CITY_W + h.x), id).toBe(true);
+    }
+    expect(Object.keys(CITY.npcHomes).sort()).toEqual(['bertin', 'karim', 'lina', 'monique', 'moreau', 'noah', 'samir', 'yasmine']);
+  });
+});

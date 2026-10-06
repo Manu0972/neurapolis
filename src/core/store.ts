@@ -14,7 +14,7 @@ import { MACRO_NEWS_TEMPLATES } from '../data/macro_news';
 import { INITIAL_TUTORIALS } from '../data/tutorials';
 import { PLACE_ANCHORS } from '../data/map';
 
-export const SAVE_VERSION = 11;
+export const SAVE_VERSION = 12;
 
 const SKILL_IDS: SkillId[] = ['negociation', 'comptabilite', 'communication', 'organisation', 'technique', 'recherche'];
 

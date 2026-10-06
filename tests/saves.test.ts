@@ -10,6 +10,7 @@ import { CURRENT_SAVE_VERSION, migrateSave } from '../src/saves/migrations';
 import { runTicks } from '../src/simulation/engine';
 import { buyStock, createProject } from '../src/simulation/project';
 import { MAX_PENDING_DELIVERIES } from '../src/core/types';
+import { PLACE_ANCHORS, isWalkable } from '../src/data/map';
 
 interface SauvegardeBrute {
   version: number;
@@ -395,6 +396,28 @@ describe('sauvegarde — migration v10 → v11 (historique des commandes du Stan
     const list = w.project?.pendingDeliveries ?? [];
     expect(list).toHaveLength(MAX_PENDING_DELIVERIES);
     expect(new Set(list.map((d) => d.id)).size).toBe(MAX_PENDING_DELIVERIES);
+  });
+});
+
+describe('sauvegarde — migration v11 → v12 (nouvelle ville à l’échelle 1 m)', () => {
+  it('replace le joueur devant chez lui et préserve le reste de la partie', () => {
+    const w = mondeVecu();
+    w.player.money = 87.5;
+    const raw = JSON.parse(exportSave(w)) as { version: number; player: { pos: { x: number; y: number }; money: number } };
+    raw.version = 11;
+    raw.player.pos = { x: 23, y: 17 }; // coordonnées de l'ancienne carte 48×32
+    const migrated = migrateSave(raw);
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.player.pos).toEqual(PLACE_ANCHORS.maison);
+    expect(isWalkable(migrated.player.pos.x, migrated.player.pos.y)).toBe(true);
+    expect(migrated.player.money).toBe(87.5);
+  });
+
+  it('aller-retour : une partie neuve garde sa position exacte', () => {
+    const w = mondeVecu();
+    w.player.pos = { ...PLACE_ANCHORS.college };
+    const back = importSave(exportSave(w));
+    expect(back.player.pos).toEqual(PLACE_ANCHORS.college);
   });
 });
 

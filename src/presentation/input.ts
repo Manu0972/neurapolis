@@ -10,7 +10,12 @@ const KEY_DIRS: Record<string, readonly [number, number]> = {
 };
 
 export interface InputApi {
+  /** Direction arrondie à la grille (rendu 2D de secours). */
   dir(): { x: number; y: number };
+  /** Direction analogique (joystick compris), longueur ≤ 1 — ville 3D. */
+  vector(): { x: number; y: number };
+  /** Maj maintenue (ou joystick poussé à fond) : course. */
+  running(): boolean;
   destroy(): void;
 }
 
@@ -19,6 +24,7 @@ export function createInput(root: HTMLElement, onInteract: () => void): InputApi
   let joy = { x: 0, y: 0 };
 
   const onDown = (e: KeyboardEvent): void => {
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') pressed.add('Shift');
     if (e.code === 'KeyE') {
       onInteract();
       e.preventDefault();
@@ -31,7 +37,11 @@ export function createInput(root: HTMLElement, onInteract: () => void): InputApi
   };
   const onUp = (e: KeyboardEvent): void => {
     pressed.delete(e.code);
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') pressed.delete('Shift');
   };
+  // Perte de focus : on relâche tout (sinon le personnage continue de marcher seul).
+  const onBlur = (): void => pressed.clear();
+  window.addEventListener('blur', onBlur);
   window.addEventListener('keydown', onDown);
   window.addEventListener('keyup', onUp);
 
@@ -55,7 +65,20 @@ export function createInput(root: HTMLElement, onInteract: () => void): InputApi
       if (x === 0 && y === 0) return { x: 0, y: 0 };
       return { x: Math.sign(x), y: Math.sign(y) };
     },
+    vector: () => {
+      let x = 0;
+      let y = 0;
+      for (const k of pressed) {
+        const d = KEY_DIRS[k];
+        if (d) { x += d[0]; y += d[1]; }
+      }
+      if (x === 0 && y === 0) { x = joy.x; y = joy.y; }
+      const len = Math.hypot(x, y);
+      return len > 1 ? { x: x / len, y: y / len } : { x, y };
+    },
+    running: () => pressed.has('Shift') || Math.hypot(joy.x, joy.y) > 0.95,
     destroy: () => {
+      window.removeEventListener('blur', onBlur);
       window.removeEventListener('keydown', onDown);
       window.removeEventListener('keyup', onUp);
       btn?.removeEventListener('pointerdown', onPress);

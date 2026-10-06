@@ -7,6 +7,7 @@ import {
   VALID_OUTFIT_COLORS, VALID_OUTFIT_STYLES, VALID_SKIN_TONES, type WorldState,
 } from '../core/types';
 import { SAVE_VERSION } from '../core/store';
+import { PLACE_ANCHORS } from '../data/map';
 import { INITIAL_RIVALS } from '../data/rivals';
 import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
 import { COUNTER_STRATEGIES } from '../data/rivals';
@@ -301,6 +302,15 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
       project.pendingDeliveries = valid.slice(-MAX_PENDING_DELIVERIES);
     }
     s.version = 11;
+    return s;
+  },
+  // 11 → 12 : nouvelle ville à l'échelle 1 m (docs/VISION.md §6). Les coordonnées de l'ancienne
+  // carte 48×32 n'ont plus de sens : le joueur se réveille devant chez lui.
+  11: (s) => {
+    const player = (s.player ?? {}) as AnySave;
+    player.pos = { ...PLACE_ANCHORS.maison };
+    s.player = player;
+    s.version = 12;
     return s;
   },
 };

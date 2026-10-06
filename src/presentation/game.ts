@@ -61,7 +61,8 @@ import { TOKENS } from './tokens';
 import { avatarElement } from './avatar';
 import { loadAssetKit } from './asset-loader';
 import { audio, type AmbientLocation } from './audio';
-import { getCameraRelativeInput, WorldRenderer3D } from './renderer3d';
+import { CityRenderer } from './city3d/CityRenderer';
+import { moveToTile } from '../simulation/movement';
 import { openDetailedInteriorModal } from './interiors';
 import { tileAt } from '../data/map';
 import { VENDOR_DEFS } from '../data/vendors';
@@ -75,7 +76,11 @@ import { ensureStreetRecognitionState, handleStreetEncounterChoice } from '../si
 import { askActiveGhostAdvice, checkAndUnlockThinkers, getGhostCompanionThought, switchCompanionGhost } from '../simulation/ghost_companions';
 import { INITIAL_TUTORIALS } from '../data/tutorials';
 
-const TICK_MS = 1000; // 1 tick simulé (10 min) par seconde à vitesse 1
+/**
+ * Un tick simulé dure 10 minutes de jeu. À vitesse ×1, 1 minute de jeu = 1 seconde réelle
+ * (docs/DECISIONS.md, 2026-10-07) : une journée éveillée dure environ 16 minutes réelles.
+ */
+const TICK_MS = 10_000;
 const MOVE_MS = 150;  // cadence d'un pas de tuile en maintenant une direction
 
 const REL_DIMS: ReadonlyArray<keyof Rel4> = ['amitie', 'confiance', 'respect', 'rivalite'];
@@ -89,14 +94,31 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   let last = performance.now();
   let acc = 0;
   let moveAcc = 0;
+  let footstepAcc = 0;
   let lastAdviceMood = '';
   let lastAdviceBubbleTime = 0;
 
   // Initialisation du rendu 3D WebGL / fallback 2D
   let use3D = true;
-  let renderer3D: WorldRenderer3D | null = null;
+  let renderer3D: CityRenderer | null = null;
   try {
-    renderer3D = new WorldRenderer3D(ui.canvas3d);
+    renderer3D = new CityRenderer(ui.canvas3d);
+    renderer3D.onPlayerTile = (x, y) => {
+      const ok = moveToTile(world, x, y);
+      if (ok) {
+        const tile = tileAt(x, y);
+        const surface = tile?.surface === 'herbe' || tile?.surface === 'aire_jeux' ? 'herbe'
+          : tile?.surface === 'terre' || tile?.surface === 'gravier' ? 'terre' : 'pave';
+        footstepAcc += 1;
+        if (footstepAcc % 2 === 0) audio.playFootstep(surface);
+      }
+      return ok;
+    };
+    renderer3D.onContextLost = () => {
+      use3D = false;
+      ui.canvas3d.style.display = 'none';
+      ui.canvas.style.display = 'block';
+    };
     if (!renderer3D.isWebGLAvailable) {
       use3D = false;
       ui.canvas3d.style.display = 'none';
@@ -135,7 +157,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   ui.btnCamView.addEventListener('click', () => {
     audio.playUiClick();
     renderer3D?.toggleTopDown();
-    ui.btnCamView.textContent = renderer3D?.isTopDown ? '📐 Top' : '📐 Iso';
+    ui.btnCamView.textContent = renderer3D?.isTopDown ? '🗺️ Plan' : '🎥 Rue';
   });
   ui.btnZoomIn.addEventListener('click', () => {
     audio.playUiClick();
@@ -175,7 +197,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (e.code === 'KeyV') {
       audio.playUiClick();
       renderer3D?.toggleTopDown();
-      ui.btnCamView.textContent = renderer3D?.isTopDown ? '📐 Top' : '📐 Iso';
+      ui.btnCamView.textContent = renderer3D?.isTopDown ? '🗺️ Plan' : '🎥 Rue';
     }
   });
 
@@ -195,7 +217,12 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   // Outil d'inspection (Bible Partie XII) : l'état du monde reste lisible depuis la console
   // et depuis les tests E2E. Lecture/écriture directe = leviers de QA, jamais du gameplay.
-  (window as unknown as { __NEURAPOLIS__: { world: WorldState } }).__NEURAPOLIS__ = { world };
+  (window as unknown as { __NEURAPOLIS__: unknown }).__NEURAPOLIS__ = {
+    world,
+    /** Capture du rendu 3D (QA) : fonctionne même fenêtre masquée. */
+    snapshot: (opts?: { frames?: number; yaw?: number; pitch?: number; dist?: number; move?: { x: number; y: number }; running?: boolean }) =>
+      renderer3D?.snapshot(world, ui.cw || 1280, ui.ch || 720, opts),
+  };
 
   function promptText(): string {
     if (world.player.asleep) return '😴 Tu dors. La nuit passe…';
@@ -1999,17 +2026,20 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
               }
             }
           }
-          moveAcc += dt;
-          if (!world.player.asleep) {
-            const rawD = input.dir();
-            const d = (use3D && renderer3D) ? getCameraRelativeInput(rawD.x, rawD.y, renderer3D.cameraQuarterTurn) : rawD;
-            if (d.x !== 0 || d.y !== 0) {
-              while (moveAcc >= MOVE_MS) {
-                moveAcc -= MOVE_MS;
-                step(d.x, d.y);
+          // Rendu 2D de secours : déplacement case par case. En 3D, la marche est continue
+          // et gérée par CityRenderer (voir plus bas).
+          if (!(use3D && renderer3D)) {
+            moveAcc += dt;
+            if (!world.player.asleep) {
+              const d = input.dir();
+              if (d.x !== 0 || d.y !== 0) {
+                while (moveAcc >= MOVE_MS) {
+                  moveAcc -= MOVE_MS;
+                  step(d.x, d.y);
+                }
+              } else {
+                moveAcc = Math.min(moveAcc, MOVE_MS);
               }
-            } else {
-              moveAcc = Math.min(moveAcc, MOVE_MS);
             }
           }
         }
@@ -2035,25 +2065,19 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       }
     }
 
-    const rawD = input.dir();
-    const isPlayerMoving = !world.player.asleep && (rawD.x !== 0 || rawD.y !== 0);
-    const renderOpts = {
-      walkingEntities: { player: isPlayerMoving },
-      whisperingGhosts: currentBannerGhost ? [currentBannerGhost] : undefined,
-    };
-
     if (use3D && renderer3D && renderer3D.isWebGLAvailable) {
-      try {
-        renderer3D.render(world, ui.cw, ui.ch, now, renderOpts);
-      } catch {
-        use3D = false;
-        ui.canvas3d.style.display = 'none';
-        ui.canvas.style.display = 'block';
-        ui.btnToggle3D.textContent = '🎨 2D';
-        renderWorld(ui.ctx, world, ui.cw, ui.ch, now, renderOpts);
-      }
+      renderer3D.frame(world, dt / 1000, {
+        move: input.vector(),
+        running: input.running(),
+        canMove: !modalOpen && !world.player.asleep,
+      }, ui.cw, ui.ch);
     } else {
-      renderWorld(ui.ctx, world, ui.cw, ui.ch, now, renderOpts);
+      const rawD = input.dir();
+      const isPlayerMoving = !world.player.asleep && (rawD.x !== 0 || rawD.y !== 0);
+      renderWorld(ui.ctx, world, ui.cw, ui.ch, now, {
+        walkingEntities: { player: isPlayerMoving },
+        whisperingGhosts: currentBannerGhost ? [currentBannerGhost] : undefined,
+      });
     }
 
     updateHud(ui, world, promptText());

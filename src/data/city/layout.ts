@@ -119,6 +119,8 @@ export interface CityLayout {
   units: CommercialUnitDef[];
   /** Tuile franchissable devant l'entrée de chaque lieu : ancre des PNJ et du joueur. */
   anchors: Record<PlaceId, { x: number; y: number }>;
+  /** Domicile de chaque habitant nommé (trottoir devant sa porte d'immeuble). */
+  npcHomes: Record<string, { x: number; y: number }>;
   /** Passages piétons (rendu + ralentissement des voitures). */
   crossings: { x: number; y: number; w: number; h: number }[];
   canal: { x: number; y: number; w: number; h: number };
@@ -487,11 +489,36 @@ export function buildCityLayout(): CityLayout {
   zones.push({ kind: 'pave', x: 0, y: ROAD_BOTTOM, w: CITY_W, h: 3, walkable: true });
   for (let x = 6; x < CITY_W; x += 14) props.push({ kind: x % 28 === 6 ? 'lampadaire' : 'banc', x, y: ROAD_BOTTOM + 2, blocks: true });
 
+  // Domiciles des habitants nommés : une porte d'immeuble dans leur quartier.
+  const homeIn = (blockId: string, index = 0): { x: number; y: number } => {
+    const doors = buildings
+      .filter((bd) => bd.id === blockId || bd.id.startsWith(`bat_${blockId}_`))
+      .flatMap((bd) => bd.doors.filter((d) => d.residential));
+    const d = doors[index % Math.max(1, doors.length)];
+    if (!d) throw new Error(`Ville : aucune porte d'immeuble dans ${blockId}.`);
+    return outside(d);
+  };
+  const doorOfBuilding = (id: string): { x: number; y: number } => {
+    const d = buildings.find((bd) => bd.id === id)?.doors[0];
+    if (!d) throw new Error(`Ville : bâtiment ${id} introuvable.`);
+    return outside(d);
+  };
+  const npcHomes: Record<string, { x: number; y: number }> = {
+    noah: doorOfBuilding('barre_b'),
+    yasmine: doorOfBuilding('barre_b'),
+    lina: doorOfBuilding('tour_c'),
+    monique: doorOfBuilding('barre_a'),
+    bertin: homeIn('b01', 1),
+    moreau: homeIn('b03', 2),
+    karim: homeIn('b13', 0),
+    samir: homeIn('b12', 3),
+  };
+
   const required: PlaceId[] = ['maison', 'college', 'epicerie', 'friche', 'parc', 'place'];
   for (const p of required) {
     if (!anchors[p]) throw new Error(`Ville : le lieu ${p} n'a pas d'entrée.`);
   }
-  return { roads, blocks, buildings, zones, props, units, anchors: anchors as Record<PlaceId, { x: number; y: number }>, crossings, canal };
+  return { roads, blocks, buildings, zones, props, units, anchors: anchors as Record<PlaceId, { x: number; y: number }>, npcHomes, crossings, canal };
 }
 
 export const CITY: CityLayout = buildCityLayout();
