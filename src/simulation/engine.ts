@@ -21,6 +21,7 @@ import { checkStreetSynergiesAndEncounters } from './street_synergies';
 import { notify } from './events';
 import { economyTick } from './economy';
 import { jobTick } from './jobs';
+import { worldTimelineDay } from './world_timeline';
 import { saveToSlot } from '../saves/persist';
 
 // L'échec du stockage ne fait pas partie de WorldState : retenir l'alerte par monde évite le spam quotidien.
@@ -64,6 +65,7 @@ export function tickWorld(w: WorldState): TickOutput {
     out.push(...macroNewsDayTick(w));
     out.push(...multiVenturesDayTick(w));
     out.push(...schoolDayTick(w));
+    out.push(...worldTimelineDay(w));
 
     // Hebdomadaire : argent de poche + répartition des gains du stand (M5) + atelier (J5)
     if (weekIndexOf(day) !== prevWeek) {

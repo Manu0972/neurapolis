@@ -32,7 +32,8 @@ describe('engine — 3 journées complètes', () => {
     expect(dateOf(3).iso).toBe('2020-09-04');
     expect(dateOf(3).weekday).toBe(5); // vendredi
     expect(minutesOfDay(w.time.tick)).toBe(430);
-    expect(fin).toHaveLength(0); // rien à notifier dans le socle sur 3 jours de semaine
+    // Rien à notifier dans le socle sur 3 jours de semaine, hors actualités de la chronologie du monde (📰).
+    expect(fin.filter((n) => !n.text.startsWith('📰'))).toHaveLength(0);
   });
 });
 

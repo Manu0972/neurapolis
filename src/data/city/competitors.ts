@@ -46,7 +46,7 @@ const IN_TOWN = [
 function assign(): CompetitorDef[] {
   // Locaux fermés (hors étals), les plus passants d'abord ; un sur deux reste libre pour le joueur.
   const units = CITY.units
-    .filter((u) => !u.buildingId.startsWith('etal_'))
+    .filter((u) => u.id.startsWith('local_'))
     .sort((a, b) => b.footTraffic - a.footTraffic || a.id.localeCompare(b.id));
   const out: CompetitorDef[] = [];
   let k = 0;

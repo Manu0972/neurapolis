@@ -42,4 +42,9 @@
 - [x] **Sauvegardes multiples** (2026-10-07 ; menu ☰ → 💾 : 3 emplacements + auto, résumé, charger, supprimer, export/import de fichier) : trois emplacements nommés + auto-sauvegarde, depuis le menu ☰.
 - [x] **Écran titre 3D** (2026-10-07 ; `TitleFlyover.ts`, libéré avant de jouer) : vue animée de Val-Ferrand derrière le menu.
 - [x] **Test de bout en bout en navigateur** (2026-10-07 ; ouvrir le jeu avec `?e2e` ; exécuté : 13/13 étapes, 3 clients, 7,65 € ; rapport dans `window.__NEURAPOLIS_E2E__`) : script qui démarre une partie, loue un étal, commande, retire, décharge, ouvre et vend (via `window.__NEURAPOLIS__.qa`).
-- [ ] **Expansion (âge adulte)** : préparer un deuxième quartier (gare, laminoir) et la fermeture du laminoir en 2032 comme événement jouable.
+- [x] **Expansion, première tranche** (2026-10-07 ; quartier de la Gare et du laminoir à l'est, locaux `gare_*` ; chronologie 2020-2045 branchée : actualités + demande ; fermeture du laminoir en 2032) : préparer un deuxième quartier (gare, laminoir) et la fermeture du laminoir en 2032 comme événement jouable.
+- [ ] **Voyages** : depuis la gare, partir (âge adulte ou vacances) vers Néo-Baie ou Plateau Blanc (fiches de `2.pdf`, `docs/VISION.md` §3.6) ; d'abord un écran de voyage et une carte régionale, puis une deuxième ville jouable.
+- [ ] **Reprise du laminoir en coopérative (2032)** : choix jouable proposé par Karim et TaretCoop après la fermeture (rachat, reprise ouvrière, reconversion), avec effets sur le quartier de la Gare.
+- [ ] **Achat de murs** : acheter un local ou un immeuble (plus de loyer, valeur patrimoniale, loyers perçus), réservé à l'âge adulte ou au bac à sable.
+- [ ] **Clients et employés à l'intérieur** : voir ses employés derrière la caisse et des clients faire leurs courses dans les commerces du joueur, en nombre tiré des ventes réelles de l'heure.
+

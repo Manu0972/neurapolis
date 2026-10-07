@@ -9,7 +9,7 @@
 import type { PlaceId } from '../../core/types';
 import type { CityDistrict, CommercialUnitDef } from '../../core/economy_types';
 
-export const CITY_W = 330;
+export const CITY_W = 414;
 export const CITY_H = 268;
 export const ROAD_W = 8;
 export const SIDEWALK_W = 3;
@@ -128,9 +128,9 @@ export interface CityLayout {
 
 // ---------- Trame ----------
 
-const VX = [0, 82, 164, 246, 322] as const;
+const VX = [0, 82, 164, 246, 322, 406] as const;
 const HY = [0, 80, 160, 242] as const;
-const V_NAMES = ['Rue des Houillères', 'Rue Ambroise-Croizat', 'Rue de la Verrerie', 'Rue Louise-Michel', "Boulevard de l'Est"];
+const V_NAMES = ['Rue des Houillères', 'Rue Ambroise-Croizat', 'Rue de la Verrerie', 'Rue Louise-Michel', "Boulevard de l'Est", 'Rue du Laminoir'];
 const H_NAMES = ['Rue de la Mine', 'Avenue Jean-Jaurès', 'Rue des Forges', 'Quai de la Malterie'];
 const ROAD_BOTTOM = HY[3] + ROAD_W; // 250
 
@@ -194,12 +194,17 @@ export function buildCityLayout(): CityLayout {
       { name: 'Zone HyperVal', district: 'hyperval' },
     ],
   ];
+  const EAST_DEFS: { name: string; district: CityDistrict }[] = [
+    { name: 'Parvis de la Gare', district: 'gare' },
+    { name: 'Laminoir Taret', district: 'gare' },
+    { name: 'Cité ouvrière du Laminoir', district: 'gare' },
+  ];
   const blockAt = (row: number, col: number): CityBlock => {
     const x = VX[col]! + ROAD_W;
     const y = HY[row]! + ROAD_W;
     const w = VX[col + 1]! - x;
     const h = HY[row + 1]! - y;
-    const def = BLOCK_DEFS[row]![col]!;
+    const def = col < 4 ? BLOCK_DEFS[row]![col]! : EAST_DEFS[row]!;
     return { id: `b${row}${col}`, name: def.name, district: def.district, x, y, w, h };
   };
   for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) blocks.push(blockAt(r, c));
@@ -216,9 +221,10 @@ export function buildCityLayout(): CityLayout {
   };
 
   let unitCounter = 0;
+  let unitPrefix = 'local';
   const addUnit = (b: CityBlock, building: CityBuilding, door: CityDoor, street: string): void => {
     unitCounter += 1;
-    const id = `local_${String(unitCounter).padStart(2, '0')}`;
+    const id = `${unitPrefix}_${String(unitCounter).padStart(2, '0')}`;
     const num = 2 * Math.round((face(door) === 'n' || face(door) === 's' ? door.x : door.y) / 6) + (door.face === 's' || door.face === 'e' ? 1 : 0);
     const sizeM2 = building.w * building.d;
     const traffic = streetTraffic(street);
@@ -497,6 +503,38 @@ export function buildCityLayout(): CityLayout {
     zones.push({ kind: 'parking', x: b.x + 3, y: b.y + 3, w: b.w - 6, h: 30, walkable: true });
     special({ id: 'drive_hyperval', x: b.x + 6, y: b.y + 36, w: b.w - 12, d: 30, floors: 2, style: 'hyper', roof: 'plat', front: 'n', label: 'Drive HyperVal' });
     for (let i = 0; i < 6; i++) props.push({ kind: 'lampadaire', x: b.x + 8 + i * 11, y: b.y + 18, blocks: true });
+  }
+
+  // ===== Quartier de la Gare et du laminoir (colonne est, ajoutée en 2026-10-07) =====
+  // Construit après les îlots historiques : leurs identifiants (locaux, bâtiments) ne bougent pas.
+  unitPrefix = 'gare';
+  unitCounter = 0;
+  const east = [0, 1, 2].map((r) => blockAt(r, 4));
+  blocks.push(...east);
+  // Parvis de la Gare : la gare au sud, face à l'avenue ; commerces sur la rue de la Mine.
+  {
+    const b = east[0]!;
+    perimeter(b, { faces: ['n'], shops: ['n'], styles: ['pierre', 'enduit_creme'] });
+    zones.push({ kind: 'pave', x: b.x + 3, y: b.y + 18, w: b.w - 6, h: 26, walkable: true });
+    special({ id: 'gare', x: b.x + 8, y: b.y + b.h - 3 - 22, w: b.w - 16, d: 22, floors: 2, style: 'civique', roof: 'deux_pans', front: 's', label: 'Gare de Val-Ferrand' });
+    props.push({ kind: 'arret_bus', x: b.x + 12, y: b.y + b.h - 1, blocks: true });
+    for (const dx of [10, 24, 38, 52, 66]) props.push({ kind: 'lampadaire', x: b.x + dx, y: b.y + 30, blocks: true });
+    streetFurniture(b, ['e', 'w']);
+  }
+  // Laminoir Taret : encore en activité en 2020 (fermeture programmée en 2032, VISION §3.2).
+  {
+    const b = east[1]!;
+    zones.push({ kind: 'gravier', x: b.x + 3, y: b.y + 3, w: b.w - 6, h: b.h - 6, walkable: true });
+    special({ id: 'laminoir', x: b.x + 6, y: b.y + 14, w: b.w - 12, d: 40, floors: 4, style: 'industriel', roof: 'sheds', front: 'n', label: 'Taret Laminage' });
+    props.push({ kind: 'cheminee', x: b.x + b.w - 8, y: b.y + 60, blocks: true });
+    props.push({ kind: 'grue', x: b.x + 10, y: b.y + 62, blocks: true });
+    streetFurniture(b, ['n', 'w']);
+  }
+  // Cité ouvrière du laminoir : maisons de brique, commerces sur la rue des Forges.
+  {
+    const b = east[2]!;
+    perimeter(b, { shops: ['n'], styles: ['brique'], floors: [2, 3] });
+    streetFurniture(b);
   }
 
   // Canal de la Malterie, au sud du quai.
