@@ -466,3 +466,28 @@ describe('inspectAutoSave — inspection de démarrage', () => {
     }
   });
 });
+
+describe('emplacements de sauvegarde — résumé', () => {
+  it('résume un emplacement sans le charger, et signale vide ou illisible', async () => {
+    const { slotSummary } = await import('../src/saves/persist');
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => { store.set(k, v); },
+      removeItem: (k: string) => { store.delete(k); },
+      key: (i: number) => [...store.keys()][i] ?? null,
+      get length() { return store.size; },
+    });
+    try {
+      const w = createWorld({ playerName: 'Morgane' });
+      w.player.money = 42.5;
+      saveToSlot('slot1', w);
+      expect(slotSummary('slot1')).toMatchObject({ exists: true, name: 'Morgane', money: 42.5, age: 12, businesses: 0 });
+      expect(slotSummary('slot2')).toEqual({ slot: 'slot2', exists: false });
+      store.set('neurapolis.save.slot3', '{pas du json');
+      expect(slotSummary('slot3').error).toBeDefined();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

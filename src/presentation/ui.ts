@@ -201,6 +201,7 @@ export function buildUi(root: HTMLElement): UiRefs {
   for (const b of [btnRotLeft, btnRotRight, btnCamView, btnZoomIn, btnZoomOut, btnToggle3D, btnMuteAudio]) cameraToolbarEl.appendChild(b);
   const navEl = el('div', 'hud-nav');
   const navLabels = [
+    '💾 Sauvegardes',
     '📱 Téléphone',
     'Personnage',
     'Relations',

@@ -2,7 +2,7 @@
 import { createWorld } from '../core/store';
 import { createCustomWorld } from '../core/player_customization';
 import type { WorldState } from '../core/types';
-import { inspectAutoSave, saveToSlot } from '../saves/persist';
+import { inspectAutoSave, saveToSlot, loadFromSlot, PENDING_LOAD_KEY } from '../saves/persist';
 import { startGame } from './game';
 import { mountCharacterCreation } from './character-creator';
 
@@ -38,6 +38,24 @@ export function mountStartScreen(root: HTMLElement): void {
   status.className = 'start-status';
   status.setAttribute('role', 'status');
   card.appendChild(status);
+
+  // Chargement demandé depuis le menu Sauvegardes : on reprend directement l'emplacement choisi.
+  let pending: string | null = null;
+  try {
+    pending = sessionStorage.getItem(PENDING_LOAD_KEY);
+    sessionStorage.removeItem(PENDING_LOAD_KEY);
+  } catch { /* stockage de session indisponible */ }
+  if (pending) {
+    try {
+      const loaded = loadFromSlot(pending);
+      saveToSlot('auto', loaded);
+      startGame(root, loaded);
+      return;
+    } catch (err) {
+      status.textContent = `Chargement impossible : ${err instanceof Error ? err.message : String(err)}`;
+      status.classList.add('error');
+    }
+  }
 
   const autoSave = inspectAutoSave();
   const savedWorld: WorldState | undefined = autoSave.kind === 'ready' ? autoSave.world : undefined;

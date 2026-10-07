@@ -69,6 +69,7 @@ import { UNIT_BY_ID, ensureEconomy, pickUpOrder, pickupPoint, unloadAt, business
 import { streetNameAt, unitAt } from '../data/map';
 import { COMPETITOR_BY_UNIT } from '../data/city/competitors';
 import { drawMinimap, renderCityMap } from './minimap';
+import { PENDING_LOAD_KEY, deleteSlot, exportSave, importSave, saveToSlot, slotSummary } from '../saves/persist';
 import { businessInteriorSpec, placeHasInterior, placeInteriorSpec } from './city3d/interior3d';
 import { useFurniture } from '../simulation/interior_actions';
 import { JOB, inShift, startShift } from '../simulation/jobs';
@@ -386,6 +387,87 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       }
     }
     renderer3D.setWaypoints(pts);
+  }
+
+  // ---------- Sauvegardes : 3 emplacements + auto, export / import de fichier ----------
+  function openSaves(): void {
+    const body = el('div', 'panel-body');
+    const list = el('div', 'ph-list');
+    const render = (): void => {
+      list.replaceChildren();
+      for (const slot of ['auto', 'slot1', 'slot2', 'slot3']) {
+        const sum = slotSummary(slot);
+        const card = el('div', 'ph-card');
+        const label = slot === 'auto' ? 'Sauvegarde automatique (chaque nuit)' : `Emplacement ${slot.slice(-1)}`;
+        card.appendChild(el('div', 'ph-card-title', `💾 ${label}`));
+        card.appendChild(el('p', 'ph-note', !sum.exists ? 'Vide.'
+          : sum.error ? `⚠️ ${sum.error}`
+            : `${sum.name ?? '—'}, ${sum.age ?? '?'} ans · ${dateOf(dayIndexOf(sum.tick ?? 0)).label} · ${(sum.money ?? 0).toFixed(2)} € · ${sum.businesses ?? 0} commerce(s)`));
+        const row = el('div', 'ph-actions');
+        if (slot !== 'auto') {
+          const save = el('button', 'ph-btn primary', 'Sauvegarder ici');
+          save.addEventListener('click', () => {
+            if (sum.exists && !window.confirm('Remplacer cette sauvegarde ?')) return;
+            try { saveToSlot(slot, world); toast('Partie sauvegardée.', true); } catch (err) { toast(`Échec : ${String(err)}`, false); }
+            render();
+          });
+          row.appendChild(save);
+        }
+        if (sum.exists && !sum.error) {
+          const load = el('button', 'ph-btn', 'Charger');
+          load.addEventListener('click', () => {
+            if (!window.confirm('Charger cette partie ? La progression non sauvegardée sera perdue.')) return;
+            try { sessionStorage.setItem(PENDING_LOAD_KEY, slot); } catch { /* indisponible */ }
+            location.reload();
+          });
+          row.appendChild(load);
+        }
+        if (sum.exists && slot !== 'auto') {
+          const del = el('button', 'ph-btn danger', 'Supprimer');
+          del.addEventListener('click', () => {
+            if (!window.confirm('Supprimer définitivement cette sauvegarde ?')) return;
+            deleteSlot(slot);
+            render();
+          });
+          row.appendChild(del);
+        }
+        card.appendChild(row);
+        list.appendChild(card);
+      }
+    };
+    render();
+    body.appendChild(list);
+    const files = el('div', 'ph-actions');
+    const exportBtn = el('button', 'ph-btn', '⬇️ Exporter un fichier');
+    exportBtn.addEventListener('click', () => {
+      const blob = new Blob([exportSave(world)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `neurapolis-${world.player.firstName || 'partie'}-${dateOf(dayIndexOf(world.time.tick)).iso}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    const importBtn = el('button', 'ph-btn', '⬆️ Importer un fichier');
+    importBtn.addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json,.json';
+      input.addEventListener('change', () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        file.text().then((text) => {
+          const imported = importSave(text);
+          saveToSlot('slot3', imported);
+          toast('Fichier importé dans l’emplacement 3 : charge-le pour le reprendre.', true);
+          render();
+        }).catch((err) => toast(`Import impossible : ${err instanceof Error ? err.message : String(err)}`, false));
+      });
+      input.click();
+    });
+    files.appendChild(exportBtn);
+    files.appendChild(importBtn);
+    body.appendChild(files);
+    showModal('💾 Sauvegardes', 'Trois emplacements, la sauvegarde automatique et les fichiers', body, true);
   }
 
   // ---------- Astuces contextuelles (mini-tutos non bloquants, désactivables) ----------
@@ -1448,7 +1530,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   for (const b of ui.navEl.querySelectorAll('button')) {
     const nav = b.dataset.nav;
-    if (nav === '📱 Téléphone') b.addEventListener('click', () => openPhoneUi());
+    if (nav === '💾 Sauvegardes') b.addEventListener('click', openSaves);
+    else if (nav === '📱 Téléphone') b.addEventListener('click', () => openPhoneUi());
     else if (nav === 'Personnage') b.addEventListener('click', openPersonnage);
     else if (nav === 'Relations') b.addEventListener('click', openRelations);
     else if (nav === 'Stratégie / Carte') b.addEventListener('click', openStrategieCarte);
