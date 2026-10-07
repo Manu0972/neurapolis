@@ -172,6 +172,18 @@ export interface BusinessState {
   reputation: number;
   /** Jours restants de campagnes marketing actives, par canal. */
   marketing: Record<string, number>;
+  /**
+   * Aménagement choisi par le joueur : position (m) et rotation de chaque meuble, par indice
+   * dans `furniture` (save v14). Les meubles absents sont placés automatiquement.
+   */
+  layout?: Record<string, FurniturePlacement>;
+}
+
+export interface FurniturePlacement {
+  x: number;
+  z: number;
+  /** 0, π/2, π ou −π/2. */
+  rot: number;
 }
 
 export interface LeaseState {

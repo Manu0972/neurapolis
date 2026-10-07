@@ -9,7 +9,7 @@
 import type { LedgerEntry, Notification, WorldState } from '../core/types';
 import type {
   BusinessState, BusinessTypeDef, CarriedGoods, CommercialUnitDef, DayStats, EconomyState, EmployeeRole,
-  EmployeeState, LeaseState, LoanState, PendingOrder, ProductDef,
+  EmployeeState, FurniturePlacement, LeaseState, LoanState, PendingOrder, ProductDef,
 } from '../core/economy_types';
 import { dateOf, dayIndexOf, minutesOfDay } from '../core/clock';
 import { CITY } from '../data/map';
@@ -234,7 +234,7 @@ export function openBusiness(w: WorldState, unitId: string, typeId: string, name
   e.businesses[id] = {
     id, name: clean, typeId, unitId, openedDay: day, open: false,
     hours: [t.defaultHours[0], t.defaultHours[1]], prices: {}, stock: {}, furniture: [], employeeIds: [],
-    cash: 0, ledger: [], today: emptyStats(day), history: [], reputation: 50, marketing: {},
+    cash: 0, ledger: [], today: emptyStats(day), history: [], reputation: 50, marketing: {}, layout: {},
   };
   pushEvent(w, {
     type: 'opportunite',
@@ -285,10 +285,71 @@ export function sellFurniture(w: WorldState, bizId: string, index: number): Econ
   if (!b || index < 0 || index >= b.furniture.length) return ko('Meuble introuvable.');
   const f = FURNITURE_BY_ID[b.furniture[index]!];
   b.furniture.splice(index, 1);
+  // Les indices suivants reculent d'un cran : l'aménagement suit.
+  if (b.layout) {
+    const next: Record<string, FurniturePlacement> = {};
+    for (const [k, v] of Object.entries(b.layout)) {
+      const i = Number(k);
+      if (i < index) next[k] = v;
+      else if (i > index) next[String(i - 1)] = v;
+    }
+    b.layout = next;
+  }
   const back = round2((f?.cost ?? 0) * 0.3);
   post(b, w, `Revente : ${f?.name ?? 'meuble'}`, back);
   clampStockToCapacity(b);
   return ok(`Meuble revendu ${back.toFixed(2)} €.`);
+}
+
+// ---------- Aménagement ----------
+
+/** Dimensions intérieures d'un local (mètres), communes à la simulation et au rendu. */
+export function shopRoomSize(u: CommercialUnitDef): { w: number; d: number } {
+  const w = Math.max(6, Math.min(14, Math.round(Math.sqrt(u.sizeM2 * 1.25))));
+  const d = Math.max(6, Math.min(12, Math.round(u.sizeM2 / w)));
+  return { w, d };
+}
+
+/** Encombrement au sol (largeur × profondeur, rotation nulle) par catégorie de meuble. */
+export const FURNITURE_DIMS: Readonly<Record<string, readonly [number, number]>> = {
+  rayonnage: [2.0, 0.6], frigo: [0.9, 0.75], caisse: [2.4, 0.8], comptoir: [2.4, 0.8], table: [1.6, 1.0],
+  machine: [0.9, 0.6], deco: [0.6, 0.6], stockage: [2.0, 0.6],
+};
+
+export function furnitureFootprint(furnitureId: string, rot: number): { w: number; d: number } {
+  const [w, d] = FURNITURE_DIMS[FURNITURE_BY_ID[furnitureId]?.category ?? ''] ?? [1, 1];
+  const quarter = Math.abs(Math.round(rot / (Math.PI / 2))) % 2 === 1;
+  return quarter ? { w: d, d: w } : { w, d };
+}
+
+const overlap = (a: { x: number; z: number; w: number; d: number }, b: { x: number; z: number; w: number; d: number }): boolean =>
+  Math.abs(a.x - b.x) * 2 < a.w + b.w - 0.02 && Math.abs(a.z - b.z) * 2 < a.d + b.d - 0.02;
+
+/**
+ * Place un meuble (indice dans `furniture`). Refusé s'il sort de la pièce, chevauche un autre
+ * meuble déjà placé, ou bloque l'allée devant la porte (façade sud, au centre).
+ */
+export function placeFurniture(w: WorldState, bizId: string, index: number, x: number, z: number, rot: number): EconomyResult {
+  const b = getBusiness(w, bizId);
+  if (!b || index < 0 || index >= b.furniture.length) return ko('Meuble introuvable.');
+  const u = UNIT_BY_ID[b.unitId];
+  if (!u || u.buildingId.startsWith('etal_')) return ko('Un étal ne s’aménage pas.');
+  const room = shopRoomSize(u);
+  const r = Math.round(rot / (Math.PI / 2)) * (Math.PI / 2);
+  const fp = { x: Math.round(x * 2) / 2, z: Math.round(z * 2) / 2, ...furnitureFootprint(b.furniture[index]!, r) };
+  if (fp.x - fp.w / 2 < 0.1 || fp.x + fp.w / 2 > room.w - 0.1 || fp.z - fp.d / 2 < 0.1 || fp.z + fp.d / 2 > room.d - 0.1) {
+    return ko('Ce meuble dépasse des murs.');
+  }
+  if (overlap(fp, { x: room.w / 2, z: room.d - 0.9, w: 1.8, d: 1.8 })) return ko('Il faut laisser l’entrée dégagée.');
+  for (const [k, p] of Object.entries(b.layout ?? {})) {
+    const j = Number(k);
+    if (j === index || j >= b.furniture.length) continue;
+    if (overlap(fp, { x: p.x, z: p.z, ...furnitureFootprint(b.furniture[j]!, p.rot) })) {
+      return ko(`Il chevauche : ${FURNITURE_BY_ID[b.furniture[j]!]?.name ?? 'un autre meuble'}.`);
+    }
+  }
+  b.layout = { ...(b.layout ?? {}), [String(index)]: { x: fp.x, z: fp.z, rot: r } };
+  return ok(`${FURNITURE_BY_ID[b.furniture[index]!]?.name ?? 'Meuble'} placé.`);
 }
 
 export interface Capacity { ambiant: number; froid: number }

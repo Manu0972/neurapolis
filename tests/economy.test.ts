@@ -343,3 +343,48 @@ describe('concurrents en ville', () => {
     expect(competitionFactor(b)).toBeGreaterThan(normal);
   });
 });
+
+describe('aménagement manuel (save v14)', () => {
+  function shopWith(furniture: string[]): { w: ReturnType<typeof createWorld>; biz: string } {
+    const w = createWorld({ sandbox: true });
+    w.player.money = 9000;
+    const unit = listUnits(w).find((l) => l.status === 'libre' && !l.unit.buildingId.startsWith('etal_'))!.unit.id;
+    signLease(w, unit);
+    openBusiness(w, unit, 't_epicerie_quartier', 'Aménagée');
+    const biz = Object.keys(w.economy!.businesses)[0]!;
+    transferCash(w, biz, 5000);
+    for (const f of furniture) buyFurniture(w, biz, f);
+    return { w, biz };
+  }
+
+  it('place un meuble dans la pièce et refuse les murs, l’entrée et les chevauchements', async () => {
+    const { placeFurniture, shopRoomSize } = await import('../src/simulation/economy');
+    const { w, biz } = shopWith(['f_rayonnage', 'f_rayonnage']);
+    const b = w.economy!.businesses[biz]!;
+    const room = shopRoomSize(UNIT_BY_ID[b.unitId]!);
+    expect(placeFurniture(w, biz, 0, 2, 1, 0).ok).toBe(true);
+    expect(b.layout!['0']).toEqual({ x: 2, z: 1, rot: 0 });
+    expect(placeFurniture(w, biz, 1, 0.3, 1, 0).ok).toBe(false); // dans le mur
+    expect(placeFurniture(w, biz, 1, room.w / 2, room.d - 0.8, 0).ok).toBe(false); // devant la porte
+    expect(placeFurniture(w, biz, 1, 2.5, 1, 0).message).toMatch(/chevauche/);
+    expect(placeFurniture(w, biz, 1, 1, 3, Math.PI / 2).ok).toBe(true); // tourné, contre le mur gauche
+  });
+
+  it('revendre un meuble décale l’aménagement des suivants', async () => {
+    const { placeFurniture, sellFurniture } = await import('../src/simulation/economy');
+    const { w, biz } = shopWith(['f_plante', 'f_rayonnage']);
+    placeFurniture(w, biz, 1, 3, 1, 0);
+    sellFurniture(w, biz, 0);
+    expect(w.economy!.businesses[biz]!.layout).toEqual({ '0': { x: 3, z: 1, rot: 0 } });
+  });
+
+  it('une sauvegarde v13 reçoit un aménagement vide', async () => {
+    const { exportSave } = await import('../src/saves/persist');
+    const { w } = shopWith(['f_rayonnage']);
+    const raw = JSON.parse(exportSave(w)) as { version: number; economy: { businesses: Record<string, Record<string, unknown>> } };
+    raw.version = 13;
+    for (const b of Object.values(raw.economy.businesses)) delete b.layout;
+    const migrated = migrateSave(raw);
+    expect(Object.values(migrated.economy!.businesses)[0]!.layout).toEqual({});
+  });
+});

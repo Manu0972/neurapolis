@@ -9,7 +9,7 @@ import type { PlaceId } from '../../core/types';
 import type { BusinessState } from '../../core/economy_types';
 import { INTERIOR_PLACES } from '../../data/interiors';
 import { FURNITURE_BY_ID } from '../../data/economy';
-import { UNIT_BY_ID, storageCapacity, stockUnits } from '../../simulation/economy';
+import { UNIT_BY_ID, furnitureFootprint, shopRoomSize, storageCapacity, stockUnits } from '../../simulation/economy';
 import { visualRng } from './textures';
 
 export type ItemKind =
@@ -31,6 +31,10 @@ export interface InteriorItem {
   fill?: number;
   /** Couleur dominante (rayons : produits). */
   tint?: string;
+  /** Indice du meuble dans le commerce (aménagement). */
+  slot?: number;
+  /** Surbrillance (meuble sélectionné en mode « Aménager »). */
+  highlight?: boolean;
 }
 
 export interface Hotspot {
@@ -39,7 +43,7 @@ export interface Hotspot {
   icon: string;
   x: number;
   z: number;
-  kind: 'mobilier' | 'sortie' | 'piece' | 'gestion' | 'decharger' | 'travail';
+  kind: 'mobilier' | 'sortie' | 'piece' | 'gestion' | 'decharger' | 'travail' | 'amenager';
   /** Pièce de destination (kind = piece) ou identifiant de mobilier (kind = mobilier). */
   target?: string;
 }
@@ -185,34 +189,55 @@ const CAT_KIND: Record<string, ItemKind> = {
 };
 
 /** Intérieur d'un commerce du joueur, construit à partir de son mobilier et de son stock réels. */
-export function businessInteriorSpec(b: BusinessState): InteriorSpec {
+/**
+ * Intérieur d'un commerce du joueur, construit à partir de son mobilier, de son stock et de
+ * son aménagement réels. `selected` met un meuble en surbrillance (mode « Aménager »).
+ */
+export function businessInteriorSpec(b: BusinessState, selected?: number): InteriorSpec {
   const u = UNIT_BY_ID[b.unitId]!;
-  const w = Math.max(6, Math.min(14, Math.round(Math.sqrt(u.sizeM2 * 1.25))));
-  const d = Math.max(6, Math.min(12, Math.round(u.sizeM2 / w)));
+  const { w, d } = shopRoomSize(u);
   const cap = storageCapacity(b);
   const totalCap = cap.ambiant + cap.froid;
   const fill = totalCap > 0 ? Math.min(1, stockUnits(b) / totalCap) : 0;
-  const counters = b.furniture.filter((f) => ['caisse', 'comptoir'].includes(FURNITURE_BY_ID[f]?.category ?? ''));
-  const rest = b.furniture.filter((f) => !counters.includes(f));
-  const items = arrange(rest.map((f, i) => {
+  const isCounter = (f: string): boolean => ['caisse', 'comptoir'].includes(FURNITURE_BY_ID[f]?.category ?? '');
+  const iconOf = (cat: string | undefined): string => (cat === 'frigo' ? '🧊' : cat === 'table' ? '🪑' : cat === 'deco' ? '🪴' : cat === 'caisse' || cat === 'comptoir' ? '💶' : '🧺');
+  const layout = b.layout ?? {};
+  const items: InteriorItem[] = [];
+  // 1. Meubles placés par le joueur.
+  b.furniture.forEach((f, i) => {
+    const p = layout[String(i)];
+    if (!p) return;
     const def = FURNITURE_BY_ID[f];
-    return { id: `${f}_${i}`, kind: CAT_KIND[def?.category ?? ''] ?? 'caisse_bois', label: def?.name ?? f, icon: def?.category === 'frigo' ? '🧊' : def?.category === 'table' ? '🪑' : def?.category === 'deco' ? '🪴' : '🧺' };
-  }), w, d).map((it): InteriorItem => ({ ...it, fill }));
-  // Caisses et comptoirs près de l'entrée, à droite.
-  counters.forEach((f, i) => {
-    const [iw, id] = SIZES.comptoir;
-    items.push({ id: `${f}_c${i}`, kind: 'comptoir', label: FURNITURE_BY_ID[f]?.name ?? 'Caisse', icon: '💶', x: w - 1.6 - i * (iw + 0.4), z: d - 2.6, rot: Math.PI, w: iw, d: id });
+    const fp = furnitureFootprint(f, p.rot);
+    items.push({ id: `${f}_${i}`, slot: i, kind: CAT_KIND[def?.category ?? ''] ?? 'caisse_bois', label: def?.name ?? f, icon: iconOf(def?.category), x: p.x, z: p.z, rot: p.rot, w: fp.w, d: fp.d, fill, highlight: i === selected });
   });
+  // 2. Les autres : comptoirs près de l'entrée, le reste rangé le long des murs.
+  let counterN = 0;
+  b.furniture.forEach((f, i) => {
+    if (layout[String(i)] || !isCounter(f)) return;
+    const [iw, id] = SIZES.comptoir;
+    items.push({ id: `${f}_${i}`, slot: i, kind: 'comptoir', label: FURNITURE_BY_ID[f]?.name ?? 'Caisse', icon: '💶', x: w - 1.6 - counterN * (iw + 0.4), z: d - 2.6, rot: Math.PI, w: iw, d: id, highlight: i === selected });
+    counterN += 1;
+  });
+  const autoIdx = b.furniture.map((f, i) => i).filter((i) => !layout[String(i)] && !isCounter(b.furniture[i]!));
+  const arranged = arrange(autoIdx.map((i) => {
+    const f = b.furniture[i]!;
+    const def = FURNITURE_BY_ID[f];
+    return { id: `${f}_${i}`, kind: CAT_KIND[def?.category ?? ''] ?? 'caisse_bois', label: def?.name ?? f, icon: iconOf(def?.category) };
+  }), w, d);
+  arranged.forEach((it, k) => items.push({ ...it, slot: autoIdx[k], fill, highlight: autoIdx[k] === selected }));
+  const counter = items.find((it) => it.kind === 'comptoir');
   const hotspots: Hotspot[] = [
-    { id: 'gestion', label: `Gérer ${b.name}`, icon: '📱', x: counters.length ? w - 1.6 : w / 2, z: counters.length ? d - 1.6 : d - 2, kind: 'gestion' },
+    { id: 'gestion', label: `Gérer ${b.name}`, icon: '📱', x: counter ? counter.x : w / 2, z: counter ? Math.min(d - 1.2, counter.z + 1) : d - 2, kind: 'gestion' },
     { id: 'decharger', label: 'Décharger les cartons', icon: '📦', x: 1.2, z: d - 1.2, kind: 'decharger' },
+    { id: 'amenager', label: 'Aménager la boutique (Tab : choisir, flèches : déplacer, R : tourner, Entrée : valider)', icon: '🛠️', x: w - 1.0, z: d - 1.0, kind: 'amenager' },
     { id: 'sortie', label: 'Sortir', icon: '🚪', x: w / 2, z: d - 0.6, kind: 'sortie' },
   ];
   return {
-    key: `biz:${b.id}:${b.furniture.join(',')}:${Math.round(fill * 10)}`,
+    key: `biz:${b.id}:${b.furniture.join(',')}:${JSON.stringify(layout)}:${selected ?? ''}:${Math.round(fill * 10)}`,
     title: b.name,
     w, d, floor: 'carrelage', wall: '#efe4cf', items, hotspots,
-    npcSlots: counters.length ? [{ x: w - 1.6, z: d - 3.4, face: 0 }] : [],
+    npcSlots: counter ? [{ x: counter.x, z: counter.z - 0.9, face: 0 }] : [],
     businessId: b.id,
   };
 }
@@ -517,7 +542,22 @@ export function buildInterior(spec: InteriorSpec): BuiltInterior {
   mat.position.set(w / 2, 0.01, d - 0.6);
   group.add(mat);
 
-  for (const it of spec.items) group.add(itemMesh(it, rnd));
+  for (const it of spec.items) {
+    group.add(itemMesh(it, rnd));
+    if (it.highlight) {
+      // Liseré doré et socle lumineux autour du meuble sélectionné.
+      const edges = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(it.w + 0.1, 2.2, it.d + 0.1)),
+        new THREE.LineBasicMaterial({ color: '#ffd98a' }),
+      );
+      edges.position.set(it.x, 1.1, it.z);
+      group.add(edges);
+      const pad = new THREE.Mesh(new THREE.PlaneGeometry(it.w + 0.2, it.d + 0.2), new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0.25 }));
+      pad.rotation.x = -Math.PI / 2;
+      pad.position.set(it.x, 0.015, it.z);
+      group.add(pad);
+    }
+  }
   // Icônes flottantes des points d'interaction.
   for (const h of spec.hotspots) {
     const sp = iconSprite(h.icon);

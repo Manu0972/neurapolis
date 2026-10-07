@@ -630,6 +630,10 @@ export class CityRenderer {
     const same = this.interior?.spec.key === spec.key;
     if (same) return;
     const wasInside = !!this.interior;
+    // Même commerce reconstruit (aménagement, stock) : le joueur et la caméra ne bougent pas.
+    const keepPose = wasInside && !!spec.businessId && this.interior?.spec.businessId === spec.businessId;
+    const pose = { ...this.body };
+    const cam = { yaw: this.yawTarget, pitch: this.pitchTarget, dist: this.distTarget };
     this.clearInterior();
     if (!wasInside) {
       this.cityBody = { ...this.body };
@@ -640,11 +644,18 @@ export class CityRenderer {
     this.interiorScene.background = new THREE.Color('#1c140f');
     this.interiorScene.add(this.player.root);
     if (this.ghost) this.interiorScene.add(this.ghost);
-    this.body = { x: this.interior.spawn.x, z: this.interior.spawn.z, heading: this.interior.spawn.heading, speed: 0 };
-    this.yaw = this.yawTarget = 0;
-    this.pitch = this.pitchTarget = 0.95;
-    this.dist = this.distTarget = Math.max(7, Math.max(spec.w, spec.d) * 0.85);
-    this.camTarget.set(this.body.x, 1.2, this.body.z);
+    if (keepPose) {
+      this.body = pose;
+      this.yawTarget = cam.yaw;
+      this.pitchTarget = cam.pitch;
+      this.distTarget = cam.dist;
+    } else {
+      this.body = { x: this.interior.spawn.x, z: this.interior.spawn.z, heading: this.interior.spawn.heading, speed: 0 };
+      this.yaw = this.yawTarget = 0;
+      this.pitch = this.pitchTarget = 0.95;
+      this.dist = this.distTarget = Math.max(7, Math.max(spec.w, spec.d) * 0.85);
+      this.camTarget.set(this.body.x, 1.2, this.body.z);
+    }
     // Habitants présents dans ce lieu : chacun à son poste.
     if (spec.placeId) {
       const present = Object.values(world.npcs).filter((n) => n.place === spec.placeId && n.activity !== 'dort');

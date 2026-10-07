@@ -200,9 +200,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   const input = createInput(root, interact);
   window.addEventListener('resize', () => resizeCanvas(ui, root));
 
-  // Raccourcis caméra (R / T / V)
+  // Mode aménagement : défini plus bas, consulté ici par les raccourcis caméra.
+  let layoutEditActive = (): boolean => false;
+  // Raccourcis caméra (R / T / V) — inactifs pendant l'aménagement (R y fait tourner un meuble).
   window.addEventListener('keydown', (e) => {
-    if (modalOpen) return;
+    if (modalOpen || layoutEditActive()) return;
     if (e.code === 'KeyR') {
       audio.playUiClick();
       renderer3D?.rotateLeft();
@@ -249,6 +251,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       eco: economyApi,
       enterBusiness: (id: string) => enterBusiness(id),
       sync: () => { syncSigns(); syncWaypoints(); syncStallCrowds(); },
+      layout: (id: string) => startLayoutEdit(id),
     },
   };
 
@@ -475,6 +478,74 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     audio.updateAmbient('ville', minutesOfDay(world.time.tick) / 60, world.district.meteo);
   }
 
+  // ---------- Mode « Aménager » (placement des meubles à la main) ----------
+  let layoutEdit: { bizId: string; sel: number; x: number; z: number; rot: number } | null = null;
+  layoutEditActive = (): boolean => layoutEdit !== null;
+
+  function startLayoutEdit(bizId: string): void {
+    const b = world.economy?.businesses[bizId];
+    if (!b || !renderer3D) return;
+    if (b.furniture.length === 0) { toast('Achète d’abord des meubles (téléphone, onglet Commerces).', false); return; }
+    // On fige les positions actuelles (placement automatique compris) avant de modifier.
+    const spec = businessInteriorSpec(b);
+    for (const it of spec.items) {
+      if (it.slot !== undefined && !b.layout?.[String(it.slot)]) economyApi.placeFurniture(world, bizId, it.slot, it.x, it.z, it.rot);
+    }
+    layoutEdit = { bizId, sel: 0, x: 0, z: 0, rot: 0 };
+    selectLayoutItem(0);
+    toast('Mode Aménager : Tab choisit un meuble, les flèches le déplacent, R le tourne, Entrée valide, Échap termine.', true);
+  }
+
+  function selectLayoutItem(index: number): void {
+    if (!layoutEdit || !renderer3D) return;
+    const b = world.economy?.businesses[layoutEdit.bizId];
+    if (!b) return;
+    const n = b.furniture.length;
+    layoutEdit.sel = ((index % n) + n) % n;
+    const it = businessInteriorSpec(b).items.find((x) => x.slot === layoutEdit!.sel);
+    layoutEdit.x = it?.x ?? 2;
+    layoutEdit.z = it?.z ?? 2;
+    layoutEdit.rot = it?.rot ?? 0;
+    renderer3D.enterInterior(businessInteriorSpec(b, layoutEdit.sel), world);
+  }
+
+  function previewLayout(): void {
+    if (!layoutEdit || !renderer3D) return;
+    const b = world.economy?.businesses[layoutEdit.bizId];
+    if (!b) return;
+    // Aperçu : on montre la position candidate sans l'enregistrer.
+    const ghost = structuredClone(b);
+    ghost.layout = { ...(b.layout ?? {}), [String(layoutEdit.sel)]: { x: layoutEdit.x, z: layoutEdit.z, rot: layoutEdit.rot } };
+    renderer3D.enterInterior(businessInteriorSpec(ghost, layoutEdit.sel), world);
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (!layoutEdit || modalOpen) return;
+    const step = 0.5;
+    const k = e.code;
+    if (k === 'Tab') { e.preventDefault(); e.stopImmediatePropagation(); selectLayoutItem(layoutEdit.sel + (e.shiftKey ? -1 : 1)); return; }
+    if (k === 'ArrowLeft') layoutEdit.x -= step;
+    else if (k === 'ArrowRight') layoutEdit.x += step;
+    else if (k === 'ArrowUp') layoutEdit.z -= step;
+    else if (k === 'ArrowDown') layoutEdit.z += step;
+    else if (k === 'KeyR') layoutEdit.rot += Math.PI / 2;
+    else if (k === 'Enter') {
+      const r = economyApi.placeFurniture(world, layoutEdit.bizId, layoutEdit.sel, layoutEdit.x, layoutEdit.z, layoutEdit.rot);
+      toast(r.message, r.ok);
+      if (!r.ok) selectLayoutItem(layoutEdit.sel);
+      return;
+    } else if (k === 'Escape') {
+      const b = world.economy?.businesses[layoutEdit.bizId];
+      layoutEdit = null;
+      if (b) renderer3D?.enterInterior(businessInteriorSpec(b), world);
+      toast('Aménagement enregistré.', true);
+      return;
+    } else return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    previewLayout();
+  }, { capture: true });
+
   /** Action du point d'interaction à portée, à l'intérieur. */
   function interiorActionHere(): { label: string; run: () => void } | null {
     const spec = renderer3D?.interiorSpec;
@@ -482,6 +553,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (!spec || !h) return null;
     const label = `E — ${h.label}`;
     if (h.kind === 'sortie') return { label, run: exitInterior };
+    if (h.kind === 'amenager' && spec.businessId) {
+      return { label, run: () => startLayoutEdit(spec.businessId!) };
+    }
     if (h.kind === 'travail') {
       return { label, run: () => { const r = startShift(world); toast(r.message, r.ok); } };
     }
@@ -517,6 +591,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   function promptText(): string {
     if (world.player.asleep) return '😴 Tu dors. La nuit passe…';
     if (inShift(world)) return `🧺 ${JOB.title} — fin du service à ${hhmmOfTick(world.flags['jobShiftEnd'] ?? world.time.tick)}`;
+    if (layoutEdit) return '🛠️ Aménager — Tab : meuble suivant · flèches : déplacer · R : tourner · Entrée : valider · Échap : terminer';
     if (renderer3D?.inInterior) {
       const inside = interiorActionHere();
       if (inside) return inside.label;
@@ -2385,7 +2460,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       renderer3D.frame(world, dt / 1000, {
         move: input.vector(),
         running: input.running(),
-        canMove: !modalOpen && !world.player.asleep && !inShift(world),
+        canMove: !modalOpen && !world.player.asleep && !inShift(world) && !layoutEdit,
       }, ui.cw, ui.ch);
     } else {
       const rawD = input.dir();

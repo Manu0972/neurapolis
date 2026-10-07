@@ -320,6 +320,16 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
     s.version = 13;
     return s;
   },
+  // 13 → 14 : aménagement manuel des commerces (positions des meubles) — vide par défaut.
+  13: (s) => {
+    const eco = s.economy as AnySave | undefined;
+    const businesses = (eco?.businesses ?? {}) as Record<string, AnySave>;
+    for (const b of Object.values(businesses)) {
+      if (typeof b.layout !== 'object' || b.layout === null) b.layout = {};
+    }
+    s.version = 14;
+    return s;
+  },
 };
 
 export const CURRENT_SAVE_VERSION = SAVE_VERSION;
