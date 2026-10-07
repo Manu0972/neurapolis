@@ -43,7 +43,7 @@ export interface Hotspot {
   icon: string;
   x: number;
   z: number;
-  kind: 'mobilier' | 'sortie' | 'piece' | 'gestion' | 'decharger' | 'travail' | 'amenager' | 'activite' | 'depart' | 'plan' | 'objet';
+  kind: 'mobilier' | 'sortie' | 'piece' | 'gestion' | 'decharger' | 'travail' | 'amenager' | 'activite' | 'depart' | 'plan' | 'objet' | 'armoire';
   /** Pièce de destination (kind = piece) ou identifiant de mobilier (kind = mobilier). */
   target?: string;
 }
@@ -165,7 +165,7 @@ export function indoorRooms(place: PlaceId): string[] {
 }
 
 /** Objets en plus dans une pièce (chambre-QG : tableau des plans, objets gagnés). */
-export interface ExtraItem { id: string; kind: ItemKind; label: string; icon: string; hotspot: 'plan' | 'objet' }
+export interface ExtraItem { id: string; kind: ItemKind; label: string; icon: string; hotspot: 'plan' | 'objet' | 'armoire' }
 
 export function placeInteriorSpec(place: PlaceId, roomId?: string, extras: ExtraItem[] = [], ownerName?: string): InteriorSpec | null {
   const style = PLACE_ROOM_STYLE[place];
@@ -180,7 +180,7 @@ export function placeInteriorSpec(place: PlaceId, roomId?: string, extras: Extra
   const extraById = new Map(extras.map((e) => [e.id, e]));
   const hotspots: Hotspot[] = items.map((it) => {
     const ex = extraById.get(it.id);
-    if (ex) return { id: it.id, label: ex.hotspot === 'plan' ? `${it.label} — préparer tes plans` : `${it.label} — regarder`, icon: it.icon, ...frontOf(it), kind: ex.hotspot, target: it.id };
+    if (ex) return { id: it.id, label: ex.hotspot === 'plan' ? `${it.label} — préparer tes plans` : ex.hotspot === 'armoire' ? `${it.label} — changer d’apparence` : `${it.label} — regarder`, icon: it.icon, ...frontOf(it), kind: ex.hotspot, target: it.id };
     return { id: it.id, label: `${it.label} — ${room.furniture.find((f) => f.id === it.id)?.actionLabel ?? ''}`, icon: it.icon, ...frontOf(it), kind: 'mobilier', target: it.id };
   });
   hotspots.push({ id: 'sortie', label: 'Sortir', icon: '🚪', x: style.w / 2, z: style.d - 0.6, kind: 'sortie' });

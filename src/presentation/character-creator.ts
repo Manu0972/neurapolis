@@ -11,11 +11,6 @@ import {
   type PlayerAppearance,
   type PlayerCustomization,
   type PlayerGender,
-  type SkinTone,
-  type HairColor,
-  type HairStyle,
-  type OutfitStyle,
-  type OutfitColor,
   BASE_CHARACTERISTICS,
   CHARACTERISTIC_KEYS,
   CHARACTERISTIC_LABELS,
@@ -38,6 +33,9 @@ import {
   validateIdentity,
 } from '../core/player_customization';
 import { drawCamille } from './assets/characters/camille';
+import { DEFAULT_PLAYER_APPEARANCE } from '../core/types';
+import { buildAppearanceEditor } from './appearance-editor';
+import { createAvatarPreview } from './avatar-preview3d';
 
 export interface CharacterCreatorOptions {
   initialCustomization?: Partial<PlayerCustomization>;
@@ -60,11 +58,7 @@ export function mountCharacterCreation(
   let lastName = DEFAULT_PLAYER_CUSTOMIZATION.lastName;
   let gender: PlayerGender = DEFAULT_PLAYER_CUSTOMIZATION.gender;
 
-  let skinTone: SkinTone = DEFAULT_PLAYER_CUSTOMIZATION.appearance.skinTone;
-  let hairColor: HairColor = DEFAULT_PLAYER_CUSTOMIZATION.appearance.hairColor;
-  let hairStyle: HairStyle = DEFAULT_PLAYER_CUSTOMIZATION.appearance.hairStyle;
-  let outfitStyle: OutfitStyle = DEFAULT_PLAYER_CUSTOMIZATION.appearance.outfitStyle;
-  let outfitColor: OutfitColor = DEFAULT_PLAYER_CUSTOMIZATION.appearance.outfitColor;
+  let appearance: PlayerAppearance = { ...DEFAULT_PLAYER_APPEARANCE, ...DEFAULT_PLAYER_CUSTOMIZATION.appearance };
 
   const bonusPoints: Record<keyof Characteristics, number> = {
     comprehension: 0,
@@ -338,129 +332,16 @@ export function mountCharacterCreation(
   appTitle.textContent = '3. Apparence & Style';
   appearanceSection.appendChild(appTitle);
 
-  // Helper pour créer un sélecteur à pastilles de couleurs
-  function createColorPickerGroup<T extends string>(
-    label: string,
-    options: readonly T[],
-    currentValue: T,
-    infoMap: Record<T, { label: string; hex: string }>,
-    onSelect: (val: T) => void
-  ): HTMLElement {
-    const group = document.createElement('div');
-    group.className = 'creator-input-group';
-    const lbl = document.createElement('label');
-    lbl.textContent = label;
-    const swatchesRow = document.createElement('div');
-    swatchesRow.className = 'creator-swatches-row';
-
-    const buttons: Record<string, HTMLButtonElement> = {};
-    for (const opt of options) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = `creator-swatch-btn ${opt === currentValue ? 'active' : ''}`;
-      btn.setAttribute('aria-label', `${label} : ${infoMap[opt].label}`);
-      btn.setAttribute('aria-pressed', opt === currentValue ? 'true' : 'false');
-      btn.title = infoMap[opt].label;
-      btn.style.setProperty('--swatch-color', infoMap[opt].hex);
-
-      const colorDot = document.createElement('span');
-      colorDot.className = 'swatch-dot';
-      colorDot.style.backgroundColor = infoMap[opt].hex;
-
-      const swatchLabel = document.createElement('span');
-      swatchLabel.className = 'swatch-label';
-      swatchLabel.textContent = infoMap[opt].label;
-
-      btn.append(colorDot, swatchLabel);
-
-      btn.addEventListener('click', () => {
-        onSelect(opt);
-        for (const o of options) {
-          buttons[o]?.classList.toggle('active', o === opt);
-          buttons[o]?.setAttribute('aria-pressed', o === opt ? 'true' : 'false');
-        }
-        updatePreview();
-      });
-      buttons[opt] = btn;
-      swatchesRow.appendChild(btn);
-    }
-    group.append(lbl, swatchesRow);
-    return group;
-  }
-
-  // Helper pour sélecteur d'icônes/styles
-  function createStylePickerGroup<T extends string>(
-    label: string,
-    options: readonly T[],
-    currentValue: T,
-    infoMap: Record<T, { label: string; icon: string }>,
-    onSelect: (val: T) => void
-  ): HTMLElement {
-    const group = document.createElement('div');
-    group.className = 'creator-input-group';
-    const lbl = document.createElement('label');
-    lbl.textContent = label;
-    const pillsRow = document.createElement('div');
-    pillsRow.className = 'creator-pills-row';
-
-    const buttons: Record<string, HTMLButtonElement> = {};
-    for (const opt of options) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = `creator-pill-btn ${opt === currentValue ? 'active' : ''}`;
-      btn.setAttribute('aria-pressed', opt === currentValue ? 'true' : 'false');
-      btn.innerHTML = `<span class="pill-icon">${infoMap[opt].icon}</span> <span>${infoMap[opt].label}</span>`;
-      btn.addEventListener('click', () => {
-        onSelect(opt);
-        for (const o of options) {
-          buttons[o]?.classList.toggle('active', o === opt);
-          buttons[o]?.setAttribute('aria-pressed', o === opt ? 'true' : 'false');
-        }
-        updatePreview();
-      });
-      buttons[opt] = btn;
-      pillsRow.appendChild(btn);
-    }
-    group.append(lbl, pillsRow);
-    return group;
-  }
-
-  // Teinte de peau
-  appearanceSection.appendChild(
-    createColorPickerGroup('Teinte de peau', VALID_SKIN_TONES, skinTone, SKIN_TONE_INFO, (v) => {
-      skinTone = v;
-    })
-  );
-
-  // Cheveux : Couleur puis Coupe
-  const hairRow = document.createElement('div');
-  hairRow.className = 'creator-fields-row';
-  hairRow.appendChild(
-    createColorPickerGroup('Couleur des cheveux', VALID_HAIR_COLORS, hairColor, HAIR_COLOR_INFO, (v) => {
-      hairColor = v;
-    })
-  );
-  hairRow.appendChild(
-    createStylePickerGroup('Coupe de cheveux', VALID_HAIR_STYLES, hairStyle, HAIR_STYLE_INFO, (v) => {
-      hairStyle = v;
-    })
-  );
-  appearanceSection.appendChild(hairRow);
-
-  // Tenue : Style puis Couleur
-  const outfitRow = document.createElement('div');
-  outfitRow.className = 'creator-fields-row';
-  outfitRow.appendChild(
-    createStylePickerGroup('Style de tenue', VALID_OUTFIT_STYLES, outfitStyle, OUTFIT_STYLE_INFO, (v) => {
-      outfitStyle = v;
-    })
-  );
-  outfitRow.appendChild(
-    createColorPickerGroup('Couleur de la tenue', VALID_OUTFIT_COLORS, outfitColor, OUTFIT_COLOR_INFO, (v) => {
-      outfitColor = v;
-    })
-  );
-  appearanceSection.appendChild(outfitRow);
+  // Éditeur approfondi (corps, visage, cheveux, tenue, accessoires) : partagé avec l'armoire.
+  const editor = buildAppearanceEditor(appearance, {
+    age: 12,
+    tier: 1,
+    onChange: (next) => {
+      appearance = next;
+      updatePreview();
+    },
+  });
+  appearanceSection.appendChild(editor.root);
 
   formColumn.appendChild(appearanceSection);
   bodyGrid.appendChild(formColumn);
@@ -486,6 +367,12 @@ export function mountCharacterCreation(
   avatarCanvas.height = 88;
   avatarCanvas.style.cssText = 'image-rendering:pixelated;width:64px;height:88px;';
   avatarBox.appendChild(avatarCanvas);
+  const preview3d = createAvatarPreview(240, 300);
+  if (preview3d) {
+    // Le vrai personnage du jeu, qui tourne ; on le fait pivoter en glissant.
+    avatarBox.replaceChildren(preview3d.canvas);
+    avatarBox.style.cssText = 'margin:0 auto 0.75rem auto;max-width:240px;';
+  }
   previewCard.appendChild(avatarBox);
 
   // Nom complet & Genre
@@ -549,13 +436,7 @@ export function mountCharacterCreation(
       lastName: idValidation.sanitized.lastName,
       gender: idValidation.sanitized.gender,
       characteristics: allocValidation.finalCharacteristics,
-      appearance: {
-        skinTone,
-        hairColor,
-        hairStyle,
-        outfitStyle,
-        outfitColor,
-      },
+      appearance: { ...appearance },
     };
 
     onComplete(customization);
@@ -627,13 +508,14 @@ export function mountCharacterCreation(
 
     const lookEl = document.getElementById('preview-look');
     if (lookEl) {
-      lookEl.textContent = `Tenue ${OUTFIT_STYLE_INFO[outfitStyle].label.toLowerCase()} ${OUTFIT_COLOR_INFO[outfitColor].label.toLowerCase()}, cheveux ${HAIR_COLOR_INFO[hairColor].label.toLowerCase()}s ${HAIR_STYLE_INFO[hairStyle].label.toLowerCase()}s.`;
+      lookEl.textContent = `Tenue ${OUTFIT_STYLE_INFO[appearance.outfitStyle].label.toLowerCase()} ${OUTFIT_COLOR_INFO[appearance.outfitColor].label.toLowerCase()}, cheveux ${HAIR_COLOR_INFO[appearance.hairColor].label.toLowerCase()}s ${HAIR_STYLE_INFO[appearance.hairStyle].label.toLowerCase()}s.`;
     }
 
     // Rendu dynamique du sprite pixel-art sur le mini Canvas
+    preview3d?.setAppearance(appearance, gender, 1.52);
     const avatarBoxEl = document.getElementById('preview-avatar');
     if (avatarBoxEl) {
-      avatarBoxEl.style.borderColor = OUTFIT_COLOR_INFO[outfitColor].hex;
+      avatarBoxEl.style.borderColor = OUTFIT_COLOR_INFO[appearance.outfitColor].hex;
       const cvs = avatarBoxEl.querySelector('canvas');
       if (cvs) {
         const cCtx = cvs.getContext('2d');
@@ -647,7 +529,7 @@ export function mountCharacterCreation(
             '12',
             0,
             false,
-            { skinTone, hairColor, hairStyle, outfitStyle, outfitColor }
+            appearance
           );
         }
       }

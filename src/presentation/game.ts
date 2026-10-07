@@ -61,7 +61,7 @@ import { TOKENS } from './tokens';
 import { avatarElement } from './avatar';
 import { loadAssetKit } from './asset-loader';
 import { audio, type AmbientLocation } from './audio';
-import { CityRenderer } from './city3d/CityRenderer';
+import { CityRenderer, heightForAge } from './city3d/CityRenderer';
 import { moveToTile } from '../simulation/movement';
 import { openPhone, type PhoneApp } from './phone';
 import { BUSINESS_TYPE_BY_ID, WHOLESALER_BY_ID } from '../data/economy';
@@ -93,6 +93,8 @@ import { openConvocationModal, openDinnerModal, openFamilyPanel, openSchoolEvent
 import { pendingSchoolEvent } from '../simulation/school_events';
 import { bedroomExtras, openPlanner, openShelf, type PlanCtx } from './plan-ui';
 import { openDuelModal } from './ascension-ui';
+import { buildAppearanceEditor } from './appearance-editor';
+import { createAvatarPreview } from './avatar-preview3d';
 import { openNotebooks, openUnreadBeat, playOrigin } from './story-ui';
 import { ensureRoom, planChecklist } from '../simulation/room';
 import { searchSecret, secretHere } from '../simulation/secrets';
@@ -168,6 +170,33 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       openDuel: () => openDuelModal({ world, showModal, closeModal, toast, onChange: () => updateHud(ui, world, promptText()) }, () => openPhoneUi('ascension')),
     };
   }
+  /** L'armoire de la chambre : changer d'apparence (tenues selon le palier, barbe à 16 ans). */
+  function openWardrobe(): void {
+    let draft = { ...world.player.appearance };
+    const body = el('div', 'panel-body wardrobe');
+    const preview = createAvatarPreview(220, 280);
+    if (preview) {
+      preview.setAppearance(draft, world.player.gender, heightForAge(world.player.age));
+      body.appendChild(preview.canvas);
+    }
+    const editor = buildAppearanceEditor(draft, {
+      age: world.player.age,
+      tier: world.ascension?.tier ?? 1,
+      onChange: (a) => { draft = a; preview?.setAppearance(a, world.player.gender, heightForAge(world.player.age)); },
+    });
+    body.appendChild(editor.root);
+    const save = el('button', 'ph-btn primary', 'Enfiler cette tenue');
+    save.type = 'button';
+    save.addEventListener('click', () => {
+      world.player.appearance = { ...draft };
+      preview?.dispose();
+      closeModal();
+      toast('Nouvelle allure !', true);
+    });
+    body.appendChild(save);
+    showModal('👕 Armoire', 'Ton allure, ton style', body, true);
+  }
+
   function syncPlanChip(): void {
     const p = ensureRoom(world).plans[0];
     const idea = p ? IDEA_BY_ID[p.ideaId] : undefined;
@@ -857,6 +886,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const h = renderer3D?.interiorHotspot;
     if (spec?.placeId === 'college' && classWindow(world)) return { label: 'E — Rejoindre ta classe', run: goToClass };
     if (h?.kind === 'plan') return { label: `E — ${h.label}`, run: () => openPlanner(planCtx()) };
+    if (h?.kind === 'armoire') return { label: `E — ${h.label}`, run: openWardrobe };
     if (h?.kind === 'objet') return { label: `E — ${h.label}`, run: () => openShelf(planCtx(), h.target) };
     if (!spec || !h) return null;
     const label = `E — ${h.label}`;

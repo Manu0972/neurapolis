@@ -109,6 +109,7 @@ export function bedroomExtras(w: WorldState): ExtraItem[] {
   const recent = Object.entries(r.owned).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([id]) => ROOM_ITEM_BY_ID[id]).filter((i) => !!i);
   return [
     { id: 'tableau_plans', kind: 'tableau', label: 'Tableau des plans', icon: '📌', hotspot: 'plan' },
+    { id: 'armoire', kind: 'etagere', label: 'Armoire', icon: '👕', hotspot: 'armoire' },
     ...recent.map((i) => ({ id: i!.id, kind: /ordi|ecran|reveil|casque/.test(i!.id) ? 'radio' as const : /tirelire|souvenir|maquette|globe/.test(i!.id) ? 'caisse_bois' as const : kindForFurnitureId(i!.id) === 'caisse_bois' ? 'plante' as const : kindForFurnitureId(i!.id), label: i!.name, icon: i!.icon, hotspot: 'objet' as const })),
   ];
 }
