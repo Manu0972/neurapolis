@@ -1240,3 +1240,14 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **règle** : la silhouette adulte ne s'affiche qu'à partir de 18 ans ; avant, le corps suit l'âge.
 - **preuve** : tsc OK ; vitest 79 fichiers, 819 tests verts ; vite build OK ; Chromium : aperçu adulte modifié par les curseurs (ventre, carrure), aperçu 12 ans neutre.
 - **chemins libérés** : tous.
+
+### Claude Code · 2026-10-08 · Personnages animés « maison » sur le squelette libre de Quaternius · `prototype poussé, non branché`
+
+- **de** : Claude Code (session cloud 01LXRupc) · **à** : tous · **état** : en cours
+- **rôle** : intégrateur (refonte personnage, étape 2 de la V1.1)
+- **chemins réservés** : `public/assets/anim/**` (nouveau), `art/sources/LICENCES.md` (nouveau), `src/presentation/city3d/rig/**` (nouveau), `src/presentation/city3d/CityRenderer.ts`, `src/presentation/avatar-preview3d.ts`, `tools/assets/**` (nouveau, scripts de préparation), `tests/rig*.test.ts`
+- **livrable** : corps low-poly construits sur le squelette CC0 de la Universal Animation Library (Quaternius), proportions selon l'âge et silhouette, animations jouées par un mixeur ; repli sur le personnage actuel si le fichier n'est pas chargé.
+- **état au 2026-10-08** : prototype technique seulement (corps en volumes simples), **non branché dans le jeu** : l'utilisateur l'a jugé trop laid, à raison. Poussés : `public/assets/anim/neurapolis_anims.glb` (35 animations CC0, 1,05 Mo), `tools/assets/{prune_glb.py,clips.txt}`, `src/presentation/city3d/rig/{animLibrary,rigCharacter}.ts`, `tools/rig-lab/` (labo de rendu), `art/sources/LICENCES.md`.
+- **suite convenue** : partir des corps sculptés gratuits (Superhero homme/femme, même squelette), les remodeler par personne (âge, corpulence, 8 traits), peau et vêtements peints, visages cohérents ; rendus soumis à l'utilisateur **avant** toute intégration.
+- **preuve** : rendu Chromium du labo (7 personnages, animation « repos ») ; test ponctuel : chaussures et visage orientés du même côté en animation.
+- **chemins** : `src/presentation/city3d/rig/**` et `tools/rig-lab/**` restent réservés pour cette suite.
