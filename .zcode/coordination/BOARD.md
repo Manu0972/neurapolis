@@ -1251,3 +1251,5 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **suite convenue** : partir des corps sculptés gratuits (Superhero homme/femme, même squelette), les remodeler par personne (âge, corpulence, 8 traits), peau et vêtements peints, visages cohérents ; rendus soumis à l'utilisateur **avant** toute intégration.
 - **preuve** : rendu Chromium du labo (7 personnages, animation « repos ») ; test ponctuel : chaussures et visage orientés du même côté en animation.
 - **chemins** : `src/presentation/city3d/rig/**` et `tools/rig-lab/**` restent réservés pour cette suite.
+- **2026-10-08, suite** : usine à personnages Blender 4.2 + MakeHuman/MPFB (corps anatomiques, peaux, yeux, cheveux, vêtements CC0) ; squelette « game_engine » aux noms des os de nos animations. Premiers rendus dans `art/rendus/2026-10-08/` (réaliste, facettes, visages), soumis à l'utilisateur ; rien n'est encore branché dans le jeu. Outils : `tools/characters/`, `tools/assets/itch_dl.py`.
+
