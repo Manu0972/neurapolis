@@ -99,7 +99,8 @@ function outfitLook(a: PlayerAppearance, override?: string, legOverride?: string
 export function createCharacter(spec: CharacterSpec): Character3D {
   const a: PlayerAppearance = { ...DEFAULT_PLAYER_APPEARANCE, ...spec.appearance };
   const baseH = spec.heightM ?? 1.55;
-  const H = baseH * (1 + (a.heightAdj ?? 0) * 0.035);
+  // La taille reçue est déjà la taille réelle (taille adulte visée × croissance selon l'âge).
+  const H = baseH;
   const k = H / 1.7; // échelle relative à un adulte de 1,70 m
   const build = { fine: 0.86, moyenne: 1, sportive: 1.08, ronde: 1.22 }[a.body ?? 'moyenne'];
   const limb = { fine: 0.88, moyenne: 1, sportive: 1.1, ronde: 1.14 }[a.body ?? 'moyenne'];

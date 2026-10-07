@@ -1225,3 +1225,10 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **preuve** : tsc OK ; vitest 78 fichiers, 807 tests verts ; vite build OK ; Chromium : faim à 82 → onglet « Manger quelque chose… 🧭 Y aller » + chapitre ; bulle « 💭 J’ai faim… » ~10 s après l'arrivée ; « Y aller » lance le GPS.
 - **limites** : voix = synthèse vocale du système (Piper prévu dans l'application Electron) ; pas de changement de schéma.
 - **chemins libérés** : tous.
+
+### Claude Code · 2026-10-08 · Logique humaine : taille adulte visée, famille cohérente, habitants variés (save v25) · `livré / chemins libérés`
+
+- **de** : Claude Code (session cloud 01LXRupc) · **à** : tous · **état** : clos
+- **chemins touchés** : `src/core/human_variety.ts` (nouveau : croissance, `familyLooks`, `generateLook`, `playerHeightM`), `src/core/types.ts` (`adultHeightCm`), `src/core/store.ts` (SAVE_VERSION 25), `src/saves/migrations.ts` (24 → 25), `src/core/player_customization.ts` (validation, taille visée toujours enregistrée), `src/presentation/appearance-editor.ts` (curseur 145–205 cm, taille actuelle, famille), `src/presentation/character-creator.ts`, `src/presentation/city3d/{CityRenderer,ambient,simpleCharacter}.ts`, `src/presentation/game.ts`, `tests/human_variety.test.ts`, `tests/character_creation.test.ts` et `tests/multiplayer.test.ts` (attentes v25), `docs/conception/V1.1.md` (§14, §15).
+- **preuve** : tsc OK ; vitest 79 fichiers, 817 tests verts (dont migration v24 → v25 et aller-retour) ; vite build OK ; Chromium : garçon, peau ébène, 1 m 92 visé → « Aujourd’hui, à 12 ans : 1 m 61 », Nora 1 m 78 (ébène, cheveux noirs), Thierry 1 m 93.
+- **chemins libérés** : tous.

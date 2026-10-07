@@ -125,6 +125,7 @@ import { MultiplayerSession, OPEN_MULTI_KEY, openMultiplayerPanel } from './mult
 import { installHelp, setHelp, type HelpController } from './help';
 import { GpsController } from './gps';
 import { Thoughts } from './thoughts';
+import { generateLook, playerHeightM } from '../core/human_variety';
 import { residentNear, residentsPresent, talkToResident } from '../simulation/residents';
 import { EMERGENCY_BELOW, emergencyHelpStatus } from '../simulation/family';
 import { randomAppearance } from './appearance-editor';
@@ -200,13 +201,14 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const body = el('div', 'panel-body wardrobe');
     const preview = createAvatarPreview(220, 280);
     if (preview) {
-      preview.setAppearance(draft, world.player.gender, heightForAge(world.player.age));
+      preview.setAppearance(draft, world.player.gender, playerHeightM({ ...world.player, appearance: draft }));
       body.appendChild(preview.canvas);
     }
     const editor = buildAppearanceEditor(draft, {
       age: world.player.age,
       tier: world.ascension?.tier ?? 1,
-      onChange: (a) => { draft = a; preview?.setAppearance(a, world.player.gender, heightForAge(world.player.age)); },
+      gender: () => world.player.gender,
+      onChange: (a) => { draft = a; preview?.setAppearance(a, world.player.gender, playerHeightM({ ...world.player, appearance: a })); },
     });
     body.appendChild(editor.root);
     const save = el('button', 'ph-btn primary', 'Enfiler cette tenue');
@@ -529,7 +531,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       ui.mpBtn.classList.toggle('on', !!mp?.connected);
       syncPaceUi();
     },
-    me: () => ({ appearance: world.player.appearance, gender: world.player.gender, heightM: heightForAge(world.player.age) }),
+    me: () => ({ appearance: world.player.appearance, gender: world.player.gender, heightM: playerHeightM(world.player) }),
   });
   ui.mpBtn.addEventListener('click', () => {
     if (modalOpen || !mp) return;
@@ -3252,8 +3254,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         residentFigures = residentsPresent(world)
           .filter((r) => Math.abs(r.x - px) < 140 && Math.abs(r.y - py) < 140)
           .map((r) => ({
-            id: `habitant:${r.def.id}`, name: r.def.name, heightM: heightForAge(r.def.age), x: r.x + 0.5, z: r.y + 0.5, h: (r.def.id.length % 4) * (Math.PI / 2), s: 0,
-            appearance: randomAppearance(r.def.id.split('').reduce((a, c) => a * 31 + c.charCodeAt(0), 7) >>> 0, r.def.age, 3),
+            ...(() => { const l = generateLook(`habitant:${r.def.id}`, { age: r.def.age, unknownGender: true }); return { heightM: l.heightM, appearance: l.appearance }; })(),
+            id: `habitant:${r.def.id}`, name: r.def.name, x: r.x + 0.5, z: r.y + 0.5, h: (r.def.id.length % 4) * (Math.PI / 2), s: 0,
             label: { text: r.def.name, color: '#d8ecff', bg: 'rgba(20,40,70,0.82)' },
           }));
       }

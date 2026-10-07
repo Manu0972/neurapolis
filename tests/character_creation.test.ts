@@ -209,7 +209,8 @@ describe('P-PERSO — 4. Création de Monde Personnalisé & Initialisation', () 
     expect(world.player.firstName).toBe('Camille');
     expect(world.player.lastName).toBe('Dupont');
     expect(world.player.gender).toBe('non-binaire');
-    expect(world.player.appearance).toEqual(DEFAULT_PLAYER_APPEARANCE);
+    // La taille adulte visée (v25) est toujours enregistrée : 170 cm par défaut pour un personnage non binaire.
+    expect(world.player.appearance).toEqual({ ...DEFAULT_PLAYER_APPEARANCE, adultHeightCm: 170 });
     expect(world.player.characteristics).toEqual(BASE_CHARACTERISTICS);
   });
 
@@ -242,7 +243,7 @@ describe('P-PERSO — 4. Création de Monde Personnalisé & Initialisation', () 
     expect(world.player.name).toBe('Samia Belkacem');
     expect(world.player.gender).toBe('fille');
     // Les champs approfondis (v23) non choisis prennent leur valeur par défaut.
-    expect(world.player.appearance).toEqual({ ...DEFAULT_PLAYER_APPEARANCE, ...custom.appearance });
+    expect(world.player.appearance).toEqual({ ...DEFAULT_PLAYER_APPEARANCE, ...custom.appearance, adultHeightCm: 164 });
     expect(world.player.characteristics).toEqual(custom.characteristics);
   });
 
@@ -411,7 +412,7 @@ describe('P-PERSO — 6. Migration de Sauvegarde v9 → v10 & Rétrocompatibilit
     expect(v10World.district.meteo).toBe('soleil'); // Garanti par migration 0 -> 1
     expect(v10World.player.firstName).toBe('Camille 2020'); // Garanti par migration 9 -> 10
     expect(v10World.player.gender).toBe('non-binaire');
-    expect(v10World.player.appearance).toEqual(DEFAULT_PLAYER_APPEARANCE);
+    expect(v10World.player.appearance).toEqual({ ...DEFAULT_PLAYER_APPEARANCE, adultHeightCm: 170 });
   });
 
   it('migrateSaveToV10 préserve intégralement la trésorerie, la réputation et les besoins des sauvegardes', () => {

@@ -5,6 +5,7 @@
  * Voir docs/VISION.md §5.
  */
 import * as THREE from 'three';
+import { generateLook, playerHeightM } from '../../core/human_variety';
 import type { NpcId, PlayerGender, WorldState } from '../../core/types';
 import { minutesOfDay } from '../../core/clock';
 import { NPC_BY_ID } from '../../data/npcs';
@@ -67,15 +68,15 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
+/** Habitant anonyme (client, passant d'étal…) : toute la variété humaine, tirée de son identifiant. */
 function npcAppearance(id: string): PlayerAppearance {
-  const h = hash(id);
-  return {
-    skinTone: VALID_SKIN_TONES[h % VALID_SKIN_TONES.length]!,
-    hairColor: VALID_HAIR_COLORS[(h >>> 3) % VALID_HAIR_COLORS.length]!,
-    hairStyle: VALID_HAIR_STYLES[(h >>> 6) % VALID_HAIR_STYLES.length]!,
-    outfitStyle: VALID_OUTFIT_STYLES[(h >>> 9) % VALID_OUTFIT_STYLES.length]!,
-    outfitColor: VALID_OUTFIT_COLORS[(h >>> 12) % VALID_OUTFIT_COLORS.length]!,
-  };
+  return generateLook(id).appearance;
+}
+
+/** Habitant nommé : son âge décide de sa taille, de ses cheveux gris, de son style. */
+function namedLook(id: string, age: number): { appearance: PlayerAppearance; heightM: number } {
+  const l = generateLook(`pnj:${id}`, { age, unknownGender: true });
+  return { appearance: l.appearance, heightM: l.heightM };
 }
 
 /** Taille selon l'âge : environ 1,52 m à 12 ans, jusqu'à 1,75 m adulte. */
@@ -380,7 +381,7 @@ export class CityRenderer {
         const i = chars.length;
         const ch = createCharacter({
           appearance: npcAppearance(`etal${key}_${i}`),
-          heightM: i % 3 === 0 ? 1.4 : 1.6 + (i % 2) * 0.12,
+          heightM: generateLook(`etal${key}_${i}`).heightM,
           bodyColor: ['#5a6b7a', '#7a5a4a', '#3f4f3f', '#a0522d', '#6b4e71'][i % 5],
           detail: 'low',
         });
@@ -544,7 +545,7 @@ export class CityRenderer {
     const key = JSON.stringify(p.appearance) + p.age;
     if (!this.player || key !== this.playerKey) {
       this.player?.dispose();
-      this.player = createCharacter({ appearance: p.appearance, gender: p.gender, heightM: heightForAge(p.age) });
+      this.player = createCharacter({ appearance: p.appearance, gender: p.gender, heightM: playerHeightM(p) });
       this.scene.add(this.player.root);
       this.playerKey = key;
     }
@@ -593,11 +594,8 @@ export class CityRenderer {
       const tkey = `${target.x},${target.y}`;
       let v = this.npcs.get(id);
       if (!v) {
-        const ch = createCharacter({
-          appearance: npcAppearance(id),
-          heightM: heightForAge(def?.age ?? 30),
-          bodyColor: def?.color,
-        });
+        const look = namedLook(id, def?.age ?? 30);
+        const ch = createCharacter({ appearance: look.appearance, heightM: look.heightM, bodyColor: def?.color });
         this.scene.add(ch.root);
         const tag = textSprite(def?.name ?? id);
         this.scene.add(tag);
@@ -839,7 +837,8 @@ export class CityRenderer {
       const present = Object.values(world.npcs).filter((n) => n.place === spec.placeId && n.activity !== 'dort');
       present.slice(0, spec.npcSlots.length).forEach((n, i) => {
         const def = NPC_BY_ID[n.id];
-        const ch = createCharacter({ appearance: npcAppearance(n.id), heightM: heightForAge(def?.age ?? 30), bodyColor: def?.color });
+        const look = namedLook(n.id, def?.age ?? 30);
+        const ch = createCharacter({ appearance: look.appearance, heightM: look.heightM, bodyColor: def?.color });
         const slot = spec.npcSlots[i]!;
         ch.root.position.set(slot.x, 0, slot.z);
         ch.setHeading(slot.face);
@@ -849,7 +848,8 @@ export class CityRenderer {
     }
     // Employés du commerce : le premier à la caisse, les autres près des rayons.
     (opts.staff ?? []).forEach((emp, i) => {
-      const ch = createCharacter({ appearance: npcAppearance(emp.id), heightM: 1.66 + (i % 3) * 0.05, bodyColor: '#3f6d5a' });
+      const empLook = generateLook(emp.id, { age: 30 + (hash(emp.id) % 30) });
+      const ch = createCharacter({ appearance: empLook.appearance, gender: empLook.gender, heightM: empLook.heightM, bodyColor: '#3f6d5a' });
       // En voyage, chaque habitant se tient à son activité ; en boutique, le premier tient la caisse.
       const slot = spec.destinationId ? spec.npcSlots[i] : spec.npcSlots[0];
       const shelf = spec.items.filter((it) => it.kind === 'rayon' || it.kind === 'frigo')[i - 1];
@@ -871,7 +871,7 @@ export class CityRenderer {
       const r = (k: number): number => ((Math.sin((i + 1) * 91.7 + k * 12.3) * 43758.5) % 1 + 1) % 1;
       const ch = createCharacter({
         appearance: npcAppearance(`client${i}`),
-        heightM: 1.55 + r(1) * 0.3,
+        heightM: generateLook(`client${i}`).heightM,
         bodyColor: ['#5a6b7a', '#7a5a4a', '#3f4f3f', '#a0522d', '#6b4e71'][i % 5],
         detail: 'low',
       });

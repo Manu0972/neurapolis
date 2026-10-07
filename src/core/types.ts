@@ -67,8 +67,10 @@ export interface PlayerAppearance {
   outfitColor: PlayerOutfitColor;
   /** Personnalisation approfondie (save v23) ; absentes = valeurs par défaut. */
   body?: PlayerBody;
-  /** Taille relative, de −2 (plus petit) à +2 (plus grand). */
+  /** Ancienne échelle de taille (−2 … +2), remplacée par `adultHeightCm` (save v25). */
   heightAdj?: number;
+  /** Taille adulte visée, en cm (145 – 205) : la taille réelle suit la croissance (save v25). */
+  adultHeightCm?: number;
   eyes?: PlayerEyes;
   eyeColor?: PlayerEyeColor;
   glasses?: PlayerGlasses;

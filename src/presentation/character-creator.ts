@@ -6,6 +6,7 @@
  * - Apparence : Peau, Cheveux (couleur/coupe), Tenue (style/couleur)
  * - Aperçu en direct et validation conditionnelle.
  */
+import { adultHeightOf, heightAtAge } from '../core/human_variety';
 import {
   type Characteristics,
   type PlayerAppearance,
@@ -164,6 +165,8 @@ export function mountCharacterCreation(
         genderButtons[otherG].classList.toggle('active', otherG === g);
         genderButtons[otherG].setAttribute('aria-pressed', otherG === g ? 'true' : 'false');
       }
+      // Le genre règle la croissance et la famille : l'onglet Corps se met à jour.
+      editor.set(appearance);
       updatePreview();
       updateValidation();
     });
@@ -336,6 +339,7 @@ export function mountCharacterCreation(
   const editor = buildAppearanceEditor(appearance, {
     age: 12,
     tier: 1,
+    gender: () => gender,
     onChange: (next) => {
       appearance = next;
       updatePreview();
@@ -516,7 +520,7 @@ export function mountCharacterCreation(
     }
 
     // Rendu dynamique du sprite pixel-art sur le mini Canvas
-    preview3d?.setAppearance(appearance, gender, 1.52);
+    preview3d?.setAppearance(appearance, gender, heightAtAge(12, adultHeightOf(appearance, gender), gender));
     const avatarBoxEl = document.getElementById('preview-avatar');
     if (avatarBoxEl) {
       avatarBoxEl.style.borderColor = OUTFIT_COLOR_INFO[appearance.outfitColor].hex;

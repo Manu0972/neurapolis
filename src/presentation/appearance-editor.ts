@@ -3,7 +3,10 @@
  * Visage, Cheveux, Tenue, Accessoires ; options non genrées ; tenues verrouillées selon le
  * palier ; barbe à partir de 16 ans ; « Aléatoire » déterministe.
  */
-import type { PlayerAppearance } from '../core/types';
+import type { PlayerAppearance, PlayerGender } from '../core/types';
+import {
+  ADULT_HEIGHT_MAX_CM, ADULT_HEIGHT_MIN_CM, adultHeightOf, familyLooks, formatHeight, heightAtAge,
+} from '../core/human_variety';
 import {
   ACCESSORY_INFO, BEARD_INFO, BEARD_MIN_AGE, BODY_INFO, EYES_INFO, EYE_COLOR_INFO, GLASSES_INFO, HAIR_COLOR_INFO,
   HAIR_STYLE_INFO, OUTFIT_COLOR_INFO, OUTFIT_STYLE_INFO, OUTFIT_TIER, SKIN_TONE_INFO, VALID_ACCESSORIES, VALID_BEARDS,
@@ -14,6 +17,8 @@ import {
 export interface AppearanceEditorOptions {
   age: number;
   tier: number;
+  /** Genre choisi : il règle la croissance (pic plus tôt chez les filles) et la famille. */
+  gender?: () => PlayerGender | undefined;
   onChange(a: PlayerAppearance): void;
 }
 
@@ -107,16 +112,37 @@ export function buildAppearanceEditor(initial: PlayerAppearance, opts: Appearanc
     if (tab === 'corps') {
       swatches('Teinte de peau', VALID_SKIN_TONES, SKIN_TONE_INFO, a.skinTone, (v) => change({ skinTone: v }));
       pills('Morphologie', VALID_BODIES, BODY_INFO, a.body, (v) => change({ body: v }));
-      const g = group(`Taille : ${['très petite', 'petite', 'moyenne', 'grande', 'très grande'][(a.heightAdj ?? 0) + 2]}`);
+      // Taille adulte visée : à 12 ans on n'en a qu'une partie ; la croissance fait le reste.
+      const gender = opts.gender?.();
+      const target = adultHeightOf(a, gender);
+      const g = group(`Taille adulte visée : ${formatHeight(target / 100)}`);
       const range = h('input', 'ae-range');
       range.type = 'range';
-      range.min = '-2';
-      range.max = '2';
+      range.min = String(ADULT_HEIGHT_MIN_CM);
+      range.max = String(ADULT_HEIGHT_MAX_CM);
       range.step = '1';
-      range.value = String(a.heightAdj ?? 0);
-      range.setAttribute('aria-label', 'Taille');
-      range.addEventListener('change', () => change({ heightAdj: Number(range.value) }));
-      g.appendChild(range);
+      range.value = String(target);
+      range.setAttribute('aria-label', 'Taille adulte visée');
+      const now = h('p', 'ae-note', '');
+      const refresh = (cm: number): void => {
+        (g.firstChild as HTMLElement).textContent = `Taille adulte visée : ${formatHeight(cm / 100)}`;
+        now.textContent = `Aujourd’hui, à ${opts.age} ans : ${formatHeight(heightAtAge(opts.age, cm, gender))}. Tu grandiras jusqu’à ${formatHeight(cm / 100)} vers ${gender === 'fille' ? 16 : 18} ans.`;
+      };
+      refresh(target);
+      range.addEventListener('input', () => refresh(Number(range.value)));
+      range.addEventListener('change', () => change({ adultHeightCm: Number(range.value) }));
+      g.append(range, now);
+      // La famille suit le personnage : teintes, cheveux, yeux et tailles cohérents.
+      const fam = group('Ta famille (elle découle de tes choix)');
+      for (const p of familyLooks(a, gender)) {
+        const row = h('div', 'ae-family');
+        const dot = h('span', 'ae-family-dot');
+        dot.style.setProperty('--sw', SKIN_TONE_INFO[p.appearance.skinTone].hex);
+        const hair = h('span', 'ae-family-dot');
+        hair.style.setProperty('--sw', HAIR_COLOR_INFO[p.appearance.hairColor].hex);
+        row.append(dot, hair, h('span', '', `${p.name}, ${p.role} · ${SKIN_TONE_INFO[p.appearance.skinTone].label.toLowerCase()} · cheveux ${HAIR_COLOR_INFO[p.appearance.hairColor].label.toLowerCase()} · ${formatHeight(p.heightM)}`));
+        fam.appendChild(row);
+      }
     } else if (tab === 'visage') {
       pills('Forme des yeux', VALID_EYES, EYES_INFO, a.eyes, (v) => change({ eyes: v }));
       swatches('Couleur des yeux', VALID_EYE_COLORS, EYE_COLOR_INFO, a.eyeColor, (v) => change({ eyeColor: v }));
@@ -161,7 +187,7 @@ export function randomAppearance(seed: number, age: number, tier: number): Playe
     outfitStyle: pick(outfits),
     outfitColor: pick(VALID_OUTFIT_COLORS),
     body: pick(VALID_BODIES),
-    heightAdj: Math.floor(r() * 5) - 2,
+    adultHeightCm: Math.round(150 + (r() + r() + r()) / 3 * 45),
     eyes: pick(VALID_EYES),
     eyeColor: pick(VALID_EYE_COLORS),
     glasses: r() < 0.65 ? 'aucune' : pick(VALID_GLASSES),
@@ -195,6 +221,9 @@ function ensureEditorStyles(): void {
   .ae-pill.locked { opacity: 0.5; cursor: not-allowed; }
   .ae-tab:focus-visible, .ae-swatch:focus-visible, .ae-pill:focus-visible { outline: 3px solid #f48c5d; outline-offset: 2px; }
   .ae-range { width: 100%; accent-color: #3c2a20; }
+  .ae-note { margin: 4px 0 0; font-size: 12px; opacity: 0.8; }
+  .ae-family { display: flex; align-items: center; gap: 6px; font-size: 12.5px; margin-top: 4px; }
+  .ae-family-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--sw); border: 1px solid rgba(0,0,0,0.3); flex: 0 0 auto; }
   .avatar-preview-canvas { width: 100%; max-width: 240px; aspect-ratio: 4 / 5; height: auto; display: block; margin: 0 auto; cursor: grab; border-radius: 16px; background: radial-gradient(ellipse at 50% 40%, #fff7e6 0%, #e9d9bc 100%); }
   .avatar-preview-canvas:active { cursor: grabbing; }
   @media (prefers-reduced-motion: reduce) { .ae-swatch { transition: none; } }

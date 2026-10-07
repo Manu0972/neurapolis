@@ -2,6 +2,7 @@
  * Chaîne de migrations de sauvegardes — non destructive, versionnée, testée.
  * Règle : chaque changement de schéma => version +1 et un migrateur ici.
  */
+import { clampHeight, defaultAdultHeightCm } from '../core/human_variety';
 import { createMultiplayerState } from '../core/multiplayer_types';
 import {
   DEFAULT_PLAYER_APPEARANCE, MAX_PENDING_DELIVERIES, VALID_GENDERS, VALID_HAIR_COLORS, VALID_HAIR_STYLES,
@@ -413,6 +414,21 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
       delete s.multiplayer;
     }
     s.version = 24;
+    return s;
+  },
+  // 24 → 25 : la taille devient une taille adulte visée (cm) ; la taille réelle suit la croissance.
+  // L'ancienne échelle −2…+2 est convertie autour de la moyenne du genre (±6 cm par cran).
+  24: (s) => {
+    const player = s.player as AnySave | undefined;
+    if (player && typeof player.appearance === 'object' && player.appearance !== null) {
+      const a = player.appearance as AnySave;
+      if (typeof a.adultHeightCm !== 'number') {
+        const gender = player.gender === 'garcon' || player.gender === 'fille' || player.gender === 'non-binaire' ? player.gender : undefined;
+        const adj = typeof a.heightAdj === 'number' ? a.heightAdj : 0;
+        a.adultHeightCm = clampHeight(defaultAdultHeightCm(gender) + adj * 6);
+      }
+    }
+    s.version = 25;
     return s;
   },
 };

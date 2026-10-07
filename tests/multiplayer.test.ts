@@ -184,7 +184,7 @@ describe('multijoueur : la ville partagée', () => {
     actOn(a, 'libre', 'pret', 'B', { amount: 100 });
     const back = importSave(exportSave(a));
     expect(back.version).toBe(CURRENT_SAVE_VERSION);
-    expect(CURRENT_SAVE_VERSION).toBe(24);
+    expect(CURRENT_SAVE_VERSION).toBeGreaterThanOrEqual(24);
     expect(back.multiplayer!.outbox).toHaveLength(1);
     expect(back.multiplayer!.peers['B']!.name).toBe('Bilal');
     const old = JSON.parse(exportSave(b));

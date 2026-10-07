@@ -3,6 +3,7 @@
  * Définit les types stricts, tokens d'apparence, règles d'allocation des caractéristiques,
  * constructeur de monde personnalisé et logique de migration de sauvegarde vers v10.
  */
+import { ADULT_HEIGHT_MAX_CM, ADULT_HEIGHT_MIN_CM, adultHeightOf } from './human_variety';
 import {
   DEFAULT_PLAYER_APPEARANCE,
   VALID_GENDERS,
@@ -410,6 +411,11 @@ export function validateAppearance(raw: unknown): AppearanceValidationResult {
     if (typeof obj.heightAdj === 'number' && Number.isInteger(obj.heightAdj) && obj.heightAdj >= -2 && obj.heightAdj <= 2) heightAdj = obj.heightAdj;
     else errors.push(`Taille invalide : « ${String(obj.heightAdj)} ».`);
   }
+  let adultHeightCm: number | undefined;
+  if (obj.adultHeightCm !== undefined) {
+    if (typeof obj.adultHeightCm === 'number' && Number.isFinite(obj.adultHeightCm) && obj.adultHeightCm >= ADULT_HEIGHT_MIN_CM && obj.adultHeightCm <= ADULT_HEIGHT_MAX_CM) adultHeightCm = Math.round(obj.adultHeightCm);
+    else errors.push(`Taille adulte invalide : « ${String(obj.adultHeightCm)} » (de ${ADULT_HEIGHT_MIN_CM} à ${ADULT_HEIGHT_MAX_CM} cm).`);
+  }
   let freckles = false;
   if (obj.freckles !== undefined) {
     if (typeof obj.freckles === 'boolean') freckles = obj.freckles;
@@ -426,6 +432,7 @@ export function validateAppearance(raw: unknown): AppearanceValidationResult {
       outfitStyle,
       outfitColor,
       body, heightAdj, eyes, eyeColor, glasses, freckles, beard, accessory,
+      ...(adultHeightCm !== undefined ? { adultHeightCm } : {}),
     },
   };
 }
@@ -536,7 +543,8 @@ export function createCustomWorld(opts: CreateCustomWorldOptions = {}): CustomWo
   const fullName = identity.sanitized.fullName;
 
   const appearanceRes = validateAppearance(custom.appearance);
-  const appearance = appearanceRes.appearance;
+  // La taille adulte visée est toujours enregistrée : la taille réelle en découle selon l'âge.
+  const appearance = { ...appearanceRes.appearance, adultHeightCm: adultHeightOf(appearanceRes.appearance, gender) };
 
   let characteristics: Characteristics;
   if (custom.characteristics) {
