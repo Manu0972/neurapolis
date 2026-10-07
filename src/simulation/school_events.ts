@@ -7,11 +7,13 @@
 import type { WorldState } from '../core/types';
 import { dayIndexOf } from '../core/clock';
 import { STARTER_SCHOOL_EVENTS, type SchoolEvent } from '../data/school_events_starter';
+import { SCHOOL_EVENTS as AG_SCHOOL_EVENTS } from '../data/school/events';
 import { econRand } from './economy';
 import { ensureSchoolLifeState } from './school_life';
 import { pushEvent } from './events';
 
-export const SCHOOL_EVENTS: readonly SchoolEvent[] = STARTER_SCHOOL_EVENTS;
+/** Événements de départ, puis les 25 d'Antigravity (workflow AG-2). */
+export const SCHOOL_EVENTS: readonly SchoolEvent[] = [...STARTER_SCHOOL_EVENTS, ...AG_SCHOOL_EVENTS.filter((e) => !STARTER_SCHOOL_EVENTS.some((x) => x.id === e.id))];
 const CHANCE = 0.35;
 
 const clamp = (v: number, lo = 0, hi = 100): number => Math.max(lo, Math.min(hi, v));

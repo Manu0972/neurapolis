@@ -5,6 +5,7 @@
  */
 import type { TierId } from '../../core/ascension_types';
 import type { Sector } from '../../core/happenings_types';
+import { EXTRA_IDEAS } from '../ascension_ext/ideas';
 
 export interface TierDef {
   id: TierId;
@@ -51,7 +52,7 @@ export interface IdeaDef {
   flag?: { id: string; value: number; text: string };
 }
 
-export const IDEAS: readonly IdeaDef[] = [
+const BASE_IDEAS: readonly IdeaDef[] = [
   // ---------- Palier 1 : la Cour ----------
   { id: 'soutien_scolaire', tier: 1, sector: 'services', name: 'Soutien scolaire entre élèves', icon: '📐', pitch: 'Des sixièmes paient en goûters, puis en euros, pour réussir leurs contrôles de maths. Tes meilleurs élèves deviennent tes « profs ».', market: 30, margin: 0.75, fixed: 6, baseShare: 0.5, startCost: 15, duel: 'taylor_dejours', eases: ['lina'] },
   { id: 'cartes_collection', tier: 1, sector: 'commerce', name: 'Bourse aux cartes à collectionner', icon: '🃏', pitch: 'Les cartes rares de la saison circulent sous les préaux. Toi, tu tiens le cahier des cotes et tu prends une petite commission.', market: 28, margin: 0.4, fixed: 3, baseShare: 0.55, startCost: 20, duel: 'smith_marx', eases: ['noah'] },
@@ -94,6 +95,18 @@ export const IDEAS: readonly IdeaDef[] = [
   { id: 'energie_iles', tier: 6, sector: 'energie', name: 'Énergie autonome pour les îles', icon: '🔋', pitch: 'Ce qu’Ingrid a fait pour Île Saphir, d’autres îles le veulent : batteries, éoliennes, câbles. Un marché mondial et fragile.', market: 5600000, margin: 0.3, fixed: 130000, baseShare: 0.14, startCost: 8000000, duel: 'schumpeter_ostrom', needs: ['ingrid'] },
   { id: 'fonds_investissement', tier: 6, sector: 'finance', name: 'Fonds d’investissement des territoires', icon: '💼', pitch: 'Ton argent travaille pour d’autres Val-Ferrand : tu finances les usines fermées qui veulent renaître.', market: 4500000, margin: 0.7, fixed: 260000, baseShare: 0.15, startCost: 9000000, duel: 'keynes_hayek', eases: ['lina'] },
   { id: 'fondation_communs', tier: 6, sector: 'services', name: 'Réseau mondial des communs', icon: '🌳', pitch: 'Coopératives, fablabs, épiceries solidaires : un réseau qui partage outils, méthodes et achats d’un continent à l’autre.', market: 3800000, margin: 0.45, fixed: 170000, baseShare: 0.18, startCost: 5000000, duel: 'schumpeter_ostrom', eases: ['taretcoop', 'odile'] },
+];
+
+/**
+ * Idées d'Antigravity (workflow AG-2, src/data/ascension_ext/ideas.ts). Sans frais fixes donnés,
+ * on applique la règle des idées de base : environ 55 % de la marge brute attendue.
+ */
+export const IDEAS: readonly IdeaDef[] = [
+  ...BASE_IDEAS,
+  ...EXTRA_IDEAS.filter((x) => !BASE_IDEAS.some((b) => b.id === x.id)).map((x): IdeaDef => ({
+    ...x,
+    fixed: x.fixed ?? Math.round((x.market * x.margin * x.baseShare * 0.55) / 100) * 100,
+  })),
 ];
 
 export const IDEA_BY_ID: Readonly<Record<string, IdeaDef>> = Object.fromEntries(IDEAS.map((i) => [i.id, i]));

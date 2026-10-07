@@ -11,8 +11,9 @@ import { DUEL_BY_ID, type DuelFace } from '../data/ascension/duels';
 import { IDEA_BY_ID, TIERS, type IdeaDef } from '../data/ascension/ideas';
 import {
   MAX_LEVEL, VERDICT_DAYS, cancelLaunch, ensureAscension, ideaStatus, ideasOfTier, injectVenture, investCost, investVenture,
-  requestLaunch, resolveLaunch, sellVenture, tierChecks, withdrawVenture,
+  provenProfit, requestLaunch, resolveLaunch, sellVenture, tierChecks, withdrawVenture,
 } from '../simulation/ascension';
+import { MANDATES, currentMandate, endMandate, mandateActive, mandateBlockers, signMandate } from '../simulation/proxy';
 import { dayIndexOf } from '../core/clock';
 import { el } from './ui';
 import { duoAvatar } from './ghost-avatar';
@@ -56,6 +57,8 @@ export function renderAscensionApp(ctx: AscensionCtx, screen: HTMLElement, reren
   const row = el('div', 'ph-actions');
   row.appendChild(btn(`📒 Carnet d’économie (${Object.keys(a.concepts).length}/${ECON_CONCEPTS.length})`, () => openNotebook(ctx, back)));
   row.appendChild(btn(`🤝 Connexions (${Object.keys(a.contacts).length}/${CONTACTS.length})`, () => openContacts(ctx, back)));
+  const m = currentMandate(w);
+  row.appendChild(btn(m ? `✍️ Prête-nom : ${m.name.split(' (')[0]}${mandateActive(w) ? '' : ' (suspendu)'}` : '✍️ Prête-nom', () => openMandates(ctx, back)));
   if (a.pending) row.appendChild(btn('⚖️ Décision en attente', () => openDuelModal(ctx, back), 'ph-btn primary'));
   head.appendChild(row);
   screen.appendChild(head);
@@ -274,4 +277,48 @@ export function openContacts(ctx: AscensionCtx, back: () => void): void {
   body.appendChild(list);
   body.appendChild(btn('← Retour', back));
   ctx.showModal('🤝 Connexions', 'Les gens d’aujourd’hui ouvrent les portes de demain', body, true);
+}
+
+/** Le prête-nom : un adulte signe pour toi (bail, embauche, grossistes, murs, grandes idées). */
+export function openMandates(ctx: AscensionCtx, back: () => void): void {
+  const w = ctx.world;
+  const body = el('div', 'panel-body');
+  body.appendChild(el('p', 'panel-desc', 'Tes idées et tes équipes peuvent rapporter autant qu’une vraie entreprise. Ce qui te manque, c’est une signature : un adulte peut signer en ton nom. Les limites d’âge des affaires tombent ; l’école, elle, reste l’école.'));
+  const cur = currentMandate(w);
+  if (cur) {
+    const card = el('div', 'ph-card');
+    card.appendChild(el('div', 'ph-card-title', `✍️ ${cur.name}${mandateActive(w) ? '' : ' — suspendu'}`));
+    card.appendChild(el('p', 'ph-note', cur.lore));
+    card.appendChild(el('p', 'ph-note', `Commission : ${Math.round(cur.commission * 100)} % des bénéfices · déjà versé : ${money(w.flags['mandatCommissions'] ?? 0)}`));
+    card.appendChild(btn('Mettre fin au mandat', () => {
+      if (!window.confirm('Mettre fin au mandat ? Tes affaires en cours continuent, mais tu ne pourras plus rien signer de nouveau avant tes 18 ans.')) return;
+      const r = endMandate(w);
+      ctx.toast(r.message, r.ok);
+      ctx.onChange();
+      openMandates(ctx, back);
+    }, 'ph-btn danger'));
+    body.appendChild(card);
+  }
+  const list = el('div', 'ph-list');
+  for (const d of MANDATES) {
+    if (cur?.id === d.id) continue;
+    const blockers = mandateBlockers(w, d.id);
+    const card = el('div', `ph-card${blockers.length ? ' locked' : ''}`);
+    card.appendChild(el('div', 'ph-card-title', `${d.name} · ${d.commission ? `${Math.round(d.commission * 100)} % des bénéfices` : 'sans commission'}${d.setupFee ? ` · ${money(d.setupFee)} à la signature` : ''}`));
+    card.appendChild(el('p', 'ph-note', d.lore));
+    for (const b of blockers) card.appendChild(el('p', 'plan-hint', `→ ${b}`));
+    const go = btn(cur ? 'Changer pour ce mandat' : 'Signer', () => {
+      const r = signMandate(w, d.id, provenProfit(w));
+      ctx.toast(r.message, r.ok);
+      for (const n of r.notifications) ctx.toast(n.text, true);
+      ctx.onChange();
+      openMandates(ctx, back);
+    }, 'ph-btn primary');
+    go.disabled = blockers.length > 0;
+    card.appendChild(go);
+    list.appendChild(card);
+  }
+  body.appendChild(list);
+  body.appendChild(btn('← Retour', back));
+  ctx.showModal('✍️ Prête-nom', 'L’argent n’a pas d’âge, la signature si', body, true);
 }

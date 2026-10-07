@@ -26,6 +26,7 @@ import { travelShelfBonus, travelSupplierDiscount } from './travel';
 import { COMPETITORS, COMPETITOR_BY_UNIT } from '../data/city/competitors';
 import { areaAt } from '../data/city/layout';
 import { areaUnlocked } from './areas';
+import { econAge } from './proxy';
 
 export interface EconomyResult {
   ok: boolean;
@@ -152,7 +153,7 @@ export function leaseEligibility(w: WorldState, unitId: string): Eligibility {
   if (comp) return { allowed: false, coSigner: null, reason: `Ce local est occupé par ${comp.shopName}, tenu par ${comp.owner}.` };
   const tenant = e.owned?.[unitId]?.tenant;
   if (tenant) return { allowed: false, coSigner: null, reason: `Ton locataire ${tenant.name} occupe ces murs.` };
-  if (e.sandbox || w.player.age >= ADULT_AGE) return { allowed: true, coSigner: null, reason: 'Tu peux signer seul.' };
+  if (econAge(w) >= ADULT_AGE) return { allowed: true, coSigner: null, reason: w.player.age >= ADULT_AGE || e.sandbox ? 'Tu peux signer seul.' : 'Ton prête-nom signe pour toi.' };
   // Sans leur confiance, Nora et Thierry ne signent plus rien (src/simulation/family.ts, seuil 35).
   const fam = w.family?.parents;
   const trust = fam ? (fam.nora.trust + fam.thierry.trust) / 2 : 100;
@@ -162,7 +163,7 @@ export function leaseEligibility(w: WorldState, unitId: string): Eligibility {
   const sales = (w.flags['ventes'] ?? 0) + (w.flags['ventesEtal'] ?? 0);
   const rep = w.player.reputation;
   const ownsStall = Object.values(e.businesses).some((b) => UNIT_BY_ID[b.unitId]?.buildingId.startsWith('etal_') && b.history.length >= 5);
-  if (w.player.age >= 16 || (ownsStall && rep >= 55 && sales >= 40)) {
+  if (econAge(w) >= 16 || (ownsStall && rep >= 55 && sales >= 40)) {
     return { allowed: true, coSigner: 'parent', reason: 'Tes parents se portent garants : tu as fait tes preuves.' };
   }
   return {
@@ -241,7 +242,7 @@ export function buyProperty(w: WorldState, unitId: string): EconomyResult {
   const u = UNIT_BY_ID[unitId];
   if (!u) return ko('Local inconnu.');
   if (u.buildingId.startsWith('etal_')) return ko('Les étals appartiennent à la commune.');
-  if (!e.sandbox && w.player.age < ADULT_AGE) return ko(`Acheter des murs demande d’avoir ${ADULT_AGE} ans (ou le mode bac à sable).`);
+  if (econAge(w) < ADULT_AGE) return ko(`Acheter des murs demande d’avoir ${ADULT_AGE} ans, ou un prête-nom qui signe pour toi (Ascension → Prête-nom).`);
   if (COMPETITOR_BY_UNIT[unitId]) return ko('Ce local appartient à son commerçant et n’est pas à vendre.');
   if (e.owned?.[unitId]) return ko('Tu possèdes déjà ces murs.');
   const price = propertyPrice(w, u);
@@ -307,7 +308,7 @@ export function businessTypeAllowed(w: WorldState, typeId: string, unitId: strin
   if (stall !== (typeId === 't_etal_marche')) {
     return ko(stall ? 'Un étal de marché ne peut accueillir qu’un étal.' : 'Un étal de marché n’a pas sa place dans un local fermé.');
   }
-  if (!e.sandbox && w.player.age < t.minAge && !e.leases[unitId]?.coSigner) {
+  if (econAge(w) < t.minAge && !e.leases[unitId]?.coSigner) {
     return ko(`Il faut avoir ${t.minAge} ans (ou un garant) pour ouvrir : ${t.name}.`);
   }
   return ok('');
@@ -550,7 +551,7 @@ export function wholesalerAllowed(w: WorldState, wholesalerId: string): EconomyR
   const g = WHOLESALER_BY_ID[wholesalerId];
   if (!g) return ko('Fournisseur inconnu.');
   const e = ensureEconomy(w);
-  if (!e.sandbox && w.player.age < g.minAge) return ko(`${g.name} ne travaille qu’avec les plus de ${g.minAge} ans.`);
+  if (econAge(w) < g.minAge) return ko(`${g.name} ne travaille qu’avec les plus de ${g.minAge} ans — ou avec ton prête-nom.`);
   return ok('');
 }
 
@@ -706,7 +707,7 @@ export function hire(w: WorldState, employeeId: string, bizId: string): EconomyR
   if (emp.businessId) return ko(`${emp.name} travaille déjà.`);
   if (UNIT_BY_ID[b.unitId]?.buildingId.startsWith('etal_') && b.employeeIds.length >= 1) return ko('Un étal ne fait travailler qu’une personne en plus de toi.');
   const t = BUSINESS_TYPE_BY_ID[b.typeId]!;
-  if (!e.sandbox && w.player.age < 16 && t.id !== 't_etal_marche') return ko('Il faut avoir 16 ans pour embaucher (ou jouer en bac à sable).');
+  if (econAge(w) < 16 && t.id !== 't_etal_marche') return ko('Il faut avoir 16 ans pour embaucher, ou un prête-nom qui signe le contrat (Ascension → Prête-nom).');
   emp.businessId = bizId;
   emp.hiredDay = today(w);
   b.employeeIds.push(emp.id);
@@ -738,7 +739,7 @@ export function loanOffer(w: WorldState): { max: number; ratePct: number; reason
   const e = ensureEconomy(w);
   const revenue14 = Object.values(e.businesses).reduce((s, b) => s + b.history.slice(-14).reduce((t, d) => t + d.revenue, 0), 0);
   const outstanding = e.loans.reduce((s, l) => s + l.remaining, 0);
-  const adult = e.sandbox || w.player.age >= ADULT_AGE;
+  const adult = econAge(w) >= ADULT_AGE;
   const base = adult ? 2000 : 300;
   const cap = adult ? 60000 : 3000;
   const max = Math.max(0, Math.min(cap, base + revenue14 * 2 + w.player.reputation * 10) - outstanding);

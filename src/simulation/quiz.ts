@@ -5,9 +5,11 @@
  */
 import type { WorldState } from '../core/types';
 import { STARTER_QUIZZES, type ConceptQuiz } from '../data/quiz_starter';
+import { QUIZZES as AG_QUIZZES } from '../data/ascension_ext/quiz';
 import { addXp } from './skills';
 
-export const QUIZZES: readonly ConceptQuiz[] = STARTER_QUIZZES;
+/** Quiz de départ, puis ceux d'Antigravity (workflow AG-2) pour tous les autres concepts. */
+export const QUIZZES: readonly ConceptQuiz[] = [...STARTER_QUIZZES, ...AG_QUIZZES.filter((q) => !STARTER_QUIZZES.some((s) => s.conceptId === q.conceptId))];
 export const QUIZ_BY_CONCEPT: Readonly<Record<string, ConceptQuiz>> = Object.fromEntries(QUIZZES.map((q) => [q.conceptId, q]));
 
 export function quizBest(w: WorldState, conceptId: string): number {

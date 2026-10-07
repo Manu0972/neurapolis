@@ -22,7 +22,8 @@ import { notify } from './events';
 import { economyTick } from './economy';
 import { jobTick } from './jobs';
 import { travelTick } from './travel';
-import { ascensionDay } from './ascension';
+import { ascensionDay, provenProfit } from './ascension';
+import { mandateDay } from './proxy';
 import { happeningsTick } from './happenings';
 import { rewindDay } from './rewind';
 import { familyTick } from './family';
@@ -77,6 +78,7 @@ export function tickWorld(w: WorldState): TickOutput {
     out.push(...macroNewsDayTick(w));
     out.push(...multiVenturesDayTick(w));
     out.push(...ascensionDay(w, prevDay));
+    out.push(...mandateDay(w, provenProfit(w)));
     out.push(...rewindDay(w));
     out.push(...roomDay(w));
     out.push(...storyDay(w));

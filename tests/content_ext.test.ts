@@ -18,15 +18,21 @@ import { SECRETS } from '../src/data/secrets/secrets';
 import { SCHOOL_EVENTS, CLASS_MOMENTS_EXT } from '../src/data/school/events';
 
 // 2. Données de base et de référence
-import { ECON_CONCEPTS } from '../src/data/ascension/concepts';
-import { DUELS } from '../src/data/ascension/duels';
-import { IDEAS } from '../src/data/ascension/ideas';
+import { ECON_CONCEPTS as ALL_CONCEPTS } from '../src/data/ascension/concepts';
+import { DUELS as ALL_DUELS } from '../src/data/ascension/duels';
+import { IDEAS as ALL_IDEAS } from '../src/data/ascension/ideas';
 import { CONTACT_BY_ID } from '../src/data/ascension/contacts';
 import { GHOST_DEFS } from '../src/data/ghosts/registry';
 import { CITY } from '../src/data/city/layout';
 import { ROOM_ITEMS } from '../src/data/room/items';
 import { FAMILY_LINES, SCHOOL_CHARACTERS } from '../src/data/story/family';
 import { ORIGIN_SCENE, LUCIEN_BEATS } from '../src/data/story/lucien';
+
+// Depuis le branchement (Claude Code, 2026-10-07), les registres contiennent aussi le contenu AG-2 :
+// « de base » = registre moins les ajouts d'Antigravity.
+const ECON_CONCEPTS = ALL_CONCEPTS.filter((c) => !EXTRA_CONCEPTS.some((x) => x.id === c.id));
+const DUELS = ALL_DUELS.filter((d) => !EXTRA_DUELS.some((x) => x.id === d.id));
+const IDEAS = ALL_IDEAS.filter((i) => !EXTRA_IDEAS.some((x) => x.id === i.id));
 
 const SNAKE_CASE_REGEX = /^[a-z0-9]+(_[a-z0-9]+)*$/;
 
@@ -233,6 +239,7 @@ describe('AG-2 Références croisées — Penseurs, Concepts, Rues, Objets, Cont
 
   it('l’univers compte exactement 32 concepts économiques (20 de base + 12 supplémentaires)', () => {
     expect(ECON_CONCEPTS).toHaveLength(20);
+    expect(ALL_CONCEPTS).toHaveLength(32);
     expect(EXTRA_CONCEPTS).toHaveLength(12);
     expect(ALL_32_CONCEPTS.size).toBe(32);
   });

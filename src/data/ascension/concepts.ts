@@ -2,6 +2,7 @@
  * Carnet d'économie : les concepts que le joueur vit avant de les lire. Chacun s'apprend
  * par un verdict de duel, un palier franchi ou une rencontre ; le carnet les garde.
  */
+import { EXTRA_CONCEPTS } from '../ascension_ext/concepts';
 
 export interface EconConcept {
   id: string;
@@ -14,7 +15,7 @@ export interface EconConcept {
   example: string;
 }
 
-export const ECON_CONCEPTS: readonly EconConcept[] = [
+const BASE_CONCEPTS: readonly EconConcept[] = [
   { id: 'economies_echelle', name: 'Économies d’échelle', thinker: 'Henry Ford', summary: 'Plus on produit, moins chaque unité coûte : les coûts fixes se répartissent.', example: 'Ta grosse fournée coûte moins cher par pièce… tant que tout se vend.' },
   { id: 'juste_a_temps', name: 'Juste-à-temps', thinker: 'Taiichi Ohno', summary: 'Produire ce qui est demandé, quand c’est demandé : moins de stock dormant, moins de gâchis.', example: 'Plus d’invendus jetés le soir, mais une rupture le jour d’affluence.' },
   { id: 'cout_stock', name: 'Le coût du stock', thinker: 'Taiichi Ohno', summary: 'Un stock immobilise de l’argent, prend de la place et peut se perdre.', example: 'Les cartons qui dorment, c’est de la trésorerie qui ne travaille pas.' },
@@ -36,5 +37,8 @@ export const ECON_CONCEPTS: readonly EconConcept[] = [
   { id: 'faillite', name: 'La faillite', thinker: 'Friedrich Hayek', summary: 'Une entreprise qui perd de l’argent trop longtemps libère ses ressources pour d’autres usages.', example: 'Fermer à temps a sauvé le reste de tes affaires.' },
   { id: 'capital_social', name: 'Le capital social', thinker: 'Pierre Bourdieu', summary: 'Les relations sont une ressource : elles ouvrent des portes que l’argent n’ouvre pas.', example: 'Une ancienne camarade de classe t’a ouvert le marché de la Vallée.' },
 ];
+
+/** Concepts d'Antigravity (workflow AG-2, src/data/ascension_ext/concepts.ts) : monopole, rente, aléa moral… */
+export const ECON_CONCEPTS: readonly EconConcept[] = [...BASE_CONCEPTS, ...EXTRA_CONCEPTS.filter((x) => !BASE_CONCEPTS.some((b) => b.id === x.id))];
 
 export const CONCEPT_BY_ID: Readonly<Record<string, EconConcept>> = Object.fromEntries(ECON_CONCEPTS.map((c) => [c.id, c]));

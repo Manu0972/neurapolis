@@ -20,6 +20,7 @@ import { DUEL_BY_ID, type StrategyEffects } from '../data/ascension/duels';
 import { IDEAS, IDEA_BY_ID, TIERS, TIER_REQUIREMENTS, type IdeaDef } from '../data/ascension/ideas';
 import { econRand } from './economy';
 import { areasOfTier } from './areas';
+import { econAge } from './proxy';
 import { notify, pushEvent } from './events';
 import { sectorDemand } from './happenings_effects';
 import { markCatastrophe } from './rewind';
@@ -85,7 +86,7 @@ export function tierChecks(w: WorldState, tier: Exclude<TierId, 1>): TierCheck[]
   ];
   if (r.contacts > 0) out.push({ label: `${r.contacts} connexions (${Object.keys(a.contacts).length})`, ok: Object.keys(a.contacts).length >= r.contacts });
   if (r.reputation) out.push({ label: `réputation ${r.reputation} (${Math.round(w.player.reputation)})`, ok: w.player.reputation >= r.reputation });
-  if (r.age) out.push({ label: `${r.age} ans`, ok: w.player.age >= r.age || !!w.economy?.sandbox });
+  if (r.age) out.push({ label: `${r.age} ans, ou un prête-nom`, ok: econAge(w) >= r.age });
   return out;
 }
 
@@ -135,7 +136,7 @@ export function ideaStatus(w: WorldState, id: string): IdeaStatus {
   for (const c of idea.needs ?? []) {
     if (a.contacts[c] === undefined) reasons.push(`Connexion requise : ${CONTACT_BY_ID[c]?.name ?? c}. ${CONTACT_BY_ID[c]?.how ?? ''}`);
   }
-  if (idea.minAge && w.player.age < idea.minAge && !w.economy?.sandbox) reasons.push(`À partir de ${idea.minAge} ans.`);
+  if (idea.minAge && econAge(w) < idea.minAge) reasons.push(`À partir de ${idea.minAge} ans — ou avec un prête-nom qui signe pour toi.`);
   if (idea.flag && (w.flags[idea.flag.id] ?? 0) !== idea.flag.value) reasons.push(idea.flag.text);
   const v = a.ventures[id];
   if (v && !v.closed) reasons.push('Déjà lancée.');

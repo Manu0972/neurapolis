@@ -3,6 +3,7 @@
  * Emploi et Banque. Lit l'état du monde et n'agit qu'à travers les fonctions de
  * src/simulation/economy.ts (qui valident tout).
  */
+import { econAge } from '../simulation/proxy';
 import type { WorldState } from '../core/types';
 import type { BusinessState } from '../core/economy_types';
 import {
@@ -163,7 +164,7 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?
           }, 'ph-btn danger'));
         }
       } else if (!isStall && l.status !== 'occupe') {
-        const adult = w.economy?.sandbox || w.player.age >= 18;
+        const adult = econAge(w) >= 18;
         const buy = button(`Acheter les murs (${propertyPrice(w, l.unit).toLocaleString('fr-FR')} €)`, () => {
           if (window.confirm('Acheter les murs de ce local ?')) act(buyProperty(w, l.unit.id));
         });
@@ -391,7 +392,7 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?
       const products = g.productIds.map((id) => PRODUCT_BY_ID[id]).filter((p) => p && t.productCategories.includes(p.category));
       if (products.length === 0) continue;
       const card = el('div', 'ph-card');
-      const locked = w.player.age < g.minAge && !e().sandbox;
+      const locked = econAge(w) < g.minAge;
       card.appendChild(el('div', 'ph-card-title', `${g.name}${locked ? ` 🔒 ${g.minAge} ans` : ''}`));
       card.appendChild(el('div', 'ph-card-sub', `${g.address} · prix ×${g.priceMult} · minimum ${eur(g.minOrder)} · ${g.deliveryDays === 0 ? 'retrait sur place (tu portes les cartons)' : `livraison en ${g.deliveryDays} j (${eur(g.deliveryFee)})`}`));
       const qty: Record<string, number> = {};

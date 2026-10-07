@@ -3,6 +3,7 @@
  * seule silhouette. À chaque décision, chaque moitié défend une stratégie qui change
  * réellement la simulation ; le verdict dira qui avait raison, ici et maintenant.
  */
+import { EXTRA_DUELS } from '../ascension_ext/duels';
 import type { StrategyKey } from '../../core/ascension_types';
 
 export interface DuelFace {
@@ -86,7 +87,7 @@ function duel(d: Omit<DuelDef, 'effects'> & { A: Partial<StrategyEffects>; B: Pa
   return { ...rest, effects: { A, B, C: blend(A, B) } };
 }
 
-export const DUELS: readonly DuelDef[] = [
+const BASE_DUELS: readonly DuelDef[] = [
   duel({
     id: 'ford_ohno', title: 'La Chaîne et le Kanban',
     question: 'Comment produire ?',
@@ -226,5 +227,8 @@ export const DUELS: readonly DuelDef[] = [
     ownWay: 'Une nouveauté, lancée avec deux partenaires de confiance.',
   }),
 ];
+
+/** Doubles faces d'Antigravity (workflow AG-2) : Weber ⟷ Graeber, Schumpeter ⟷ Zuboff, Polanyi ⟷ Hayek. */
+export const DUELS: readonly DuelDef[] = [...BASE_DUELS, ...EXTRA_DUELS.filter((x) => !BASE_DUELS.some((b) => b.id === x.id)).map((d) => duel(d))];
 
 export const DUEL_BY_ID: Readonly<Record<string, DuelDef>> = Object.fromEntries(DUELS.map((d) => [d.id, d]));

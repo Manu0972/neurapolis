@@ -19,7 +19,11 @@ import {
 import { dateOf, dayIndexOf, isSchoolDay, minutesOfDay } from '../core/clock';
 import { TICKS_PER_DAY } from '../core/types';
 import { PLACE_ANCHORS } from '../data/map';
-import { CLASS_MOMENTS, SESSION_SUBJECT, SCHOOL_STAFF } from '../data/family_starter';
+import { CLASS_MOMENTS as STARTER_CLASS_MOMENTS, SESSION_SUBJECT, SCHOOL_STAFF } from '../data/family_starter';
+import { CLASS_MOMENTS_EXT } from '../data/school/events';
+
+/** Moments de classe : premiers de Claude, puis les 30 d'Antigravity (workflow AG-2). */
+const CLASS_MOMENTS = [...STARTER_CLASS_MOMENTS, ...CLASS_MOMENTS_EXT];
 import { FAMILY_LINES, FAMILY_LINE_BY_ID } from '../data/family_registry';
 import { econRand } from './economy';
 import { pushEvent } from './events';

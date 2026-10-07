@@ -17,6 +17,7 @@ import { DUEL_BY_ID } from '../data/ascension/duels';
 import { ensureAscension, launchCost, requestLaunch, tierChecks } from './ascension';
 import { addXp } from './skills';
 import { notify } from './events';
+import { econAge } from './proxy';
 
 export const BASE_PLANS = 1;
 
@@ -83,7 +84,7 @@ export function planChecklist(w: WorldState, ideaId: string): CheckItem[] {
     const def = CONTACT_BY_ID[c];
     out.push({ label: `Connexion : ${def?.name ?? c}`, ok: a.contacts[c] !== undefined, hint: def?.how });
   }
-  if (idea.minAge) out.push({ label: `Avoir ${idea.minAge} ans`, ok: w.player.age >= idea.minAge || !!w.economy?.sandbox, hint: `Tu as ${w.player.age} ans.` });
+  if (idea.minAge) out.push({ label: `Avoir ${idea.minAge} ans (ou un prête-nom)`, ok: econAge(w) >= idea.minAge, hint: `Tu as ${w.player.age} ans : un adulte peut signer pour toi (Ascension → Prête-nom).` });
   if (idea.flag) out.push({ label: idea.flag.text, ok: (w.flags[idea.flag.id] ?? 0) === idea.flag.value });
   const cost = launchCost(w, idea);
   const borrow = DUEL_BY_ID[idea.duel]?.effects.A.borrow ?? 0;
