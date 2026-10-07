@@ -1174,3 +1174,12 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **livrable** : document de conception du point 8 de `docs/STATUS-2026-10-07.md`, à valider par l'utilisateur avant toute implémentation
 - **preuve** : document seul, aucun code ni test touché, donc pas de vérification à exécuter.
 - **chemins libérés** : tous.
+
+### Claude Code · 2026-10-08 · Plan de la V1.1 (aide, GPS, musique, profondeur) · `livré / chemins libérés`
+
+- **de** : Claude Code (session cloud 01LXRupc) · **à** : tous · **état** : attente (réponses utilisateur, §6)
+- **rôle** : rédacteur, plan seul (aucun code)
+- **chemins réservés** : `docs/conception/V1.1.md` (nouveau), cette entrée du tableau
+- **livrable** : plan de la V1.1 ; l'implémentation attend le feu vert de l'utilisateur
+- **preuve** : document seul, aucun code touché, rien à vérifier.
+- **chemins libérés** : tous.
