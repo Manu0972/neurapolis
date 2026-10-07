@@ -121,7 +121,7 @@ import { askActiveGhostAdvice, checkAndUnlockThinkers, getGhostCompanionThought,
 import { INITIAL_TUTORIALS } from '../data/tutorials';
 import { PACE_BY_ID, TASK_MINUTES, TASK_SPEED, loadPacePrefs, savePacePrefs, subMinutes, taskTicks } from './time-pace';
 import { setClockSubMinutes } from './ui';
-import { MultiplayerSession, openMultiplayerPanel } from './multiplayer';
+import { MultiplayerSession, OPEN_MULTI_KEY, openMultiplayerPanel } from './multiplayer';
 import { residentNear, residentsPresent, talkToResident } from '../simulation/residents';
 import { EMERGENCY_BELOW, emergencyHelpStatus } from '../simulation/family';
 import { randomAppearance } from './appearance-editor';
@@ -502,6 +502,13 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (modalOpen || !mp) return;
     openMultiplayerPanel({ session: mp, world, showModal, closeModal, toast, notify: (list) => { for (const n of list) if (n.kind === 'fantome' && n.ghost) ghostBar.push({ ghost: n.ghost, text: n.text, pop: true, mood: 'calme' }); } });
   });
+  // « Jouer à plusieurs » choisi sur l'écran d'accueil : le panneau s'ouvre dès l'arrivée en ville.
+  let wantsMulti = false;
+  try {
+    wantsMulti = sessionStorage.getItem(OPEN_MULTI_KEY) === '1';
+    sessionStorage.removeItem(OPEN_MULTI_KEY);
+  } catch { /* stockage de session indisponible */ }
+  if (wantsMulti) setTimeout(() => ui.mpBtn.click(), 800);
 
   // Outil d'inspection (Bible Partie XII) : l'état du monde reste lisible depuis la console
   // et depuis les tests E2E. Lecture/écriture directe = leviers de QA, jamais du gameplay.

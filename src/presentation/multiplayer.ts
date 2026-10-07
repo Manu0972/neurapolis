@@ -290,6 +290,9 @@ function button(label: string, onClick: () => void, cls = 'ph-btn'): HTMLButtonE
   return b;
 }
 
+/** Clé de session posée par l'écran d'accueil pour ouvrir le panneau dès l'entrée en jeu. */
+export const OPEN_MULTI_KEY = 'neurapolis:open-multi';
+
 export function openMultiplayerPanel(ctx: MultiPanelCtx): void {
   const { session: s, world: w } = ctx;
   const body = el('div', 'panel-body mp-panel');

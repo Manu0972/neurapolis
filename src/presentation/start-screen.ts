@@ -5,6 +5,7 @@ import type { WorldState } from '../core/types';
 import { inspectAutoSave, saveToSlot, loadFromSlot, PENDING_LOAD_KEY } from '../saves/persist';
 import { startGame } from './game';
 import { mountCharacterCreation } from './character-creator';
+import { OPEN_MULTI_KEY } from './multiplayer';
 import { TitleFlyover } from './city3d/TitleFlyover';
 
 /** Survol 3D de la ville derrière le menu ; un seul à la fois, libéré avant de jouer. */
@@ -22,8 +23,13 @@ function button(label: string, primary = false): HTMLButtonElement {
   return element;
 }
 
+function forgetMulti(): void {
+  try { sessionStorage.removeItem(OPEN_MULTI_KEY); } catch { /* stockage de session indisponible */ }
+}
+
 export function mountStartScreen(root: HTMLElement): void {
   root.replaceChildren();
+  forgetMulti();
 
   const panel = document.createElement('main');
   panel.className = 'start-screen';
@@ -91,22 +97,28 @@ export function mountStartScreen(root: HTMLElement): void {
 
   if (savedWorld) {
     const resume = button('Reprendre la partie', true);
-    resume.addEventListener('click', () => {
-      try {
-        saveToSlot('auto', savedWorld as WorldState); // persiste aussi la migration éventuelle
-      } catch {
-        status.textContent = 'Sauvegarde locale indisponible : la partie reprendra sans mise à jour du fichier.';
-        status.classList.add('error');
-      }
-      stopFlyover();
-      startGame(root, savedWorld);
-    });
+    resume.addEventListener('click', () => resumeSaved());
     card.appendChild(resume);
   }
 
+  function resumeSaved(): void {
+    if (!savedWorld) return;
+    try {
+      saveToSlot('auto', savedWorld); // persiste aussi la migration éventuelle
+    } catch {
+      status.textContent = 'Sauvegarde locale indisponible : la partie reprendra sans mise à jour du fichier.';
+      status.classList.add('error');
+    }
+    stopFlyover();
+    startGame(root, savedWorld);
+  }
+
   const fresh = button(savedWorld ? 'Nouvelle partie' : 'Commencer');
-  fresh.addEventListener('click', () => {
-    if (hasAutoSave && !window.confirm('La nouvelle partie remplacera la sauvegarde automatique existante. Continuer ?')) return;
+  const newGame = (): void => {
+    if (hasAutoSave && !window.confirm('La nouvelle partie remplacera la sauvegarde automatique existante. Continuer ?')) {
+      forgetMulti();
+      return;
+    }
     stopFlyover();
     mountCharacterCreation(
       root,
@@ -124,8 +136,18 @@ export function mountStartScreen(root: HTMLElement): void {
         mountStartScreen(root);
       }
     );
-  });
+  };
+  fresh.addEventListener('click', newGame);
   card.appendChild(fresh);
+
+  // Partie à plusieurs : chacun joue son propre personnage, le panneau de connexion s'ouvre en ville.
+  const multi = button('📡 Jouer à plusieurs');
+  multi.addEventListener('click', () => {
+    try { sessionStorage.setItem(OPEN_MULTI_KEY, '1'); } catch { /* sans stockage, ouvrir 📡 en jeu */ }
+    if (savedWorld) resumeSaved();
+    else newGame();
+  });
+  card.appendChild(multi);
 
   if (autoSave.kind === 'invalid') {
     const note = document.createElement('p');

@@ -457,7 +457,11 @@ export function mountCharacterCreation(
   bodyGrid.appendChild(previewColumn);
 
   container.appendChild(bodyGrid);
-  root.appendChild(container);
+  // La page ne défile pas (body en overflow: hidden pour le jeu) : la fiche a son propre défilement.
+  const scroller = document.createElement('div');
+  scroller.className = 'creator-scroll';
+  scroller.appendChild(container);
+  root.appendChild(scroller);
 
   // --------------------------------------------------------------------------
   // LOGIQUE DE MISE À JOUR RÉACTIVE
@@ -601,6 +605,13 @@ function ensureCreatorStyles(): void {
   const style = document.createElement('style');
   style.id = 'character-creator-styles';
   style.textContent = `
+    .creator-scroll {
+      position: absolute;
+      inset: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
     .character-creator {
       max-width: 1040px;
       margin: 1.5rem auto;
@@ -644,6 +655,13 @@ function ensureCreatorStyles(): void {
       .creator-grid {
         grid-template-columns: 1fr;
       }
+    }
+    .creator-preview-col {
+      position: sticky;
+      top: 1rem;
+    }
+    @media (max-width: 860px) {
+      .creator-preview-col { position: static; }
     }
     .creator-form-col {
       display: flex;
