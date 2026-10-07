@@ -21,6 +21,7 @@ import { checkStreetSynergiesAndEncounters } from './street_synergies';
 import { notify } from './events';
 import { economyTick } from './economy';
 import { jobTick } from './jobs';
+import { travelTick } from './travel';
 import { worldTimelineDay } from './world_timeline';
 import { saveToSlot } from '../saves/persist';
 
@@ -54,6 +55,7 @@ export function tickWorld(w: WorldState): TickOutput {
   out.push(...checkStreetSynergiesAndEncounters(w));
   out.push(...economyTick(w, prevTick));
   out.push(...jobTick(w));
+  out.push(...travelTick(w));
 
   if (day !== prevDay) {
     out.push(...rivalDay(w));

@@ -76,6 +76,8 @@ import { JOB, inShift, startShift } from '../simulation/jobs';
 import { hhmmOfTick } from '../core/clock';
 import { appeal } from '../simulation/economy';
 import { ownsBike } from '../simulation/vehicles';
+import { DESTINATIONS, DESTINATION_BY_ID, canTravel, isTraveling, startTravel } from '../simulation/travel';
+import { CITY } from '../data/map';
 import * as economyApi from '../simulation/economy';
 import { openDetailedInteriorModal } from './interiors';
 import { tileAt } from '../data/map';
@@ -97,6 +99,8 @@ import { INITIAL_TUTORIALS } from '../data/tutorials';
 const TICK_MS = 10_000;
 /** Multiplicateur de vitesse pendant le sommeil : une nuit de 9 h passe en ~5 s. */
 const NIGHT_SPEED = 120;
+/** En voyage, trois jours passent en ~20 s. */
+const TRAVEL_SPEED = 200;
 /** Pendant un petit boulot, deux heures de service passent en ~15 s. */
 const SHIFT_SPEED = 50;
 const MOVE_MS = 150;  // cadence d'un pas de tuile en maintenant une direction
@@ -262,7 +266,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   // Fondu « Tu dors… » pendant l'ellipse de la nuit.
   const sleepOverlay = el('div', 'sleep-overlay', '');
-  sleepOverlay.appendChild(el('div', 'sleep-text', '😴 Tu dors… la nuit passe'));
+  const sleepText = el('div', 'sleep-text', '😴 Tu dors… la nuit passe');
+  sleepOverlay.appendChild(sleepText);
   root.appendChild(sleepOverlay);
 
   // ---------- Économie : interactions physiques et téléphone ----------
@@ -310,6 +315,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       }
     }
     const { x, y } = world.player.pos;
+    const gareDoor = CITY.buildings.find((bd) => bd.id === 'gare')?.doors[0];
+    if (gareDoor && Math.abs(gareDoor.x - x) <= 2 && Math.abs(gareDoor.y + 1 - y) <= 1) {
+      return { label: 'E — Gare de Val-Ferrand : voir les départs', run: openDepartures };
+    }
     for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
       const unitId = unitAt(x + dx, y + dy);
       if (!unitId) continue;
@@ -387,6 +396,32 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       }
     }
     renderer3D.setWaypoints(pts);
+  }
+
+  // ---------- Gare : tableau des départs ----------
+  function openDepartures(): void {
+    const body = el('div', 'panel-body');
+    body.appendChild(el('p', 'panel-desc', 'Avant 18 ans, on part pendant les vacances scolaires. Pendant ton absence, tes commerces tournent avec tes employés (un étal sans employé reste fermé).'));
+    const list = el('div', 'ph-list');
+    for (const d of DESTINATIONS) {
+      const card = el('div', 'ph-card');
+      card.appendChild(el('div', 'ph-card-title', `🚆 ${d.name} — ${d.subtitle}`));
+      card.appendChild(el('p', 'ph-note', `${d.days} jours · ${d.cost} € · tu y développes : ${d.skill}${(world.flags[`voyage:${d.id}`] ?? 0) > 0 ? ' · déjà visité' : ''}`));
+      const check = canTravel(world, d.id);
+      const btn = el('button', 'ph-btn primary', `Partir (${d.cost} €)`);
+      btn.disabled = !check.ok;
+      btn.addEventListener('click', () => {
+        const r = startTravel(world, d.id);
+        toast(r.message, r.ok);
+        if (r.ok) closeModal();
+      });
+      card.appendChild(btn);
+      if (!check.ok) card.appendChild(el('p', 'ph-note', check.message));
+      list.appendChild(card);
+    }
+    body.appendChild(list);
+    showModal('🚆 Départs', 'Gare de Val-Ferrand', body, true);
+    void DESTINATION_BY_ID;
   }
 
   // ---------- Sauvegardes : 3 emplacements + auto, export / import de fichier ----------
@@ -703,7 +738,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   function interact(): void {
     if (modalOpen) return;
-    if (world.player.asleep || inShift(world)) return;
+    if (world.player.asleep || inShift(world) || isTraveling(world)) return;
     if (renderer3D?.inInterior) {
       const inside = interiorActionHere();
       if (inside) { inside.run(); return; }
@@ -2489,7 +2524,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         } else {
           // La nuit défile en accéléré (ellipse) : 9 heures de sommeil en quelques secondes,
           // tick par tick, sans jamais sauter la clôture économique ni les événements.
-          const speed = world.time.speed === 0 ? 0 : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : world.time.speed;
+          const speed = world.time.speed === 0 ? 0 : isTraveling(world) ? TRAVEL_SPEED : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : world.time.speed;
           if (speed !== 0) {
             acc += dt;
             const tickMs = TICK_MS / speed;
@@ -2554,7 +2589,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       renderer3D.frame(world, dt / 1000, {
         move: input.vector(),
         running: input.running(),
-        canMove: !modalOpen && !world.player.asleep && !inShift(world) && !layoutEdit,
+        canMove: !modalOpen && !world.player.asleep && !inShift(world) && !layoutEdit && !isTraveling(world),
       }, ui.cw, ui.ch);
     } else {
       const rawD = input.dir();
@@ -2565,7 +2600,12 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       });
     }
 
-    sleepOverlay.classList.toggle('on', world.player.asleep);
+    const away = isTraveling(world);
+    sleepOverlay.classList.toggle('on', world.player.asleep || away);
+    const sleepMsg = away
+      ? `🚆 En voyage à ${DESTINATIONS[(world.flags['voyageEnCours'] ?? 1) - 1]?.name ?? '…'} — retour le ${dateOf(dayIndexOf(world.flags['voyageRetour'] ?? world.time.tick)).label}`
+      : '😴 Tu dors… la nuit passe';
+    if (sleepText.textContent !== sleepMsg) sleepText.textContent = sleepMsg;
     if (renderer3D && use3D && hudFrame % 10 === 0) audio.setTrafficLevel(renderer3D.trafficLevel);
     if (renderer3D?.inInterior && !modalOpen && !layoutEditActive()) {
       const v = input.vector();
