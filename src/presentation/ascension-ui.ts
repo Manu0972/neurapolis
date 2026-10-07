@@ -16,6 +16,7 @@ import {
 import { dayIndexOf } from '../core/clock';
 import { el } from './ui';
 import { duoAvatar } from './ghost-avatar';
+import { QUIZ_BY_CONCEPT, isMastered, masteredCount, quizBest, submitQuiz } from '../simulation/quiz';
 
 export interface AscensionCtx {
   world: WorldState;
@@ -178,16 +179,85 @@ export function openNotebook(ctx: AscensionCtx, back: () => void): void {
   for (const c of ECON_CONCEPTS) {
     const known = a.concepts[c.id] !== undefined;
     const card = el('div', `ph-card${known ? '' : ' locked'}`);
-    card.appendChild(el('div', 'ph-card-title', known ? `📗 ${c.name} — ${c.thinker}` : `📕 ??? — ${c.thinker}`));
+    const star = known && isMastered(ctx.world, c.id) ? ' ⭐' : '';
+    card.appendChild(el('div', 'ph-card-title', known ? `📗 ${c.name} — ${c.thinker}${star}` : `📕 ??? — ${c.thinker}`));
     if (known) {
       card.appendChild(el('p', 'ph-note', c.summary));
       card.appendChild(el('p', 'ph-note', `Vécu : ${c.example}`));
+      const quiz = QUIZ_BY_CONCEPT[c.id];
+      if (quiz) {
+        const best = quizBest(ctx.world, c.id);
+        card.appendChild(btn(star ? '⭐ Maîtrisé — refaire le test' : `🧠 Tester ma compréhension${best > 0 ? ` (meilleur : ${best}/${quiz.questions.length})` : ''}`, () => openQuiz(ctx, c.id, () => openNotebook(ctx, back))));
+      }
     }
     list.appendChild(card);
   }
   body.appendChild(list);
   body.appendChild(btn('← Retour', back));
-  ctx.showModal('📒 Carnet d’économie', `${Object.keys(a.concepts).length} / ${ECON_CONCEPTS.length} concepts`, body, true);
+  ctx.showModal('📒 Carnet d’économie', `${Object.keys(a.concepts).length} / ${ECON_CONCEPTS.length} concepts · ${masteredCount(ctx.world)} maîtrisé(s) ⭐`, body, true);
+}
+
+/** Ordre d'affichage des choix, mélangé de façon stable (la bonne réponse n'est pas toujours la première). */
+function shuffledOrder(seed: string): number[] {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619) >>> 0;
+  const order = [0, 1, 2, 3];
+  for (let i = order.length - 1; i > 0; i--) {
+    h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
+    const j = h % (i + 1);
+    [order[i], order[j]] = [order[j]!, order[i]!];
+  }
+  return order;
+}
+
+/** Le test d'un concept : trois situations, une explication après chaque réponse. */
+export function openQuiz(ctx: AscensionCtx, conceptId: string, back: () => void): void {
+  const quiz = QUIZ_BY_CONCEPT[conceptId];
+  const concept = ECON_CONCEPTS.find((c) => c.id === conceptId);
+  if (!quiz || !concept) return;
+  const answers: number[] = [];
+  const show = (i: number): void => {
+    const body = el('div', 'panel-body quiz');
+    if (i >= quiz.questions.length) {
+      const r = submitQuiz(ctx.world, conceptId, answers);
+      body.appendChild(el('p', 'quiz-score', `${r.score} / ${r.total}`));
+      body.appendChild(el('p', 'panel-desc', r.masteredNow
+        ? `⭐ « ${concept.name} » est maîtrisé. ${concept.thinker} hoche la tête : tu ne récites pas, tu comprends.`
+        : r.score === r.total ? 'Toujours parfait.' : 'Relis la page du carnet, repense à ce que tu as vécu, et retente quand tu veux.'));
+      body.appendChild(btn('← Retour au carnet', back, 'ph-btn primary'));
+      ctx.onChange();
+      ctx.showModal(`🧠 ${concept.name}`, 'Résultat', body, true);
+      return;
+    }
+    const item = quiz.questions[i]!;
+    body.appendChild(el('p', 'quiz-progress', `Question ${i + 1} / ${quiz.questions.length}`));
+    body.appendChild(el('p', 'quiz-q', item.q));
+    const list = el('div', 'quiz-choices');
+    const feedback = el('p', 'quiz-feedback', '');
+    const next = btn(i + 1 < quiz.questions.length ? 'Question suivante' : 'Voir le résultat', () => show(i + 1), 'ph-btn primary');
+    next.disabled = true;
+    const buttons: HTMLButtonElement[] = [];
+    for (const k of shuffledOrder(`${conceptId}:${i}`)) {
+      const b = btn(item.choices[k]!, () => {
+        answers[i] = k;
+        for (const x of buttons) x.disabled = true;
+        const good = k === item.answer;
+        b.classList.add(good ? 'right' : 'wrong');
+        buttons.find((x) => x.dataset.k === String(item.answer))?.classList.add('right');
+        feedback.textContent = `${good ? '✅ Juste.' : '❌ Pas tout à fait.'} ${item.explanation}`;
+        next.disabled = false;
+        next.focus();
+      }, 'ph-btn quiz-choice');
+      b.dataset.k = String(k);
+      buttons.push(b);
+      list.appendChild(b);
+    }
+    body.appendChild(list);
+    body.appendChild(feedback);
+    body.appendChild(next);
+    ctx.showModal(`🧠 ${concept.name}`, `Avec ${concept.thinker}`, body, true);
+  };
+  show(0);
 }
 
 export function openContacts(ctx: AscensionCtx, back: () => void): void {

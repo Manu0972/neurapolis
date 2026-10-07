@@ -902,3 +902,13 @@ canvas.map-canvas-3d { image-rendering: auto; touch-action: none; }
 @media (prefers-reduced-motion: reduce) { .origin-rain, .origin.flash, .origin-art { animation: none; } .origin-text { transition: none; } }
 .ph-tab.locked { opacity: 0.55; }
 .locked-app { border-style: dashed; }
+
+/* ---------- Quiz du carnet ---------- */
+.quiz-progress { margin: 0; font-size: 12px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+.quiz-q { font-size: 16px; line-height: 1.5; font-weight: 700; }
+.quiz-choices { display: flex; flex-direction: column; gap: 6px; }
+.quiz-choice { text-align: left; }
+.quiz-choice.right { background: var(--vert); color: #10260f; }
+.quiz-choice.wrong { background: var(--rouge); color: #fff; }
+.quiz-feedback { min-height: 1.4em; line-height: 1.5; }
+.quiz-score { font-size: 40px; font-weight: 800; text-align: center; margin: 4px 0; color: var(--or); }
