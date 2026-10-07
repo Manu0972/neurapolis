@@ -38,7 +38,7 @@
 - [~] **Personnages de Jules** (module intégré 2026-10-07, 7 tests verts ; le moteur garde `simpleCharacter.ts` en attendant la V2 arrondie demandée dans `docs/jules/RETOUR-PERSONNAGES-3D.md`) : quand la PR `jules/personnages-3d` est fusionnée dans `refonte-3d`, remplacer `simpleCharacter.ts` par `characters.ts` dans `CityRenderer`, `ambient.ts` et les intérieurs.
 - [x] **Sons de ville** (2026-10-07 ; sonnette, rumeur selon la voiture la plus proche, pas par revêtement et en intérieur) : brancher `audio.playDoorBell()` (entrée en boutique), `audio.setTrafficLevel()` (distance aux voitures), `audio.playFootstep()` par revêtement (asphalte, pavé, herbe, parquet).
 - [x] **Vélo** (2026-10-07 ; 85 € dans le téléphone, B, ×2,5, +30 unités ; `src/simulation/vehicles.ts`) : acheter un vélo (dès 12 ans), monter/descendre, vitesse ×2,5, capacité de transport +30.
-- [ ] **Performance** : instanciation des passants, découpage du bundle (Three.js à part), mesure des images/seconde ; viser 60 i/s.
+- [x] **Performance** (2026-10-07 ; mesuré dans le navigateur : 7,5 ms/image en rue, 11,5 ms en plongée maximale ; bundle séparé : three 137 Ko gzip + jeu 224 Ko gzip ; instanciation des passants jugée inutile à ce stade) : instanciation des passants, découpage du bundle (Three.js à part), mesure des images/seconde ; viser 60 i/s.
 - [ ] **Sauvegardes multiples** : trois emplacements nommés + auto-sauvegarde, depuis le menu ☰.
 - [ ] **Écran titre 3D** : vue animée de Val-Ferrand derrière le menu.
 - [ ] **Test de bout en bout en navigateur** : script qui démarre une partie, loue un étal, commande, retire, décharge, ouvre et vend (via `window.__NEURAPOLIS__.qa`).
