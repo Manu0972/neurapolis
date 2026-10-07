@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { CURRENT_SAVE_VERSION, migrateSave } from '../src/saves/migrations';
 
-describe('Chaîne de Migrations de Sauvegardes v7', () => {
-  it('migre une ancienne sauvegarde v5 vers v7 en créant proprement toutes les nouvelles structures', () => {
+describe('Chaîne de Migrations de Sauvegardes v9', () => {
+  it('migre une ancienne sauvegarde v5 vers v9 en créant toutes les structures, dont les observations de marché', () => {
     const oldSaveV5 = {
       version: 5,
       seed: 20200901,
@@ -50,5 +50,8 @@ describe('Chaîne de Migrations de Sauvegardes v7', () => {
     expect(migrated.schoolLife).toBeDefined();
     expect(migrated.streetRecognition).toBeDefined();
     expect(migrated.ghostCompanion).toBeDefined();
+    expect(migrated.rivals.drive_hyper.marketObservation).toEqual({
+      day: 0, playerUnitsSold: 0, rivalUnitsServed: 0, sessions: 0, lastClosed: null,
+    });
   });
 });

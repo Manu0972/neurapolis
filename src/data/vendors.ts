@@ -3,6 +3,13 @@
  */
 import type { VendorId, VendorRelationship, VendorTier } from '../core/types';
 
+declare module '../core/types' {
+  interface VendorRelationship {
+    creditLineLimit: number;
+    creditBalance: number;
+  }
+}
+
 export interface VendorDef {
   id: VendorId;
   name: string;
@@ -13,6 +20,7 @@ export interface VendorDef {
   tierRequirements: Record<VendorTier, { spent: number; trades: number }>;
   tierBenefits: Record<VendorTier, {
     discountRate: number;
+    creditLine?: number;
     title: string;
     description: string;
     perk: string;
@@ -43,27 +51,31 @@ export const VENDOR_DEFS: Record<VendorId, VendorDef> = {
     tierBenefits: {
       0: {
         discountRate: 0,
+        creditLine: 0,
         title: 'Client de passage',
         description: 'Tarif standard sur les confiseries, biscuits et boissons.',
         perk: 'Accès au rayon standard.',
       },
       1: {
         discountRate: 0.05,
+        creditLine: 25,
         title: 'Habitué apprécié',
-        description: '−5 % sur tous les achats et réservations de lots de goûters.',
-        perk: 'Remise 5% & petit réassort prioritaire.',
+        description: '−5 % sur tous les achats et réservations de lots de goûters. Ligne de crédit de 25 € ouverte.',
+        perk: 'Remise 5%, petit réassort prioritaire & crédit 25 €.',
       },
       2: {
         discountRate: 0.12,
+        creditLine: 50,
         title: 'Partenaire de confiance',
-        description: '−12 % de remise, alerte précoce sur les pénuries et invendus négociables.',
-        perk: 'Remise 12% & approvisionnement en gros à prix coûtant.',
+        description: '−12 % de remise, alerte précoce sur les pénuries. Ligne de crédit étendue à 50 €.',
+        perk: 'Remise 12%, approvisionnement en gros & crédit 50 €.',
       },
       3: {
         discountRate: 0.20,
+        creditLine: 100,
         title: 'Alliée indéfectible',
-        description: '−20 % de remise, circuit court direct et soutien financier en cas de choc économique.',
-        perk: 'Remise 20% & avance de trésorerie solidaire.',
+        description: '−20 % de remise, circuit court direct et soutien financier solidaire jusqu’à 100 €.',
+        perk: 'Remise 20%, avance solidaire & crédit 100 €.',
       },
     },
     specialGoods: [
@@ -203,6 +215,8 @@ export function createInitialVendorsState(): Record<VendorId, VendorRelationship
       unlockedPerks: [def.tierBenefits[0].perk],
       friendshipDialogueUnlocked: false,
       specialStockAvailable: false,
+      creditLineLimit: 0,
+      creditBalance: 0,
     };
   }
   return res as Record<VendorId, VendorRelationship>;

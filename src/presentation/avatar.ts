@@ -77,24 +77,13 @@ export function avatarSvg(seedKey: string, color: string, size = 48): string {
     `</svg>`;
 }
 
-import type { PlayerAppearance } from '../core/types';
-import { renderCreatorAvatarSvg } from './character-creator';
-
-/** SVG spécifique du joueur reflétant son apparence personnalisée. */
-export function playerAvatarSvg(name: string, appearance?: PlayerAppearance, color: string = TOKENS.or, size = 48): string {
-  if (appearance) {
-    return renderCreatorAvatarSvg(appearance, size);
-  }
-  return avatarSvg(`joueur:${name}`, color, size);
-}
-
 /** Élément avatar prêt pour les panneaux (dimension en px). */
-export function avatarElement(seedKey: string, color: string, name: string, size = 44, appearance?: PlayerAppearance): HTMLElement {
+export function avatarElement(seedKey: string, color: string, name: string, size = 44): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'avatar';
   wrap.style.width = `${size}px`;
   wrap.style.height = `${size}px`;
   wrap.setAttribute('aria-label', name);
-  wrap.innerHTML = appearance ? playerAvatarSvg(name, appearance, color, size) : avatarSvg(seedKey, color, size);
+  wrap.innerHTML = avatarSvg(seedKey, color, size);
   return wrap;
 }

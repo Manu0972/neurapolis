@@ -61,7 +61,8 @@ export function checkStreetSynergiesAndEncounters(w: WorldState): Notification[]
   ) {
     sr.spontaneousEncounterPending = true;
     sr.lastEncounterDay = day;
-    sr.lastEncounterDialogue = 'Un voisin pressé t’aborde avec un grand sourire : « Ah Camille ! Dis, tu as encore de ces délicieux biscuits artisanaux du stand ? Je t’en prends trois pour le bureau ! »';
+    const pName = w.player.firstName || w.player.name || 'toi';
+    sr.lastEncounterDialogue = `Un voisin pressé t’aborde avec un grand sourire : « Ah ${pName} ! Dis, tu as encore de ces délicieux biscuits artisanaux du stand ? Je t’en prends trois pour le bureau ! »`;
     notifs.push(notify('info', `🗣 Rencontre dans la rue : Un passant te reconnaît et veut t'acheter des collations !`));
   }
 

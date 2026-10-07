@@ -1,9 +1,18 @@
 /** Écran d’accueil : reprise fiable de l’auto-sauvegarde ou nouvelle partie. */
 import { createWorld } from '../core/store';
+import { createCustomWorld } from '../core/player_customization';
 import type { WorldState } from '../core/types';
-import { inspectAutoSave, saveToSlot } from '../saves/persist';
+import { inspectAutoSave, saveToSlot, loadFromSlot, PENDING_LOAD_KEY } from '../saves/persist';
 import { startGame } from './game';
-import { mountCharacterCreator } from './character-creator';
+import { mountCharacterCreation } from './character-creator';
+import { TitleFlyover } from './city3d/TitleFlyover';
+
+/** Survol 3D de la ville derrière le menu ; un seul à la fois, libéré avant de jouer. */
+let flyover: TitleFlyover | null = null;
+function stopFlyover(): void {
+  flyover?.dispose();
+  flyover = null;
+}
 
 function button(label: string, primary = false): HTMLButtonElement {
   const element = document.createElement('button');
@@ -38,6 +47,37 @@ export function mountStartScreen(root: HTMLElement): void {
   status.setAttribute('role', 'status');
   card.appendChild(status);
 
+  // Chargement demandé depuis le menu Sauvegardes : on reprend directement l'emplacement choisi.
+  let pending: string | null = null;
+  try {
+    pending = sessionStorage.getItem(PENDING_LOAD_KEY);
+    sessionStorage.removeItem(PENDING_LOAD_KEY);
+  } catch { /* stockage de session indisponible */ }
+  if (pending) {
+    try {
+      const loaded = loadFromSlot(pending);
+      saveToSlot('auto', loaded);
+      stopFlyover();
+      startGame(root, loaded);
+      return;
+    } catch (err) {
+      status.textContent = `Chargement impossible : ${err instanceof Error ? err.message : String(err)}`;
+      status.classList.add('error');
+    }
+  }
+
+  const titleCanvas = document.createElement('canvas');
+  titleCanvas.className = 'title-canvas';
+  root.prepend(titleCanvas);
+  stopFlyover();
+  try {
+    flyover = new TitleFlyover(titleCanvas);
+    if (!flyover.available) { stopFlyover(); titleCanvas.remove(); }
+  } catch {
+    stopFlyover();
+    titleCanvas.remove();
+  }
+
   const autoSave = inspectAutoSave();
   const savedWorld: WorldState | undefined = autoSave.kind === 'ready' ? autoSave.world : undefined;
   const hasAutoSave = autoSave.kind === 'ready' || autoSave.kind === 'invalid';
@@ -58,6 +98,7 @@ export function mountStartScreen(root: HTMLElement): void {
         status.textContent = 'Sauvegarde locale indisponible : la partie reprendra sans mise à jour du fichier.';
         status.classList.add('error');
       }
+      stopFlyover();
       startGame(root, savedWorld);
     });
     card.appendChild(resume);
@@ -66,14 +107,11 @@ export function mountStartScreen(root: HTMLElement): void {
   const fresh = button(savedWorld ? 'Nouvelle partie' : 'Commencer');
   fresh.addEventListener('click', () => {
     if (hasAutoSave && !window.confirm('La nouvelle partie remplacera la sauvegarde automatique existante. Continuer ?')) return;
-    mountCharacterCreator(root, {
-      onComplete: (customChar) => {
-        const world = createWorld({
-          playerName: customChar.name,
-          playerGender: customChar.gender,
-          playerCharacteristics: customChar.characteristics,
-          playerAppearance: customChar.appearance,
-        });
+    stopFlyover();
+    mountCharacterCreation(
+      root,
+      (customization) => {
+        const world: WorldState = createCustomWorld({ customization });
         try {
           saveToSlot('auto', world);
         } catch {
@@ -82,10 +120,10 @@ export function mountStartScreen(root: HTMLElement): void {
         }
         startGame(root, world);
       },
-      onCancel: () => {
+      () => {
         mountStartScreen(root);
-      },
-    });
+      }
+    );
   });
   card.appendChild(fresh);
 

@@ -14,20 +14,21 @@ import { applyPlaceAction } from '../src/simulation/places';
 import { dialogueTopics, npcLine, replyDialogue } from '../src/simulation/dialogue';
 import { NPC_BY_ID } from '../src/data/npcs';
 import {
-  MAP_H, MAP_W, PLACE_ANCHORS, assertMapValid, entranceAt, isWalkable,
+  CITY, MAP_H, MAP_W, PLACE_ANCHORS, assertMapValid, entranceAt, isWalkable,
 } from '../src/data/map';
 
 const PLACE_IDS: PlaceId[] = ['maison', 'college', 'epicerie', 'friche', 'parc', 'place'];
-const ENTRIES: ReadonlyArray<readonly [number, number, PlaceId]> = [
-  [8, 8, 'college'], [23, 7, 'epicerie'], [38, 15, 'maison'],
-  [4, 21, 'friche'], [22, 22, 'parc'], [16, 14, 'place'],
-];
+/** Entrées réelles des lieux, lues dans la description de la ville (1 tuile = 1 m). */
+const ENTRIES: ReadonlyArray<readonly [number, number, PlaceId]> = CITY.buildings.flatMap((b) =>
+  b.doors.filter((d) => d.place).map((d) => [d.x, d.y, d.place!] as const));
 
-describe('carte — données 48×32', () => {
-  it('dimensions, caractères valides et une entrée par lieu', () => {
+describe('carte — ville de Val-Ferrand', () => {
+  it('validation des données et une entrée par lieu', () => {
     expect(() => assertMapValid()).not.toThrow();
-    expect(MAP_W).toBe(48);
-    expect(MAP_H).toBe(32);
+    expect(MAP_W).toBeGreaterThan(300);
+    expect(MAP_H).toBeGreaterThan(200);
+    expect(new Set(ENTRIES.map(([, , p]) => p))).toEqual(new Set(PLACE_IDS));
+    expect(ENTRIES.length).toBe(PLACE_IDS.length);
   });
 
   it('les entrées mènent à leur lieu et restent franchissables', () => {
@@ -38,8 +39,9 @@ describe('carte — données 48×32', () => {
     for (const anchor of Object.values(PLACE_ANCHORS)) {
       expect(isWalkable(anchor.x, anchor.y)).toBe(true);
     }
-    expect(isWalkable(2, 2)).toBe(false); // mur du collège
-    expect(isWalkable(0, 0)).toBe(false); // bord de carte
+    const college = CITY.buildings.find((b) => b.id === 'college')!;
+    expect(isWalkable(college.x + 2, college.y + 2)).toBe(false); // intérieur du collège : mur
+    expect(isWalkable(-1, 0)).toBe(false); // hors carte
   });
 });
 
@@ -75,28 +77,35 @@ describe('routines — 8 h un jour d’école (mardi 1er septembre 2020)', () =>
 describe('collisions — murs et bords de carte', () => {
   it('un mur bloque le déplacement et la position ne change pas', () => {
     const w = createWorld();
-    w.player.pos = { x: 1, y: 2 }; // (2,2) est un mur du collège
-    expect(isWalkable(2, 2)).toBe(false);
-    expect(tryMove(w, 1, 0)).toBe(false);
-    expect(w.player.pos).toEqual({ x: 1, y: 2 });
-    expect(tryMove(w, 0, -1)).toBe(true); // (1,1) est libre
-    expect(w.player.pos).toEqual({ x: 1, y: 1 });
+    const college = CITY.buildings.find((b) => b.id === 'college')!;
+    // Sur le trottoir, juste devant l'angle sud-ouest du collège (hors de la porte).
+    const x = college.x + 1;
+    const y = college.y + college.d;
+    w.player.pos = { x, y };
+    expect(isWalkable(x, y)).toBe(true);
+    expect(isWalkable(x, y - 1)).toBe(false);
+    expect(tryMove(w, 0, -1)).toBe(false);
+    expect(w.player.pos).toEqual({ x, y });
+    expect(tryMove(w, 0, 1)).toBe(true);
+    expect(w.player.pos).toEqual({ x, y: y + 1 });
   });
 
   it('les bords de la carte bloquent le déplacement', () => {
     const w = createWorld();
-    w.player.pos = { x: 1, y: 1 };
+    w.player.pos = { x: 0, y: 0 }; // carrefour nord-ouest, sur la chaussée
+    expect(isWalkable(0, 0)).toBe(true);
     expect(tryMove(w, -1, 0)).toBe(false);
     expect(tryMove(w, 0, -1)).toBe(false);
-    expect(w.player.pos).toEqual({ x: 1, y: 1 });
+    expect(w.player.pos).toEqual({ x: 0, y: 0 });
     expect(isWalkable(-1, 5)).toBe(false);
     expect(isWalkable(MAP_W, 5)).toBe(false);
     expect(isWalkable(5, MAP_H)).toBe(false);
   });
 
-  it('le joueur part sur une tuile franchissable', () => {
+  it('le joueur part sur une tuile franchissable, devant chez lui', () => {
     const w = createWorld();
     expect(isWalkable(w.player.pos.x, w.player.pos.y)).toBe(true);
+    expect(w.player.pos).toEqual(PLACE_ANCHORS.maison);
   });
 });
 
@@ -130,9 +139,9 @@ describe('journée complète simulée — ne bloque jamais', () => {
 describe('interactions — lieux et PNJ', () => {
   it('détecte un lieu adjacent et les PNJ proches', () => {
     const w = createWorld();
-    w.player.pos = { x: 8, y: 9 }; // juste sous l'entrée du collège
+    w.player.pos = { ...PLACE_ANCHORS.college }; // sur le trottoir, devant la porte du collège
     expect(placeAtAdjacent(w)).toBe('college');
-    w.player.pos = { x: 23, y: 17 };
+    w.player.pos = { x: PLACE_ANCHORS.college.x, y: PLACE_ANCHORS.college.y + 2 }; // au bord de la chaussée
     expect(placeAtAdjacent(w)).toBeUndefined();
 
     w.time.tick = 101; // mardi 16:50 — Noah (et Monique) au parc

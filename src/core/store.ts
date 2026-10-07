@@ -1,7 +1,7 @@
 /**
  * Création et clonage de l'état du monde. Valeurs initiales = Bible de game design.
  */
-import { STARTING_PLAYER_AGE, type Characteristics, type GhostState, type NpcState, type PlayerAppearance, type PlayerGender, type Rel4, type WorldState, type SkillId, type ActionPlanState, type VentureId, type VentureState, type MacroNewsItem } from './types';
+import { DEFAULT_PLAYER_APPEARANCE, STARTING_PLAYER_AGE, type GhostState, type NpcState, type Rel4, type WorldState, type SkillId, type ActionPlanState, type VentureId, type VentureState, type MacroNewsItem } from './types';
 import { makeSeed } from './rng';
 import { NPCS } from '../data/npcs';
 import { ALL_GHOST_IDS } from '../data/ghosts/registry';
@@ -12,26 +12,16 @@ import { INITIAL_ACTION_PLANS, INITIAL_TERRITORY_NODES } from '../data/action_pl
 import { INITIAL_ECONOMIC_HAZARDS, VENTURE_DEFS } from '../data/multi_ventures';
 import { MACRO_NEWS_TEMPLATES } from '../data/macro_news';
 import { INITIAL_TUTORIALS } from '../data/tutorials';
+import { PLACE_ANCHORS } from '../data/map';
+import { createAscensionState } from './ascension_types';
+import { createHappeningsState } from './happenings_types';
+import { createRewindState } from './rewind_types';
+import { createFamilyState } from './family_types';
+import { createRoomState } from './room_types';
+import { createStoryState } from './story_types';
+import { createEconomyState } from './economy_types';
 
-export const SAVE_VERSION = 8;
-
-export const DEFAULT_PLAYER_GENDER: PlayerGender = 'non-binaire';
-export const DEFAULT_PLAYER_APPEARANCE: Readonly<PlayerAppearance> = Object.freeze({
-  skinTone: '#e8b888',
-  hairStyle: 'court',
-  hairColor: '#3b2926',
-  outfit: 'casual',
-  outfitColor: '#3a6ca8',
-});
-
-export const DEFAULT_PLAYER_CHARACTERISTICS: Readonly<Characteristics> = Object.freeze({
-  comprehension: 42,
-  creativite: 65,
-  influence: 35,
-  discipline: 48,
-  adaptabilite: 58,
-  confiance: 44,
-});
+export const SAVE_VERSION = 24;
 
 const SKILL_IDS: SkillId[] = ['negociation', 'comptabilite', 'communication', 'organisation', 'technique', 'recherche'];
 
@@ -42,9 +32,8 @@ export function rel(amitie: number, confiance: number, respect: number, rivalite
 export interface CreateWorldOptions {
   seed?: number;
   playerName?: string;
-  playerGender?: PlayerGender;
-  playerAppearance?: PlayerAppearance;
-  playerCharacteristics?: Characteristics;
+  /** Mode bac à sable : économie entièrement débloquée dès le départ (docs/VISION.md §4.2). */
+  sandbox?: boolean;
 }
 
 export function createWorld(opts: CreateWorldOptions = {}): WorldState {
@@ -127,10 +116,12 @@ export function createWorld(opts: CreateWorldOptions = {}): WorldState {
     time: { tick: 43, speed: 1 }, // mardi 1er septembre 2020, 07:10 — réveil
     player: {
       name,
-      gender: opts.playerGender ?? DEFAULT_PLAYER_GENDER,
-      appearance: { ...DEFAULT_PLAYER_APPEARANCE, ...(opts.playerAppearance ?? {}) },
+      firstName: name,
+      lastName: '',
+      gender: 'non-binaire',
+      appearance: { ...DEFAULT_PLAYER_APPEARANCE },
       age: STARTING_PLAYER_AGE,
-      characteristics: { ...(opts.playerCharacteristics ?? DEFAULT_PLAYER_CHARACTERISTICS) },
+      characteristics: { comprehension: 42, creativite: 65, influence: 35, discipline: 48, adaptabilite: 58, confiance: 44 },
       needs: { fatigue: 20, faim: 30, stress: 25, moral: 65 },
       skills: Object.fromEntries(SKILL_IDS.map((s) => [s, { level: 0, xp: 0 }])) as Record<SkillId, { level: 0 | 1 | 2 | 3; xp: number }>,
       notions: {},
@@ -146,7 +137,7 @@ export function createWorld(opts: CreateWorldOptions = {}): WorldState {
         bertin: rel(35, 40, 45, 0),
         moreau: rel(40, 45, 55, 5),
       },
-      pos: { x: 23, y: 17 },
+      pos: { ...PLACE_ANCHORS.maison }, // devant la porte de la Cité des Roses, bâtiment A
       asleep: false,
     },
     npcs,
@@ -206,6 +197,13 @@ export function createWorld(opts: CreateWorldOptions = {}): WorldState {
     tutorials: {
       tutorials: structuredClone(INITIAL_TUTORIALS),
     },
+    economy: createEconomyState(opts.sandbox ?? false),
+    ascension: createAscensionState(),
+    happenings: createHappeningsState(),
+    rewind: createRewindState(),
+    family: createFamilyState(),
+    room: createRoomState(),
+    story: createStoryState(),
     ghostCompanion: {
       activeGhostId: 'smith',
       mood: 'curieux',

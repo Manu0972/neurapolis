@@ -6,7 +6,7 @@ import type { GameEvent, NpcDef, NpcId, NpcState, RoutineSlot, WorldState } from
 import { isSchoolDay, minutesOfDay, dayIndexOf, dateOf } from '../core/clock';
 import { NPCS } from '../data/npcs';
 import { NPC_EVENT_REACTIONS } from '../data/npc-events';
-import { PLACE_ANCHORS, isWalkable } from '../data/map';
+import { CITY, PLACE_ANCHORS, isWalkable } from '../data/map';
 
 const toMin = (hhmm: string): number => {
   const [h, m] = hhmm.split(':').map(Number);
@@ -88,10 +88,12 @@ function npcHash(id: string): number {
 /**
  * Position tuile déterministe d'un PNJ : ancre de son lieu actuel + décalage
  * stable dérivé de son id (jamais aléatoire, identique rendu/simulation).
+ * « maison » désigne le domicile propre de chaque habitant, pas celui du joueur.
  */
 export function npcPosition(w: WorldState, id: string): { x: number; y: number } {
   const st = w.npcs[id];
-  const anchor = st ? PLACE_ANCHORS[st.place] : PLACE_ANCHORS['place'];
+  const home = CITY.npcHomes[id];
+  const anchor = !st ? PLACE_ANCHORS['place'] : st.place === 'maison' && home ? home : PLACE_ANCHORS[st.place];
   const [ox, oy] = NPC_OFFSETS[npcHash(id) % NPC_OFFSETS.length] ?? [0, 0];
   const pos = { x: anchor.x + ox, y: anchor.y + oy };
   return isWalkable(pos.x, pos.y) ? pos : anchor;

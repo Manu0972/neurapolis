@@ -597,6 +597,8 @@ describe('Challenger 1 — Test Harness 3 : Stress Test Procédural Web Audio (1
 
     const surfaces: SurfaceType[] = ['pave', 'herbe', 'parquet', 'terre', 'sol'];
 
+    // Échauffement (compilation JIT) : sans lui, la mesure dépend de la charge de la suite complète.
+    for (let i = 0; i < 200; i++) engine.playFootstep(surfaces[i % surfaces.length]);
     const t0 = performance.now();
     for (let i = 0; i < 1000; i++) {
       const surface = surfaces[i % surfaces.length];

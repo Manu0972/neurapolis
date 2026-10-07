@@ -35,21 +35,76 @@ export interface Characteristics {
 }
 export type CharacteristicsId = keyof Characteristics;
 
-/** Identité choisie par le joueur; les libellés visibles sont traduits dans la présentation. */
-export type PlayerGender = 'fille' | 'garcon' | 'non-binaire';
-
-/** Options cosmétiques consommées par le renderer 3D, sans effet sur la simulation. */
-export interface PlayerAppearance {
-  skinTone: string;
-  hairStyle: string;
-  hairColor: string;
-  outfit: string;
-  outfitColor: string;
-}
-
 export interface Needs { fatigue: number; faim: number; stress: number; moral: number }
 
 export interface Skill { level: 0 | 1 | 2 | 3; xp: number }
+
+/** Apparence persistée du joueur, choisie à la création de partie. */
+export type PlayerGender = 'fille' | 'garcon' | 'non-binaire';
+export type PlayerSkinTone =
+  | 'porcelaine' | 'claire' | 'rosee' | 'doree' | 'olive' | 'chaude' | 'ambree' | 'cuivree' | 'brune' | 'ebene';
+export type PlayerHairColor =
+  | 'brun' | 'chatain' | 'blond' | 'roux' | 'noir' | 'platine' | 'gris' | 'bleu' | 'rose' | 'vert';
+export type PlayerHairStyle =
+  | 'court' | 'mi-long' | 'boucle' | 'tresse' | 'couettes' | 'rase' | 'degrade' | 'long' | 'afro' | 'locks'
+  | 'chignon' | 'queue' | 'frange' | 'crete';
+/** Tenues : les quatre de départ, puis celles qui se gagnent avec les paliers de l'Ascension. */
+export type PlayerOutfitStyle =
+  | 'ecolier' | 'artisan' | 'sportif' | 'citoyen' | 'streetwear' | 'entrepreneur' | 'dirigeant' | 'magnat';
+export type PlayerOutfitColor =
+  | 'denim' | 'coral' | 'vert' | 'ocre' | 'indigo' | 'noir' | 'blanc' | 'bordeaux' | 'moutarde' | 'ciel';
+export type PlayerBody = 'fine' | 'moyenne' | 'sportive' | 'ronde';
+export type PlayerEyes = 'ronds' | 'amande' | 'tombants' | 'rieurs';
+export type PlayerEyeColor = 'brun' | 'noisette' | 'vert' | 'bleu' | 'gris';
+export type PlayerGlasses = 'aucune' | 'rondes' | 'carrees' | 'ecaille' | 'fines' | 'soleil';
+export type PlayerBeard = 'aucune' | 'duvet' | 'moustache' | 'courte' | 'pleine';
+export type PlayerAccessory = 'aucun' | 'casquette' | 'bonnet' | 'ecouteurs' | 'montre' | 'echarpe' | 'sac_dos' | 'sacoche';
+export interface PlayerAppearance {
+  skinTone: PlayerSkinTone;
+  hairColor: PlayerHairColor;
+  hairStyle: PlayerHairStyle;
+  outfitStyle: PlayerOutfitStyle;
+  outfitColor: PlayerOutfitColor;
+  /** Personnalisation approfondie (save v23) ; absentes = valeurs par défaut. */
+  body?: PlayerBody;
+  /** Taille relative, de −2 (plus petit) à +2 (plus grand). */
+  heightAdj?: number;
+  eyes?: PlayerEyes;
+  eyeColor?: PlayerEyeColor;
+  glasses?: PlayerGlasses;
+  freckles?: boolean;
+  /** Disponible à partir de 16 ans. */
+  beard?: PlayerBeard;
+  accessory?: PlayerAccessory;
+}
+/** Valeurs permises — source unique pour la création de personnage et les migrations. */
+export const VALID_GENDERS: readonly PlayerGender[] = ['fille', 'garcon', 'non-binaire'];
+export const VALID_SKIN_TONES: readonly PlayerSkinTone[] = ['porcelaine', 'claire', 'rosee', 'doree', 'olive', 'chaude', 'ambree', 'cuivree', 'brune', 'ebene'];
+export const VALID_HAIR_COLORS: readonly PlayerHairColor[] = ['brun', 'chatain', 'blond', 'roux', 'noir', 'platine', 'gris', 'bleu', 'rose', 'vert'];
+export const VALID_HAIR_STYLES: readonly PlayerHairStyle[] = ['court', 'mi-long', 'boucle', 'tresse', 'couettes', 'rase', 'degrade', 'long', 'afro', 'locks', 'chignon', 'queue', 'frange', 'crete'];
+export const VALID_OUTFIT_STYLES: readonly PlayerOutfitStyle[] = ['ecolier', 'artisan', 'sportif', 'citoyen', 'streetwear', 'entrepreneur', 'dirigeant', 'magnat'];
+export const VALID_OUTFIT_COLORS: readonly PlayerOutfitColor[] = ['denim', 'coral', 'vert', 'ocre', 'indigo', 'noir', 'blanc', 'bordeaux', 'moutarde', 'ciel'];
+export const VALID_BODIES: readonly PlayerBody[] = ['fine', 'moyenne', 'sportive', 'ronde'];
+export const VALID_EYES: readonly PlayerEyes[] = ['ronds', 'amande', 'tombants', 'rieurs'];
+export const VALID_EYE_COLORS: readonly PlayerEyeColor[] = ['brun', 'noisette', 'vert', 'bleu', 'gris'];
+export const VALID_GLASSES: readonly PlayerGlasses[] = ['aucune', 'rondes', 'carrees', 'ecaille', 'fines', 'soleil'];
+export const VALID_BEARDS: readonly PlayerBeard[] = ['aucune', 'duvet', 'moustache', 'courte', 'pleine'];
+export const VALID_ACCESSORIES: readonly PlayerAccessory[] = ['aucun', 'casquette', 'bonnet', 'ecouteurs', 'montre', 'echarpe', 'sac_dos', 'sacoche'];
+export const DEFAULT_PLAYER_APPEARANCE: PlayerAppearance = {
+  skinTone: 'claire',
+  hairColor: 'chatain',
+  hairStyle: 'court',
+  outfitStyle: 'ecolier',
+  outfitColor: 'coral',
+  body: 'moyenne',
+  heightAdj: 0,
+  eyes: 'ronds',
+  eyeColor: 'brun',
+  glasses: 'aucune',
+  freckles: false,
+  beard: 'aucune',
+  accessory: 'aucun',
+};
 
 /** Apprentissage en 4 étapes (Bible §5) : 1 découverte, 2 explication, 3 application, 4 maîtrise. */
 export type NotionStage = 1 | 2 | 3 | 4;
@@ -61,6 +116,8 @@ export const ZERO_REL: Rel4 = { amitie: 0, confiance: 0, respect: 0, rivalite: 0
 
 export interface Player {
   name: string;
+  firstName: string;
+  lastName: string;
   gender: PlayerGender;
   appearance: PlayerAppearance;
   age: number;
@@ -198,6 +255,9 @@ export interface LedgerEntry { day: number; date: string; label: string; amount:
 
 export type RepartitionMode = 'egalite' | 'equite' | 'incitation';
 
+/** Historique de commandes conservé dans la sauvegarde (les plus récentes). */
+export const MAX_PENDING_DELIVERIES = 50;
+
 export interface ProjectState {
   id: 'stand_des_roses';
   active: boolean;
@@ -216,6 +276,9 @@ export interface ProjectState {
   work: Record<string, number>;
   /** Prévision de demande en attente, comparée à la prochaine session (déclencheur Simon). */
   lastForecast?: { expected: number; day: number };
+  /** Commandes logistiques (Big Ambitions), bornées aux MAX_PENDING_DELIVERIES plus récentes (save v11). */
+  // Champ optionnel : les ateliers créés hors du Stand n'ont pas de commandes.
+  pendingDeliveries?: Array<{ id: string; orderDay: number; arrivalDay: number; units: number; cost: number; supplier: string; delivered: boolean }>;
 }
 
 // ---------- Atelier de la Friche (J5) ----------
@@ -323,6 +386,21 @@ export type RivalId = 'drive_hyper' | 'distributeur_college';
 
 export type RivalStrategy = 'prix_casse' | 'campagne_com' | 'fidelite' | 'standard';
 
+/** Résultat des transactions d'un lieu pendant une journée de marché. */
+export interface RivalMarketObservation {
+  day: number;
+  playerUnitsSold: number;
+  rivalUnitsServed: number;
+  sessions: number;
+  /** Dernière journée réellement observée; null tant qu'aucune session n'a été clôturée. */
+  lastClosed: {
+    day: number;
+    playerUnitsSold: number;
+    rivalUnitsServed: number;
+    sessions: number;
+  } | null;
+}
+
 export interface RivalState {
   id: RivalId;
   name: string;
@@ -334,6 +412,8 @@ export interface RivalState {
   strategy: RivalStrategy;
   activeCounterActions: ActiveCounterAction[]; // contre-stratégies actives et date d'expiration (jour exclusif)
   reactionCooldown: number;  // jours avant prochaine réaction tactique
+  /** Unités réellement vendues par le joueur; le rival sert la demande restante (stock abstrait illimité). */
+  marketObservation: RivalMarketObservation;
 }
 
 export interface ActiveCounterAction {
@@ -578,6 +658,15 @@ export interface GhostCompanionState {
 }
 
 // ---------- Monde ----------
+import type { EconomyState } from './economy_types';
+import type { AscensionState } from './ascension_types';
+import type { HappeningsState } from './happenings_types';
+import type { RewindState } from './rewind_types';
+import type { FamilyState } from './family_types';
+import type { RoomState } from './room_types';
+import type { StoryState } from './story_types';
+import type { MultiplayerState } from './multiplayer_types';
+
 export interface WorldState {
   version: number;
   seed: number;
@@ -599,6 +688,22 @@ export interface WorldState {
   streetRecognition?: StreetRecognitionState;
   tutorials?: TutorialState;
   ghostCompanion?: GhostCompanionState;
+  /** Économie « Big Ambitions » : baux, commerces, employés, prêts (save v13). */
+  economy?: EconomyState;
+  /** L'Ascension : paliers, idées de business, doubles faces, carnet d'économie (save v17). */
+  ascension?: AscensionState;
+  /** Fil d'infos du monde et surprises (save v18). */
+  happenings?: HappeningsState;
+  /** Retours en arrière : leçons, sacrifices, dernière très grosse erreur (save v19). */
+  rewind?: RewindState;
+  /** Parents, cours, absences, convocations, dîners (save v20). */
+  family?: FamilyState;
+  /** Chambre-quartier général : objets et plans (save v21). */
+  room?: RoomState;
+  /** Récit : origine des voix, cahiers de Lucien (save v22). */
+  story?: StoryState;
+  /** Multijoueur en LAN : autres joueurs, alliances, sabotages, dettes (save v24). */
+  multiplayer?: MultiplayerState;
   events: GameEvent[];        // journal des événements (cap 250)
   lifeJournal: LifeJournalEntry[];
   flags: Record<string, number>; // compteurs libres (ventes, conflits, prévisions ratées…)

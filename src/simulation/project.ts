@@ -11,7 +11,7 @@
  * (fusion), Contrat de Sécurité (rendement +20 %) et sabotage de Taylor (−15 %).
  * Données : src/data/project.ts. État : w.project (types.ts).
  */
-import type { Meteo, NpcId, Notification, PlaceId, ProjectState, RepartitionMode, WorldState } from '../core/types';
+import { MAX_PENDING_DELIVERIES, type Meteo, type NpcId, type Notification, type PlaceId, type ProjectState, type RepartitionMode, type WorldState } from '../core/types';
 import { dateOf, dayIndexOf, weekIndexOf } from '../core/clock';
 import { rngChance, rngPick } from '../core/rng';
 import {
@@ -29,7 +29,7 @@ import { checkVitaliteEvents } from './district';
 import { councilKeyDecision } from './council';
 import { securityYieldFactor, weeklySecurityCost } from './security';
 import { taylorChronoDay, taylorSabotageFactor } from './antagonists';
-import { calculateMarketShares } from './rival';
+import { calculateMarketShares, recordMarketSession } from './rival';
 
 const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v));
 const round2 = (v: number): number => Math.round(v * 100) / 100;
@@ -116,7 +116,25 @@ export function buyStock(w: WorldState): ProjectAction {
   p.week.expenses = round2(p.week.expenses + cost);
   bump(w, 'depenses');
   bump(w, 'achatsStock');
-  return { ok: true, message: `Stock +${STAND_CONFIG.stockUnits} unités (−${cost} €).` };
+  if (!p.pendingDeliveries) p.pendingDeliveries = [];
+  const day = dayIndexOf(w.time.tick);
+  p.pendingDeliveries.push({
+    // Compteur monotone : l'identifiant reste unique même après troncature de la liste.
+    id: `cmd_${day}_${w.flags.achatsStock}`,
+    orderDay: day,
+    arrivalDay: day,
+    units: STAND_CONFIG.stockUnits,
+    cost,
+    supplier: 'Épicerie Bertin',
+    delivered: true,
+  });
+  if (p.pendingDeliveries.length > MAX_PENDING_DELIVERIES) {
+    p.pendingDeliveries.splice(0, p.pendingDeliveries.length - MAX_PENDING_DELIVERIES);
+  }
+  return {
+    ok: true,
+    message: `Réapprovisionnement auprès de Mme Bertin (+${STAND_CONFIG.stockUnits} unités, −${cost} €). Cartons réceptionnés.`,
+  };
 }
 
 export function setPrice(w: WorldState, price: number): ProjectAction {
@@ -189,10 +207,12 @@ export function runSalesSession(w: WorldState, place: string): SessionResult {
   const day = dayIndexOf(w.time.tick);
   const placeId: PlaceId = (place === 'collège' || place === 'college') ? 'college' : 'place';
   const { playerShare, rival } = calculateMarketShares(w, placeId);
-  const marketMultiplier = (playerShare + 50) / 100;
   const baseDemand = demandAt(p.price, w.player.reputation, dateOf(day).weekday, w.district.meteo);
-  const demand = Math.max(0, Math.round(baseDemand * marketMultiplier));
+  // DEMAND_CONFIG représente la demande de référence au partage égal; l'autre moitié revient au rival.
+  const marketPotential = baseDemand * 2;
+  const demand = Math.max(0, Math.round(marketPotential * playerShare / 100));
   const sold = Math.min(p.stock, demand);
+  recordMarketSession(w, placeId, marketPotential, sold);
 
   // Prévision en attente (action « prévision ») : comparée à cette session (Simon, §6).
   if (p.lastForecast) {
@@ -202,9 +222,10 @@ export function runSalesSession(w: WorldState, place: string): SessionResult {
         type: 'consequence',
         title: 'Prévision ratée',
         text: `Tu avais prévu ${p.lastForecast.expected} acheteurs : ${demand} sont venus. La fourmi traverse la plage — la complexité venait du sable.`,
-        causes: [
-          { facteur: 'prévision de demande', seuil: `${p.lastForecast.expected}`, poids: 2 },
-          { facteur: 'demande réelle', seuil: `${demand}`, poids: 3 },
+      causes: [
+        { facteur: 'prévision de demande', seuil: `${p.lastForecast.expected}`, poids: 2 },
+        { facteur: 'demande réelle', seuil: `${demand}`, poids: 3 },
+        ...(rival ? [{ facteur: `projection d'attractivité face à ${rival.name}`, seuil: `${playerShare}%`, poids: 2 }] : []),
         ],
       });
     } else {
@@ -263,7 +284,7 @@ export function runSalesSession(w: WorldState, place: string): SessionResult {
       { facteur: 'prix de vente', seuil: `${p.price.toFixed(2)} €`, poids: 2 },
       { facteur: 'réputation dans le quartier', seuil: `${w.player.reputation - 2}/100`, poids: 1 },
       { facteur: 'météo', seuil: w.district.meteo, poids: 1 },
-      ...(rival ? [{ facteur: `part de marché face à ${rival.name}`, seuil: `${playerShare}%`, poids: 2 }] : []),
+      ...(rival ? [{ facteur: `projection d'attractivité face à ${rival.name}`, seuil: `${playerShare}%`, poids: 2 }] : []),
       ...(chapter2CollectiveSale ? [{ facteur: 'règles collectives adoptées et conversation avec Samir', poids: 2 }] : []),
     ],
   });

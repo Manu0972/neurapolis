@@ -9,8 +9,7 @@ import { NPC_BY_ID } from '../data/npcs';
 import { npcsAt } from '../simulation/npc';
 import { el } from './ui';
 import { audio } from './audio';
-import { applyPlaceAction } from '../simulation/places';
-import { addXp } from '../simulation/skills';
+import { useFurniture } from '../simulation/interior_actions';
 import { WorldRenderer3D } from './renderer3d';
 
 export interface InteriorModalCallbacks {
@@ -181,44 +180,20 @@ export function openDetailedInteriorModal(
       audio.playUiClick();
     }
 
-    // Effets spécifiques
-    if (furn.customEffect === 'open_workshop' && callbacks.openWorkshopModal) {
+    // La simulation valide et applique l'action (la présentation n'écrit jamais l'état).
+    const result = useFurniture(world, placeId, furn.id);
+    if (result.special === 'open_workshop' && callbacks.openWorkshopModal) {
       callbacks.openWorkshopModal();
       return;
     }
-    if (furn.customEffect === 'open_debate' && callbacks.openUrbanDebate) {
+    if (result.special === 'open_debate' && callbacks.openUrbanDebate) {
       callbacks.openUrbanDebate();
       return;
     }
-
-    // Vérification de budget si coût
-    if (furn.money !== undefined && furn.money < 0 && world.player.money < Math.abs(furn.money)) {
-      btn.textContent = '❌ Fonds insuffisants';
+    if (!result.ok) {
+      btn.textContent = `❌ ${result.message}`;
       return;
     }
-
-    // Application de l'argent
-    if (furn.money !== undefined) {
-      world.player.money = Math.max(0, world.player.money + furn.money);
-    }
-
-    // Application des besoins
-    if (furn.needs) {
-      for (const [k, d] of Object.entries(furn.needs)) {
-        if (d !== undefined && k in world.player.needs) {
-          const key = k as keyof typeof world.player.needs;
-          world.player.needs[key] = Math.max(0, Math.min(100, world.player.needs[key] + d));
-        }
-      }
-    }
-
-    // Application XP compétence
-    if (furn.skill && furn.xp) {
-      addXp(world, furn.skill, furn.xp);
-    }
-
-    // Fallback éventuel sur place action simulation
-    applyPlaceAction(world, placeId, furn.actionId);
 
     btn.textContent = `✓ Fait ! (${furn.actionLabel})`;
     setTimeout(() => {

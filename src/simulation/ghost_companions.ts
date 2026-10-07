@@ -11,7 +11,7 @@ export function ensureGhostCompanionState(w: WorldState): GhostCompanionState {
     w.ghostCompanion = {
       activeGhostId,
       mood: 'curieux',
-      speechBubble: 'Je veille sur tes décisions, Camille !',
+      speechBubble: 'Je veille sur tes décisions !',
       lastAdviceTick: 0,
       unlockedThinkers: [...actives],
     };
@@ -79,8 +79,9 @@ export function askActiveGhostAdvice(w: WorldState): {
   const def = GHOST_DEFS_BY_ID[thought.ghostId];
   let customAdvice = def?.voice.favorable ?? thought.speechBubble;
 
+  const pName = w.player.firstName || w.player.name || 'Jeune ami';
   if (w.player.money < 10) {
-    customAdvice = `« Camille, tes liquidités sont basses. Concentre-toi sur quelques ventes de goûters ou petites réparations pour sécuriser la trésorerie. »`;
+    customAdvice = `« ${pName}, tes liquidités sont basses. Concentre-toi sur quelques ventes de goûters ou petites réparations pour sécuriser la trésorerie. »`;
   } else if (w.campaign.currentChapter === 1) {
     customAdvice = `« Le collège et la place des Roses sont ton terrain d'apprentissage. Fidélise Mme Bertin et structure ton stand avec Noah et Lina. »`;
   } else if (w.campaign.currentChapter >= 2) {

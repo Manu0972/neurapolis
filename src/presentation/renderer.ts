@@ -344,7 +344,7 @@ function renderWithAssets(
     sortY: pSortY,
     draw: (tg) => {
       drawShadow(tg, pcx, pcy + TILE * 0.12, s);
-      drawCamille(tg, pcx, pcy + TILE * 0.12, s, camilleAge, now, pWalking);
+      drawCamille(tg, pcx, pcy + TILE * 0.12, s, camilleAge, now, pWalking, w.player.appearance);
       tg.font = 'bold 8px monospace';
       tg.textAlign = 'center';
       tg.fillStyle = '#2a1a14';
@@ -718,7 +718,7 @@ function renderFallback(
     sortY: pSortY,
     draw: (c) => {
       drawShadow(c, pcx, pcy + cam.ts * 0.12, s);
-      drawCamille(c, pcx, pcy + cam.ts * 0.12, s, camilleAge, now, pWalking);
+      drawCamille(c, pcx, pcy + cam.ts * 0.12, s, camilleAge, now, pWalking, w.player.appearance);
       c.font = `bold ${Math.max(10, Math.floor(cam.ts * 0.36))}px system-ui, sans-serif`;
       c.textAlign = 'center';
       c.fillStyle = 'rgba(42,26,20,0.85)';

@@ -13,6 +13,156 @@ import { npcPosition } from '../simulation/npc';
 import { TOKENS, HYGGE_1800K } from './tokens';
 import { GHOST_DEFS_BY_ID } from '../data/ghosts/registry';
 import { createInteriorDiorama, type InteriorDiorama } from './interiors3d';
+import { drawCharacter, SPRITE_W, SPRITE_H, type SpriteColors } from './sprite';
+
+/**
+ * Empreintes au sol et hauteurs de référence des bâtiments pour la 3D
+ * Épicerie 2.6 m, Collège 3.2 m, Maison 3.6 m, Toit +0.5 m, Linteau porte 1.7 m
+ */
+export interface BuildingFootprint {
+  placeId: PlaceId;
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  doorX: number;
+  doorY: number;
+  wallHeight: number;
+  roofHeight: number;
+}
+
+export const BUILDING_FOOTPRINTS: readonly BuildingFootprint[] = [
+  { placeId: 'college', minX: 2, maxX: 14, minY: 2, maxY: 8, doorX: 8, doorY: 8, wallHeight: 3.2, roofHeight: 3.7 },
+  { placeId: 'epicerie', minX: 20, maxX: 26, minY: 3, maxY: 7, doorX: 23, doorY: 7, wallHeight: 2.6, roofHeight: 3.1 },
+  { placeId: 'maison', minX: 33, maxX: 43, minY: 10, maxY: 15, doorX: 38, doorY: 15, wallHeight: 3.6, roofHeight: 4.1 },
+];
+
+export function getBuildingFootprintAt(x: number, y: number): BuildingFootprint | null {
+  for (const b of BUILDING_FOOTPRINTS) {
+    if (x >= b.minX && x <= b.maxX && y >= b.minY && y <= b.maxY) {
+      return b;
+    }
+  }
+  return null;
+}
+
+import type { PlayerAppearance } from '../core/player_customization';
+
+/**
+ * Convertit la personnalisation d'apparence du joueur en palette pour sprite pixel-art
+ */
+export function getPlayerColors(appearance?: PlayerAppearance): SpriteColors {
+  if (!appearance) {
+    return {
+      skin: '#ffc496',
+      hair: '#6b4a2f',
+      shirt: '#3a6ca8',
+      pants: '#4a5a7a',
+      shoes: '#3a2a20',
+    };
+  }
+
+  const skinMap: Record<string, string> = {
+    claire: '#ffc496',
+    chaude: '#f5af7e',
+    doree: '#d89558',
+    ebene: '#7a4d32',
+  };
+
+  const hairMap: Record<string, string> = {
+    brun: '#4a3220',
+    chatain: '#6b4a2f',
+    blond: '#e8c85c',
+    roux: '#c25a30',
+    noir: '#241a18',
+  };
+
+  const outfitMap: Record<string, string> = {
+    denim: '#3a6ca8',
+    coral: '#f48c5d',
+    vert: '#559e50',
+    ocre: '#d49b42',
+    indigo: '#2c3e6b',
+  };
+
+  const pantsMap: Record<string, string> = {
+    ecolier: '#4a5a7a',
+    artisan: '#6b4a2f',
+    sportif: '#241a18',
+    citoyen: '#3a4050',
+  };
+
+  return {
+    skin: skinMap[appearance.skinTone] ?? '#ffc496',
+    hair: hairMap[appearance.hairColor] ?? '#6b4a2f',
+    shirt: outfitMap[appearance.outfitColor] ?? '#3a6ca8',
+    pants: pantsMap[appearance.outfitStyle] ?? '#4a5a7a',
+    shoes: '#3a2a20',
+  };
+}
+
+export function getNpcColors(id: string, color: string): SpriteColors {
+  const hairMap: Record<string, string> = {
+    noah: '#6b4a2f',
+    lina: '#4a3220',
+    bertin: '#a09890',
+    samir: '#241a18',
+    karim: '#3a2a20',
+    yasmine: '#241a18',
+    monique: '#a09890',
+    alex: '#6b4a2f',
+  };
+  return {
+    hair: hairMap[id] ?? '#4a3220',
+    shirt: color,
+    skin: '#ffc496',
+    pants: '#4a5a7a',
+    shoes: '#3a2a20',
+  };
+}
+
+/**
+ * Génère les 6 frames d'animation pixel-art (2 idle, 4 marche) en textures Three.js
+ */
+export function generateSpriteTextures(colors: SpriteColors): THREE.Texture[] {
+  if (typeof document === 'undefined') return [];
+  const testCanvas = document.createElement('canvas');
+  if (!testCanvas || typeof testCanvas.getContext !== 'function') return [];
+  const testCtx = testCanvas.getContext('2d');
+  if (!testCtx) return [];
+
+  const textures: THREE.Texture[] = [];
+  const scale = 2;
+  const w = SPRITE_W * scale;
+  const h = SPRITE_H * scale;
+
+  const frameConfigs = [
+    { walking: false, t: 0 },
+    { walking: false, t: 0.7 },
+    { walking: true, t: 0.0 },
+    { walking: true, t: 0.17 },
+    { walking: true, t: 0.34 },
+    { walking: true, t: 0.51 },
+  ];
+
+  for (const cfg of frameConfigs) {
+    const frameCanvas = document.createElement('canvas');
+    frameCanvas.width = w;
+    frameCanvas.height = h;
+    const ctx = frameCanvas.getContext('2d');
+    if (!ctx) continue;
+    ctx.imageSmoothingEnabled = false;
+    drawCharacter(ctx, w / 2, h, scale, colors, cfg.t, cfg.walking);
+
+    const tex = new THREE.CanvasTexture(frameCanvas);
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;
+    tex.generateMipmaps = false;
+    textures.push(tex);
+  }
+
+  return textures;
+}
 
 /**
  * Calcule le vecteur de déplacement relatif à l'orientation de la caméra (par quarts de tour).
@@ -104,6 +254,15 @@ export class WorldRenderer3D {
   private npcMeshes: Map<string, THREE.Group> = new Map();
   private ghostMeshes: Map<GhostId, THREE.Group> = new Map();
 
+  // Billboards 2D Face Caméra
+  private playerTextures: THREE.Texture[] = [];
+  private lastPlayerAppearanceKey = '';
+  private npcTextures: Map<string, THREE.Texture[]> = new Map();
+
+  // Coupes dynamiques de toits
+  private buildingRoofs: Map<PlaceId, THREE.Mesh[]> = new Map();
+  private roofCutState: Map<PlaceId, boolean> = new Map();
+
   // Gestion de la caméra rotative
   public cameraQuarterTurn = 0; // 0: 45°, 1: 135°, 2: 225°, 3: 315°
   private currentCameraAngle = Math.PI / 4;
@@ -117,7 +276,6 @@ export class WorldRenderer3D {
   private playerAnimTimer = 0;
   private lastWidth = 0;
   private lastHeight = 0;
-  private currentPlayerAppearanceKey = '';
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -251,8 +409,12 @@ export class WorldRenderer3D {
     const roofGeo = new THREE.ConeGeometry(0.7, 0.9, 4);
     roofGeo.rotateY(Math.PI / 4);
 
-    for (let y = 0; y < MAP_H; y++) {
-      for (let x = 0; x < MAP_W; x++) {
+    // Ancien moteur 2,5D (secours) : un objet par tuile, donc limité à la ville historique ;
+    // la grande carte (2026-10-07) est rendue par city3d/, par blocs.
+    const legacyW = Math.min(MAP_W, 414);
+    const legacyH = Math.min(MAP_H, 266);
+    for (let y = 0; y < legacyH; y++) {
+      for (let x = 0; x < legacyW; x++) {
         const t = tileAt(x, y);
         if (!t) continue;
 
@@ -411,21 +573,13 @@ export class WorldRenderer3D {
     }
   }
 
-  private createCharacterMesh(
-    bodyColor: number,
-    skinColor: number,
-    name: string,
-    hairColor: number = 0x4a3220,
-    hairStyle: string = 'court',
-    outfit: string = 'casual',
-  ): THREE.Group {
+  private createCharacterMesh(bodyColor: number, skinColor: number, name: string): THREE.Group {
     const char = new THREE.Group();
     char.name = name;
 
     const matBody = new THREE.MeshLambertMaterial({ color: bodyColor });
     const matSkin = new THREE.MeshLambertMaterial({ color: skinColor });
-    const matHair = new THREE.MeshLambertMaterial({ color: hairColor });
-    const matAccent = new THREE.MeshLambertMaterial({ color: 0xffffff });
+    const matHair = new THREE.MeshLambertMaterial({ color: 0x4a3220 });
 
     // Corps / Buste
     const buste = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.65, 0.3), matBody);
@@ -433,66 +587,16 @@ export class WorldRenderer3D {
     buste.castShadow = true;
     char.add(buste);
 
-    // Détails vestimentaires
-    if (outfit === 'sport') {
-      const bande = new THREE.Mesh(new THREE.BoxGeometry(0.47, 0.08, 0.32), matAccent);
-      bande.position.y = 0.65;
-      char.add(bande);
-    } else if (outfit === 'chic') {
-      const col = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.32), matAccent);
-      col.position.y = 0.88;
-      char.add(col);
-    } else if (outfit === 'artisan') {
-      const tablier = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.52, 0.32), new THREE.MeshLambertMaterial({ color: 0x8a5a3a }));
-      tablier.position.y = 0.55;
-      char.add(tablier);
-    } else if (outfit === 'streetwear') {
-      const capuche = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.22, 0.18), matBody);
-      capuche.position.set(0, 0.88, -0.15);
-      char.add(capuche);
-    }
-
     // Tête
     const tete = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), matSkin);
     tete.position.y = 1.15;
     tete.castShadow = true;
     char.add(tete);
 
-    // Cheveux stylisés selon hairStyle
-    if (hairStyle === 'long') {
-      const top = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.18, 0.38), matHair);
-      top.position.y = 1.32;
-      const dos = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.45, 0.16), matHair);
-      dos.position.set(0, 1.05, -0.18);
-      char.add(top, dos);
-    } else if (hairStyle === 'boucle') {
-      const base = new THREE.Mesh(new THREE.DodecahedronGeometry(0.25, 1), matHair);
-      base.position.set(0, 1.34, 0);
-      const bG = new THREE.Mesh(new THREE.DodecahedronGeometry(0.16, 1), matHair);
-      bG.position.set(-0.18, 1.25, 0);
-      const bD = new THREE.Mesh(new THREE.DodecahedronGeometry(0.16, 1), matHair);
-      bD.position.set(0.18, 1.25, 0);
-      char.add(base, bG, bD);
-    } else if (hairStyle === 'mi-long') {
-      const top = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.2, 0.38), matHair);
-      top.position.y = 1.32;
-      const coteG = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.28, 0.34), matHair);
-      coteG.position.set(-0.18, 1.15, 0);
-      const coteD = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.28, 0.34), matHair);
-      coteD.position.set(0.18, 1.15, 0);
-      char.add(top, coteG, coteD);
-    } else if (hairStyle === 'tresse') {
-      const top = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.2, 0.38), matHair);
-      top.position.y = 1.32;
-      const tresse = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.05, 0.48, 5), matHair);
-      tresse.position.set(0.16, 0.95, -0.15);
-      char.add(top, tresse);
-    } else {
-      // Court
-      const cheveux = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.2, 0.38), matHair);
-      cheveux.position.y = 1.32;
-      char.add(cheveux);
-    }
+    // Cheveux stylisés
+    const cheveux = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.2, 0.38), matHair);
+    cheveux.position.y = 1.32;
+    char.add(cheveux);
 
     // Jambes
     const jambeG = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.4, 0.2), matBody);
@@ -709,26 +813,6 @@ export class WorldRenderer3D {
     const px = world.player.pos.x;
     const py = world.player.pos.y;
     const isMoving = opts.walkingEntities?.player ?? false;
-
-    const app = world.player.appearance;
-    const appearanceKey = app
-      ? `${world.player.name}|${world.player.gender}|${app.skinTone}|${app.hairStyle}|${app.hairColor}|${app.outfit}|${app.outfitColor}`
-      : world.player.name;
-
-    if (this.currentPlayerAppearanceKey !== appearanceKey && this.scene) {
-      if (this.playerMesh) {
-        this.scene.remove(this.playerMesh);
-      }
-      const bodyCol = app ? parseInt(app.outfitColor.replace('#', ''), 16) || 0x3a6ca8 : 0x3a6ca8;
-      const skinCol = app ? parseInt(app.skinTone.replace('#', ''), 16) || 0xe8b888 : 0xe8b888;
-      const hairCol = app ? parseInt(app.hairColor.replace('#', ''), 16) || 0x4a3220 : 0x4a3220;
-      const hairStyle = app?.hairStyle || 'court';
-      const outfit = app?.outfit || 'casual';
-
-      this.playerMesh = this.createCharacterMesh(bodyCol, skinCol, world.player.name, hairCol, hairStyle, outfit);
-      this.scene.add(this.playerMesh);
-      this.currentPlayerAppearanceKey = appearanceKey;
-    }
 
     if (this.playerMesh) {
       if (this.currentDiorama) {

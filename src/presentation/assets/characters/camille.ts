@@ -10,6 +10,8 @@ import { OUTLINE, HYGGE_1800K, PALETTE_RAMPS } from '../palette';
 
 export type CamilleAge = '12' | '14' | '16';
 
+import type { PlayerAppearance } from '../../../core/player_customization';
+
 export interface CharacterSpriteFrame {
   readonly w: number;
   readonly h: number;
@@ -17,7 +19,7 @@ export interface CharacterSpriteFrame {
   readonly palette: Readonly<Record<string, string>>;
 }
 
-const CAMILLE_PALETTE: Record<string, string> = {
+export const CAMILLE_PALETTE: Record<string, string> = {
   o: OUTLINE,                     // Brun chaud #2a1a14
   h: PALETTE_RAMPS.hairBrown.base, // #6b4a2f
   H: PALETTE_RAMPS.hairBrown.light,// #8a6240
@@ -31,6 +33,57 @@ const CAMILLE_PALETTE: Record<string, string> = {
   c: HYGGE_1800K,                  // Cartable / sacoche dorée #ffd98a
   k: '#e8d6b0',                    // Carnet de notes kraft
 };
+
+export function getCustomPalette(appearance?: PlayerAppearance): Record<string, string> {
+  if (!appearance) return CAMILLE_PALETTE;
+
+  const skinRamps: Record<string, { base: string; shadow: string }> = {
+    claire: { base: '#ffc496', shadow: '#cf8f74' },
+    chaude: { base: '#b47a56', shadow: '#8a5035' },
+    doree: { base: '#e2ad7a', shadow: '#b27a4d' },
+    ebene: { base: '#724028', shadow: '#4d2815' },
+  };
+
+  const hairRamps: Record<string, { base: string; light: string }> = {
+    brun: { base: '#4a3220', light: '#684830' },
+    chatain: { base: '#6b4a2f', light: '#8a6240' },
+    blond: { base: '#ffd98a', light: '#fff0be' },
+    roux: { base: '#c15f4a', light: '#df7e68' },
+    noir: { base: '#2c2230', light: '#45384d' },
+  };
+
+  const outfitColors: Record<string, { base: string; shadow: string }> = {
+    denim: { base: '#4a5a7a', shadow: '#243250' },
+    coral: { base: '#f48c5d', shadow: '#c25a40' },
+    vert: { base: '#38b764', shadow: '#1e6b36' },
+    ocre: { base: '#8a5a3a', shadow: '#5c3a22' },
+    indigo: { base: '#303e80', shadow: '#1b2352' },
+  };
+
+  const pantsColors: Record<string, { base: string; shadow: string }> = {
+    ecolier: { base: '#4a5a7a', shadow: '#243250' },
+    artisan: { base: '#6b4a2f', shadow: '#4a3424' },
+    sportif: { base: '#2c2230', shadow: '#18121c' },
+    citoyen: { base: '#3a4050', shadow: '#202430' },
+  };
+
+  const skin = skinRamps[appearance.skinTone] ?? skinRamps['claire'] ?? { base: '#f4b896', shadow: '#c27e60' };
+  const hair = hairRamps[appearance.hairColor] ?? hairRamps['chatain'] ?? { base: '#6b4a2f', light: '#8a5a3a' };
+  const top = outfitColors[appearance.outfitColor] ?? outfitColors['coral'] ?? { base: '#f48c5d', shadow: '#c25a40' };
+  const bottom = pantsColors[appearance.outfitStyle] ?? pantsColors['ecolier'] ?? { base: '#4a5a7a', shadow: '#243250' };
+
+  return {
+    ...CAMILLE_PALETTE,
+    s: skin.base,
+    S: skin.shadow,
+    h: hair.base,
+    H: hair.light,
+    t: top.base,
+    T: top.shadow,
+    p: bottom.base,
+    P: bottom.shadow,
+  };
+}
 
 /* ── Camille 12 Ans (16×22 px) ─────────────────────────────────── */
 
@@ -250,6 +303,7 @@ export function getCamilleSprite(
   age: CamilleAge,
   walking: boolean,
   animFrame: number,
+  appearance?: PlayerAppearance,
 ): CharacterSpriteFrame {
   let rows: string[];
   let h = 24;
@@ -300,12 +354,12 @@ export function getCamilleSprite(
     w: 16,
     h,
     rows,
-    palette: CAMILLE_PALETTE,
+    palette: getCustomPalette(appearance),
   };
 }
 
 /**
- * Dessine Camille à l'écran selon son âge et son animation.
+ * Dessine Camille à l'écran selon son âge, son animation et son apparence personnalisée.
  */
 export function drawCamille(
   ctx: CanvasRenderingContext2D,
@@ -315,9 +369,10 @@ export function drawCamille(
   age: CamilleAge,
   t: number,
   walking: boolean,
+  appearance?: PlayerAppearance,
 ): void {
   const animFrame = walking ? Math.floor(t * 6) % 4 : 0;
-  const sprite = getCamilleSprite(age, walking, animFrame);
+  const sprite = getCamilleSprite(age, walking, animFrame, appearance);
   const bob = walking ? 0 : Math.floor(t * 1.5) % 2;
 
   const px = Math.round(x - (sprite.w * scale) / 2);

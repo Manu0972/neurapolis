@@ -19,7 +19,24 @@ import { multiVenturesDayTick } from './multi_ventures';
 import { schoolDayTick } from './school_life';
 import { checkStreetSynergiesAndEncounters } from './street_synergies';
 import { notify } from './events';
+import { economyTick } from './economy';
+import { jobTick } from './jobs';
+import { travelTick } from './travel';
+import { ascensionDay, provenProfit } from './ascension';
+import { mandateDay } from './proxy';
+import { multiplayerDay } from './multiplayer';
+import { happeningsTick } from './happenings';
+import { rewindDay } from './rewind';
+import { familyTick } from './family';
+import { roomDay } from './room';
+import { storyDay } from './story';
+import { unlocksDay } from './unlocks';
+import { secretsDay } from './secrets';
+import { worldTimelineDay } from './world_timeline';
 import { saveToSlot } from '../saves/persist';
+
+// L'échec du stockage ne fait pas partie de WorldState : retenir l'alerte par monde évite le spam quotidien.
+const worldsWithAutoSaveFailure = new WeakSet<WorldState>();
 
 export interface TickOutput { notifications: Notification[] }
 
@@ -28,6 +45,7 @@ export function tickWorld(w: WorldState): TickOutput {
   const prevDay = dayIndexOf(w.time.tick);
   const prevWeek = weekIndexOf(prevDay);
 
+  const prevTick = w.time.tick;
   w.time.tick += 1;
 
   const day = dayIndexOf(w.time.tick);
@@ -45,6 +63,11 @@ export function tickWorld(w: WorldState): TickOutput {
   lifeTick(w);
   out.push(...councilTick(w));
   out.push(...checkStreetSynergiesAndEncounters(w));
+  out.push(...economyTick(w, prevTick));
+  out.push(...jobTick(w));
+  out.push(...travelTick(w));
+  out.push(...happeningsTick(w, prevTick));
+  familyTick(w, prevTick);
 
   if (day !== prevDay) {
     out.push(...rivalDay(w));
@@ -55,7 +78,16 @@ export function tickWorld(w: WorldState): TickOutput {
     out.push(...campaignTick(w));
     out.push(...macroNewsDayTick(w));
     out.push(...multiVenturesDayTick(w));
+    out.push(...ascensionDay(w, prevDay));
+    out.push(...mandateDay(w, provenProfit(w)));
+    if (w.multiplayer) out.push(...multiplayerDay(w, provenProfit(w)));
+    out.push(...rewindDay(w));
+    out.push(...roomDay(w));
+    out.push(...storyDay(w));
+    out.push(...unlocksDay(w));
+    out.push(...secretsDay(w));
     out.push(...schoolDayTick(w));
+    out.push(...worldTimelineDay(w));
 
     // Hebdomadaire : argent de poche + répartition des gains du stand (M5) + atelier (J5)
     if (weekIndexOf(day) !== prevWeek) {
@@ -68,8 +100,14 @@ export function tickWorld(w: WorldState): TickOutput {
     // Cadence figée (contrat M0) : auto-sauvegarde en fin de journée de jeu.
     try {
       saveToSlot('auto', w);
+      if (worldsWithAutoSaveFailure.delete(w)) {
+        out.push(notify('info', 'La sauvegarde automatique fonctionne de nouveau.'));
+      }
     } catch {
-      // Pas de stockage disponible (tests Node, navigateur restreint) : on continue sans état.
+      if (!worldsWithAutoSaveFailure.has(w)) {
+        worldsWithAutoSaveFailure.add(w);
+        out.push(notify('alerte', 'La sauvegarde automatique a échoué. Ta progression peut ne pas être conservée.'));
+      }
     }
   }
 

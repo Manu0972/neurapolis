@@ -1,6 +1,6 @@
 /**
  * Système de Campagne & Progression de vie (de 12 ans à la maturité).
- * Gère l'évolution de Camille, les jalons de vie, les choix à retardement
+ * Gère l'évolution du personnage, les jalons de vie, les choix à retardement
  * et la conclusion narrative de NEURAPOLIS.
  */
 import { STARTING_PLAYER_AGE, type DoctrineKey, type GhostId, type Notification, type WorldState } from '../core/types';
@@ -71,9 +71,8 @@ export function campaignTick(w: WorldState): Notification[] {
 
   // Vérification de progression des chapitres
   if (currentChapter === 1) {
-    const p = w.project;
-    const salesDone = (w.flags['ventes'] ?? 0) >= 3;
-    const teamReady = (p?.members.length ?? 0) >= 1;
+    const salesDone = chapter1Sales(w) >= 3;
+    const teamReady = chapter1Team(w) >= 1;
     const counterUsed = (w.flags['contreStrategiesLancees'] ?? 0) >= 1;
 
     if (salesDone && teamReady && counterUsed) {
@@ -119,6 +118,7 @@ export function campaignTick(w: WorldState): Notification[] {
       // Le chapitre 3 demande des actes nouveaux : les courses et tactiques
       // déjà réalisés avant l’ouverture du Réseau Solidaire ne comptent pas.
       w.flags['chapitre3CoursesDepart'] = w.flags['courses'] ?? 0;
+      w.flags['chapitre3BoulotsDepart'] = w.flags['jobShiftsDone'] ?? 0;
       w.flags['chapitre3ContreStrategiesDepart'] = w.flags['contreStrategiesLancees'] ?? 0;
 
       pushEvent(w, {
@@ -144,7 +144,8 @@ export function campaignTick(w: WorldState): Notification[] {
 
   if (currentChapter === 3) {
     const stage = w.campaign.stages.find((s) => s.chapter === 3);
-    const coursesSinceOpening = (w.flags['courses'] ?? 0) - (w.flags['chapitre3CoursesDepart'] ?? 0);
+    // Courses pour l'épicerie et services rendus chez Mme Bertin (petit boulot) depuis l'ouverture.
+    const coursesSinceOpening = chapter3Help(w);
     const strategiesSinceOpening = (w.flags['contreStrategiesLancees'] ?? 0)
       - (w.flags['chapitre3ContreStrategiesDepart'] ?? 0);
     if (stage && !stage.completed && w.player.age >= stage.targetAge
@@ -414,11 +415,12 @@ export function calculateEpilogue(w: WorldState): EpilogueResult {
     });
   }
 
+  const pName = w.player.name || 'Le protagoniste';
   const epilogueText = [
-    `Quatre ans ont passé depuis ce matin de rentrée où Camille, douze ans, ouvrait son premier stand de goûters face aux grilles du collège des Roses. De la négociation des premiers caramels jusqu’aux réunions tumultueuses de la Friche Taret, chaque étape a façonné l’âme de Val-Ferrand.`,
+    `Quatre ans ont passé depuis ce matin de rentrée où ${pName}, douze ans, ouvrait son premier stand de goûters face aux grilles du collège des Roses. De la négociation des premiers caramels jusqu’aux réunions tumultueuses de la Friche Taret, chaque étape a façonné l’âme de Val-Ferrand.`,
     urbanChoice?.epilogueSummary ?? 'Sur la place, les habitants ont continué à débattre de la meilleure façon de partager leur ville.',
-    `En fondant « ${modelDef.title} », Camille et le quartier ont prouvé que l’économie n’était pas une fatalité subie, mais un contrat vivant que l’on réinvente chaque jour. Dans les pensées de Camille, la voix de ${dominantGhost.name} résonne avec sagesse : « ${quote} ».`,
-    `Aujourd’hui, à seize ans, Camille regarde la place de Val-Ferrand s’animer. L’Héritage est vivant, transmis et partagé. NEURAPOLIS est devenue une cité où l’on grandit debout.`,
+    `En fondant « ${modelDef.title} », ${pName} et le quartier ont prouvé que l’économie n’était pas une fatalité subie, mais un contrat vivant que l’on réinvente chaque jour. Dans les pensées de ${pName}, la voix de ${dominantGhost.name} résonne avec sagesse : « ${quote} ».`,
+    `Aujourd’hui, à seize ans, ${pName} regarde la place de Val-Ferrand s’animer. L’Héritage est vivant, transmis et partagé. NEURAPOLIS est devenue une cité où l’on grandit debout.`,
   ].join('\n\n');
 
   return {
@@ -509,14 +511,35 @@ export interface CampaignSummary {
 }
 
 /** Fournit le résumé d'avancement en temps réel pour le HUD (.campaign-card). */
+/**
+ * Chapitre 1 : les ventes du Stand et celles d'un étal du marché comptent toutes deux
+ * (docs/VISION.md §4.2 : stand → étal → local).
+ */
+export function chapter1Sales(w: WorldState): number {
+  return (w.flags['ventes'] ?? 0) + (w.flags['ventesEtal'] ?? 0);
+}
+
+/** Chapitre 1 : membres du Stand, ou personnes embauchées dans un commerce du joueur. */
+export function chapter1Team(w: WorldState): number {
+  const hired = Object.values(w.economy?.employees ?? {}).filter((e) => e.businessId).length;
+  return (w.project?.members.length ?? 0) + hired;
+}
+
+/** Chapitre 3 : courses pour l'épicerie et services chez Mme Bertin depuis l'ouverture du chapitre. */
+export function chapter3Help(w: WorldState): number {
+  const courses = (w.flags['courses'] ?? 0) - (w.flags['chapitre3CoursesDepart'] ?? 0);
+  const shifts = (w.flags['jobShiftsDone'] ?? 0) - (w.flags['chapitre3BoulotsDepart'] ?? 0);
+  return Math.max(0, courses) + Math.max(0, shifts);
+}
+
 export function getCampaignProgressSummary(w: WorldState): CampaignSummary {
   const ch = w.campaign.currentChapter;
   const stage = w.campaign.stages.find((s) => s.chapter === ch);
   const age = w.player.age;
 
   if (ch === 1) {
-    const v = Math.min(3, w.flags['ventes'] ?? 0);
-    const m = w.project?.members.length ?? 0;
+    const v = Math.min(3, chapter1Sales(w));
+    const m = chapter1Team(w);
     const c = Math.min(1, w.flags['contreStrategiesLancees'] ?? 0);
     return {
       chapter: 1,
@@ -541,7 +564,7 @@ export function getCampaignProgressSummary(w: WorldState): CampaignSummary {
   }
 
   if (ch === 3) {
-    const courses = (w.flags['courses'] ?? 0) - (w.flags['chapitre3CoursesDepart'] ?? 0);
+    const courses = chapter3Help(w);
     const strat = (w.flags['contreStrategiesLancees'] ?? 0) - (w.flags['chapitre3ContreStrategiesDepart'] ?? 0);
     return {
       chapter: 3,
@@ -608,4 +631,98 @@ export function addDelayedConsequence(
     impactType: params.impactType,
     value: params.value,
   });
+}
+
+/**
+ * Ellipse narrative et vacances annuelles (Standard AAA / Big Ambitions).
+ * Permet de franchir une année de transition scolaire et personnelle
+ * lorsque le chapitre en cours est complété mais que l'âge requis pour le suivant
+ * n'est pas encore atteint.
+ */
+export function canTriggerAnnualHolidayTimeskip(w: WorldState): boolean {
+  const ch = w.campaign.currentChapter;
+  if (ch >= 5) return false;
+  const currentStage = w.campaign.stages.find((s) => s.chapter === ch);
+  const nextStage = w.campaign.stages.find((s) => s.chapter === ch + 1);
+  if (!nextStage) return false;
+  // Disponible si le chapitre en cours a été validé ou si les objectifs de chapitre sont remplis
+  const completed = currentStage?.completed || w.campaign.completedChapters.includes(ch);
+  return completed && w.player.age < nextStage.targetAge;
+}
+
+export function triggerAnnualHolidayTimeskip(w: WorldState): {
+  ok: boolean;
+  message: string;
+  previousAge: number;
+  newAge: number;
+  report: string;
+} {
+  const ch = w.campaign.currentChapter;
+  const nextStage = w.campaign.stages.find((s) => s.chapter === ch + 1);
+  if (!canTriggerAnnualHolidayTimeskip(w) || !nextStage) {
+    return {
+      ok: false,
+      message: 'Les conditions pour une transition annuelle ne sont pas encore réunies.',
+      previousAge: w.player.age,
+      newAge: w.player.age,
+      report: '',
+    };
+  }
+
+  const previousAge = w.player.age;
+  const newAge = nextStage.targetAge;
+  w.player.age = newAge;
+
+  // Calcul du saut temporel en jours (365 jours de rentrée à rentrée)
+  const currentDay = dayIndexOf(w.time.tick);
+  // Trouver le prochain 1er septembre
+  let targetDay = currentDay + 1;
+  while (ageForDay(targetDay) < newAge) {
+    targetDay += 10;
+  }
+  while (ageForDay(targetDay) > newAge && targetDay > currentDay) {
+    targetDay -= 1;
+  }
+  const ticksToAdvance = Math.max(0, (targetDay - currentDay) * 144);
+  w.time.tick += ticksToAdvance;
+
+  // Récupération des besoins et consolidation
+  w.player.needs.fatigue = 0;
+  w.player.needs.stress = Math.max(0, w.player.needs.stress - 20);
+  w.player.needs.moral = Math.min(100, w.player.needs.moral + 15);
+  w.player.characteristics.confiance = Math.min(100, w.player.characteristics.confiance + 5);
+  w.player.characteristics.adaptabilite = Math.min(100, w.player.characteristics.adaptabilite + 4);
+
+  const report = [
+    `✦ Bilan de l'Année Scolaire & Grandes Vacances (${previousAge} → ${newAge} ans) ✦`,
+    `Le temps a fait son œuvre : les grandes vacances se sont écoulées, consolidant tes relations et ton expérience à Val-Ferrand.`,
+    `Tu entres désormais dans ta ${newAge}e année avec une confiance renouvelée (+5 Confiance, +4 Adaptabilité, Stress apaisé).`,
+    `Un nouveau chapitre commence : « ${nextStage.title} ».`,
+  ].join('\n\n');
+
+  const pName = w.player.firstName || w.player.name || 'Le protagoniste';
+  pushEvent(w, {
+    type: 'vie',
+    title: `Ellipse : ${pName} fête ses ${newAge} ans`,
+    text: `Les grandes vacances sont passées. ${pName} grandit et aborde le chapitre « ${nextStage.title} » avec maturité.`,
+    causes: [
+      { facteur: 'transition annuelle & grandes vacances', poids: 3 },
+      { facteur: `nouvel âge atteint : ${newAge} ans`, poids: 2 },
+    ],
+  });
+
+  w.lifeJournal.push({
+    day: dayIndexOf(w.time.tick),
+    date: dateOf(dayIndexOf(w.time.tick)).iso,
+    title: `Grandes Vacances & Bilan (${newAge} ans)`,
+    text: `Une nouvelle rentrée commence. J'ai maintenant ${newAge} ans. Le quartier et nos projets entrent dans une nouvelle dimension.`,
+  });
+
+  return {
+    ok: true,
+    message: `Ellipse accomplie : ${pName} a désormais ${newAge} ans !`,
+    previousAge,
+    newAge,
+    report,
+  };
 }

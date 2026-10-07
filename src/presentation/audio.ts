@@ -7,7 +7,7 @@
  * Résilient : no-op propre en environnement sans AudioContext (Node.js/Vitest).
  */
 
-export type SurfaceType = 'pave' | 'herbe' | 'parquet' | 'terre' | 'sol';
+export type SurfaceType = 'pave' | 'herbe' | 'parquet' | 'terre' | 'sol' | 'asphalte';
 export type AmbientLocation = 'maison' | 'ville' | 'parc' | 'atelier' | 'college' | 'epicerie' | 'place' | 'silence';
 
 export class SoundEngine {
@@ -24,6 +24,11 @@ export class SoundEngine {
   private currentIsNight = false;
   private currentIsGoldenHour = false;
   private currentIsRain = false;
+
+  // Gestion du bruit de trafic routier urbain (0..1)
+  private trafficGainNode: GainNode | null = null;
+  private trafficSourceNode: AudioBufferSourceNode | null = null;
+  private trafficFilterNode: BiquadFilterNode | null = null;
 
   private ambientNodes: {
     oscillators: OscillatorNode[];
@@ -201,6 +206,29 @@ export class SoundEngine {
       gain.connect(this.sfxGain);
       osc.start(t);
       osc.stop(t + 0.07);
+    } else if (surface === 'asphalte') {
+      // Pas sur macadam / asphalte : impact mat avec friction fine (triangle 220 Hz -> 80 Hz + passe-bande)
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(220 + (Math.random() * 20 - 10), t);
+      osc.frequency.exponentialRampToValueAtTime(75, t + 0.05);
+
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(380, t);
+      filter.Q.setValueAtTime(1.4, t);
+
+      gain.gain.setValueAtTime(0.28, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.055);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.sfxGain);
+
+      osc.start(t);
+      osc.stop(t + 0.06);
     } else {
       // 'pave' / 'sol' : claquement sec sur pierre (triangle 340 Hz -> 90 Hz, highpass 200 Hz)
       const osc = ctx.createOscillator();
@@ -706,13 +734,95 @@ export class SoundEngine {
       for (const src of nodes.noiseSources) {
         try { src.stop(); src.disconnect(); } catch {}
       }
-      if (nodes.noiseSource) {
-        try { nodes.noiseSource.stop(); nodes.noiseSource.disconnect(); } catch {}
-      }
       if (nodes.intervalId) {
         clearInterval(nodes.intervalId);
       }
     }, 600);
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+   * AMBIANCE & SONS DE VILLE 3D (Tâche A-4)
+   * ───────────────────────────────────────────────────────────── */
+
+  /**
+   * Sonnette de porte de boutique (ding-dong en clochettte de laiton).
+   */
+  public playDoorBell(): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain || this.muted) return;
+
+    const t = ctx.currentTime;
+    // Cloche d'entrée de boutique en deux notes harmoniques (E6 = 1318.5 Hz, C6 = 1046.5 Hz)
+    const bellNotes = [
+      { freq: 1318.5, start: t, duration: 0.35, gain: 0.25 },
+      { freq: 1046.5, start: t + 0.12, duration: 0.45, gain: 0.22 },
+    ];
+
+    for (const note of bellNotes) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(note.freq, note.start);
+      // Légère modulation pour le scintillement métallique de clochette
+      osc.frequency.exponentialRampToValueAtTime(note.freq * 0.99, note.start + note.duration);
+
+      gain.gain.setValueAtTime(note.gain, note.start);
+      gain.gain.exponentialRampToValueAtTime(0.0005, note.start + note.duration);
+
+      osc.connect(gain);
+      gain.connect(this.sfxGain);
+
+      osc.start(note.start);
+      osc.stop(note.start + note.duration + 0.05);
+    }
+  }
+
+  /**
+   * Contrôle dynamique du volume de trafic routier urbain lointain (0..1).
+   * Rumeur sourde continue de pneus et moteurs filtrée à basse fréquence.
+   */
+  public setTrafficLevel(level: number): void {
+    const targetLevel = Math.max(0, Math.min(1, level));
+    const ctx = this.ensureContext();
+    if (!ctx || !this.ambientGain) return;
+
+    const t = ctx.currentTime;
+
+    // Si le niveau est à 0 et aucun noeud actif, ne rien faire
+    if (targetLevel === 0 && !this.trafficGainNode) return;
+
+    // Création du générateur de trafic si absent
+    if (!this.trafficSourceNode && targetLevel > 0) {
+      const buffer = this.getOrCreateSharedNoiseBuffer(ctx);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(240, t); // grondement sourd de route
+      filter.Q.setValueAtTime(1.2, t);
+
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, t);
+
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ambientGain);
+
+      source.start(t);
+
+      this.trafficSourceNode = source;
+      this.trafficFilterNode = filter;
+      this.trafficGainNode = gain;
+    }
+
+    if (this.trafficGainNode) {
+      // Ajustement fluide du volume (max 0.22 pour ne pas écraser la musique ou les pas)
+      const targetGain = targetLevel * 0.22;
+      this.trafficGainNode.gain.setTargetAtTime(this.muted ? 0 : targetGain, t, 0.3);
+    }
   }
 }
 

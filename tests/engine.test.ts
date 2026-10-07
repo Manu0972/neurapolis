@@ -3,7 +3,7 @@
  * 3 journées complètes : sommeil nocturne automatique, argent de poche hebdomadaire,
  * déterminisme bout-en-bout de runTicks.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createWorld } from '../src/core/store';
 import { dateOf, dayIndexOf, minutesOfDay } from '../src/core/clock';
 import { TICKS_PER_DAY } from '../src/core/types';
@@ -11,6 +11,14 @@ import { runTicks } from '../src/simulation/engine';
 import type { Notification } from '../src/core/types';
 
 const TICKS_PAR_JOUR = TICKS_PER_DAY;
+
+beforeEach(() => {
+  vi.stubGlobal('localStorage', { setItem: () => undefined });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('engine — 3 journées complètes', () => {
   it('runTicks avance de 3 journées : mardi 1er → vendredi 4 septembre 2020', () => {
@@ -24,7 +32,8 @@ describe('engine — 3 journées complètes', () => {
     expect(dateOf(3).iso).toBe('2020-09-04');
     expect(dateOf(3).weekday).toBe(5); // vendredi
     expect(minutesOfDay(w.time.tick)).toBe(430);
-    expect(fin).toHaveLength(0); // rien à notifier dans le socle sur 3 jours de semaine
+    // Rien à notifier dans le socle sur 3 jours de semaine, hors actualités de la chronologie du monde (📰).
+    expect(fin.filter((n) => !n.text.startsWith('📰'))).toHaveLength(0);
   });
 });
 
@@ -89,5 +98,39 @@ describe('engine — déterminisme bout-en-bout', () => {
     runTicks(c, 500);
     expect(a).toEqual(b);
     expect(a).not.toEqual(c);
+  });
+});
+
+describe('engine — visibilité des échecs d’auto-sauvegarde', () => {
+  it('alerte une fois pendant la panne, puis annonce le retour après une écriture réussie', () => {
+    let shouldFail = true;
+    vi.stubGlobal('localStorage', {
+      setItem: () => {
+        if (shouldFail) throw new Error('QuotaExceededError');
+      },
+    });
+
+    try {
+      const w = createWorld();
+      const firstDay = runTicks(w, TICKS_PAR_JOUR);
+      expect(firstDay.filter((notification) => notification.text.startsWith('La sauvegarde automatique a échoué')))
+        .toHaveLength(1);
+
+      const secondDay = runTicks(w, TICKS_PAR_JOUR);
+      expect(secondDay.filter((notification) => notification.text.startsWith('La sauvegarde automatique a échoué')))
+        .toHaveLength(0);
+
+      shouldFail = false;
+      const recoveredDay = runTicks(w, TICKS_PAR_JOUR);
+      expect(recoveredDay.some((notification) => notification.text === 'La sauvegarde automatique fonctionne de nouveau.'))
+        .toBe(true);
+
+      shouldFail = true;
+      const failedAgain = runTicks(w, TICKS_PAR_JOUR);
+      expect(failedAgain.filter((notification) => notification.text.startsWith('La sauvegarde automatique a échoué')))
+        .toHaveLength(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

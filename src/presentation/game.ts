@@ -53,7 +53,7 @@ import {
 import { DATA_SALE, ECO_CHOICE, STAND_CONFIG } from '../data/project';
 import { dateOf, dayIndexOf, minutesOfDay } from '../core/clock';
 import type { CharacteristicsId, GhostId, NpcId, Notification, PlaceId, Rel4, RepartitionMode, SkillId, SolidarityTariff, TerritorialZoneId, VendorId, VentureId, VentureRole, WorldState } from '../core/types';
-import { ZERO_REL } from '../core/types';
+import { TICKS_PER_DAY, ZERO_REL } from '../core/types';
 import { createInput } from './input';
 import { renderWorld } from './renderer';
 import { buildUi, el, resizeCanvas, updateHud, showGhostAdvicePopup, MOOD_EMOTICONS, type UiRefs } from './ui';
@@ -61,7 +61,52 @@ import { TOKENS } from './tokens';
 import { avatarElement } from './avatar';
 import { loadAssetKit } from './asset-loader';
 import { audio, type AmbientLocation } from './audio';
-import { getCameraRelativeInput, WorldRenderer3D } from './renderer3d';
+import { CityRenderer, heightForAge } from './city3d/CityRenderer';
+import { moveToTile } from '../simulation/movement';
+import { areaPassable } from '../simulation/areas';
+import { areaAt } from '../data/city/layout';
+import { openPhone, type PhoneApp } from './phone';
+import { BUSINESS_TYPE_BY_ID, WHOLESALER_BY_ID } from '../data/economy';
+import { UNIT_BY_ID, ensureEconomy, pickUpOrder, pickupPoint, unloadAt, businessDoor } from '../simulation/economy';
+import { streetNameAt, unitAt } from '../data/map';
+import { COMPETITOR_BY_UNIT } from '../data/city/competitors';
+import { drawMinimap, renderCityMap, setPlayerMarkers } from './minimap';
+import { PENDING_LOAD_KEY, deleteSlot, exportSave, importSave, saveToSlot, slotSummary } from '../saves/persist';
+import { businessInteriorSpec, destinationSpec, landmarkSpec, placeHasInterior, placeInteriorSpec } from './city3d/interior3d';
+import { activityBlocker, doLandmarkActivity, landmarkAdjacent } from '../simulation/landmarks';
+import { LANDMARK_BY_ID, type LandmarkDef } from '../data/city/landmarks';
+import { useFurniture } from '../simulation/interior_actions';
+import { JOB, inShift, startShift } from '../simulation/jobs';
+import { hhmmOfTick } from '../core/clock';
+import { appeal } from '../simulation/economy';
+import { ownsBike } from '../simulation/vehicles';
+import {
+  DESTINATIONS, DESTINATION_BY_ID, activitiesAt, activityDoneThisTrip, canTravel, currentDestination, doTravelActivity,
+  isOnSite, isTraveling, leaveDestination, startTravel, travelSlotsLeft,
+} from '../simulation/travel';
+import { LAMINOIR_OPTIONS, chooseLaminoirFuture, laminoirDecisionPending } from '../simulation/laminoir';
+import { BUS_HOURS, busFare, busRoute, busRunning, isOnBus, stopNear, stopOpen, takeBus } from '../simulation/transit';
+import { BUS_LINES, BUS_STOPS, BUS_STOP_BY_ID } from '../data/city/transit';
+import { createGhostBar } from './ghost-bar';
+import { createNewsToaster, openSurpriseModal } from './news-ui';
+import { pendingSurprise } from '../simulation/happenings';
+import { isSilenced, lessonWarnings, rewindOffer, sacrificeCandidates } from '../simulation/rewind';
+import { recordDay } from '../saves/chronicle';
+import { openRewindModal } from './rewind-ui';
+import { openConvocationModal, openDinnerModal, openFamilyPanel, openSchoolEventModal } from './family-ui';
+import { pendingSchoolEvent } from '../simulation/school_events';
+import { bedroomExtras, openPlanner, openShelf, type PlanCtx } from './plan-ui';
+import { openDuelModal } from './ascension-ui';
+import { buildAppearanceEditor } from './appearance-editor';
+import { createAvatarPreview } from './avatar-preview3d';
+import { openNotebooks, openUnreadBeat, playOrigin } from './story-ui';
+import { ensureRoom, planChecklist } from '../simulation/room';
+import { searchSecret, secretHere } from '../simulation/secrets';
+import { IDEA_BY_ID } from '../data/ascension/ideas';
+import { attendClass, classWindow, ensureFamily, isHome, isInClass, pendingDinner } from '../simulation/family';
+import { mostUrgentTip } from '../simulation/ghost_tips';
+import { CITY, PLACE_ANCHORS } from '../data/map';
+import * as economyApi from '../simulation/economy';
 import { openDetailedInteriorModal } from './interiors';
 import { tileAt } from '../data/map';
 import { VENDOR_DEFS } from '../data/vendors';
@@ -74,8 +119,30 @@ import { attendSchoolClass, ensureSchoolLifeState, negotiateWithTeacher, skipSch
 import { ensureStreetRecognitionState, handleStreetEncounterChoice } from '../simulation/street_synergies';
 import { askActiveGhostAdvice, checkAndUnlockThinkers, getGhostCompanionThought, switchCompanionGhost } from '../simulation/ghost_companions';
 import { INITIAL_TUTORIALS } from '../data/tutorials';
+import { PACE_BY_ID, TASK_MINUTES, TASK_SPEED, loadPacePrefs, savePacePrefs, subMinutes, taskTicks } from './time-pace';
+import { setClockSubMinutes } from './ui';
+import { MultiplayerSession, openMultiplayerPanel } from './multiplayer';
+import { residentNear, residentsPresent, talkToResident } from '../simulation/residents';
+import { EMERGENCY_BELOW, emergencyHelpStatus } from '../simulation/family';
+import { randomAppearance } from './appearance-editor';
+import type { RemoteAvatar } from './city3d/CityRenderer';
+import { SKIP_LABELS, beginSkip, skipBlocker, skipReport, skipTarget, stepSkip, type SkipKind } from '../simulation/timeskip';
 
-const TICK_MS = 1000; // 1 tick simulé (10 min) par seconde à vitesse 1
+/**
+ * Un tick simulé dure 10 minutes de jeu. À vitesse ×1, 1 minute de jeu = 1 seconde réelle
+ * (docs/DECISIONS.md, 2026-10-07) : une journée éveillée dure environ 16 minutes réelles.
+ */
+const TICK_MS = 10_000;
+/** Multiplicateur de vitesse pendant le sommeil : une nuit de 9 h passe en ~5 s. */
+const NIGHT_SPEED = 120;
+/** En bus, un trajet de 10 à 30 minutes passe en une ou deux secondes. */
+const BUS_SPEED = 25;
+/** En voyage, trois jours passent en ~20 s. */
+const TRAVEL_SPEED = 200;
+/** Pendant un petit boulot, deux heures de service passent en ~15 s. */
+const SHIFT_SPEED = 50;
+/** En cours, une demi-journée de classe passe en une dizaine de secondes. */
+const CLASS_SPEED = 25;
 const MOVE_MS = 150;  // cadence d'un pas de tuile en maintenant une direction
 
 const REL_DIMS: ReadonlyArray<keyof Rel4> = ['amitie', 'confiance', 'respect', 'rivalite'];
@@ -84,19 +151,150 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   const world: WorldState = initialWorld;
   root.replaceChildren();
   const ui = buildUi(root);
+  // Barre des fantômes : leurs têtes en haut de l'écran, qui bougent quand ils veulent parler.
+  const ghostBar = createGhostBar(root, () => world, () => modalOpen);
+  let lastTipText = '';
+  // Notifications façon téléphone pour le fil d'infos ; un clic ouvre l'application « Infos ».
+  const newsToaster = createNewsToaster(root, () => openPhoneUi('infos'));
+  let surpriseRetryTick = 0;
+  // Nouvelle partie : la nuit de la Maison du Peuple, avant tout le reste. Le jeu attend.
+  if (!world.story?.originDone) {
+    // Différé : l'état de l'interface (modalOpen…) est déclaré plus bas dans startGame.
+    queueMicrotask(() => {
+      modalOpen = true;
+      playOrigin(root, world, () => { modalOpen = false; });
+    });
+  }
+  // Chronique : un instantané chaque matin pour un éventuel retour en arrière.
+  try { recordDay(world); } catch { /* stockage indisponible */ }
+  let rewindOfferKey = '';
+  let dinnerShownId = '';
+  let convocationShownDay = -1;
+  let classReminderKey = '';
+  // Plans de la chambre : petit rappel en haut à gauche, un clic ouvre le tableau.
+  const planChip = el('button', 'plan-chip hidden', '');
+  planChip.type = 'button';
+  planChip.addEventListener('click', () => openPlanner(planCtx()));
+  root.appendChild(planChip);
+  function planCtx(): PlanCtx {
+    return {
+      world, showModal, closeModal, toast,
+      openDuel: () => openDuelModal({ world, showModal, closeModal, toast, onChange: () => updateHud(ui, world, promptText()) }, () => openPhoneUi('ascension')),
+    };
+  }
+  /** L'armoire de la chambre : changer d'apparence (tenues selon le palier, barbe à 16 ans). */
+  function openWardrobe(): void {
+    let draft = { ...world.player.appearance };
+    const body = el('div', 'panel-body wardrobe');
+    const preview = createAvatarPreview(220, 280);
+    if (preview) {
+      preview.setAppearance(draft, world.player.gender, heightForAge(world.player.age));
+      body.appendChild(preview.canvas);
+    }
+    const editor = buildAppearanceEditor(draft, {
+      age: world.player.age,
+      tier: world.ascension?.tier ?? 1,
+      onChange: (a) => { draft = a; preview?.setAppearance(a, world.player.gender, heightForAge(world.player.age)); },
+    });
+    body.appendChild(editor.root);
+    const save = el('button', 'ph-btn primary', 'Enfiler cette tenue');
+    save.type = 'button';
+    save.addEventListener('click', () => {
+      world.player.appearance = { ...draft };
+      preview?.dispose();
+      closeModal();
+      toast('Nouvelle allure !', true);
+    });
+    body.appendChild(save);
+    showModal('👕 Armoire', 'Ton allure, ton style', body, true);
+  }
+
+  function syncPlanChip(): void {
+    const p = ensureRoom(world).plans[0];
+    const idea = p ? IDEA_BY_ID[p.ideaId] : undefined;
+    planChip.classList.toggle('hidden', !idea);
+    if (!p || !idea) return;
+    const list = planChecklist(world, p.ideaId).filter((c) => !c.optional);
+    const done = list.filter((c) => c.ok).length;
+    const ready = done === list.length;
+    planChip.classList.toggle('ready', ready);
+    const text = ready ? `▶ Plan prêt : ${idea.name}` : `🎯 ${idea.name} · ${done}/${list.length}`;
+    if (planChip.textContent !== text) planChip.textContent = text;
+  }
   let modalOpen = false;
   const deferredArrivals = new Set<string>();
   let last = performance.now();
   let acc = 0;
   let moveAcc = 0;
+  let footstepAcc = 0;
+  let hudFrame = 0;
+  let interiorStepAcc = 0;
   let lastAdviceMood = '';
+  // Rythme du temps (préférence du joueur) et ellipse des actions en cours.
+  const pacePrefs = loadPacePrefs();
+  let pendingTaskTicks = 0;
+  /** Multijoueur : le joueur est occupé par une action jusqu'à ce tick. */
+  let busyUntilTick = 0;
+  /** Habitants nommés des quartiers visibles autour du joueur (recalculés toutes les 30 images). */
+  let residentFigures: RemoteAvatar[] | null = null;
+  // eslint-disable-next-line prefer-const
+  let mp: MultiplayerSession | undefined;
+  // File des fenêtres automatiques (voir la boucle).
+  let lastAutoModalTick = -1e9;
+  let autoModalWasOpen = false;
+  let lastTickMs = 0;
+  let taskLabel = '';
+  /** Une action vient d'être faite : l'horloge avance de sa durée (si l'option est active). */
+  function spendTaskTime(minutes: number, label: string): void {
+    if (!pacePrefs.tasksTakeTime) return;
+    if (mp?.connected) {
+      // Multijoueur : le temps est partagé ; l'action t'occupe le temps qu'elle dure.
+      busyUntilTick = Math.max(busyUntilTick, world.time.tick) + taskTicks(minutes);
+      ui.taskChip.textContent = `⏳ ${label} · occupé·e jusqu’à ${hhmmOfTick(busyUntilTick)}`;
+      ui.taskChip.classList.remove('hidden');
+      return;
+    }
+    pendingTaskTicks += taskTicks(minutes);
+    taskLabel = label;
+    ui.taskChip.textContent = `⏩ ${label} · +${pendingTaskTicks * 10} min`;
+    ui.taskChip.classList.remove('hidden');
+  }
   let lastAdviceBubbleTime = 0;
 
   // Initialisation du rendu 3D WebGL / fallback 2D
   let use3D = true;
-  let renderer3D: WorldRenderer3D | null = null;
+  let renderer3D: CityRenderer | null = null;
   try {
-    renderer3D = new WorldRenderer3D(ui.canvas3d);
+    renderer3D = new CityRenderer(ui.canvas3d);
+    renderer3D.onPlayerTile = (x, y) => {
+      const ok = moveToTile(world, x, y);
+      if (ok) {
+        const tile = tileAt(x, y);
+        const surface = tile?.surface === 'herbe' || tile?.surface === 'aire_jeux' ? 'herbe'
+          : tile?.surface === 'terre' || tile?.surface === 'gravier' ? 'terre'
+            : tile?.surface === 'chaussee' || tile?.surface === 'parking' ? 'asphalte' : 'pave';
+        footstepAcc += 1;
+        if (footstepAcc % 2 === 0) audio.playFootstep(surface);
+      }
+      return ok;
+    };
+    // Quartiers fermés : on longe la barrière, et le panneau dit pourquoi (une fois toutes les 8 s).
+    let lastLockToast = -1e9;
+    renderer3D.walkFilter = (x, y) => {
+      if (areaPassable(world, world.player.pos.x, world.player.pos.y, x, y)) return true;
+      const now = performance.now();
+      if (now - lastLockToast > 8000) {
+        lastLockToast = now;
+        const a = areaAt(x, y);
+        toast(`🚧 ${a.name} — ${a.lock} (palier ${a.tier} de l’Ascension)`, false);
+      }
+      return false;
+    };
+    renderer3D.onContextLost = () => {
+      use3D = false;
+      ui.canvas3d.style.display = 'none';
+      ui.canvas.style.display = 'block';
+    };
     if (!renderer3D.isWebGLAvailable) {
       use3D = false;
       ui.canvas3d.style.display = 'none';
@@ -135,7 +333,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   ui.btnCamView.addEventListener('click', () => {
     audio.playUiClick();
     renderer3D?.toggleTopDown();
-    ui.btnCamView.textContent = renderer3D?.isTopDown ? '📐 Top' : '📐 Iso';
+    ui.btnCamView.textContent = renderer3D?.isTopDown ? '🗺️ Plan' : '🎥 Rue';
   });
   ui.btnZoomIn.addEventListener('click', () => {
     audio.playUiClick();
@@ -161,9 +359,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   const input = createInput(root, interact);
   window.addEventListener('resize', () => resizeCanvas(ui, root));
 
-  // Raccourcis caméra (R / T / V)
+  // Mode aménagement : défini plus bas, consulté ici par les raccourcis caméra.
+  let layoutEditActive = (): boolean => false;
+  // Raccourcis caméra (R / T / V) — inactifs pendant l'aménagement (R y fait tourner un meuble).
   window.addEventListener('keydown', (e) => {
-    if (modalOpen) return;
+    if (modalOpen || layoutEditActive()) return;
     if (e.code === 'KeyR') {
       audio.playUiClick();
       renderer3D?.rotateLeft();
@@ -175,30 +375,845 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (e.code === 'KeyV') {
       audio.playUiClick();
       renderer3D?.toggleTopDown();
-      ui.btnCamView.textContent = renderer3D?.isTopDown ? '📐 Top' : '📐 Iso';
+      ui.btnCamView.textContent = renderer3D?.isTopDown ? '🗺️ Plan' : '🎥 Rue';
     }
   });
 
   // Charger les assets pixel-art en arrière-plan (le renderer bascule automatiquement)
   loadAssetKit().catch(() => { /* fallback procédural si le chargement échoue */ });
 
-  // Contrôle de vitesse (×1, ×2, ×4)
+  // Rythme du temps : allure (pause → ×20, temps réel compris) et actions qui prennent du temps.
+  const syncPaceUi = (): void => {
+    const shown = mp?.followsHost ? mp.hostPace : pacePrefs.pace;
+    for (const b of root.querySelectorAll<HTMLButtonElement>('.speed-btn')) b.classList.toggle('active', b.dataset.pace === shown);
+    ui.taskToggle.classList.toggle('on', pacePrefs.tasksTakeTime);
+    ui.taskToggle.textContent = pacePrefs.tasksTakeTime ? '⏱ Les actions prennent du temps' : '⏱ Actions instantanées';
+    ui.taskToggle.setAttribute('aria-pressed', String(pacePrefs.tasksTakeTime));
+    // L'ancien champ de vitesse reste cohérent (pause ou en marche) pour la sauvegarde.
+    world.time.speed = PACE_BY_ID[pacePrefs.pace].scale === 0 ? 0 : 1;
+  };
   for (const btn of root.querySelectorAll<HTMLButtonElement>('.speed-btn')) {
     btn.addEventListener('click', () => {
-      world.time.speed = (Number(btn.dataset.speed) || 1) as import('../core/types').Speed;
-      for (const b of root.querySelectorAll<HTMLButtonElement>('.speed-btn')) {
-        b.style.background = Number(b.dataset.speed) === world.time.speed ? 'var(--or)' : 'var(--panel2)';
-        b.style.color = Number(b.dataset.speed) === world.time.speed ? 'var(--bg)' : 'var(--ink)';
+      const id = btn.dataset.pace as keyof typeof PACE_BY_ID;
+      if (!PACE_BY_ID[id]) return;
+      if (mp?.followsHost) {
+        mp.requestPace(id);
+        toast('Demande envoyée à l’hôte : c’est son horloge qui fait foi.', true);
+        return;
       }
+      pacePrefs.pace = id;
+      savePacePrefs(pacePrefs);
+      syncPaceUi();
     });
   }
+  ui.taskToggle.addEventListener('click', () => {
+    pacePrefs.tasksTakeTime = !pacePrefs.tasksTakeTime;
+    savePacePrefs(pacePrefs);
+    syncPaceUi();
+  });
+  syncPaceUi();
+
+  // ---------- Passer le temps (journée, semaine, mois, vacances) ----------
+  let skipping = false;
+  function openSkipMenu(): void {
+    if (skipping) return;
+    if (mp?.connected && !mp.isHost) { toast('En multijoueur, c’est l’hôte qui fait passer le temps : vous sautez ensemble.', false); return; }
+    const body = el('div', 'panel-body');
+    body.appendChild(el('p', 'panel-desc', 'Le temps passe vraiment : tu vas en cours quand il y en a, tu manges et tu dors à la maison, tes commerces et tes entreprises tournent, le monde bouge. Un bilan t’attend à l’arrivée.'));
+    const list = el('div', 'ph-list');
+    for (const kind of ['jour', 'semaine', 'mois', 'vacances'] as SkipKind[]) {
+      const block = skipBlocker(world, kind);
+      if (kind === 'vacances' && block) continue;
+      const target = skipTarget(world, kind);
+      const d = dateOf(dayIndexOf(target));
+      const card = el('div', `ph-card${block ? ' locked' : ''}`);
+      card.appendChild(el('div', 'ph-card-title', `📅 ${SKIP_LABELS[kind]}`));
+      card.appendChild(el('p', 'ph-note', block ?? `Jusqu’au ${d.label}, 7 h.`));
+      const go = el('button', 'ph-btn primary', 'Y aller');
+      go.disabled = !!block;
+      go.addEventListener('click', () => { closeModal(); runSkip(kind); });
+      card.appendChild(go);
+      list.appendChild(card);
+    }
+    body.appendChild(list);
+    showModal('📅 Passer le temps', 'Une ellipse, pas une triche : tout est simulé', body, true);
+  }
+  function runSkip(kind: SkipKind): void {
+    const s = beginSkip(world, kind);
+    if ('error' in s) { toast(s.error, false); return; }
+    if (mp?.isHost) mp.broadcastSkip(kind, s.target);
+    skipping = true;
+    const total = Math.max(1, s.target - world.time.tick);
+    const start = world.time.tick;
+    ui.taskChip.classList.remove('hidden');
+    const step = (): void => {
+      const done = stepSkip(world, s, TICKS_PER_DAY / 2);
+      ui.taskChip.textContent = `⏩ ${SKIP_LABELS[kind]} · ${Math.min(100, Math.round(((world.time.tick - start) / total) * 100))} %`;
+      updateHud(ui, world, promptText());
+      if (!done) { setTimeout(step, 0); return; }
+      skipping = false;
+      ui.taskChip.classList.add('hidden');
+      acc = 0;
+      const r = skipReport(world, s);
+      const body = el('div', 'panel-body');
+      if (r.stopped) body.appendChild(el('p', 'ph-note', `⏹ ${r.stopped}`));
+      const ul = el('ul', 'asc-checks');
+      for (const line of r.lines) ul.appendChild(el('li', '', line));
+      body.appendChild(ul);
+      if (r.highlights.length) {
+        body.appendChild(el('h3', 'panel-sub', 'Ce qui s’est passé'));
+        const hl = el('ul', 'skip-highlights');
+        for (const h of r.highlights) hl.appendChild(el('li', '', h));
+        body.appendChild(hl);
+      }
+      showModal(`📅 ${r.title}`, dateOf(dayIndexOf(world.time.tick)).label, body, true);
+      try { recordDay(world); } catch { /* stockage indisponible */ }
+    };
+    step();
+  }
+  ui.skipBtn.addEventListener('click', openSkipMenu);
+
+  // ---------- Multijoueur en LAN ----------
+  mp = new MultiplayerSession(world, {
+    notify: (list) => {
+      for (const n of list) {
+        if (n.kind === 'fantome' && n.ghost) ghostBar.push({ ghost: n.ghost, text: n.text, pop: true, mood: 'calme' });
+        else toast(n.text, n.kind !== 'alerte');
+      }
+      updateHud(ui, world, promptText());
+    },
+    skip: (kind) => { if (!skipping) runSkip(kind); },
+    paceRequest: (pace) => {
+      if (!(pace in PACE_BY_ID)) return;
+      pacePrefs.pace = pace as keyof typeof PACE_BY_ID;
+      syncPaceUi();
+      toast(`📡 Allure changée à la demande d’un joueur : ${PACE_BY_ID[pacePrefs.pace].title}`, true);
+    },
+    changed: () => {
+      const n = mp?.playerCount ?? 0;
+      const offers = mp?.pendingOffers() ?? 0;
+      ui.mpBtn.textContent = mp?.connected ? `📡 ${n} joueur${n > 1 ? 's' : ''}${mp.isHost ? ' · hôte' : ''}${offers ? ` · 📨 ${offers}` : ''}` : mp?.status === 'connexion' ? '📡 Connexion…' : '📡 Multijoueur';
+      ui.mpBtn.classList.toggle('on', !!mp?.connected);
+      syncPaceUi();
+    },
+    me: () => ({ appearance: world.player.appearance, gender: world.player.gender, heightM: heightForAge(world.player.age) }),
+  });
+  ui.mpBtn.addEventListener('click', () => {
+    if (modalOpen || !mp) return;
+    openMultiplayerPanel({ session: mp, world, showModal, closeModal, toast, notify: (list) => { for (const n of list) if (n.kind === 'fantome' && n.ghost) ghostBar.push({ ghost: n.ghost, text: n.text, pop: true, mood: 'calme' }); } });
+  });
 
   // Outil d'inspection (Bible Partie XII) : l'état du monde reste lisible depuis la console
   // et depuis les tests E2E. Lecture/écriture directe = leviers de QA, jamais du gameplay.
-  (window as unknown as { __NEURAPOLIS__: { world: WorldState } }).__NEURAPOLIS__ = { world };
+  (window as unknown as { __NEURAPOLIS__: unknown }).__NEURAPOLIS__ = {
+    world,
+    /** Session multijoueur (QA). */
+    get mp() { return mp; },
+    /** Capture du rendu 3D (QA) : fonctionne même fenêtre masquée. */
+    snapshot: (opts?: { frames?: number; yaw?: number; pitch?: number; dist?: number; move?: { x: number; y: number }; running?: boolean }) =>
+      renderer3D?.snapshot(world, ui.cw || 1280, ui.ch || 720, opts),
+    /** Leviers de QA (tests E2E) : mêmes chemins que le clavier, sans attendre une image. */
+    qa: {
+      interact: () => interact(),
+      prompt: () => promptText(),
+      phone: (app?: PhoneApp) => openPhoneUi(app),
+      units: () => Object.values(UNIT_BY_ID).map((u) => ({ id: u.id, door: u.door, address: u.address })),
+      pickup: (id: string) => pickupPoint(id),
+      eco: economyApi,
+      enterBusiness: (id: string) => enterBusiness(id),
+      sync: () => { syncSigns(); syncWaypoints(); syncStallCrowds(); },
+      layout: (id: string) => startLayoutEdit(id),
+      ride: (on: boolean) => renderer3D?.setRiding(on),
+      buses: () => renderer3D?.busPositions ?? [],
+      /** Place le joueur devant un lieu (QA uniquement). */
+      goto: (place: PlaceId) => { const a = PLACE_ANCHORS[place]; world.player.pos.x = a.x; world.player.pos.y = a.y; },
+      /** Mémoire graphique (géométries, textures) et coût du rendu. */
+      gpu: () => renderer3D?.gpuInfo,
+      /** Taille de la sauvegarde (octets) et ses plus gros champs. */
+      saveSize: () => {
+        const parts = Object.entries(world).map(([k, v]) => [k, JSON.stringify(v ?? null).length] as const).sort((a, b) => b[1] - a[1]);
+        return { bytes: JSON.stringify(world).length, top: parts.slice(0, 6) };
+      },
+      /** Entre et sort n fois d'un intérieur (recherche de fuite de mémoire graphique). */
+      interiorCycle: (n = 20, place: PlaceId = 'maison') => {
+        const before = renderer3D?.gpuInfo;
+        for (let i = 0; i < n; i++) {
+          if (enterPlace(place)) { let t = last; for (let k = 0; k < 3; k++) frame((t += 50)); exitInterior(); for (let k = 0; k < 3; k++) frame((t += 50)); }
+        }
+        return { before, after: renderer3D?.gpuInfo };
+      },
+      /** Fait tourner la vraie boucle de jeu `n` images de `ms` (fenêtre masquée : rAF en pause). */
+      step: (n: number, ms = 50) => { let t = last; for (let i = 0; i < n; i++) frame((t += ms)); },
+    },
+  };
+
+  // Fondu « Tu dors… » pendant l'ellipse de la nuit.
+  const sleepOverlay = el('div', 'sleep-overlay', '');
+  const sleepText = el('div', 'sleep-text', '😴 Tu dors… la nuit passe');
+  sleepOverlay.appendChild(sleepText);
+  root.appendChild(sleepOverlay);
+
+  // ---------- Économie : interactions physiques et téléphone ----------
+
+  const ecoToastEl = el('div', 'eco-toast hidden', '');
+  root.appendChild(ecoToastEl);
+  let ecoToastTimer: number | undefined;
+  function toast(text: string, ok: boolean): void {
+    ecoToastEl.textContent = text;
+    ecoToastEl.classList.toggle('bad', !ok);
+    ecoToastEl.classList.remove('hidden');
+    window.clearTimeout(ecoToastTimer);
+    ecoToastTimer = window.setTimeout(() => ecoToastEl.classList.add('hidden'), 4200);
+    if (ok) audio.playUiClick();
+  }
+
+  function openPhoneUi(app: PhoneApp = 'ascension', focus?: { businessId?: string; unitId?: string }): void {
+    openPhone({
+      world,
+      showModal,
+      closeModal,
+      toast,
+      onChange: () => { syncSigns(); updateHud(ui, world, promptText()); },
+    }, app, focus);
+  }
+
+  const nearTile = (p: { x: number; y: number }, d = 3): boolean =>
+    Math.abs(world.player.pos.x - p.x) <= d && Math.abs(world.player.pos.y - p.y) <= d;
+
+  /** Action économique possible ici (déchargement, retrait, porte de local), la plus prioritaire d'abord. */
+  /** Rejoindre sa classe : la séance passe en accéléré, avec un moment de classe. */
+  function goToClass(): void {
+    const r = attendClass(world);
+    toast(r.message, r.ok);
+    if (r.ok && renderer3D?.inInterior) exitInterior();
+  }
+
+  function economyActionHere(): { label: string; run: () => void } | null {
+    // Un secret dont tu as l'indice, ici et maintenant.
+    const secret = secretHere(world);
+    if (secret) {
+      return {
+        label: `E — Fouiller : ${secret.where.hint}`,
+        run: () => {
+          const r = searchSecret(world, secret.id);
+          toast(r.ok ? `Secret trouvé : ${secret.title}` : r.message, r.ok);
+          if (r.ok) ghostBar.push({ ghost: ghostBar.roster().find((g) => !isSilenced(world, g)) ?? 'smith', text: r.message, pop: true, mood: 'joie' });
+        },
+      };
+    }
+    const session = classWindow(world);
+    if (session && placeAtAdjacent(world) === 'college') {
+      return { label: `E — Aller en cours (${session === 'matin' ? '8 h 30 – 12 h' : '13 h 30 – 16 h 30'})`, run: goToClass };
+    }
+    const e = ensureEconomy(world);
+    for (const b of Object.values(e.businesses)) {
+      const q = e.carried.filter((c) => c.businessId === b.id).reduce((s, c) => s + c.qty, 0);
+      if (q > 0 && nearTile(businessDoor(b))) {
+        return { label: `E — Décharger ${q} unités dans ${b.name}`, run: () => { const r = unloadAt(world, b.id); toast(r.message, r.ok); } };
+      }
+    }
+    for (const o of e.orders) {
+      if (o.status !== 'a_retirer') continue;
+      const pt = pickupPoint(o.wholesalerId);
+      if (pt && nearTile(pt)) {
+        const units = o.lines.reduce((s, l) => s + l.qty, 0);
+        return { label: `E — Charger les cartons (${units} unités, ${WHOLESALER_BY_ID[o.wholesalerId]?.name ?? ''})`, run: () => { const r = pickUpOrder(world, o.id); toast(r.message, r.ok); } };
+      }
+    }
+    const { x, y } = world.player.pos;
+    const gareDoor = CITY.buildings.find((bd) => bd.id === 'gare')?.doors[0];
+    if (gareDoor && Math.abs(gareDoor.x - x) <= 2 && Math.abs(gareDoor.y + 1 - y) <= 1) {
+      return { label: 'E — Gare de Val-Ferrand : voir les départs', run: openDepartures };
+    }
+    const stop = stopNear(world);
+    if (stop) return { label: `E — Arrêt « ${stop.name} » : prendre le bus (ligne 1)`, run: () => openBusStop(stop.id) };
+    for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const unitId = unitAt(x + dx, y + dy);
+      if (!unitId) continue;
+      const u = UNIT_BY_ID[unitId]!;
+      const biz = Object.values(e.businesses).find((b) => b.unitId === unitId);
+      const comp = COMPETITOR_BY_UNIT[unitId];
+      if (comp) {
+        return { label: `E — Entrer chez ${comp.shopName}`, run: () => { audio.playDoorBell(); toast(`« ${comp.greeting} » — ${comp.owner}, ${comp.shopName}`, true); } };
+      }
+      if (biz) {
+        if (renderer3D && use3D && !u.buildingId.startsWith('etal_')) {
+          return { label: `E — Entrer dans ${biz.name}`, run: () => enterBusiness(biz.id) };
+        }
+        return { label: `E — Gérer ${biz.name}`, run: () => openPhoneUi('commerces', { businessId: biz.id }) };
+      }
+      if (e.leases[unitId]) return { label: `E — Créer ton commerce (${u.address})`, run: () => openPhoneUi('immobilier', { unitId }) };
+      return { label: `E — ${u.buildingId.startsWith('etal_') ? 'Étal' : 'Local'} à louer : ${u.address}`, run: () => openPhoneUi('immobilier', { unitId }) };
+    }
+    return null;
+  }
+
+  // Enseignes : le nom du commerce remplace « À LOUER » dans la ville.
+  let signsKey = '';
+  function syncSigns(): void {
+    const e = world.economy;
+    if (!e || !renderer3D) return;
+    const key = JSON.stringify([Object.keys(e.leases), Object.values(e.businesses).map((b) => [b.unitId, b.name, b.open])]);
+    if (key === signsKey) return;
+    signsKey = key;
+    for (const u of Object.values(UNIT_BY_ID)) {
+      if (u.buildingId.startsWith('etal_')) continue;
+      const biz = Object.values(e.businesses).find((b) => b.unitId === u.id);
+      const comp = COMPETITOR_BY_UNIT[u.id];
+      if (comp) renderer3D.setUnitSign(u.id, comp.shopName, '#2c3f5e');
+      else if (biz) renderer3D.setUnitSign(u.id, `${BUSINESS_TYPE_BY_ID[biz.typeId]?.icon ?? ''} ${biz.name}`, biz.open ? '#2f5d3a' : '#5b4a3a');
+      else if (e.leases[u.id]) renderer3D.setUnitSign(u.id, 'BIENTÔT OUVERT', '#6b4a1f');
+      else renderer3D.setUnitSign(u.id, 'À LOUER', '#5b5249');
+    }
+  }
+  syncSigns();
+
+  /** Clients devant les étals ouverts : seulement quand quelqu'un sert (le joueur ou un employé). */
+  function syncStallCrowds(): void {
+    const e = world.economy;
+    if (!e || !renderer3D) return;
+    const hour = Math.floor(minutesOfDay(world.time.tick) / 60);
+    const stalls: { x: number; y: number; count: number }[] = [];
+    for (const b of Object.values(e.businesses)) {
+      const u = UNIT_BY_ID[b.unitId];
+      if (!u?.buildingId.startsWith('etal_')) continue;
+      const openNow = b.open && hour >= b.hours[0] && hour < b.hours[1];
+      const served = economyApi.staffCapacity(world, b).staff > 0;
+      const stock = economyApi.stockUnits(b) > 0;
+      const count = openNow && served && stock ? Math.max(1, Math.min(5, Math.round(appeal(b) * 2.2 * (world.district.meteo === 'pluie' ? 0.5 : 1)))) : 0;
+      stalls.push({ ...u.door, count });
+    }
+    renderer3D.setStallCustomers(stalls);
+  }
+
+  /** Repères 3D : cartons à retirer (jaune), puis boutique où les décharger (vert). */
+  function syncWaypoints(): void {
+    const e = world.economy;
+    if (!e || !renderer3D) return;
+    const pts: { x: number; y: number; color: string }[] = [];
+    if (e.carried.length > 0) {
+      for (const bizId of new Set(e.carried.map((c) => c.businessId))) {
+        const b = e.businesses[bizId];
+        if (b) pts.push({ ...businessDoor(b), color: '#5fd17a' });
+      }
+    } else {
+      for (const o of e.orders) {
+        if (o.status !== 'a_retirer') continue;
+        const p = pickupPoint(o.wholesalerId);
+        if (p && !pts.some((q) => q.x === p.x && q.y === p.y)) pts.push({ ...p, color: '#ffd84a' });
+      }
+    }
+    renderer3D.setWaypoints(pts);
+  }
+
+  // ---------- Laminoir Taret (2032) : l'avenir de la halle ----------
+  let laminoirAskedDay = -1;
+  function openLaminoirModal(): void {
+    const body = el('div', 'panel-body');
+    body.appendChild(el('p', 'panel-desc', 'Le laminoir a fermé. Karim et TaretCoop réunissent le quartier dans la halle froide : trois projets sont sur la table, et ta voix compte. Ce choix change durablement le quartier de la Gare.'));
+    const list = el('div', 'ph-list');
+    for (const o of LAMINOIR_OPTIONS) {
+      const card = el('div', 'ph-card');
+      card.appendChild(el('div', 'ph-card-title', o.title));
+      card.appendChild(el('p', 'ph-note', o.text));
+      const req = [o.cost > 0 ? `apport ${o.cost} €` : 'sans apport', o.minReputation > 0 ? `réputation ≥ ${o.minReputation}` : ''].filter(Boolean).join(' · ');
+      card.appendChild(el('p', 'ph-note', req));
+      const btn = el('button', 'ph-btn primary', 'Soutenir ce projet');
+      btn.addEventListener('click', () => {
+        const r = chooseLaminoirFuture(world, o.id);
+        toast(r.message, r.ok);
+        if (r.ok) closeModal();
+      });
+      card.appendChild(btn);
+      list.appendChild(card);
+    }
+    body.appendChild(list);
+    body.appendChild(el('p', 'panel-note', 'Tu peux réfléchir : Karim reviendra demain.'));
+    showModal('🏭 La halle du laminoir', 'Val-Ferrand, après la fermeture', body, true);
+  }
+
+  // ---------- Bus : réseau des TVT (3 lignes) ----------
+  function openBusStop(fromId: string): void {
+    const from = BUS_STOP_BY_ID[fromId];
+    if (!from) return;
+    const body = el('div', 'panel-body');
+    const fare = busFare(world);
+    body.appendChild(el('p', 'panel-desc', `Ticket : ${fare.toFixed(2)} €${world.player.age < 18 ? ' (tarif jeune)' : ''}, correspondance comprise. Service de ${BUS_HOURS[0]} h à ${BUS_HOURS[1]} h. Les bus tournent en boucle ; on change de ligne à la Gare, au Laminoir ou à Forges – Louise-Michel.`));
+    if (!busRunning(world)) body.appendChild(el('p', 'ph-note', 'Plus de bus à cette heure-ci : il faudra marcher (ou pédaler).'));
+    // Lignes de l'arrêt d'abord, puis les autres (accessibles avec une correspondance).
+    const order = [...BUS_LINES].sort((a, b) => Number(!from.lines.includes(a.id)) - Number(!from.lines.includes(b.id)));
+    const seen = new Set<string>([fromId]);
+    for (const line of order) {
+      const stops = line.stops.filter((id) => !seen.has(id));
+      if (!stops.length) continue;
+      const head = el('h3', 'ph-h bus-line-title', line.name);
+      head.style.borderLeft = `6px solid ${line.color}`;
+      head.style.paddingLeft = '8px';
+      body.appendChild(head);
+      const list = el('div', 'ph-list');
+      for (const id of stops) {
+        seen.add(id);
+        const s = BUS_STOP_BY_ID[id]!;
+        const route = busRoute(fromId, id);
+        const gate = stopOpen(world, id);
+        const card = el('div', `ph-card${gate.open ? '' : ' locked'}`);
+        card.appendChild(el('div', 'ph-card-title', `${gate.open ? '🚌' : '🔒'} ${s.name}`));
+        const via = route?.transfer ? ` · correspondance à ${BUS_STOP_BY_ID[route.transfer]!.name}` : '';
+        card.appendChild(el('p', 'ph-note', gate.open ? `environ ${(route?.ticks ?? 0) * 10} min · ligne ${route?.lines.join(' puis ') ?? '?'}${via}` : gate.reason));
+        const btn = el('button', 'ph-btn primary', gate.open ? `Monter (${fare.toFixed(2)} €)` : 'Fermé');
+        btn.disabled = !gate.open || !route || !busRunning(world) || world.player.money < fare;
+        btn.addEventListener('click', () => {
+          const r = takeBus(world, id);
+          toast(r.message, r.ok);
+          if (r.ok) closeModal();
+        });
+        card.appendChild(btn);
+        list.appendChild(card);
+      }
+      body.appendChild(list);
+    }
+    showModal('🚌 Bus du Taret', `${from.name} · ligne${from.lines.length > 1 ? 's' : ''} ${from.lines.join(', ')}`, body, true);
+  }
+
+  // ---------- Voyage : la destination est une place à explorer ----------
+  function travelFastForward(): boolean {
+    return isTraveling(world) && !isOnSite(world);
+  }
+
+  /** Entre dans la scène de la destination à l'arrivée, la met à jour après chaque activité, en sort au retour. */
+  function syncDestinationScene(): void {
+    if (!renderer3D || !use3D) return;
+    const spec = renderer3D.interiorSpec;
+    const dest = isOnSite(world) ? currentDestination(world) : undefined;
+    if (dest) {
+      const acts = activitiesAt(dest.id).map((a) => ({ id: a.id, icon: a.icon, title: a.title, host: a.host, done: activityDoneThisTrip(world, a.id) }));
+      const next = destinationSpec(dest.id, acts);
+      if (next && spec?.key !== next.key) {
+        const arriving = spec?.destinationId !== dest.id;
+        renderer3D.enterInterior(next, world, { staff: activitiesAt(dest.id).map((a) => ({ id: `hote_${a.id}`, name: a.host.split(',')[0]! })), customers: 5 });
+        if (arriving) toast(`Bienvenue à ${dest.name} : ${dest.subtitle}. ${travelSlotsLeft(world)} demi-journées devant toi.`, true);
+      }
+    } else if (spec?.destinationId && !isTraveling(world)) {
+      exitInterior();
+    }
+  }
+
+  // ---------- Gare : tableau des départs ----------
+  function openDepartures(): void {
+    const body = el('div', 'panel-body');
+    body.appendChild(el('p', 'panel-desc', 'Avant 18 ans, on part pendant les vacances scolaires. Pendant ton absence, tes commerces tournent avec tes employés (un étal sans employé reste fermé).'));
+    const list = el('div', 'ph-list');
+    for (const d of DESTINATIONS) {
+      const card = el('div', 'ph-card');
+      card.appendChild(el('div', 'ph-card-title', `🚆 ${d.name} — ${d.subtitle}`));
+      card.appendChild(el('p', 'ph-note', `${d.days} jours · ${d.cost} € · tu y développes : ${d.skill}${(world.flags[`voyage:${d.id}`] ?? 0) > 0 ? ' · déjà visité' : ''}`));
+      const check = canTravel(world, d.id);
+      const btn = el('button', 'ph-btn primary', `Partir (${d.cost} €)`);
+      btn.disabled = !check.ok;
+      btn.addEventListener('click', () => {
+        const r = startTravel(world, d.id);
+        toast(r.message, r.ok);
+        if (r.ok) closeModal();
+      });
+      card.appendChild(btn);
+      if (!check.ok) card.appendChild(el('p', 'ph-note', check.message));
+      list.appendChild(card);
+    }
+    body.appendChild(list);
+    showModal('🚆 Départs', 'Gare de Val-Ferrand', body, true);
+    void DESTINATION_BY_ID;
+  }
+
+  // ---------- Sauvegardes : 3 emplacements + auto, export / import de fichier ----------
+  function openSaves(): void {
+    const body = el('div', 'panel-body');
+    const list = el('div', 'ph-list');
+    const render = (): void => {
+      list.replaceChildren();
+      for (const slot of ['auto', 'slot1', 'slot2', 'slot3']) {
+        const sum = slotSummary(slot);
+        const card = el('div', 'ph-card');
+        const label = slot === 'auto' ? 'Sauvegarde automatique (chaque nuit)' : `Emplacement ${slot.slice(-1)}`;
+        card.appendChild(el('div', 'ph-card-title', `💾 ${label}`));
+        card.appendChild(el('p', 'ph-note', !sum.exists ? 'Vide.'
+          : sum.error ? `⚠️ ${sum.error}`
+            : `${sum.name ?? '—'}, ${sum.age ?? '?'} ans · ${dateOf(dayIndexOf(sum.tick ?? 0)).label} · ${(sum.money ?? 0).toFixed(2)} € · ${sum.businesses ?? 0} commerce(s)`));
+        const row = el('div', 'ph-actions');
+        if (slot !== 'auto') {
+          const save = el('button', 'ph-btn primary', 'Sauvegarder ici');
+          save.addEventListener('click', () => {
+            if (sum.exists && !window.confirm('Remplacer cette sauvegarde ?')) return;
+            try { saveToSlot(slot, world); toast('Partie sauvegardée.', true); } catch (err) { toast(`Échec : ${String(err)}`, false); }
+            render();
+          });
+          row.appendChild(save);
+        }
+        if (sum.exists && !sum.error) {
+          const load = el('button', 'ph-btn', 'Charger');
+          load.addEventListener('click', () => {
+            if (!window.confirm('Charger cette partie ? La progression non sauvegardée sera perdue.')) return;
+            try { sessionStorage.setItem(PENDING_LOAD_KEY, slot); } catch { /* indisponible */ }
+            location.reload();
+          });
+          row.appendChild(load);
+        }
+        if (sum.exists && slot !== 'auto') {
+          const del = el('button', 'ph-btn danger', 'Supprimer');
+          del.addEventListener('click', () => {
+            if (!window.confirm('Supprimer définitivement cette sauvegarde ?')) return;
+            deleteSlot(slot);
+            render();
+          });
+          row.appendChild(del);
+        }
+        card.appendChild(row);
+        list.appendChild(card);
+      }
+    };
+    render();
+    body.appendChild(list);
+    const files = el('div', 'ph-actions');
+    const exportBtn = el('button', 'ph-btn', '⬇️ Exporter un fichier');
+    exportBtn.addEventListener('click', () => {
+      const blob = new Blob([exportSave(world)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `neurapolis-${world.player.firstName || 'partie'}-${dateOf(dayIndexOf(world.time.tick)).iso}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    const importBtn = el('button', 'ph-btn', '⬆️ Importer un fichier');
+    importBtn.addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json,.json';
+      input.addEventListener('change', () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        file.text().then((text) => {
+          const imported = importSave(text);
+          saveToSlot('slot3', imported);
+          toast('Fichier importé dans l’emplacement 3 : charge-le pour le reprendre.', true);
+          render();
+        }).catch((err) => toast(`Import impossible : ${err instanceof Error ? err.message : String(err)}`, false));
+      });
+      input.click();
+    });
+    files.appendChild(exportBtn);
+    files.appendChild(importBtn);
+    body.appendChild(files);
+    showModal('💾 Sauvegardes', 'Trois emplacements, la sauvegarde automatique et les fichiers', body, true);
+  }
+
+  // ---------- Astuces contextuelles (mini-tutos non bloquants, désactivables) ----------
+  const TIPS_OFF_KEY = 'neurapolis.astuces.off';
+  const tipsOff = (): boolean => { try { return localStorage.getItem(TIPS_OFF_KEY) === '1'; } catch { return false; } };
+  const tipCard = el('div', 'tip-card hidden');
+  root.appendChild(tipCard);
+  function showTip(tutoId: string): void {
+    if (tipsOff() || !tipCard.classList.contains('hidden')) return;
+    if (!world.tutorials) world.tutorials = { tutorials: structuredClone(INITIAL_TUTORIALS) };
+    let t = world.tutorials.tutorials[tutoId];
+    if (!t && INITIAL_TUTORIALS[tutoId]) {
+      // Ancienne sauvegarde : la fiche n'existait pas encore.
+      t = structuredClone(INITIAL_TUTORIALS[tutoId]!);
+      world.tutorials.tutorials[tutoId] = t;
+    }
+    if (!t || t.seen) return;
+    t.seen = true;
+    tipCard.replaceChildren();
+    tipCard.appendChild(el('div', 'tip-title', t.title));
+    tipCard.appendChild(el('p', 'tip-body', t.body));
+    const row = el('div', 'tip-actions');
+    const ok = el('button', 'tip-btn primary', 'Compris');
+    ok.addEventListener('click', () => tipCard.classList.add('hidden'));
+    const off = el('button', 'tip-btn', 'Ne plus afficher les astuces');
+    off.addEventListener('click', () => {
+      try { localStorage.setItem(TIPS_OFF_KEY, '1'); } catch { /* préférence non enregistrée */ }
+      tipCard.classList.add('hidden');
+    });
+    row.appendChild(ok);
+    row.appendChild(off);
+    tipCard.appendChild(row);
+    tipCard.classList.remove('hidden');
+  }
+
+  /** Choisit l'astuce utile à cet instant (une à la fois, chacune une seule fois). */
+  function syncTips(): void {
+    if (modalOpen) return;
+    const e = world.economy;
+    const bizs = Object.values(e?.businesses ?? {});
+    if (renderer3D?.inInterior) {
+      showTip(renderer3D.interiorSpec?.placeId === 'epicerie' ? 'tuto_boulot' : 'tuto_interieur');
+      return;
+    }
+    if (e?.orders.some((o) => o.status === 'a_retirer') || (e?.carried.length ?? 0) > 0) { showTip('tuto_eco_retrait'); return; }
+    if (bizs.some((b) => !b.open && Object.keys(b.stock).length > 0)) { showTip('tuto_eco_ouverture'); return; }
+    if (bizs.some((b) => Object.keys(b.stock).length === 0) && (e?.orders.length ?? 0) === 0) { showTip('tuto_eco_commande'); return; }
+    if (economyActionHere()?.label.includes('à louer')) showTip('tuto_eco_bail');
+  }
+
+  function playerPose(): { x: number; z: number; heading: number } {
+    return renderer3D && use3D ? renderer3D.playerPose : { x: world.player.pos.x + 0.5, z: world.player.pos.y + 0.5, heading: 0 };
+  }
+  function openCityMap(): void {
+    showModal('🗺️ Plan de Val-Ferrand', 'Centre-ville · 1 case = 1 mètre', renderCityMap(world, playerPose()), true);
+  }
+  ui.phoneBtn.addEventListener('click', () => { if (!modalOpen) openPhoneUi(); });
+  ui.mapBtn.addEventListener('click', () => { if (!modalOpen) openCityMap(); });
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'KeyP' && !modalOpen) {
+      e.preventDefault();
+      openPhoneUi();
+    } else if (e.code === 'KeyM' && !modalOpen) {
+      e.preventDefault();
+      openCityMap();
+    } else if (e.code === 'Escape' && modalOpen) {
+      closeModal();
+    } else if (e.code === 'KeyB' && !modalOpen && renderer3D) {
+      if (!ownsBike(world)) { toast('Tu n’as pas de vélo : achète-en un dans le téléphone (application Banque).', false); return; }
+      if (renderer3D.inInterior) { toast('On ne roule pas à l’intérieur.', false); return; }
+      renderer3D.setRiding(!renderer3D.isRiding);
+      toast(renderer3D.isRiding ? '🚲 En selle ! (B pour descendre)' : 'Tu descends de vélo.', true);
+    }
+  });
+
+  // ---------- Intérieurs praticables ----------
+
+  function enterBusiness(bizId: string): void {
+    const b = world.economy?.businesses[bizId];
+    if (!b || !renderer3D) return;
+    const customers = economyApi.customersInStore(world, b);
+    const staff = b.employeeIds.map((id) => world.economy?.employees[id]).filter((e) => !!e).map((e) => ({ id: e!.id, name: e!.name }));
+    renderer3D.enterInterior(businessInteriorSpec(b), world, { customers, staff });
+    audio.playDoorBell();
+  }
+
+  function enterPlace(place: PlaceId, roomId?: string): boolean {
+    if (!renderer3D || !use3D || !placeHasInterior(place)) return false;
+    // La chambre-QG : tableau des plans et derniers objets gagnés.
+    const extras = place === 'maison' && (roomId ?? 'chambre') === 'chambre' ? bedroomExtras(world) : [];
+    const spec = placeInteriorSpec(place, roomId, extras, world.player.firstName || undefined);
+    if (!spec) return false;
+    renderer3D.enterInterior(spec, world);
+    if (place === 'epicerie') audio.playDoorBell();
+    currentLocation = place === 'friche' ? 'atelier' : (place as AmbientLocation);
+    audio.updateAmbient(currentLocation, minutesOfDay(world.time.tick) / 60, world.district.meteo);
+    return true;
+  }
+
+  /** Lieu remarquable de la grande carte : intérieur 3D, ou fenêtre en 2D. */
+  function enterLandmark(lm: LandmarkDef): void {
+    const acts = lm.activities.map((a) => ({ id: a.id, icon: a.icon, title: a.title, host: a.host, minutes: a.minutes, blocker: activityBlocker(world, a) }));
+    if (renderer3D && use3D) {
+      const hosts = [...new Set(lm.activities.map((a) => a.host).filter((h) => /^[A-ZÉ]/.test(h) && h !== 'Lucien'))];
+      renderer3D.enterInterior(landmarkSpec(lm, acts), world, { staff: hosts.map((h, i) => ({ id: `${lm.id}_${i}`, name: h.split(',')[0]! })), customers: lm.id === 'hopital' ? 4 : lm.id === 'stade' ? 6 : 2 });
+      toast(lm.lore, true);
+      return;
+    }
+    const body = el('div', 'panel-body');
+    body.appendChild(el('p', 'panel-desc', lm.lore));
+    const list = el('div', 'ph-list');
+    for (const a of lm.activities) {
+      const block = activityBlocker(world, a);
+      const card = el('div', `ph-card${block ? ' locked' : ''}`);
+      card.appendChild(el('div', 'ph-card-title', `${a.icon} ${a.title}`));
+      card.appendChild(el('p', 'ph-note', block ?? `Avec ${a.host} · ${a.minutes} min`));
+      const go = el('button', 'ph-btn primary', 'Y aller');
+      go.disabled = !!block;
+      go.addEventListener('click', () => {
+        const r = doLandmarkActivity(world, lm.id, a.id);
+        toast(r.message, r.ok);
+        if (r.ok) spendTaskTime(r.minutes, a.title);
+        closeModal();
+      });
+      card.appendChild(go);
+      list.appendChild(card);
+    }
+    body.appendChild(list);
+    showModal(lm.name, 'Lieu remarquable', body, true);
+  }
+
+  function exitInterior(): void {
+    renderer3D?.exitInterior();
+    currentLocation = 'ville';
+    audio.updateAmbient('ville', minutesOfDay(world.time.tick) / 60, world.district.meteo);
+  }
+
+  // ---------- Mode « Aménager » (placement des meubles à la main) ----------
+  let layoutEdit: { bizId: string; sel: number; x: number; z: number; rot: number } | null = null;
+  layoutEditActive = (): boolean => layoutEdit !== null;
+
+  function startLayoutEdit(bizId: string): void {
+    const b = world.economy?.businesses[bizId];
+    if (!b || !renderer3D) return;
+    if (b.furniture.length === 0) { toast('Achète d’abord des meubles (téléphone, onglet Commerces).', false); return; }
+    // On fige les positions actuelles (placement automatique compris) avant de modifier.
+    const spec = businessInteriorSpec(b);
+    for (const it of spec.items) {
+      if (it.slot !== undefined && !b.layout?.[String(it.slot)]) economyApi.placeFurniture(world, bizId, it.slot, it.x, it.z, it.rot);
+    }
+    layoutEdit = { bizId, sel: 0, x: 0, z: 0, rot: 0 };
+    selectLayoutItem(0);
+    toast('Mode Aménager : Tab choisit un meuble, les flèches le déplacent, R le tourne, Entrée valide, Échap termine.', true);
+  }
+
+  function selectLayoutItem(index: number): void {
+    if (!layoutEdit || !renderer3D) return;
+    const b = world.economy?.businesses[layoutEdit.bizId];
+    if (!b) return;
+    const n = b.furniture.length;
+    layoutEdit.sel = ((index % n) + n) % n;
+    const it = businessInteriorSpec(b).items.find((x) => x.slot === layoutEdit!.sel);
+    layoutEdit.x = it?.x ?? 2;
+    layoutEdit.z = it?.z ?? 2;
+    layoutEdit.rot = it?.rot ?? 0;
+    renderer3D.enterInterior(businessInteriorSpec(b, layoutEdit.sel), world);
+  }
+
+  function previewLayout(): void {
+    if (!layoutEdit || !renderer3D) return;
+    const b = world.economy?.businesses[layoutEdit.bizId];
+    if (!b) return;
+    // Aperçu : on montre la position candidate sans l'enregistrer.
+    const ghost = structuredClone(b);
+    ghost.layout = { ...(b.layout ?? {}), [String(layoutEdit.sel)]: { x: layoutEdit.x, z: layoutEdit.z, rot: layoutEdit.rot } };
+    renderer3D.enterInterior(businessInteriorSpec(ghost, layoutEdit.sel), world);
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (!layoutEdit || modalOpen) return;
+    const step = 0.5;
+    const k = e.code;
+    if (k === 'Tab') { e.preventDefault(); e.stopImmediatePropagation(); selectLayoutItem(layoutEdit.sel + (e.shiftKey ? -1 : 1)); return; }
+    if (k === 'ArrowLeft') layoutEdit.x -= step;
+    else if (k === 'ArrowRight') layoutEdit.x += step;
+    else if (k === 'ArrowUp') layoutEdit.z -= step;
+    else if (k === 'ArrowDown') layoutEdit.z += step;
+    else if (k === 'KeyR') layoutEdit.rot += Math.PI / 2;
+    else if (k === 'Enter') {
+      const r = economyApi.placeFurniture(world, layoutEdit.bizId, layoutEdit.sel, layoutEdit.x, layoutEdit.z, layoutEdit.rot);
+      toast(r.message, r.ok);
+      if (!r.ok) selectLayoutItem(layoutEdit.sel);
+      return;
+    } else if (k === 'Escape') {
+      const b = world.economy?.businesses[layoutEdit.bizId];
+      layoutEdit = null;
+      if (b) renderer3D?.enterInterior(businessInteriorSpec(b), world);
+      toast('Aménagement enregistré.', true);
+      return;
+    } else return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    previewLayout();
+  }, { capture: true });
+
+  /** Action du point d'interaction à portée, à l'intérieur. */
+  function interiorActionHere(): { label: string; run: () => void } | null {
+    const spec = renderer3D?.interiorSpec;
+    const h = renderer3D?.interiorHotspot;
+    if (spec?.placeId === 'college' && classWindow(world)) return { label: 'E — Rejoindre ta classe', run: goToClass };
+    if (h?.kind === 'plan') return { label: `E — ${h.label}`, run: () => openPlanner(planCtx()) };
+    if (h?.kind === 'armoire') return { label: `E — ${h.label}`, run: openWardrobe };
+    if (h?.kind === 'objet') return { label: `E — ${h.label}`, run: () => openShelf(planCtx(), h.target) };
+    if (!spec || !h) return null;
+    const label = `E — ${h.label}`;
+    if (h.kind === 'sortie') return { label, run: exitInterior };
+    if (h.kind === 'repere' && spec.landmarkId && h.target) {
+      const lmId = spec.landmarkId;
+      const actId = h.target;
+      return {
+        label,
+        run: () => {
+          const r = doLandmarkActivity(world, lmId, actId);
+          toast(r.message, r.ok);
+          if (r.ok) {
+            const a = LANDMARK_BY_ID[lmId]?.activities.find((x) => x.id === actId);
+            spendTaskTime(r.minutes, a?.title ?? 'Activité');
+            audio.playMarketAlert();
+          }
+          updateHud(ui, world, promptText());
+        },
+      };
+    }
+    if (h.kind === 'activite' && h.target) {
+      const id = h.target;
+      return {
+        label,
+        run: () => {
+          const r = doTravelActivity(world, id);
+          toast(r.message, r.ok);
+          if (r.ok) audio.playMarketAlert();
+        },
+      };
+    }
+    if (h.kind === 'depart') {
+      return {
+        label,
+        run: () => {
+          const left = travelSlotsLeft(world);
+          if (left > 0 && !window.confirm(`Rentrer maintenant ? Il te reste ${left} demi-journée(s) sur place.`)) return;
+          const r = leaveDestination(world);
+          toast(r.message, r.ok);
+        },
+      };
+    }
+    if (h.kind === 'amenager' && spec.businessId) {
+      return { label, run: () => startLayoutEdit(spec.businessId!) };
+    }
+    if (h.kind === 'travail') {
+      return { label, run: () => { const r = startShift(world); toast(r.message, r.ok); } };
+    }
+    if (h.kind === 'piece' && spec.placeId) return { label, run: () => { enterPlace(spec.placeId!, h.target); } };
+    if (h.kind === 'gestion' && spec.businessId) return { label, run: () => openPhoneUi('commerces', { businessId: spec.businessId }) };
+    if (h.kind === 'decharger' && spec.businessId) {
+      return {
+        label,
+        run: () => {
+          const r = unloadAt(world, spec.businessId!);
+          toast(r.message, r.ok);
+          if (r.ok) enterBusiness(spec.businessId!);
+        },
+      };
+    }
+    if (h.kind === 'mobilier' && spec.placeId && h.target) {
+      const place = spec.placeId;
+      const target = h.target;
+      return {
+        label,
+        run: () => {
+          const r = useFurniture(world, place, target);
+          if (r.special === 'open_workshop') { openWorkshopModal(); return; }
+          if (r.special === 'open_debate') { openUrbanDebate(); return; }
+          toast(r.message, r.ok);
+          if (r.ok) spendTaskTime(TASK_MINUTES.meuble, label.replace(/^E — /, ''));
+          updateHud(ui, world, promptText());
+        },
+      };
+    }
+    return null;
+  }
 
   function promptText(): string {
     if (world.player.asleep) return '😴 Tu dors. La nuit passe…';
+    if (inShift(world)) return `🧺 ${JOB.title} — fin du service à ${hhmmOfTick(world.flags['jobShiftEnd'] ?? world.time.tick)}`;
+    if (layoutEdit) return '🛠️ Aménager — Tab : meuble suivant · flèches : déplacer · R : tourner · Entrée : valider · Échap : terminer';
+    if (renderer3D?.inInterior) {
+      const inside = interiorActionHere();
+      if (inside) return inside.label;
+      const nearNpc = npcsNearby(world, 2)[0];
+      if (nearNpc) return `E — Parler à ${NPC_BY_ID[nearNpc.id]?.name ?? 'quelqu’un'}`;
+      if (renderer3D.interiorSpec?.destinationId) {
+        return `${renderer3D.interiorSpec.title} · ${travelSlotsLeft(world)} demi-journée(s) sur place · approche-toi d’une icône pour agir`;
+      }
+      return `${renderer3D.interiorSpec?.title ?? ''} · approche-toi d’un objet (icône) pour agir`;
+    }
+    const eco = economyActionHere();
+    if (eco) return eco.label;
+    const lmNear = landmarkAdjacent(world);
+    if (lmNear) return `E — Entrer : ${lmNear.name}`;
+    const resNear = residentNear(world);
+    if (resNear) return `E — Parler à ${resNear.name} (${resNear.role})`;
     const place = placeAtAdjacent(world);
     if (place) return `E — Entrer : ${PLACE_BY_ID[place]?.name ?? place}`;
     const near = npcsNearby(world, 2);
@@ -208,9 +1223,48 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   function interact(): void {
     if (modalOpen) return;
-    if (world.player.asleep) return;
+    if (world.player.asleep || inShift(world) || travelFastForward() || isOnBus(world) || isInClass(world)) return;
+    if (renderer3D?.inInterior) {
+      const inside = interiorActionHere();
+      if (inside) { inside.run(); return; }
+      const nearNpc = npcsNearby(world, 2)[0];
+      if (nearNpc) openNpcDialogue(nearNpc.id);
+      return;
+    }
+    const eco = economyActionHere();
+    if (eco) {
+      const before = world.player.money;
+      const stamp = JSON.stringify(world.economy?.orders?.map((o) => o.status) ?? []);
+      eco.run();
+      // Une action économique qui a changé quelque chose (cartons, argent) prend du temps.
+      if (world.player.money !== before || JSON.stringify(world.economy?.orders?.map((o) => o.status) ?? []) !== stamp) {
+        spendTaskTime(TASK_MINUTES.economie, eco.label.replace(/^E — /, ''));
+      }
+      return;
+    }
+    const lmNear = landmarkAdjacent(world);
+    if (lmNear) {
+      enterLandmark(lmNear);
+      return;
+    }
+    const resNear = residentNear(world);
+    if (resNear) {
+      const t = talkToResident(world, resNear.id);
+      const body = el('div', 'panel-body');
+      body.appendChild(el('p', 'dialog-line', `« ${t.greeting} »`));
+      body.appendChild(el('p', 'dialog-line', `« ${t.line} »`));
+      if (t.rumor) {
+        body.appendChild(el('h3', 'panel-sub', '🗣️ Ce qui se dit dans le quartier'));
+        body.appendChild(el('p', 'dialog-line', t.rumor));
+        if (t.clue) body.appendChild(el('p', 'ph-note', '🔎 Nouvel indice noté dans tes Carnets (Secrets et indices).'));
+      }
+      showModal(resNear.name, `${resNear.role} · ${resNear.age} ans`, body);
+      spendTaskTime(10, `Discussion avec ${resNear.name}`);
+      return;
+    }
     const place = placeAtAdjacent(world);
     if (place) {
+      if (enterPlace(place)) return;
       openPlacePanel(place);
       return;
     }
@@ -295,6 +1349,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         const btn = el('button', 'btn btn-reply', reply.label);
         btn.addEventListener('click', () => {
           const res = replyDialogue(world, id, reply.id);
+          spendTaskTime(TASK_MINUTES.parler, `Discussion avec ${def?.name ?? 'quelqu’un'}`);
           const effects = Object.entries(res.applied)
             .map(([k, d]) => `${REL_LABELS[k as keyof typeof REL_LABELS]} ${d > 0 ? '+' : ''}${d}`);
           lineBox.textContent =
@@ -316,10 +1371,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const p = world.player;
     const body = el('div', 'panel-body');
     const head = el('div', 'avatar-row');
-    head.appendChild(avatarElement(`joueur:${p.name}`, TOKENS.or, p.name, 56, p.appearance));
+    head.appendChild(avatarElement(`joueur:${p.name}`, TOKENS.or, p.name, 56));
     const col = el('div', 'avatar-col');
-    const genderLabel = p.gender === 'fille' ? 'Fille' : p.gender === 'garcon' ? 'Garçon' : 'Non-binaire';
-    col.appendChild(el('span', 'rel-name', `${p.name}, ${p.age} ans · ${genderLabel}`));
+    col.appendChild(el('span', 'rel-name', `${p.name}, 12 ans`));
     col.appendChild(el('div', 'rel-role', `${p.money} € · réputation ${p.reputation}`));
     head.appendChild(col);
     body.appendChild(head);
@@ -358,6 +1412,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           btn.addEventListener('click', () => {
             const r = performGatedAction(world, a.id);
             btn.textContent = `${a.label} → ${r.message}`;
+            if (r.ok) spendTaskTime(TASK_MINUTES.competence, a.label);
           });
         }
         body.appendChild(btn);
@@ -1024,13 +2079,17 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   for (const b of ui.navEl.querySelectorAll('button')) {
     const nav = b.dataset.nav;
-    if (nav === 'Personnage') b.addEventListener('click', openPersonnage);
+    if (nav === '💾 Sauvegardes') b.addEventListener('click', openSaves);
+    else if (nav === '📱 Téléphone') b.addEventListener('click', () => openPhoneUi());
+    else if (nav === 'Personnage') b.addEventListener('click', openPersonnage);
     else if (nav === 'Relations') b.addEventListener('click', openRelations);
     else if (nav === 'Stratégie / Carte') b.addEventListener('click', openStrategieCarte);
     else if (nav === 'Entreprises & Rôles') b.addEventListener('click', openEntreprisesRoles);
     else if (nav === 'Marchands & Tiers') b.addEventListener('click', openMarchandsTiers);
     else if (nav === 'Actualités & Chocs') b.addEventListener('click', openActualitesChocs);
-    else if (nav === 'Études & Famille') b.addEventListener('click', openEtudesFamille);
+    else if (nav === 'Carnets de Lucien') b.addEventListener('click', () => openNotebooks({ world, showModal, closeModal }));
+    else if (nav === 'Chambre & plans') b.addEventListener('click', () => openPlanner(planCtx()));
+    else if (nav === 'Études & Famille') b.addEventListener('click', () => openFamilyPanel({ world, showModal, closeModal, toast }));
     else if (nav === 'Projet') b.addEventListener('click', openProjet);
     else if (nav === 'Concurrence') b.addEventListener('click', openConcurrence);
     else if (nav === 'Conseil') b.addEventListener('click', openConseil);
@@ -1120,23 +2179,34 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       box.appendChild(el('p', 'panel-desc',
         `Prix rival : ${rival.price.toFixed(2)} € · Stratégie : ${rival.strategy} · Agressivité : ${rival.aggressiveness}/100`));
 
-      const barRow = el('div', 'stat-row');
-      barRow.appendChild(el('span', 'stat-label', `Ta part : ${playerShare}% | Rival : ${rivalShare}%`));
-      const track = el('div', 'need-track');
-      const fill = el('div', 'need-fill');
-      fill.style.width = `${playerShare}%`;
-      fill.style.background = TOKENS.vert;
-      track.appendChild(fill);
-      barRow.appendChild(track);
-      box.appendChild(barRow);
+      const lastClosed = rival.marketObservation.lastClosed;
+      if (lastClosed) {
+        const observedPlayerShare = 100 - rival.marketShare;
+        const barRow = el('div', 'stat-row');
+        barRow.appendChild(el('span', 'stat-label', `Bilan du jour ${lastClosed.day} : toi ${observedPlayerShare}% | rival ${rival.marketShare}% (${lastClosed.sessions} sessions)`));
+        const track = el('div', 'need-track');
+        const fill = el('div', 'need-fill');
+        fill.style.width = `${observedPlayerShare}%`;
+        fill.style.background = TOKENS.vert;
+        track.appendChild(fill);
+        barRow.appendChild(track);
+        box.appendChild(barRow);
+      } else {
+        box.appendChild(el('p', 'panel-note', 'Aucune part mesurée pour l’instant : joue une session de vente puis laisse passer une journée.'));
+      }
+      box.appendChild(el('p', 'panel-note',
+        `Projection avant la prochaine vente : toi ${playerShare}% | rival ${rivalShare}%. Le bilan réel est recalculé après les sessions jouées.`));
 
       if (rival.id === 'drive_hyper') {
-        const impactText = rivalShare >= 65
+        const impactText = rival.marketShare >= 65
           ? '⚠ Le Drive écrase l’épicerie de Mme Bertin (−0,20/jour)'
-          : rivalShare >= 45
+          : rival.marketShare >= 45
             ? 'Équilibre fragile : l’épicerie résiste (−0,10/jour)'
             : '✓ Vos circuits courts protègent l’épicerie (+0,10/jour) !';
-        box.appendChild(el('p', 'panel-note', impactText));
+        const pressureSource = lastClosed
+          ? `Pression du quartier après le bilan du jour ${lastClosed.day} : `
+          : 'Pression de fond estimée, avant une première vente mesurée : ';
+        box.appendChild(el('p', 'panel-note', pressureSource + impactText));
       }
 
       body.appendChild(box);
@@ -1264,7 +2334,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
 
     // Récit narratif complet
-    body.appendChild(el('h3', 'panel-sub', 'La traversée de Camille (12 → 16 ans)'));
+    body.appendChild(el('h3', 'panel-sub', `La traversée de ${world.player.name} (12 → 16 ans)`));
     for (const para of epilogue.epilogueText.split('\n\n')) {
       body.appendChild(el('p', 'panel-desc', para));
     }
@@ -1948,35 +3018,98 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       currentBannerGhost = undefined;
     }
 
+    // File des fenêtres : une fenêtre automatique non urgente au plus par heure de jeu.
+    if (modalOpen && !autoModalWasOpen) autoModalWasOpen = true;
+    if (!modalOpen && autoModalWasOpen) { autoModalWasOpen = false; lastAutoModalTick = world.time.tick; }
+    // Multijoueur : un invité qui rattrape l'horloge de l'hôte n'est pas interrompu en route.
+    const catchingUp = !!mp?.followsHost && (mp.hostTick ?? 0) - world.time.tick > 6;
+    const quietOk = world.time.tick - lastAutoModalTick >= 6 && !catchingUp;
     if (!modalOpen) {
       // Épilogue prêt : ouverture de l'écran de conclusion de la campagne
       if (world.campaign.completedChapters.includes(5) && !world.seen['epilogue_modal_shown']) {
         world.seen['epilogue_modal_shown'] = true;
         audio.playChapterComplete();
         openEpilogueModal();
-      } else if (world.council.pendingFusion) {
+      } else if (world.council.pendingFusion && !catchingUp) {
         // Fusion prête : la scène attend le joueur (M6).
         audio.playGhostDebate();
         openFusionScene();
       } else {
         // Scène d'arrivée : un fantôme attend le choix du joueur.
         const pend = councilPendingArrivals(world).filter((id) => !deferredArrivals.has(id));
-        if (pend.length > 0) {
+        if (pend.length > 0 && quietOk) {
           audio.playGhostArrival();
           openArrivalScene(pend[0] ?? '');
-        } else if (world.streetRecognition?.spontaneousEncounterPending) {
+        } else if (world.streetRecognition?.spontaneousEncounterPending && quietOk) {
           openStreetEncounterModal();
+        } else if (quietOk && pendingSurprise(world) && world.time.tick >= surpriseRetryTick && !world.player.asleep && !travelFastForward() && !isOnBus(world)) {
+          // Dilemme : deux fantômes défendent chacun une option. Fermé sans choisir, il revient une heure plus tard.
+          surpriseRetryTick = world.time.tick + 6;
+          audio.playMarketAlert();
+          openSurpriseModal({ world, showModal, closeModal, toast }, (ghost, text, failed) => {
+            ghostBar.push({ ghost, text, pop: true, mood: failed ? 'alerte' : 'joie' });
+            updateHud(ui, world, promptText());
+          });
+        } else if (quietOk && pendingSchoolEvent(world) && !isInClass(world) && !world.player.asleep) {
+          // Sortie de cours : la vie du collège s'invite.
+          openSchoolEventModal({ world, showModal, closeModal, toast }, (ghost, text) => ghostBar.push({ ghost, text, pop: true, mood: 'calme' }));
+        } else if (!catchingUp && pendingDinner(world) && world.family?.pendingDinner !== dinnerShownId && isHome(world) && !world.player.asleep) {
+          // Le dîner : Nora et Thierry attendent une réponse.
+          dinnerShownId = world.family?.pendingDinner ?? '';
+          openDinnerModal({ world, showModal, closeModal, toast });
+        } else if (!catchingUp && world.family?.convocation && convocationShownDay !== dayIndexOf(world.time.tick) && !isInClass(world) && !world.player.asleep && minutesOfDay(world.time.tick) >= 16 * 60 + 30) {
+          // La principale convoque : un rendez-vous par jour tant que rien n'est réglé.
+          convocationShownDay = dayIndexOf(world.time.tick);
+          openConvocationModal({ world, showModal, closeModal, toast });
+        } else if (quietOk && (world.story?.unread.length ?? 0) > 0 && !world.player.asleep && !isInClass(world) && !travelFastForward()) {
+          // Un cahier de Lucien vient d'être retrouvé : on le lit.
+          openUnreadBeat({ world, showModal, closeModal });
+        } else if (quietOk && laminoirDecisionPending(world) && laminoirAskedDay !== dayIndexOf(world.time.tick) && !world.player.asleep && !isTraveling(world)) {
+          // Karim revient chaque jour tant que le quartier n'a pas tranché.
+          laminoirAskedDay = dayIndexOf(world.time.tick);
+          openLaminoirModal();
         } else {
-          const speed = world.time.speed;
+          // La nuit défile en accéléré (ellipse) : 9 heures de sommeil en quelques secondes,
+          // tick par tick, sans jamais sauter la clôture économique ni les événements.
+          // Sur place, le temps attend le joueur : seules les activités, le train et la nuit le font avancer.
+          // Une action en cours (ellipse) fait avancer l'horloge même en pause.
+          const paceScale = PACE_BY_ID[pacePrefs.pace].scale;
+          const ellipse = isTraveling(world) || isOnBus(world) || isInClass(world) || world.player.asleep || inShift(world);
+          const taskRunning = pendingTaskTicks > 0 && !ellipse;
+          // Multijoueur : un invité suit l'horloge de l'hôte (rattrapage rapide, jamais d'avance).
+          const follow = mp?.followsHost ? mp.hostTick : null;
+          const speed = follow !== null && follow !== undefined ? (skipping || world.time.tick >= follow ? 0 : follow - world.time.tick > 6 ? 900 : 90) : skipping || (isOnSite(world) && !world.player.asleep) ? 0 : isTraveling(world) ? TRAVEL_SPEED : isOnBus(world) ? BUS_SPEED : isInClass(world) ? CLASS_SPEED : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : taskRunning ? TASK_SPEED : paceScale;
+          if (busyUntilTick && world.time.tick >= busyUntilTick) busyUntilTick = 0;
+          if (!taskRunning && pendingTaskTicks <= 0 && !busyUntilTick) ui.taskChip.classList.add('hidden');
           if (speed !== 0) {
-            acc += dt;
             const tickMs = TICK_MS / speed;
+            // Changement d'allure (ou d'ellipse) : la fraction de tick entamée est conservée,
+            // pas la durée réelle accumulée (sinon passer du temps réel à ×20 sauterait des heures).
+            if (lastTickMs > 0 && tickMs !== lastTickMs) acc = Math.min(acc / lastTickMs, 1) * tickMs;
+            lastTickMs = tickMs;
+            acc += dt;
+            // Horloge à la minute entre deux ticks (temps réel, allure lente).
+            setClockSubMinutes(ellipse || taskRunning ? 0 : subMinutes(acc, tickMs));
             while (acc >= tickMs) {
+              if (follow !== null && follow !== undefined && world.time.tick >= follow) { acc = 0; break; }
               acc -= tickMs;
+              if (taskRunning && pendingTaskTicks > 0) {
+                pendingTaskTicks -= 1;
+                ui.taskChip.textContent = `⏩ ${taskLabel} · +${pendingTaskTicks * 10} min`;
+                // Fin de l'action : on reprend l'allure choisie au début d'un tick.
+                if (pendingTaskTicks === 0) acc = 0;
+              }
               const prevDay = dayIndexOf(world.time.tick);
               const out = tickWorld(world);
+              // Arrivé sur place (fin du train ou d'une activité) : le temps s'arrête net.
+              if (isOnSite(world) && !world.player.asleep) acc = 0;
               const curDay = dayIndexOf(world.time.tick);
               if (curDay !== prevDay) {
+                try { recordDay(world); } catch { /* stockage indisponible */ }
+                // Caisse vide : un fantôme rappelle le filet de sécurité (parents) et le petit boulot.
+                if (world.player.money < EMERGENCY_BELOW && emergencyHelpStatus(world).available) {
+                  ghostBar.push({ ghost: 'keynes', text: 'Plus un sou en caisse ? Même les économies les plus fières ont besoin d’un filet de sécurité. Parle à tes parents (☰ → Études & Famille), ou propose tes bras à l’épicerie Bertin.', pop: true, mood: 'alerte' });
+                }
                 const unlocks = checkAndUnlockThinkers(world);
                 for (const un of unlocks) {
                   showGhostBanner(un);
@@ -1985,21 +3118,43 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
               }
               for (const n of out.notifications) {
                 if (n.kind === 'journal') audio.playMarketAlert();
-                if (n.kind === 'fantome' || n.kind === 'journal') showGhostBanner(n);
+                if (n.ghost) {
+                  // Un fantôme parle : sa tête s'anime, et il surgit en dessin si c'est important.
+                  ghostBar.push({ ghost: n.ghost, text: n.text, pop: n.kind === 'fantome' || n.kind === 'journal' || n.kind === 'alerte', mood: n.kind === 'alerte' ? 'alerte' : n.kind === 'bien' ? 'joie' : 'calme' });
+                } else if (n.kind === 'fantome' || n.kind === 'journal') {
+                  showGhostBanner(n);
+                }
+              }
+              // Toutes les deux heures de jeu, le penseur le plus concerné par ta situation lève la main.
+              if (world.time.tick % 12 === 0 && !world.player.asleep) {
+                // Une voix sacrifiée reconnaît l'erreur qui recommence : elle prévient en priorité.
+                const warn = lessonWarnings(world)[0];
+                if (warn && warn.text !== lastTipText) {
+                  lastTipText = warn.text;
+                  ghostBar.push({ ghost: warn.ghost, text: warn.text, pop: true, mood: 'alerte' });
+                }
+                const t = mostUrgentTip(world, ghostBar.roster());
+                if (t && t.weight >= 2 && t.text !== lastTipText) {
+                  lastTipText = t.text;
+                  ghostBar.push({ ghost: t.ghost, text: t.text, pop: t.weight >= 3, mood: t.weight >= 3 ? 'alerte' : 'calme' });
+                }
               }
             }
           }
-          moveAcc += dt;
-          if (!world.player.asleep) {
-            const rawD = input.dir();
-            const d = (use3D && renderer3D) ? getCameraRelativeInput(rawD.x, rawD.y, renderer3D.cameraQuarterTurn) : rawD;
-            if (d.x !== 0 || d.y !== 0) {
-              while (moveAcc >= MOVE_MS) {
-                moveAcc -= MOVE_MS;
-                step(d.x, d.y);
+          // Rendu 2D de secours : déplacement case par case. En 3D, la marche est continue
+          // et gérée par CityRenderer (voir plus bas).
+          if (!(use3D && renderer3D)) {
+            moveAcc += dt;
+            if (!world.player.asleep) {
+              const d = input.dir();
+              if (d.x !== 0 || d.y !== 0) {
+                while (moveAcc >= MOVE_MS) {
+                  moveAcc -= MOVE_MS;
+                  step(d.x, d.y);
+                }
+              } else {
+                moveAcc = Math.min(moveAcc, MOVE_MS);
               }
-            } else {
-              moveAcc = Math.min(moveAcc, MOVE_MS);
             }
           }
         }
@@ -2025,27 +3180,112 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       }
     }
 
-    const rawD = input.dir();
-    const isPlayerMoving = !world.player.asleep && (rawD.x !== 0 || rawD.y !== 0);
-    const renderOpts = {
-      walkingEntities: { player: isPlayerMoving },
-      whisperingGhosts: currentBannerGhost ? [currentBannerGhost] : undefined,
-    };
-
     if (use3D && renderer3D && renderer3D.isWebGLAvailable) {
-      try {
-        renderer3D.render(world, ui.cw, ui.ch, now, renderOpts);
-      } catch {
-        use3D = false;
-        ui.canvas3d.style.display = 'none';
-        ui.canvas.style.display = 'block';
-        ui.btnToggle3D.textContent = '🎨 2D';
-        renderWorld(ui.ctx, world, ui.cw, ui.ch, now, renderOpts);
+      renderer3D.frame(world, dt / 1000, {
+        move: input.vector(),
+        running: input.running(),
+        canMove: !modalOpen && !world.player.asleep && !inShift(world) && !layoutEdit && !travelFastForward() && !isOnBus(world) && !isInClass(world) && !busyUntilTick,
+      }, ui.cw, ui.ch);
+      // Multijoueur : on envoie sa position, on affiche les autres ; et les habitants des quartiers.
+      const figures: RemoteAvatar[] = [];
+      if (mp?.connected) {
+        mp.update(now, renderer3D.playerPose, renderer3D.inInterior, pacePrefs.pace);
+        const others = mp.visibleRemotes(now);
+        for (const r of others) figures.push({ id: r.id, name: r.name, appearance: r.appearance, gender: r.gender, heightM: r.heightM, x: r.x, z: r.z, h: r.h, s: r.s });
+        setPlayerMarkers(others.map((r) => ({ x: r.x - 0.5, y: r.z - 0.5, label: r.name })));
+      } else if (renderer3D.remotePlayers.length) {
+        setPlayerMarkers([]);
       }
+      if (hudFrame % 30 === 0 || !residentFigures) {
+        const px = world.player.pos.x;
+        const py = world.player.pos.y;
+        residentFigures = residentsPresent(world)
+          .filter((r) => Math.abs(r.x - px) < 140 && Math.abs(r.y - py) < 140)
+          .map((r) => ({
+            id: `habitant:${r.def.id}`, name: r.def.name, heightM: heightForAge(r.def.age), x: r.x + 0.5, z: r.y + 0.5, h: (r.def.id.length % 4) * (Math.PI / 2), s: 0,
+            appearance: randomAppearance(r.def.id.split('').reduce((a, c) => a * 31 + c.charCodeAt(0), 7) >>> 0, r.def.age, 3),
+            label: { text: r.def.name, color: '#d8ecff', bg: 'rgba(20,40,70,0.82)' },
+          }));
+      }
+      renderer3D.remotePlayers = [...figures, ...residentFigures];
     } else {
-      renderWorld(ui.ctx, world, ui.cw, ui.ch, now, renderOpts);
+      const rawD = input.dir();
+      const isPlayerMoving = !world.player.asleep && (rawD.x !== 0 || rawD.y !== 0);
+      renderWorld(ui.ctx, world, ui.cw, ui.ch, now, {
+        walkingEntities: { player: isPlayerMoving },
+        whisperingGhosts: currentBannerGhost ? [currentBannerGhost] : undefined,
+      });
     }
 
+    syncDestinationScene();
+    const away = travelFastForward();
+    const riding = isOnBus(world);
+    const inClass = isInClass(world);
+    sleepOverlay.classList.toggle('on', world.player.asleep || away || riding || inClass);
+    const destName = currentDestination(world)?.name ?? '…';
+    const homeward = (world.flags['voyageAvance'] ?? 0) >= (world.flags['voyageRetour'] ?? 0);
+    const busStop = riding ? stopNear(world, 0) : undefined;
+    const sleepMsg = inClass
+      ? `📚 ${world.family?.inClass?.moment ?? 'En cours'}`
+      : riding
+      ? `🚌 Ligne 1 → ${busStop?.name ?? '…'}`
+      : !away
+      ? '😴 Tu dors… la nuit passe'
+      : homeward
+        ? `🚆 Retour vers Val-Ferrand — arrivée le ${dateOf(dayIndexOf(world.flags['voyageRetour'] ?? world.time.tick)).label}`
+        : renderer3D?.interiorSpec?.destinationId
+          ? `⏳ Une demi-journée à ${destName}…`
+          : `🚆 En train vers ${destName}…`;
+    if (sleepText.textContent !== sleepMsg) sleepText.textContent = sleepMsg;
+    if (renderer3D && use3D && hudFrame % 10 === 0) audio.setTrafficLevel(renderer3D.trafficLevel);
+    if (renderer3D?.inInterior && !modalOpen && !layoutEditActive()) {
+      const v = input.vector();
+      if (v.x !== 0 || v.y !== 0) {
+        interiorStepAcc += dt;
+        if (interiorStepAcc > (input.running() ? 300 : 460)) {
+          interiorStepAcc = 0;
+          audio.playFootstep(renderer3D.interiorSpec?.floor === 'parquet' ? 'parquet' : 'sol');
+        }
+      }
+    }
+    if (++hudFrame % 30 === 0) {
+      ghostBar.sync(world);
+      newsToaster.check(world);
+      syncPlanChip();
+      // Les cours ouvrent : une voix le rappelle si tu es loin du collège.
+      const session = classWindow(world);
+      const reminder = session ? `${dayIndexOf(world.time.tick)}:${session}` : '';
+      if (session && reminder !== classReminderKey && !world.player.asleep) {
+        classReminderKey = reminder;
+        const far = placeAtAdjacent(world) !== 'college';
+        const voice = ghostBar.roster().find((g) => !isSilenced(world, g));
+        if (far && voice) ghostBar.push({ ghost: voice, pop: session === 'matin', mood: 'calme', text: `Les cours ${session === 'matin' ? 'du matin commencent à 8 h 30' : 'de l’après-midi commencent à 13 h 30'}. Va au collège, ou assume l’absence : ${ensureFamily(world).arrangement ? 'ta convention en couvre deux par semaine.' : 'tes parents seront prévenus.'}` });
+      }
+      // Très grosse erreur : une voix propose de se sacrifier pour remonter le temps.
+      const cat = rewindOffer(world);
+      const key = cat ? `${cat.day}|${cat.text}` : '';
+      if (cat && key !== rewindOfferKey) {
+        rewindOfferKey = key;
+        const g = sacrificeCandidates(world)[0];
+        if (g) {
+          ghostBar.push({
+            ghost: g, mood: 'alerte', pop: true,
+            text: `${cat.text} Je peux te ramener avant… mais j’y laisserai ma voix pour un temps.`,
+            action: { label: '⏳ Remonter le temps', run: () => openRewindModal({ world, showModal, closeModal, toast }) },
+          });
+        }
+      }
+      syncSigns();
+      syncWaypoints();
+      syncTips();
+      syncStallCrowds();
+    }
+    if (hudFrame % 2 === 0 && ui.minimapCtx) {
+      const pose = playerPose();
+      drawMinimap(ui.minimapCtx, 360, world, pose, pose.heading, renderer3D?.cameraYaw ?? 0);
+      const street = streetNameAt(world.player.pos.x, world.player.pos.y) ?? 'Val-Ferrand';
+      if (ui.streetEl.textContent !== street) ui.streetEl.textContent = street;
+    }
     updateHud(ui, world, promptText());
     requestAnimationFrame(frame);
   }

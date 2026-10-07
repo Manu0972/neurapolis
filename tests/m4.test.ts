@@ -123,7 +123,8 @@ describe('apparitions — les 5 déclencheurs de la slice par le jeu réel (§6)
     const w = createWorld();
     w.flags['echanges'] = 1;
     const notifs = runTicks(w, 30);
-    expect(notifs.filter((n) => n.ghost === 'smith')).toHaveLength(1);
+    // Les dépêches du fil d'infos (📰) commentées par Smith ne sont pas des arrivées.
+    expect(notifs.filter((n) => n.ghost === 'smith' && !n.text.startsWith('📰'))).toHaveLength(1);
     expect(notifs[0]?.kind).toBe('fantome');
   });
 });
