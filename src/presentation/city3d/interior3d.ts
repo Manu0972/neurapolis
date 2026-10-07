@@ -43,7 +43,7 @@ export interface Hotspot {
   icon: string;
   x: number;
   z: number;
-  kind: 'mobilier' | 'sortie' | 'piece' | 'gestion' | 'decharger' | 'travail' | 'amenager';
+  kind: 'mobilier' | 'sortie' | 'piece' | 'gestion' | 'decharger' | 'travail' | 'amenager' | 'activite' | 'depart';
   /** Pièce de destination (kind = piece) ou identifiant de mobilier (kind = mobilier). */
   target?: string;
 }
@@ -53,7 +53,11 @@ export interface InteriorSpec {
   title: string;
   w: number;
   d: number;
-  floor: 'parquet' | 'carrelage' | 'beton' | 'lino';
+  floor: 'parquet' | 'carrelage' | 'beton' | 'lino' | 'paves' | 'herbe';
+  /** Scène en plein air (destinations de voyage) : ciel, soleil et façades hautes. */
+  outdoor?: { sky: string };
+  /** Destination de voyage représentée. */
+  destinationId?: string;
   wall: string;
   items: InteriorItem[];
   hotspots: Hotspot[];
@@ -263,6 +267,18 @@ function floorTexture(kind: InteriorSpec['floor']): THREE.CanvasTexture {
       ctx.fillStyle = (x + y) % 128 === 0 ? '#e9e2d4' : '#cdbfa8';
       ctx.fillRect(x + 1, y + 1, 62, 62);
     }
+  } else if (kind === 'paves') {
+    ctx.fillStyle = '#6f6a63';
+    ctx.fillRect(0, 0, 256, 256);
+    for (let y = 0; y < 256; y += 32) for (let x = (y / 32) % 2 ? -16 : 0; x < 256; x += 32) {
+      const v = 120 + Math.floor(rnd() * 30);
+      ctx.fillStyle = `rgb(${v},${v - 6},${v - 14})`;
+      ctx.fillRect(x + 1, y + 1, 30, 30);
+    }
+  } else if (kind === 'herbe') {
+    ctx.fillStyle = '#5f7f45';
+    ctx.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 5000; i++) { ctx.fillStyle = rnd() > 0.5 ? '#6f9150' : '#52703b'; ctx.fillRect(rnd() * 256, rnd() * 256, 2, 3); }
   } else if (kind === 'lino') {
     ctx.fillStyle = '#b8c4b0';
     ctx.fillRect(0, 0, 256, 256);
@@ -512,9 +528,11 @@ export function buildInterior(spec: InteriorSpec): BuiltInterior {
 
   const wallMat = new THREE.MeshStandardMaterial({ color: spec.wall, roughness: 0.95, side: THREE.DoubleSide });
   const walls: BuiltInterior['walls'] = [];
+  // En plein air, les « murs » sont des façades de deux étages qui ferment la place.
+  const wallH = spec.outdoor ? 6.4 : WALL_H;
   const addWall = (cx: number, cz: number, len: number, rotY: number, normal: THREE.Vector3): void => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(len, WALL_H, 0.15), wallMat);
-    m.position.set(cx, WALL_H / 2, cz);
+    const m = new THREE.Mesh(new THREE.BoxGeometry(len, wallH, 0.15), wallMat);
+    m.position.set(cx, wallH / 2, cz);
     m.rotation.y = rotY;
     m.receiveShadow = true;
     m.castShadow = true;
@@ -565,23 +583,52 @@ export function buildInterior(spec: InteriorSpec): BuiltInterior {
     sp.userData.hotspot = h.id;
     group.add(sp);
   }
+  if (spec.outdoor) {
+    // Rangées de fenêtres sur les façades.
+    const winMat = new THREE.MeshStandardMaterial({ color: '#2f3d4a', roughness: 0.3, metalness: 0.2 });
+    for (const wl of walls) {
+      const len = (wl.mesh.geometry as THREE.BoxGeometry).parameters.width;
+      for (let fl = 0; fl < 2; fl++) {
+        for (let k = 0.9; k < len - 0.6; k += 1.8) {
+          const win = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.1), winMat);
+          const along = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), wl.mesh.rotation.y);
+          const base = wl.mesh.position.clone().addScaledVector(along, k - len / 2);
+          win.position.set(base.x - wl.normal.x * 0.09, 3.6 + fl * 1.6, base.z - wl.normal.z * 0.09);
+          win.lookAt(win.position.clone().sub(wl.normal));
+          group.add(win);
+        }
+      }
+    }
+  }
   // Éclairage intérieur chaud.
   const hemi = new THREE.HemisphereLight('#fff1d8', '#6b5a48', 0.9);
   group.add(hemi);
   const lamp = new THREE.PointLight('#ffd39a', 30, 18, 1.5);
-  lamp.position.set(w / 2, WALL_H - 0.2, d / 2);
+  lamp.position.set(w / 2, wallH - 0.2, d / 2);
+  if (spec.outdoor) {
+    hemi.intensity = 1.6;
+    lamp.intensity = 0;
+    const sun = new THREE.DirectionalLight('#fff4e0', 2.2);
+    sun.position.set(w * 0.2, 14, -4);
+    sun.target.position.set(w / 2, 0, d / 2);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    const sc = sun.shadow.camera;
+    sc.left = -w; sc.right = w; sc.top = d; sc.bottom = -d;
+    group.add(sun, sun.target);
+  }
   lamp.castShadow = true;
   lamp.shadow.mapSize.set(1024, 1024);
   group.add(lamp);
   const fill = new THREE.PointLight('#ffe6c4', 10, 14, 1.8);
-  fill.position.set(w * 0.25, WALL_H - 0.3, d * 0.3);
+  fill.position.set(w * 0.25, wallH - 0.3, d * 0.3);
   group.add(fill);
   // Habillage : tapis central et plante dans un angle libre.
   const rug = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(3.2, w * 0.4), Math.min(2.2, d * 0.3)), new THREE.MeshStandardMaterial({ color: spec.floor === 'beton' ? '#5a5f66' : '#a4533b', roughness: 1 }));
   rug.rotation.x = -Math.PI / 2;
   rug.position.set(w / 2, 0.012, d * 0.55);
   rug.receiveShadow = true;
-  group.add(rug);
+  if (!spec.outdoor) group.add(rug);
   if (spec.floor !== 'beton') {
     const pot = itemMesh({ id: 'deco_plante', kind: 'plante', label: '', icon: '', x: w - 0.6, z: d - 0.7, rot: 0, w: 0.6, d: 0.6 }, rnd);
     group.add(pot);
@@ -638,4 +685,59 @@ export function nearestHotspot(spec: InteriorSpec, x: number, z: number, reach =
     if (dd < bd) { bd = dd; best = h; }
   }
   return best;
+}
+
+// ---------- Destinations de voyage : une place à explorer ----------
+
+const DEST_STYLE: Record<string, { floor: InteriorSpec['floor']; wall: string; sky: string; title: string; props: { kind: ItemKind; x: number; z: number; rot?: number }[] }> = {
+  neobaie: {
+    floor: 'paves', wall: '#7d8a96', sky: '#9fc3dc', title: 'Néo-Baie — le quai de la criée',
+    props: [{ kind: 'caisse_bois', x: 1.2, z: 1.2 }, { kind: 'caisse_bois', x: 2.4, z: 1.2 }, { kind: 'caisse_bois', x: 1.2, z: 2.4 }, { kind: 'machine', x: 16.6, z: 1.4 }, { kind: 'plante', x: 0.6, z: 12.6 }, { kind: 'plante', x: 17.4, z: 12.6 }],
+  },
+  plateaublanc: {
+    floor: 'herbe', wall: '#c9b48f', sky: '#c9dbe6', title: 'Plateau Blanc — la place des trois hameaux',
+    props: [{ kind: 'caisse_bois', x: 16.8, z: 1.2 }, { kind: 'plante', x: 0.6, z: 0.6 }, { kind: 'plante', x: 17.4, z: 0.6 }, { kind: 'ferraille', x: 1.4, z: 11.8 }],
+  },
+  ilesaphir: {
+    floor: 'paves', wall: '#e6e1d3', sky: '#8fc9e8', title: 'Île Saphir — le port et la centrale',
+    props: [{ kind: 'machine', x: 1.2, z: 1.2 }, { kind: 'machine', x: 2.6, z: 1.2 }, { kind: 'caisse_bois', x: 16.8, z: 11.6 }, { kind: 'plante', x: 0.6, z: 12.6 }],
+  },
+};
+
+/** Meuble principal de chaque activité (forme 3D). */
+const ACTIVITY_KIND: Record<string, ItemKind> = {
+  nb_marche_port: 'comptoir', nb_livraison: 'caisse_bois', nb_vertex: 'pupitre',
+  pb_ferme: 'etabli', pb_ecole: 'etagere', pb_marche: 'table',
+  is_centrale: 'machine', is_peche: 'ferraille', is_conseil: 'pupitre',
+};
+
+/**
+ * Scène d'une destination : une place fermée par des façades, un point d'activité par
+ * rencontre possible et le quai de la gare pour rentrer.
+ */
+export function destinationSpec(destId: string, activities: { id: string; icon: string; title: string; host: string; done: boolean }[]): InteriorSpec | null {
+  const st = DEST_STYLE[destId];
+  if (!st) return null;
+  const w = 18;
+  const d = 14;
+  const spots = [{ x: 4.5, z: 3.2 }, { x: 9, z: 5.6 }, { x: 13.5, z: 3.2 }];
+  const items: InteriorItem[] = [];
+  const hotspots: Hotspot[] = [];
+  const npcSlots: InteriorSpec['npcSlots'] = [];
+  activities.slice(0, spots.length).forEach((a, i) => {
+    const kind = ACTIVITY_KIND[a.id] ?? 'table';
+    const [iw, id] = SIZES[kind];
+    const p = spots[i]!;
+    const it: InteriorItem = { id: a.id, kind, label: a.title, icon: a.icon, x: p.x, z: p.z, rot: 0, w: iw, d: id };
+    items.push(it);
+    const f = frontOf(it);
+    hotspots.push({ id: a.id, label: a.done ? `${a.title} (déjà fait pendant ce séjour)` : `${a.title} — avec ${a.host} (une demi-journée)`, icon: a.done ? '✔️' : a.icon, x: f.x, z: f.z, kind: 'activite', target: a.id });
+    npcSlots.push({ x: p.x + iw / 2 + 0.5, z: p.z, face: Math.PI });
+  });
+  st.props.forEach((pr, i) => {
+    const [iw, id] = SIZES[pr.kind];
+    items.push({ id: `deco_${i}`, kind: pr.kind, label: '', icon: '', x: pr.x, z: pr.z, rot: pr.rot ?? 0, w: iw, d: id });
+  });
+  hotspots.push({ id: 'depart', label: 'Reprendre le train pour Val-Ferrand', icon: '🚆', x: w / 2, z: d - 0.8, kind: 'depart' });
+  return { key: `voyage:${destId}:${activities.filter((a) => a.done).length}`, title: st.title, w, d, floor: st.floor, wall: st.wall, outdoor: { sky: st.sky }, destinationId: destId, items, hotspots, npcSlots };
 }

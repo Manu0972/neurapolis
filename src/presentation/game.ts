@@ -70,13 +70,16 @@ import { streetNameAt, unitAt } from '../data/map';
 import { COMPETITOR_BY_UNIT } from '../data/city/competitors';
 import { drawMinimap, renderCityMap } from './minimap';
 import { PENDING_LOAD_KEY, deleteSlot, exportSave, importSave, saveToSlot, slotSummary } from '../saves/persist';
-import { businessInteriorSpec, placeHasInterior, placeInteriorSpec } from './city3d/interior3d';
+import { businessInteriorSpec, destinationSpec, placeHasInterior, placeInteriorSpec } from './city3d/interior3d';
 import { useFurniture } from '../simulation/interior_actions';
 import { JOB, inShift, startShift } from '../simulation/jobs';
 import { hhmmOfTick } from '../core/clock';
 import { appeal } from '../simulation/economy';
 import { ownsBike } from '../simulation/vehicles';
-import { DESTINATIONS, DESTINATION_BY_ID, canTravel, isTraveling, startTravel } from '../simulation/travel';
+import {
+  DESTINATIONS, DESTINATION_BY_ID, activitiesAt, activityDoneThisTrip, canTravel, currentDestination, doTravelActivity,
+  isOnSite, isTraveling, leaveDestination, startTravel, travelSlotsLeft,
+} from '../simulation/travel';
 import { LAMINOIR_OPTIONS, chooseLaminoirFuture, laminoirDecisionPending } from '../simulation/laminoir';
 import { CITY } from '../data/map';
 import * as economyApi from '../simulation/economy';
@@ -262,6 +265,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       sync: () => { syncSigns(); syncWaypoints(); syncStallCrowds(); },
       layout: (id: string) => startLayoutEdit(id),
       ride: (on: boolean) => renderer3D?.setRiding(on),
+      /** Fait tourner la vraie boucle de jeu `n` images de `ms` (fenêtre masquée : rAF en pause). */
+      step: (n: number, ms = 50) => { let t = last; for (let i = 0; i < n; i++) frame((t += ms)); },
     },
   };
 
@@ -423,6 +428,29 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     body.appendChild(list);
     body.appendChild(el('p', 'panel-note', 'Tu peux réfléchir : Karim reviendra demain.'));
     showModal('🏭 La halle du laminoir', 'Val-Ferrand, après la fermeture', body, true);
+  }
+
+  // ---------- Voyage : la destination est une place à explorer ----------
+  function travelFastForward(): boolean {
+    return isTraveling(world) && !isOnSite(world);
+  }
+
+  /** Entre dans la scène de la destination à l'arrivée, la met à jour après chaque activité, en sort au retour. */
+  function syncDestinationScene(): void {
+    if (!renderer3D || !use3D) return;
+    const spec = renderer3D.interiorSpec;
+    const dest = isOnSite(world) ? currentDestination(world) : undefined;
+    if (dest) {
+      const acts = activitiesAt(dest.id).map((a) => ({ id: a.id, icon: a.icon, title: a.title, host: a.host, done: activityDoneThisTrip(world, a.id) }));
+      const next = destinationSpec(dest.id, acts);
+      if (next && spec?.key !== next.key) {
+        const arriving = spec?.destinationId !== dest.id;
+        renderer3D.enterInterior(next, world, { staff: activitiesAt(dest.id).map((a) => ({ id: `hote_${a.id}`, name: a.host.split(',')[0]! })), customers: 5 });
+        if (arriving) toast(`Bienvenue à ${dest.name} : ${dest.subtitle}. ${travelSlotsLeft(world)} demi-journées devant toi.`, true);
+      }
+    } else if (spec?.destinationId && !isTraveling(world)) {
+      exitInterior();
+    }
   }
 
   // ---------- Gare : tableau des départs ----------
@@ -708,6 +736,28 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (!spec || !h) return null;
     const label = `E — ${h.label}`;
     if (h.kind === 'sortie') return { label, run: exitInterior };
+    if (h.kind === 'activite' && h.target) {
+      const id = h.target;
+      return {
+        label,
+        run: () => {
+          const r = doTravelActivity(world, id);
+          toast(r.message, r.ok);
+          if (r.ok) audio.playMarketAlert();
+        },
+      };
+    }
+    if (h.kind === 'depart') {
+      return {
+        label,
+        run: () => {
+          const left = travelSlotsLeft(world);
+          if (left > 0 && !window.confirm(`Rentrer maintenant ? Il te reste ${left} demi-journée(s) sur place.`)) return;
+          const r = leaveDestination(world);
+          toast(r.message, r.ok);
+        },
+      };
+    }
     if (h.kind === 'amenager' && spec.businessId) {
       return { label, run: () => startLayoutEdit(spec.businessId!) };
     }
@@ -752,6 +802,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       if (inside) return inside.label;
       const nearNpc = npcsNearby(world, 2)[0];
       if (nearNpc) return `E — Parler à ${NPC_BY_ID[nearNpc.id]?.name ?? 'quelqu’un'}`;
+      if (renderer3D.interiorSpec?.destinationId) {
+        return `${renderer3D.interiorSpec.title} · ${travelSlotsLeft(world)} demi-journée(s) sur place · approche-toi d’une icône pour agir`;
+      }
       return `${renderer3D.interiorSpec?.title ?? ''} · approche-toi d’un objet (icône) pour agir`;
     }
     const eco = economyActionHere();
@@ -765,7 +818,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   function interact(): void {
     if (modalOpen) return;
-    if (world.player.asleep || inShift(world) || isTraveling(world)) return;
+    if (world.player.asleep || inShift(world) || travelFastForward()) return;
     if (renderer3D?.inInterior) {
       const inside = interiorActionHere();
       if (inside) { inside.run(); return; }
@@ -2555,7 +2608,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         } else {
           // La nuit défile en accéléré (ellipse) : 9 heures de sommeil en quelques secondes,
           // tick par tick, sans jamais sauter la clôture économique ni les événements.
-          const speed = world.time.speed === 0 ? 0 : isTraveling(world) ? TRAVEL_SPEED : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : world.time.speed;
+          // Sur place, le temps attend le joueur : seules les activités, le train et la nuit le font avancer.
+          const speed = world.time.speed === 0 || (isOnSite(world) && !world.player.asleep) ? 0 : isTraveling(world) ? TRAVEL_SPEED : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : world.time.speed;
           if (speed !== 0) {
             acc += dt;
             const tickMs = TICK_MS / speed;
@@ -2563,6 +2617,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
               acc -= tickMs;
               const prevDay = dayIndexOf(world.time.tick);
               const out = tickWorld(world);
+              // Arrivé sur place (fin du train ou d'une activité) : le temps s'arrête net.
+              if (isOnSite(world) && !world.player.asleep) acc = 0;
               const curDay = dayIndexOf(world.time.tick);
               if (curDay !== prevDay) {
                 const unlocks = checkAndUnlockThinkers(world);
@@ -2620,7 +2676,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       renderer3D.frame(world, dt / 1000, {
         move: input.vector(),
         running: input.running(),
-        canMove: !modalOpen && !world.player.asleep && !inShift(world) && !layoutEdit && !isTraveling(world),
+        canMove: !modalOpen && !world.player.asleep && !inShift(world) && !layoutEdit && !travelFastForward(),
       }, ui.cw, ui.ch);
     } else {
       const rawD = input.dir();
@@ -2631,11 +2687,18 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       });
     }
 
-    const away = isTraveling(world);
+    syncDestinationScene();
+    const away = travelFastForward();
     sleepOverlay.classList.toggle('on', world.player.asleep || away);
-    const sleepMsg = away
-      ? `🚆 En voyage à ${DESTINATIONS[(world.flags['voyageEnCours'] ?? 1) - 1]?.name ?? '…'} — retour le ${dateOf(dayIndexOf(world.flags['voyageRetour'] ?? world.time.tick)).label}`
-      : '😴 Tu dors… la nuit passe';
+    const destName = currentDestination(world)?.name ?? '…';
+    const homeward = (world.flags['voyageAvance'] ?? 0) >= (world.flags['voyageRetour'] ?? 0);
+    const sleepMsg = !away
+      ? '😴 Tu dors… la nuit passe'
+      : homeward
+        ? `🚆 Retour vers Val-Ferrand — arrivée le ${dateOf(dayIndexOf(world.flags['voyageRetour'] ?? world.time.tick)).label}`
+        : renderer3D?.interiorSpec?.destinationId
+          ? `⏳ Une demi-journée à ${destName}…`
+          : `🚆 En train vers ${destName}…`;
     if (sleepText.textContent !== sleepMsg) sleepText.textContent = sleepMsg;
     if (renderer3D && use3D && hudFrame % 10 === 0) audio.setTrafficLevel(renderer3D.trafficLevel);
     if (renderer3D?.inInterior && !modalOpen && !layoutEditActive()) {

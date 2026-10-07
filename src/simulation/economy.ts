@@ -21,6 +21,7 @@ import { createEconomyState } from '../core/economy_types';
 import { bertinLoyaltyDiscount } from './jobs';
 import { timelineDemand } from './world_timeline';
 import { laminoirDemand } from './laminoir';
+import { travelShelfBonus, travelSupplierDiscount } from './travel';
 import { COMPETITORS, COMPETITOR_BY_UNIT } from '../data/city/competitors';
 
 export interface EconomyResult {
@@ -561,7 +562,7 @@ export function orderStock(w: WorldState, bizId: string, wholesalerId: string, l
     if (!t.productCategories.includes(p.category)) return ko(`${p.name} ne se vend pas dans un commerce de ce type.`);
   }
   // Mme Bertin consent un prix plus doux au jeune qui l'a aidée à l'épicerie (src/simulation/jobs.ts).
-  const mult = g.id === 'g_bertin_depannage' ? g.priceMult - bertinLoyaltyDiscount(w) : g.priceMult;
+  const mult = (g.id === 'g_bertin_depannage' ? g.priceMult - bertinLoyaltyDiscount(w) : g.priceMult) - travelSupplierDiscount(w);
   const priced = clean.map((l) => ({ ...l, unitCost: round2(PRODUCT_BY_ID[l.productId]!.wholesaleBase * mult) }));
   const goods = round2(priced.reduce((s, l) => s + l.unitCost * l.qty, 0));
   if (goods < g.minOrder) return ko(`Commande minimale chez ${g.name} : ${g.minOrder} € (ta commande : ${goods.toFixed(2)} €).`);
@@ -1052,8 +1053,9 @@ export function economyDay(w: WorldState, closedDay: number): Notification[] {
     // Péremption.
     let spoiled = 0;
     for (const [pid, lots] of Object.entries(b.stock)) {
-      const life = PRODUCT_BY_ID[pid]?.shelfLifeDays;
-      if (life === null || life === undefined) continue;
+      const base = PRODUCT_BY_ID[pid]?.shelfLifeDays;
+      if (base === null || base === undefined) continue;
+      const life = base + travelShelfBonus(w);
       const keep = lots.filter((l) => newDay - l.receivedDay < life);
       spoiled += lots.filter((l) => newDay - l.receivedDay >= life).reduce((s, l) => s + l.qty, 0);
       b.stock[pid] = keep;

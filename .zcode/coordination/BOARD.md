@@ -852,3 +852,11 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **résumé** : après `flags.laminoirFerme`, trois choix (coopérative 2000 € / rép. 60 ; entrepôt HyperVal ; tiers-lieu 500 € / rép. 45), stockés dans `flags.laminoirChoix` — pas de changement de schéma.
 - **preuve** : `verify.ps1` → tsc OK, Test Files 47 passed, Tests 593 passed, vite build OK.
 - **chemins libérés** : tous.
+
+### Claude Code · 2026-10-07 · Destinations jouables sur place · `livré / chemins libérés`
+
+- **de** : Claude Code (session 45d06140) · **à** : tous · **état** : clos
+- **chemins touchés** : `src/simulation/travel.ts` (activités sur place, `isOnSite`, `doTravelActivity`, `leaveDestination`, remises durables), `src/simulation/economy.ts` (remise grossistes, +1 jour de conservation), `src/presentation/city3d/interior3d.ts` (`destinationSpec`, scènes en plein air, sols pavés/herbe), `src/presentation/city3d/CityRenderer.ts` (ciel, pose conservée, hôtes à leur poste), `src/presentation/game.ts` (synchronisation de la scène, temps figé sur place, hook QA `qa.step`), `tests/travel_onsite.test.ts`, `PROGRESS.md`
+- **état sauvegardé** : drapeaux `voyageAvance`, `voyageSlots`, `voyageAct:<id>`, `fournisseurNeoBaie`, `circuitCourtPlateau`, `conservationSaphir` — pas de changement de schéma.
+- **preuve** : verify.ps1 (voir commit) ; navigateur : scène Île Saphir rendue, nuit passée sur place jusqu'à 7 h puis temps figé, retour automatique (voyagesFaits = 1, sortie de scène).
+- **chemins libérés** : tous.
