@@ -27,3 +27,6 @@ coverage/
 /.probe/
 /*.zip
 desktop.ini
+
+# Environnement de vérification/publication local (node_modules sain, clone de publication)
+/.ci/
