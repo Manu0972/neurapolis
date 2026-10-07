@@ -94,6 +94,7 @@ import { bedroomExtras, openPlanner, openShelf, type PlanCtx } from './plan-ui';
 import { openDuelModal } from './ascension-ui';
 import { openNotebooks, openUnreadBeat, playOrigin } from './story-ui';
 import { ensureRoom, planChecklist } from '../simulation/room';
+import { searchSecret, secretHere } from '../simulation/secrets';
 import { IDEA_BY_ID } from '../data/ascension/ideas';
 import { attendClass, classWindow, ensureFamily, isHome, isInClass, pendingDinner } from '../simulation/family';
 import { mostUrgentTip } from '../simulation/ghost_tips';
@@ -377,6 +378,18 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   }
 
   function economyActionHere(): { label: string; run: () => void } | null {
+    // Un secret dont tu as l'indice, ici et maintenant.
+    const secret = secretHere(world);
+    if (secret) {
+      return {
+        label: `E — Fouiller : ${secret.where.hint}`,
+        run: () => {
+          const r = searchSecret(world, secret.id);
+          toast(r.ok ? `Secret trouvé : ${secret.title}` : r.message, r.ok);
+          if (r.ok) ghostBar.push({ ghost: ghostBar.roster().find((g) => !isSilenced(world, g)) ?? 'smith', text: r.message, pop: true, mood: 'joie' });
+        },
+      };
+    }
     const session = classWindow(world);
     if (session && placeAtAdjacent(world) === 'college') {
       return { label: `E — Aller en cours (${session === 'matin' ? '8 h 30 – 12 h' : '13 h 30 – 16 h 30'})`, run: goToClass };

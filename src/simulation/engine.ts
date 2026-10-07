@@ -29,6 +29,7 @@ import { familyTick } from './family';
 import { roomDay } from './room';
 import { storyDay } from './story';
 import { unlocksDay } from './unlocks';
+import { secretsDay } from './secrets';
 import { worldTimelineDay } from './world_timeline';
 import { saveToSlot } from '../saves/persist';
 
@@ -80,6 +81,7 @@ export function tickWorld(w: WorldState): TickOutput {
     out.push(...roomDay(w));
     out.push(...storyDay(w));
     out.push(...unlocksDay(w));
+    out.push(...secretsDay(w));
     out.push(...schoolDayTick(w));
     out.push(...worldTimelineDay(w));
 

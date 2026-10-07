@@ -7,6 +7,7 @@ import type { StoryBeat } from '../core/story_types';
 import { dateOf } from '../core/clock';
 import { BEATS, BEAT_BY_ID, ORIGIN } from '../data/story_registry';
 import { ensureStory, finishOrigin, markRead, personalize } from '../simulation/story';
+import { secretsList } from '../simulation/secrets';
 import { ghostAvatar, thinkerMeta } from './ghost-avatar';
 import { el } from './ui';
 
@@ -114,5 +115,17 @@ export function openNotebooks(ctx: StoryCtx): void {
   entry(ORIGIN, true);
   for (const b of BEATS) entry(b, s.seen[b.id] !== undefined, s.seen[b.id]);
   body.appendChild(list);
+  // Secrets du monde : indices reçus, secrets trouvés, le reste se devine.
+  const secrets = secretsList(w);
+  body.appendChild(el('h3', 'ph-h', `🔎 Secrets et indices (${secrets.filter((s) => s.found).length}/${secrets.length} trouvés)`));
+  const sl = el('div', 'ph-list');
+  for (const s of secrets) {
+    const card = el('div', `ph-card${s.found || s.clue ? '' : ' locked'}`);
+    card.appendChild(el('div', 'ph-card-title', s.found ? `✅ ${s.def.title}` : s.clue ? `📜 ${s.def.title}` : '❔ Un secret encore enfoui'));
+    if (s.found) card.appendChild(el('p', 'ph-note', s.def.lore));
+    else if (s.clue) card.appendChild(el('p', 'ph-note', `${s.def.clue} — ${s.def.where.hint}`));
+    sl.appendChild(card);
+  }
+  body.appendChild(sl);
   ctx.showModal('📚 Les Carnets de Lucien', `${Object.keys(s.seen).length}/${BEATS.length} cahiers retrouvés`, body, true);
 }

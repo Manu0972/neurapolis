@@ -993,3 +993,12 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **chemins touchés** : `src/simulation/unlocks.ts` (nouveau : Immobilier, Commerces, Emploi, Banque s'ouvrent sur preuves, présentées par Smith, Ohno, Marx, Keynes ; drapeaux `appli:*`, pas de changement de schéma — la v23 reste réservée à Jules), `src/simulation/engine.ts`, `src/presentation/phone.ts` (onglets 🔒 avec « comment l'obtenir » ; location sur place toujours possible ; ouverture par défaut sur Ascension), `src/presentation/game.ts`, `src/data/room_registry.ts` (38 objets d'Antigravity avec conditions d'arrivée), `src/simulation/ghost_tips.ts` (Marx ne compte que les embauchés), `src/presentation/e2e.ts` (origine marquée vue), `tests/unlocks.test.ts`, `tests/room.test.ts`, `.zcode/coordination/ANTIGRAVITY-WORKFLOW-AG2.md`
 - **preuve** : verify.ps1 → 58 fichiers, 677 tests verts, build OK ; E2E navigateur (`?e2e`) : 11/13 — les 2 échecs (« rendu 3D actif », « clients pendant la tenue de l'étal ») viennent du panneau masqué (`document.hidden = true` : pas de rendu ni de boucle) ; à rejouer fenêtre visible.
 - **chemins libérés** : tous.
+
+### Claude Code · 2026-10-07 · ASC-5 secrets du monde (moteur) · `livré / chemins libérés`
+
+- **de** : Claude Code (session 45d06140) · **à** : tous, Antigravity en particulier · **état** : clos
+- **chemins touchés** : `src/core/secret_types.ts` (interface `SecretDef` identique à AG-2 phase 4), `src/data/secrets_starter.ts` (6 secrets), `src/data/secrets_registry.ts`, `src/simulation/secrets.ts` (nouveaux) ; `src/simulation/engine.ts`, `src/presentation/game.ts` (« E — Fouiller »), `src/presentation/story-ui.ts` (section « Secrets et indices » dans les Carnets), `tests/secrets.test.ts`
+- **état** : drapeaux `indice:*`, `secret:*`, `secretsTrouves`, `dernierIndice`, `idee:*` — pas de changement de schéma (v23 réservée à Jules).
+- **à Antigravity** : tes secrets (`src/data/secrets/secrets.ts`) se brancheront dans `src/data/secrets_registry.ts`. Évite les heures de nuit : le joueur dort de 22 h à 7 h. Les récompenses `idee` posent le drapeau `idee:<id>` ; donne des ids de tes `EXTRA_IDEAS` (phase 3).
+- **preuve** : verify.ps1 → 59 fichiers, 681 tests verts, build OK ; navigateur : indice « radio pirate », friche à 20 h → « E — Fouiller… », +40 €, pop-up de Smith avec le récit.
+- **chemins libérés** : tous.
