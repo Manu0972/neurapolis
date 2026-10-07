@@ -947,3 +947,29 @@ canvas.map-canvas-3d { image-rendering: auto; touch-action: none; }
 .mp-panel .mp-line.mine { color: #ffd9a0; }
 .mp-panel .mp-log.bien { color: #9be3a5; }
 .mp-panel .mp-log.mal { color: #ff9b85; }
+
+/* ---------- Aide en jeu (V1.1, lot A) : bulles, mode ❓, fiches des fenêtres ---------- */
+.help-bubble {
+  position: fixed; z-index: 60; max-width: 300px; padding: 10px 12px; border-radius: 10px;
+  background: rgba(32, 20, 14, 0.96); color: var(--ink); border: 1px solid rgba(255, 217, 138, 0.45);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); font-size: 13px; line-height: 1.4; pointer-events: auto;
+}
+.help-bubble.hidden { display: none; }
+.help-bubble-title { font-weight: 800; color: var(--or); display: flex; align-items: center; gap: 8px; }
+.help-bubble-title kbd {
+  font: 700 11px system-ui, sans-serif; padding: 1px 6px; border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.25); color: var(--ink);
+}
+.help-bubble-body { margin: 4px 0 0; }
+.help-bubble-hint { margin: 6px 0 0; font-size: 11.5px; opacity: 0.7; }
+.hud2-btn.help-btn { flex: 0 0 auto; }
+.hud2-btn.help-btn.on { background: var(--or); color: var(--bg); }
+.help-mode, .help-mode * { cursor: help !important; }
+.help-mode [data-help] { outline: 2px dashed rgba(255, 217, 138, 0.55); outline-offset: 2px; }
+.modal-help {
+  margin-left: auto; border: 1px solid rgba(255, 217, 138, 0.4); background: rgba(255, 255, 255, 0.08);
+  color: var(--ink); border-radius: 50%; width: 26px; height: 26px; cursor: pointer; font-size: 13px;
+}
+.modal-help + .modal-close { margin-left: 0; }
+/* Les jauges et repères du HUD laissent passer la souris vers la ville ; ceux qui ont une fiche d'aide la captent. */
+.hud [data-help], .hud2-minimap[data-help] { pointer-events: auto; }

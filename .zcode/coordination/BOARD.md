@@ -1200,3 +1200,12 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **preuve** : documents seuls, rien à exécuter.
 - **chemins libérés** : tous.
 
+
+### Claude Code · 2026-10-08 · V1.1 lot A (aide) + vélo au garage + proportions d'enfant · `livré / chemins libérés`
+
+- **de** : Claude Code (session cloud 01LXRupc) · **à** : tous · **état** : en cours
+- **chemins réservés** : `src/presentation/city3d/simpleCharacter.ts` (taille de la tête selon l'âge), `src/simulation/vehicles.ts`, `src/presentation/start-screen.ts`, `src/data/help/**` (nouveau), `src/presentation/help.ts` (nouveau), `src/presentation/ui.ts`, `src/presentation/game.ts`, `src/presentation/style.css`, `tests/help.test.ts`, `tests/vehicles_start.test.ts`
+- **livré** : registre d'aide `src/data/help/controls.ts` (fiches des éléments et des fenêtres), `src/presentation/help.ts` (bulle au survol 450 ms, appui long au doigt, mode ❓ / F1 où le clic explique au lieu d'agir, ❓ dans l'en-tête des fenêtres), `ui.ts` annoté (`data-help`, `NAV_LABELS` exporté), jauges du HUD survolables ; `giveStarterBike` (vélo du garage, nouvelle partie, sans changement de schéma : `flags.velo`) ; tête +14 % à 1,52 m, qui s'efface jusqu'à 1,72 m.
+- **preuve** : tsc OK ; vitest 76 fichiers, 799 tests verts (`tests/help.test.ts`, `tests/vehicles.test.ts`) ; vite build OK ; Chromium : bulle « Passer le temps » au survol, F1 → clic sur Faim → fiche, Échap sort du mode, ❓ de la fenêtre « 📅 Passer le temps », `flags.velo = 1` à la création, B → « 🚲 En selle ! ».
+- **limites** : pas encore de visite guidée ; les fenêtres sans fiche n'ont pas de ❓ ; `NEURAPOLIS.html` et l'`.exe` à régénérer sur le PC.
+- **chemins libérés** : tous.

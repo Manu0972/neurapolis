@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { createWorld } from '../src/core/store';
-import { BIKE, buyBike, ownsBike } from '../src/simulation/vehicles';
+import { BIKE, buyBike, giveStarterBike, ownsBike } from '../src/simulation/vehicles';
 
 describe('vélo', () => {
   it('s’achète dès 12 ans et augmente la capacité de transport', () => {
@@ -23,5 +23,20 @@ describe('vélo', () => {
     w.player.money = 10;
     expect(buyBike(w).ok).toBe(false);
     expect(ownsBike(w)).toBe(false);
+  });
+});
+
+describe('vélo du garage (nouvelle partie)', () => {
+  it('est donné gratuitement, une seule fois, avec la capacité de transport', () => {
+    const w = createWorld();
+    const money = w.player.money;
+    const cap = w.economy!.carryCapacity;
+    giveStarterBike(w);
+    expect(ownsBike(w)).toBe(true);
+    expect(w.player.money).toBe(money);
+    expect(w.economy!.carryCapacity).toBe(cap + BIKE.extraCarry);
+    giveStarterBike(w);
+    expect(w.economy!.carryCapacity).toBe(cap + BIKE.extraCarry);
+    expect(buyBike(w).ok).toBe(false);
   });
 });

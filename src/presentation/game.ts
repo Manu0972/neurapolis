@@ -122,6 +122,7 @@ import { INITIAL_TUTORIALS } from '../data/tutorials';
 import { PACE_BY_ID, TASK_MINUTES, TASK_SPEED, loadPacePrefs, savePacePrefs, subMinutes, taskTicks } from './time-pace';
 import { setClockSubMinutes } from './ui';
 import { MultiplayerSession, OPEN_MULTI_KEY, openMultiplayerPanel } from './multiplayer';
+import { installHelp, setHelp, type HelpController } from './help';
 import { residentNear, residentsPresent, talkToResident } from '../simulation/residents';
 import { EMERGENCY_BELOW, emergencyHelpStatus } from '../simulation/family';
 import { randomAppearance } from './appearance-editor';
@@ -147,12 +148,21 @@ const MOVE_MS = 150;  // cadence d'un pas de tuile en maintenant une direction
 
 const REL_DIMS: ReadonlyArray<keyof Rel4> = ['amitie', 'confiance', 'respect', 'rivalite'];
 
+let activeHelp: HelpController | null = null;
+
 export function startGame(root: HTMLElement, initialWorld: WorldState = createWorld()): void {
   const world: WorldState = initialWorld;
   root.replaceChildren();
   const ui = buildUi(root);
+  // Aide : bulles au survol, mode ❓ (F1) et fiche ❓ des fenêtres. Une seule à la fois sur la page.
+  activeHelp?.dispose();
+  const help = installHelp(root);
+  activeHelp = help;
+  ui.phoneBtn.parentElement?.appendChild(help.button);
   // Barre des fantômes : leurs têtes en haut de l'écran, qui bougent quand ils veulent parler.
   const ghostBar = createGhostBar(root, () => world, () => modalOpen);
+  const ghostBarEl = root.querySelector<HTMLElement>('.ghost-bar');
+  if (ghostBarEl) setHelp(ghostBarEl, 'ghost-bar');
   let lastTipText = '';
   // Notifications façon téléphone pour le fil d'infos ; un clic ouvre l'application « Infos ».
   const newsToaster = createNewsToaster(root, () => openPhoneUi('infos'));
@@ -1288,6 +1298,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const head = el('div', 'modal-head');
     head.appendChild(el('h2', 'modal-title', title));
     head.appendChild(el('p', 'modal-sub', sub));
+    help.decorateModal(head, title);
     const close = el('button', 'modal-close', '✕');
     close.addEventListener('click', closeModal);
     head.appendChild(close);

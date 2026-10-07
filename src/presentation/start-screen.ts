@@ -6,6 +6,7 @@ import { inspectAutoSave, saveToSlot, loadFromSlot, PENDING_LOAD_KEY } from '../
 import { startGame } from './game';
 import { mountCharacterCreation } from './character-creator';
 import { OPEN_MULTI_KEY } from './multiplayer';
+import { giveStarterBike } from '../simulation/vehicles';
 import { TitleFlyover } from './city3d/TitleFlyover';
 
 /** Survol 3D de la ville derrière le menu ; un seul à la fois, libéré avant de jouer. */
@@ -124,6 +125,7 @@ export function mountStartScreen(root: HTMLElement): void {
       root,
       (customization) => {
         const world: WorldState = createCustomWorld({ customization });
+        giveStarterBike(world);
         try {
           saveToSlot('auto', world);
         } catch {

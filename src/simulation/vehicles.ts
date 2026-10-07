@@ -21,6 +21,19 @@ export function ownsBike(w: WorldState): boolean {
   return (w.flags['velo'] ?? 0) > 0;
 }
 
+/** Nouvelle partie : le vélo de la famille attend déjà dans le garage (gratuit). */
+export function giveStarterBike(w: WorldState): void {
+  if (ownsBike(w)) return;
+  w.flags['velo'] = 1;
+  ensureEconomy(w).carryCapacity += BIKE.extraCarry;
+  pushEvent(w, {
+    type: 'vie',
+    title: 'Le vélo du garage',
+    text: `Il dort au garage depuis l’été : un vieux vélo de ville, un peu grinçant mais solide. Appuie sur B pour monter ou descendre ; tu portes ${BIKE.extraCarry} unités de plus.`,
+    causes: [{ facteur: 'famille', seuil: 'cadeau', poids: 1 }],
+  });
+}
+
 export function buyBike(w: WorldState): { ok: boolean; message: string } {
   if (ownsBike(w)) return { ok: false, message: 'Tu as déjà un vélo.' };
   if (w.player.money < BIKE.price) return { ok: false, message: `Il faut ${BIKE.price} € (tu as ${w.player.money.toFixed(2)} €).` };

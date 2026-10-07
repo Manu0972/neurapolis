@@ -24,8 +24,9 @@ declare module 'node:net' {
 declare module 'node:fs' {
   export function existsSync(p: string): boolean;
   export function readFileSync(p: string, encoding: string): string;
+  export function readdirSync(p: string): string[];
   export function statSync(p: string): { size: number; isFile(): boolean; isDirectory(): boolean };
-  const fs: { existsSync: typeof existsSync; readFileSync: typeof readFileSync; statSync: typeof statSync };
+  const fs: { existsSync: typeof existsSync; readFileSync: typeof readFileSync; readdirSync: typeof readdirSync; statSync: typeof statSync };
   export default fs;
 }
 

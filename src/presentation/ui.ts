@@ -13,6 +13,25 @@ import { GHOST_DEFS_BY_ID } from '../data/ghosts/registry';
 
 export const NEED_IDS: readonly NeedId[] = ['fatigue', 'faim', 'stress', 'moral'];
 
+/** Boutons du tiroir « Tous les panneaux » (le libellé sert aussi d'identifiant). */
+export const NAV_LABELS: readonly string[] = [
+    '💾 Sauvegardes',
+    '📱 Téléphone',
+    'Personnage',
+    'Relations',
+    'Stratégie / Carte',
+    'Entreprises & Rôles',
+    'Marchands & Tiers',
+    'Actualités & Chocs',
+    'Études & Famille',
+    'Chambre & plans',
+    'Carnets de Lucien',
+    'Projet',
+    'Concurrence',
+    'Conseil',
+    'Journal',
+];
+
 export const MOOD_EMOTICONS: Record<string, string> = {
   curieux: '🧐',
   enthousiaste: '✨',
@@ -75,6 +94,11 @@ export interface UiRefs {
   saveTimer: number | undefined;
 }
 
+/** Annote un élément pour l'aide (fiche dans src/data/help/controls.ts). */
+function help(e: HTMLElement, id: string): void {
+  e.dataset.help = id;
+}
+
 export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   cls: string,
@@ -121,27 +145,28 @@ export function buildUi(root: HTMLElement): UiRefs {
   dateCol.appendChild(weatherEl);
   clockRow.appendChild(clockEl);
   clockRow.appendChild(dateCol);
+  help(clockRow, 'clock');
   status.appendChild(clockRow);
   // Rythme du temps : allure continue (pause → ×20) et actions qui prennent du temps.
   const speedRow = el('div', 'speed-row');
   for (const p of PACES) {
     const btn = el('button', 'speed-btn', p.label);
     btn.dataset.pace = p.id;
-    btn.title = p.title;
+    help(btn, `pace:${p.id}`);
     speedRow.appendChild(btn);
   }
   status.appendChild(speedRow);
   const taskToggle = el('button', 'task-toggle', '⏱ Les actions prennent du temps');
   taskToggle.type = 'button';
-  taskToggle.title = 'Parler, acheter, travailler, décharger : l’horloge avance de la durée de l’action.';
+  help(taskToggle, 'task-toggle');
   status.appendChild(taskToggle);
   const skipBtn = el('button', 'task-toggle skip-btn', '📅 Passer le temps');
   skipBtn.type = 'button';
-  skipBtn.title = 'Finir la journée, passer la semaine ou le mois : tout est simulé, tu vas en cours, tes affaires tournent, puis un bilan.';
+  help(skipBtn, 'skip');
   status.appendChild(skipBtn);
   const mpBtn = el('button', 'task-toggle mp-btn-hud', '📡 Multijoueur');
   mpBtn.type = 'button';
-  mpBtn.title = 'Jouer à plusieurs en LAN (NordVPN Meshnet) : s’associer ou se saboter.';
+  help(mpBtn, 'multi');
   status.appendChild(mpBtn);
   const taskChip = el('div', 'task-chip hidden', '');
   status.appendChild(taskChip);
@@ -153,7 +178,7 @@ export function buildUi(root: HTMLElement): UiRefs {
   const barEls = {} as Record<NeedId, HTMLElement>;
   for (const id of NEED_IDS) {
     const bar = el('div', 'need-bar');
-    bar.title = NEED_LABELS[id];
+    help(bar, `need:${id}`);
     bar.appendChild(el('span', 'need-label', `${NEED_ICONS[id]} ${NEED_LABELS[id]}`));
     const track = el('div', 'need-track');
     const fill = el('div', 'need-fill');
@@ -172,7 +197,7 @@ export function buildUi(root: HTMLElement): UiRefs {
   campaignCardEl.appendChild(campaignChapterEl);
   campaignCardEl.appendChild(campaignObjectiveEl);
   campaignCardEl.appendChild(campaignPromptEl);
-  campaignCardEl.title = 'Clique pour replier / déplier';
+  help(campaignCardEl, 'campaign');
   campaignCardEl.addEventListener('click', () => campaignCardEl.classList.toggle('folded'));
   hud.appendChild(campaignCardEl);
   root.appendChild(hud);
@@ -185,11 +210,14 @@ export function buildUi(root: HTMLElement): UiRefs {
   const ghostAdviceBubbleEl = el('div', 'hud-ghost-advice-bubble hidden');
   const buttons = el('div', 'hud2-buttons');
   const phoneBtn = el('button', 'hud2-btn primary', '📱 Téléphone');
-  phoneBtn.title = 'Téléphone [P]';
+  help(phoneBtn, 'phone');
   const mapBtn = el('button', 'hud2-btn', '🗺️ Plan');
-  mapBtn.title = 'Plan de la ville [M]';
+  help(mapBtn, 'map');
   const menuBtn = el('button', 'hud2-btn', '☰');
-  menuBtn.title = 'Tous les panneaux';
+  help(menuBtn, 'menu');
+  help(moneyEl, 'money');
+  help(bizEl, 'biz');
+  help(ghostCompanionWidgetEl, 'ghost-companion');
   buttons.appendChild(phoneBtn);
   buttons.appendChild(mapBtn);
   buttons.appendChild(menuBtn);
@@ -202,6 +230,7 @@ export function buildUi(root: HTMLElement): UiRefs {
 
   // Fil d'actualité discret (bas de l'écran).
   const newsTickerEl = el('div', 'hud-news-ticker', '📰 Flash Info : Marché stable');
+  help(newsTickerEl, 'news');
   root.appendChild(newsTickerEl);
 
   // Tiroir « menu » : tous les panneaux historiques, caméra et son.
@@ -222,28 +251,20 @@ export function buildUi(root: HTMLElement): UiRefs {
   btnToggle3D.title = 'Rendu 3D / plan 2D de secours';
   const btnMuteAudio = el('button', 'cam-btn', '🔊');
   btnMuteAudio.title = 'Activer / couper le son';
+  help(btnRotLeft, 'cam:rotl');
+  help(btnRotRight, 'cam:rotr');
+  help(btnCamView, 'cam:view');
+  help(btnZoomIn, 'cam:zin');
+  help(btnZoomOut, 'cam:zout');
+  help(btnToggle3D, 'cam:3d');
+  help(btnMuteAudio, 'cam:mute');
   for (const b of [btnRotLeft, btnRotRight, btnCamView, btnZoomIn, btnZoomOut, btnToggle3D, btnMuteAudio]) cameraToolbarEl.appendChild(b);
   const navEl = el('div', 'hud-nav');
-  const navLabels = [
-    '💾 Sauvegardes',
-    '📱 Téléphone',
-    'Personnage',
-    'Relations',
-    'Stratégie / Carte',
-    'Entreprises & Rôles',
-    'Marchands & Tiers',
-    'Actualités & Chocs',
-    'Études & Famille',
-    'Chambre & plans',
-    'Carnets de Lucien',
-    'Projet',
-    'Concurrence',
-    'Conseil',
-    'Journal',
-  ];
+  const navLabels = NAV_LABELS;
   for (const label of navLabels) {
     const b = el('button', 'hud-nav-btn', label);
     b.dataset.nav = label;
+    help(b, `nav:${label}`);
     b.addEventListener('click', () => menuDrawer.classList.add('hidden'));
     navEl.appendChild(b);
   }
@@ -263,6 +284,7 @@ export function buildUi(root: HTMLElement): UiRefs {
   const streetEl = el('div', 'hud2-street', '');
   minimapWrap.appendChild(minimapCanvas);
   minimapWrap.appendChild(streetEl);
+  help(minimapWrap, 'minimap');
   root.appendChild(minimapWrap);
 
   const bannerEl = el('div', 'ghost-banner hidden', '');
@@ -281,6 +303,7 @@ export function buildUi(root: HTMLElement): UiRefs {
   const joyZone = el('div', 'joy-zone');
   const actionBtn = el('button', 'action-btn', 'E');
   root.appendChild(joyZone);
+  help(actionBtn, 'action-btn');
   root.appendChild(actionBtn);
 
   const ui: UiRefs = {

@@ -307,8 +307,9 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   const headPivot = new THREE.Group();
   headPivot.position.y = 0.72 * k;
   chest.add(headPivot);
-  // Tête légèrement plus grande chez les plus jeunes (proportions d'enfant).
-  const hk = k * (1 + Math.max(0, 1.6 - H) * 0.35);
+  // Proportions d'enfant : la tête pèse plus dans la silhouette (≈ 1/6,5 de la taille à 12 ans
+  // contre 1/7,5 adulte). +14 % à 1,52 m, puis s'efface jusqu'à 1,72 m.
+  const hk = k * (1 + Math.max(0, 1.72 - H) * 0.7);
   const head = mk(gq('v2head', () => new THREE.SphereGeometry(0.112, 20, 16).scale(0.94, 1.06, 0.98), () => new THREE.SphereGeometry(0.112, 10, 8).scale(0.94, 1.06, 0.98)), skinM);
   head.scale.setScalar(hk);
   headPivot.add(head);
