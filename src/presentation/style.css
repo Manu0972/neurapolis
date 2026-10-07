@@ -683,3 +683,10 @@ canvas.map-canvas-3d { image-rendering: auto; touch-action: none; }
 .title-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
 .title-canvas ~ .start-screen { position: relative; z-index: 1; background: radial-gradient(circle at 50% 55%, rgba(42, 26, 20, 0.15), rgba(20, 12, 8, 0.65)); }
 .title-canvas ~ .start-screen .start-card { background: rgba(42, 26, 20, 0.78); backdrop-filter: blur(8px); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); }
+
+/* Rapport du test de bout en bout (?e2e) */
+.e2e-report {
+  position: fixed; left: 50%; top: 80px; transform: translateX(-50%); z-index: 100; max-width: min(640px, 94vw);
+  background: rgba(20, 14, 10, 0.95); border: 2px solid var(--or); border-radius: 14px; padding: 14px 18px; font-size: 13px;
+}
+.e2e-report ol { margin: 8px 0 0; padding-left: 20px; line-height: 1.6; }
