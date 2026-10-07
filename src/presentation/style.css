@@ -678,3 +678,8 @@ canvas.map-canvas-3d { image-rendering: auto; touch-action: none; }
 .tip-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .tip-btn { padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(255, 217, 138, 0.3); background: rgba(255, 255, 255, 0.07); color: var(--ink); font-weight: 700; cursor: pointer; font-size: 12px; }
 .tip-btn.primary { background: var(--or); color: var(--bg); }
+
+/* Écran titre : survol 3D de Val-Ferrand derrière le menu */
+.title-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
+.title-canvas ~ .start-screen { position: relative; z-index: 1; background: radial-gradient(circle at 50% 55%, rgba(42, 26, 20, 0.15), rgba(20, 12, 8, 0.65)); }
+.title-canvas ~ .start-screen .start-card { background: rgba(42, 26, 20, 0.78); backdrop-filter: blur(8px); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); }

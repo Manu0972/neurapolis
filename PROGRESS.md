@@ -40,6 +40,6 @@
 - [x] **Vélo** (2026-10-07 ; 85 € dans le téléphone, B, ×2,5, +30 unités ; `src/simulation/vehicles.ts`) : acheter un vélo (dès 12 ans), monter/descendre, vitesse ×2,5, capacité de transport +30.
 - [x] **Performance** (2026-10-07 ; mesuré dans le navigateur : 7,5 ms/image en rue, 11,5 ms en plongée maximale ; bundle séparé : three 137 Ko gzip + jeu 224 Ko gzip ; instanciation des passants jugée inutile à ce stade) : instanciation des passants, découpage du bundle (Three.js à part), mesure des images/seconde ; viser 60 i/s.
 - [x] **Sauvegardes multiples** (2026-10-07 ; menu ☰ → 💾 : 3 emplacements + auto, résumé, charger, supprimer, export/import de fichier) : trois emplacements nommés + auto-sauvegarde, depuis le menu ☰.
-- [ ] **Écran titre 3D** : vue animée de Val-Ferrand derrière le menu.
+- [x] **Écran titre 3D** (2026-10-07 ; `TitleFlyover.ts`, libéré avant de jouer) : vue animée de Val-Ferrand derrière le menu.
 - [ ] **Test de bout en bout en navigateur** : script qui démarre une partie, loue un étal, commande, retire, décharge, ouvre et vend (via `window.__NEURAPOLIS__.qa`).
 - [ ] **Expansion (âge adulte)** : préparer un deuxième quartier (gare, laminoir) et la fermeture du laminoir en 2032 comme événement jouable.
