@@ -457,3 +457,47 @@ describe('propriété des murs (save v15)', () => {
     expect(migrateSave(raw).economy!.owned).toEqual({});
   });
 });
+
+describe('habitués (save v16)', () => {
+  it('des clients bien servis à prix justes deviennent des habitués, qui reviennent', async () => {
+    const { updateRegulars, regularVisitsAt } = await import('../src/simulation/economy');
+    const { w, biz } = stallReady();
+    const b = w.economy!.businesses[biz]!;
+    expect(b.regulars).toBe(0);
+    expect(regularVisitsAt(w, b, 10)).toBe(0);
+    const day = { day: 0, passersby: 400, visitors: 60, customers: 50, lost: 2, unitsSold: 80, revenue: 100, costOfGoods: 40, wages: 0, rent: 5, other: 0 };
+    for (let i = 0; i < 10; i++) updateRegulars(b, day, 1);
+    expect(b.regulars).toBeGreaterThan(5);
+    const visits = [8, 9, 10, 11, 12, 13, 14, 15].reduce((s, h) => s + regularVisitsAt(w, b, h), 0);
+    expect(visits).toBeGreaterThan(0);
+  });
+
+  it('prix abusifs et ruptures font fuir les habitués', async () => {
+    const { updateRegulars } = await import('../src/simulation/economy');
+    const { w, biz } = stallReady();
+    const b = w.economy!.businesses[biz]!;
+    b.regulars = 50;
+    updateRegulars(b, { day: 0, passersby: 0, visitors: 40, customers: 10, lost: 30, unitsSold: 10, revenue: 0, costOfGoods: 0, wages: 0, rent: 0, other: 0 }, 1.6);
+    expect(b.regulars).toBeLessThan(45);
+  });
+
+  it('la clôture du jour fait évoluer les habitués', () => {
+    const { w, biz } = stallReady();
+    const b = w.economy!.businesses[biz]!;
+    b.today.customers = 40;
+    economyDay(w, 0);
+    expect(b.regulars).toBeGreaterThan(0);
+  });
+
+  it('une sauvegarde v15 reçoit zéro habitué par commerce', () => {
+    const { w } = stallReady();
+    const raw = JSON.parse(exportSave(w)) as { version: number; economy: { businesses: Record<string, Record<string, unknown>> } };
+    raw.version = 15;
+    for (const b of Object.values(raw.economy.businesses)) delete b.regulars;
+    const back = migrateSave(raw);
+    expect(back.version).toBe(CURRENT_SAVE_VERSION);
+    for (const b of Object.values(back.economy!.businesses)) expect(b.regulars).toBe(0);
+    // Aller-retour v16.
+    expect(importSave(exportSave(back)).economy!.businesses).toEqual(back.economy!.businesses);
+  });
+});

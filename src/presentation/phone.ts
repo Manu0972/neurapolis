@@ -215,6 +215,7 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'commerces', focus?
     status.appendChild(stat('État', b.open ? 'Ouvert' : 'Fermé', b.open ? 'good' : 'bad'));
     status.appendChild(stat('Horaires', `${b.hours[0]} h – ${b.hours[1]} h`));
     status.appendChild(stat('Réputation', `${Math.round(b.reputation)}/100`, b.reputation >= 55 ? 'good' : b.reputation < 40 ? 'bad' : ''));
+    status.appendChild(stat('Habitués', `${Math.floor(b.regulars ?? 0)}`, (b.regulars ?? 0) >= 25 ? 'good' : ''));
     status.appendChild(stat('Attractivité', `×${appeal(b).toFixed(2)}`));
     top.appendChild(status);
     const actions = el('div', 'ph-actions');

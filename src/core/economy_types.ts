@@ -146,6 +146,8 @@ export interface DayStats {
   wages: number;
   rent: number;
   other: number;
+  /** Dont visites d'habitués (save v16). */
+  regularVisits?: number;
 }
 
 export interface BusinessState {
@@ -172,6 +174,12 @@ export interface BusinessState {
   reputation: number;
   /** Jours restants de campagnes marketing actives, par canal. */
   marketing: Record<string, number>;
+  /**
+   * Habitués (save v16) : clients satisfaits qui reviennent d'eux-mêmes, indépendamment des
+   * passants. Ils grossissent avec la réputation et des prix justes, s'en vont après des
+   * ruptures, des prix abusifs ou des jours de fermeture. Valeur fractionnaire.
+   */
+  regulars: number;
   /**
    * Aménagement choisi par le joueur : position (m) et rotation de chaque meuble, par indice
    * dans `furniture` (save v14). Les meubles absents sont placés automatiquement.

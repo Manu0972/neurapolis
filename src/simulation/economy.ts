@@ -89,7 +89,7 @@ function post(b: BusinessState, w: WorldState, label: string, amount: number): v
 }
 
 function emptyStats(day: number): DayStats {
-  return { day, passersby: 0, visitors: 0, customers: 0, lost: 0, unitsSold: 0, revenue: 0, costOfGoods: 0, wages: 0, rent: 0, other: 0 };
+  return { day, passersby: 0, visitors: 0, customers: 0, lost: 0, unitsSold: 0, revenue: 0, costOfGoods: 0, wages: 0, rent: 0, other: 0, regularVisits: 0 };
 }
 
 // ---------- Immobilier ----------
@@ -317,7 +317,7 @@ export function openBusiness(w: WorldState, unitId: string, typeId: string, name
   e.businesses[id] = {
     id, name: clean, typeId, unitId, openedDay: day, open: false,
     hours: [t.defaultHours[0], t.defaultHours[1]], prices: {}, stock: {}, furniture: [], employeeIds: [],
-    cash: 0, ledger: [], today: emptyStats(day), history: [], reputation: 50, marketing: {}, layout: {},
+    cash: 0, ledger: [], today: emptyStats(day), history: [], reputation: 50, marketing: {}, layout: {}, regulars: 0,
   };
   pushEvent(w, {
     type: 'opportunite',
@@ -891,7 +891,40 @@ export function nearbyCompetitors(b: BusinessState): string[] {
   }).map((c) => c.shopName);
 }
 
-interface HourOutcome { passersby: number; visitors: number; customers: number; lost: number; units: number; revenue: number; cogs: number }
+interface HourOutcome { passersby: number; visitors: number; regularVisits: number; customers: number; lost: number; units: number; revenue: number; cogs: number }
+
+/** Part des habitués qui passent dans la journée. */
+export const REGULAR_DAILY_VISIT = 0.4;
+/** Plafond d'habitués d'un commerce (un quartier n'est pas infini). */
+export const REGULARS_CAP = 400;
+
+/**
+ * Visites d'habitués pendant une heure d'ouverture : la fidélité ne dépend pas des passants
+ * ni de la concurrence, mais des prix pratiqués et un peu de la météo.
+ */
+export function regularVisitsAt(w: WorldState, b: BusinessState, hour: number): number {
+  const regs = b.regulars ?? 0;
+  if (regs <= 0) return 0;
+  const open = Math.max(1, b.hours[1] - b.hours[0]);
+  const pi = priceIndex(b);
+  const priceMood = pi <= 1.15 ? 1 : pi <= 1.4 ? 0.7 : 0.4;
+  const meteo = w.district.meteo === 'pluie' ? 0.85 : 1;
+  const expected = (regs * REGULAR_DAILY_VISIT / open) * priceMood * meteo;
+  return Math.floor(expected + econRand(w, 'habitues', today(w), hour, b.id));
+}
+
+/**
+ * Clôture du jour : les clients bien servis à prix justes deviennent des habitués ;
+ * ruptures, prix abusifs et fermetures en font partir.
+ */
+export function updateRegulars(b: BusinessState, stats: DayStats, pi: number): void {
+  const regs = b.regulars ?? 0;
+  const fairness = pi <= 1.15 ? 1 : pi <= 1.4 ? 0.4 : 0;
+  const gain = stats.customers * 0.03 * fairness * clamp(b.reputation / 60, 0.3, 1.6);
+  const lostRatio = stats.lost / Math.max(1, stats.customers + stats.lost);
+  const churn = 0.03 + lostRatio * 0.12 + (pi > 1.4 ? 0.05 : 0) + (b.open ? 0 : 0.04);
+  b.regulars = round2(clamp(regs + gain - regs * churn, 0, REGULARS_CAP));
+}
 
 /** Une heure d'ouverture : passants → visiteurs → clients servis → paniers. */
 export function simulateHour(w: WorldState, b: BusinessState, hour: number): HourOutcome {
@@ -914,7 +947,8 @@ export function simulateHour(w: WorldState, b: BusinessState, hour: number): Hou
     ? clamp(1 - (rival.marketShare - 50) / 200, 0.7, 1.1) : 1;
   // Conjoncture : la chronologie du monde (src/simulation/world_timeline.ts) module la demande.
   const conj = t.productCategories.reduce((s, c) => s + timelineDemand(w, c), 0) / Math.max(1, t.productCategories.length);
-  const visitors = Math.round(passersby * t.baseConversion * appeal(b) * priceFactor * variety * rivalPressure * competitionFactor(b) * conj * laminoirDemand(w, b.unitId));
+  const regularVisits = regularVisitsAt(w, b, hour);
+  const visitors = Math.round(passersby * t.baseConversion * appeal(b) * priceFactor * variety * rivalPressure * competitionFactor(b) * conj * laminoirDemand(w, b.unitId)) + regularVisits;
   const staff = staffCapacity(w, b);
   const capacity = Math.floor(Math.min(staff.perHour, equipmentCapacity(b)));
   const served = Math.min(visitors, capacity);
@@ -949,7 +983,7 @@ export function simulateHour(w: WorldState, b: BusinessState, hour: number): Hou
     }
     if (bought > 0) customers += 1; else lost += 1;
   }
-  return { passersby, visitors, customers, lost, units, revenue: round2(revenue), cogs: round2(cogs) };
+  return { passersby, visitors, regularVisits, customers, lost, units, revenue: round2(revenue), cogs: round2(cogs) };
 }
 
 function isOpenAt(b: BusinessState, hour: number): boolean {
@@ -971,6 +1005,7 @@ export function economyTick(w: WorldState, prevTick: number): Notification[] {
       const r = simulateHour(w, b, hour);
       b.today.passersby += r.passersby;
       b.today.visitors += r.visitors;
+      b.today.regularVisits = (b.today.regularVisits ?? 0) + r.regularVisits;
       b.today.customers += r.customers;
       b.today.lost += r.lost;
       b.today.unitsSold += r.units;
@@ -1076,6 +1111,25 @@ export function economyDay(w: WorldState, closedDay: number): Notification[] {
     for (const ch of Object.keys(b.marketing)) {
       b.marketing[ch] = Math.max(0, (b.marketing[ch] ?? 0) - 1);
       if (b.marketing[ch] === 0) delete b.marketing[ch];
+    }
+    // Habitués : ils se gagnent un client satisfait à la fois.
+    const regsBefore = Math.floor(b.regulars ?? 0);
+    updateRegulars(b, b.today, priceIndex(b));
+    const regsAfter = Math.floor(b.regulars);
+    for (const step of [25, 50, 100, 200]) {
+      if (regsBefore < step && regsAfter >= step) {
+        out.push(notify('journal', `🤝 ${b.name} compte ${step} habitués.`));
+        pushEvent(w, {
+          type: 'consequence',
+          title: `${b.name} : ${step} habitués`,
+          text: `Des gens du quartier reviennent chez toi sans y penser. Ils viennent même les jours de pluie, même quand un concurrent ouvre à côté.`,
+          causes: [
+            { facteur: 'réputation de la boutique', seuil: `${Math.round(b.reputation)}/100`, poids: 3 },
+            { facteur: 'indice de prix', seuil: priceIndex(b).toFixed(2), poids: 2 },
+          ],
+          once: `habitues:${b.id}:${step}`,
+        });
+      }
     }
     // Réputation qui revient lentement vers 50.
     b.reputation = round2(b.reputation + (50 - b.reputation) * 0.02);

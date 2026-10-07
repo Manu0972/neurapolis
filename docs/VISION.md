@@ -88,22 +88,23 @@ S'adapter ◀── Conséquences ◀── Monter l'activité : local, aménage
 
 ### 4.1 Les systèmes de la cible (et leur état actuel)
 
-| Système | Cible | État au 2026-10-07 |
+| Système | Cible | État au 2026-10-07 (soir) |
 |---|---|---|
-| **Ville 3D explorable** | Rues nommées, trottoirs, voitures, piétons, commerces, intérieurs, jour/nuit, météo | **À refaire** (blocs iso sur grille) : chantier E-1 |
-| **Déplacement** | Marche fluide en troisième personne, caméra orbitale, course, plus tard vélo et bus | Pas de tuile, rigide : chantier E-1 |
-| **Immobilier commercial** | Annonces de locaux (adresse, m², loyer, trafic piéton), bail, caution | Absent : chantier E-3 |
-| **Commerces** | Types (épicerie, café, boutique, atelier…), aménagement, capacité, horaires | Stand unique : chantier E-3 |
-| **Stocks et fournisseurs** | Catalogue produits, grossistes, livraisons, péremption | Partiel (`vendors`, `logistics`) : E-3 + Antigravity |
-| **Employés** | Marché de l'emploi, compétences, salaires, satisfaction, plannings | Partiel (rôles de `multi_ventures`) : E-4 |
-| **Clients** | Flux par rue et par heure, choix prix/qualité/attente, fidélité | Demande agrégée simple : E-3 |
-| **Marketing** | Affiches, réseaux, bouche-à-oreille | Embryonnaire (`media`) : E-4 |
-| **Finance** | Banque, prêts, intérêts, trésorerie vs bénéfice | Crédit fournisseur seulement : E-4 |
-| **Concurrence** | Rivaux par emplacement, prix, réactions | Bon socle (`rival`) |
+| **Ville 3D explorable** | Rues nommées, trottoirs, voitures, piétons, commerces, intérieurs, jour/nuit, météo | **Fait** : ville 414 × 268 m (`city3d`), quartier de la Gare, intérieurs praticables |
+| **Déplacement** | Marche fluide en troisième personne, caméra orbitale, course, plus tard vélo et bus | **Fait** : marche, course, vélo (B) ; bus : à faire |
+| **Immobilier commercial** | Annonces de locaux (adresse, m², loyer, trafic piéton), bail, caution | **Fait**, plus achat des murs et mise en location (save v15) |
+| **Commerces** | Types (épicerie, café, boutique, atelier…), aménagement, capacité, horaires | **Fait** : catalogue étendu, aménagement à la main (save v14), horaires |
+| **Stocks et fournisseurs** | Catalogue produits, grossistes, livraisons, péremption | **Fait** : retrait physique des cartons, livraisons, péremption |
+| **Employés** | Marché de l'emploi, compétences, salaires, satisfaction, plannings | **Fait** (sans plannings détaillés) |
+| **Clients** | Flux par rue et par heure, choix prix/qualité/attente, fidélité | **Fait** : flux horaire, concurrence de proximité, **habitués** (save v16) |
+| **Marketing** | Affiches, réseaux, bouche-à-oreille | **Fait** (canaux à durée) |
+| **Finance** | Banque, prêts, intérêts, trésorerie vs bénéfice | **Fait** : prêts familial / coopératif, caisse séparée |
+| **Concurrence** | Rivaux par emplacement, prix, réactions | **Fait** : 12 commerçants du lore + Drive HyperVal |
+| **Monde** | Chronologie 2020-2045, voyages | **Fait** : chronologie branchée sur la demande, laminoir 2032 (choix jouable), voyages jouables sur place |
 | **Vie** | Besoins, école, famille, sommeil | Bon socle |
 | **Relations et mémoire** | Relations 4D, mémoire des PNJ, arcs | Bon socle |
 | **Conseillers** | 22 voix, crédibilité | Bon socle |
-| **Campagne 12 → 16 ans** | 5 chapitres, épilogue | Jouable (selon les rapports), à revalider en 3D |
+| **Campagne 12 → 16 ans** | 5 chapitres, épilogue | Jouable, à revalider en 3D |
 
 ### 4.2 Accès selon l'âge (cohérence lore + Big Ambitions)
 

@@ -860,3 +860,11 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **état sauvegardé** : drapeaux `voyageAvance`, `voyageSlots`, `voyageAct:<id>`, `fournisseurNeoBaie`, `circuitCourtPlateau`, `conservationSaphir` — pas de changement de schéma.
 - **preuve** : verify.ps1 (voir commit) ; navigateur : scène Île Saphir rendue, nuit passée sur place jusqu'à 7 h puis temps figé, retour automatique (voyagesFaits = 1, sortie de scène).
 - **chemins libérés** : tous.
+
+### Claude Code · 2026-10-07 · Habitués des commerces (save v16) · `livré / chemins libérés`
+
+- **de** : Claude Code (session 45d06140) · **à** : tous · **état** : clos
+- **chemins touchés** : `src/core/economy_types.ts` (`BusinessState.regulars`, `DayStats.regularVisits?`), `src/core/store.ts` (SAVE_VERSION 16), `src/saves/migrations.ts` (15 → 16), `src/simulation/economy.ts` (`regularVisitsAt`, `updateRegulars`, paliers 25/50/100/200), `src/presentation/phone.ts` (stat « Habitués »), `tests/economy.test.ts` (4 tests dont migration v15 et aller-retour v16), `docs/VISION.md` (tableau d'état à jour)
+- **à signaler** : `tests/challenger_stress_3d_audio.test.ts` (Harness 3) — ajout d'un échauffement JIT avant la mesure ; seuil inchangé. Le test échouait par intermittence sous la charge de la suite complète.
+- **preuve** : verify.ps1 → Test Files 48 passed, Tests 603 passed, build OK ; navigateur : sauvegarde v15 réelle migrée en v16, téléphone affiche « HABITUÉS ».
+- **chemins libérés** : tous.

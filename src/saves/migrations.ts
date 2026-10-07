@@ -337,6 +337,16 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
     s.version = 15;
     return s;
   },
+  // 15 → 16 : habitués des commerces — aucun au départ.
+  15: (s) => {
+    const eco = s.economy as AnySave | undefined;
+    const businesses = (eco?.businesses ?? {}) as Record<string, AnySave>;
+    for (const b of Object.values(businesses)) {
+      if (typeof b.regulars !== 'number') b.regulars = 0;
+    }
+    s.version = 16;
+    return s;
+  },
 };
 
 export const CURRENT_SAVE_VERSION = SAVE_VERSION;

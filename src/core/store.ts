@@ -15,7 +15,7 @@ import { INITIAL_TUTORIALS } from '../data/tutorials';
 import { PLACE_ANCHORS } from '../data/map';
 import { createEconomyState } from './economy_types';
 
-export const SAVE_VERSION = 15;
+export const SAVE_VERSION = 16;
 
 const SKILL_IDS: SkillId[] = ['negociation', 'comptabilite', 'communication', 'organisation', 'technique', 'recherche'];
 
