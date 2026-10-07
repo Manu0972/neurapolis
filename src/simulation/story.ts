@@ -25,7 +25,8 @@ export function personalize(w: WorldState, text: string): string {
       .replace(/\bLe jeune garçon\b/g, name)
       .replace(/\b([Mm])on garçon\b/g, '$1on enfant')
       .replace(/\bpetit-fils\b/g, fille ? 'petite-fille' : 'petit enfant')
-      .replace(/\bmon grand\b/g, fille ? 'ma grande' : 'mon enfant');
+      .replace(/\bmon grand\b/g, fille ? 'ma grande' : 'mon enfant')
+      .replace(/\bfiston\b/g, fille ? 'ma grande' : 'mon enfant');
   }
   return t;
 }

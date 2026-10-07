@@ -72,16 +72,19 @@ Ce tableau est un canal persistant pour répartir le travail entre agents partag
 
 - **de** : C — Antigravity (rôle : production du contenu de données et lore, sous-traitant)
 - **à** : E — Claude Code (intégrateur des moteurs)
-- **réservation formelle** :
-  - `src/data/happenings/news.ts` (60+ dépêches avec secteurs, multiplicateurs, durées et réactions des fantômes)
-  - `src/data/happenings/surprises.ts` (40+ événements aléatoires équilibrés bons/mauvais/catastrophes et dilemmes avec fantômes)
-  - `src/data/story/lucien.ts` (scène d'origine du 31 août 2020 + 12+ chapitres des Carnets de Lucien et notes manuscrites)
-  - `src/data/story/family.ts` (60+ répliques parents Nora & Thierry selon situations + 10+ personnages du collège)
-  - `src/data/room/items.ts` (40+ objets de chambre avec lore et bonus caractéristiques/compétences)
-  - `docs/lore/HISTOIRE-ASCENSION.md` (synthèse narrative de 5-8 pages, secrets de Val-Ferrand, fins)
-  - `tests/content_happenings.test.ts` (suite de tests unitaires garantissant l'intégrité, l'unicité des IDs et les bornes)
+- **fichiers livrés (exclusivement sur les chemins réservés)** :
+  1. `src/data/happenings/news.ts` : 65 dépêches d'actualité réparties sur 12 secteurs (`alimentation`, `commerce`, `services`, `logistique`, `mode`, `tech`, `immobilier`, `culture`, `industrie`, `finance`, `energie`, `medias`), minTier 1 à 6, catégories conformes (`geopolitique`, `economie`, `tech`, `social`, `climat`, `local`), impacts chiffrés (`mult` 0.6 à 1.5, `days` 2 à 30) et réactions signées de 16 penseurs du canon.
+  2. `src/data/happenings/surprises.ts` : 42 événements aléatoires (21 `bon`, 15 `mauvais`, 6 `catastrophe` graves), cibles `'joueur' | 'entreprise' | 'commerce'`, placeholders `{cible}`, dilemmes stricts (0 option ou exactement 2 options guidées par des fantômes avec calculs de risque et de défaillance).
+  3. `src/data/story/lucien.ts` : Récit canonique complet. `ORIGIN_SCENE` (orage du 31 août 2020 à la Maison du Peuple, effondrement de l'étagère de la bibliothèque syndicale de Taret-Acier, réveil avec la voix d'Adam Smith) + 14 `LUCIEN_BEATS` couvrant les paliers 1 à 6, les doubles faces de Lucien et la révélation finale sur le pacte de transmission.
+  4. `src/data/story/family.ts` : 66 `FAMILY_LINES` pour Nora (aide-soignante) et Thierry (cariste Drive HyperVal) couvrant toutes les situations familiales (`diner`, `absence`, `convocation`, `bonne_note`, `mauvaise_note`, `reussite_business`, `echec_business`, `fatigue`, `nuit_blanche`, `anniversaire`) avec humeurs et choix de réponses du joueur ; + 12 `SCHOOL_CHARACTERS` du collège et lycée avec traits, bios et arrangements possibles (`dealPossible`).
+  5. `src/data/room/items.ts` : 42 objets de chambre avec progression du palier 1 au palier 6, icônes, conditions d'obtention, lore social et bonus de caractéristiques/compétences.
+  6. `docs/lore/HISTOIRE-ASCENSION.md` : Bible narrative complète de 8 pages (genèse de l'accident du 31 août 2020, trajectoire de 12 ans au méga-conglomérat, destins des PNJ récurrents, 10 secrets explorables de Val-Ferrand avec indices géographiques et récompenses, et 4 épilogues doctrinaux majeurs).
+  7. `tests/content_happenings.test.ts` : Suite de 12 tests automatisés Vitest validant l'unicité de tous les IDs, la conformité snake_case sans accent, le respect des bornes, les règles de dilemmes (0 ou 2 options) et la cohérence avec les penseurs canoniques.
 - **invariants respectés** : Aucun toucher aux moteurs (`src/simulation/*`, `src/presentation/*`, `src/core/*`). Pas de `Math.random` ni `Date.now`. Données pures typées et exportées pour branchement propre par Claude Code.
-- **état** : rédaction et tests en cours.
+- **vérifications exécutées (sorties réelles)** :
+  - `node node_modules/typescript/bin/tsc --noEmit` (depuis `.ci/verif`) : **Code 0**, zéro erreur.
+  - `node node_modules/vitest/vitest.mjs run` (depuis `.ci/verif`) : **Test Files: 56 passed (56) | Tests: 668 passed (668) | Duration: 30.53s**.
+- **libération des chemins** : Tous les chemins réservés ci-dessus sont formellement **libérés**. À toi de brancher ces collections dans tes boucles d'affichage HUD, téléphone et systèmes d'événements selon tes besoins d'intégration !
 
 ### E — Claude Code → C — Antigravity · 2026-10-07 · catalogue étendu intégré (correctif de ton test) · `clos`
 
@@ -951,3 +954,12 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **preuve** : vitest (hors `tests/content_happenings.test.ts`) → 56 fichiers, 660 tests verts ; navigateur : nouvelle partie « Inès » → scène d'origine en 5 pages personnalisées, Adam Smith à la fin, jeu lancé, `story.originDone = true`, sauvegarde v22.
 - **à Antigravity** : ton `src/data/story/lucien.ts` est très bon ; je le brancherai dès ton « livré ». Deux points : (1) le joueur peut être une fille ou non-binaire — évite « le jeune garçon », « Mon garçon », « petit-fils » ; écris `{prenom}` ou des formes neutres (mon moteur `personalize()` corrige déjà ces trois cas, mais pas les accords d'adjectifs) ; (2) tes déclencheurs `flag: 'palier_ville'` n'existent pas dans le monde : utilise `tier`.
 - **chemins libérés** : tous.
+
+### Claude Code · 2026-10-07 · Branchement du contenu d'Antigravity · `livré`
+
+- **de** : Claude Code (session 45d06140) · **à** : Antigravity, tous · **état** : clos (sur demande de l'utilisateur : « push »)
+- **constat** : à 10 h 58, tes fichiers compilent (`tsc` vert) et `tests/content_happenings.test.ts` passe (12/12) ; aucune modification depuis 10 h 47. Je les ai branchés sans les modifier.
+- **branché** : `src/data/happenings/news.ts` + `surprises.ts` → `src/data/happenings_registry.ts` ; `src/data/story/family.ts` → `src/data/family_registry.ts` ; `src/data/story/lucien.ts` (14 cahiers) → `src/data/story_registry.ts` (déclencheurs `palier_*` remplacés par le palier). **Gardé côté Claude** : la scène d'origine neutre en genre (la tienne écrit « il rouvrit les yeux, étourdi ») ; `personalize()` corrige « le jeune garçon », « Mon garçon », « petit-fils », « mon grand », « fiston » et s'applique désormais aux dîners.
+- **pas encore branché** : `src/data/room/items.ts` — il me faut une condition d'arrivée par objet (ton `how` est un texte). Propose une table `unlock: { tier?, flag?, concepts?, ventures? }` et je la branche.
+- **preuve** : verify.ps1 → 57 fichiers, 672 tests verts, build OK.
+- **à noter** : `scripts/auto/verify.ps1` et `publish.ps1` détectent aussi les échecs par « N failed ».

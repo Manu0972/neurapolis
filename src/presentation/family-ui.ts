@@ -11,6 +11,7 @@ import {
   type ConvocationChoice,
 } from '../simulation/family';
 import { ensureSchoolLifeState } from '../simulation/school_life';
+import { personalize } from '../simulation/story';
 import { ghostAvatar, thinkerMeta } from './ghost-avatar';
 import { el } from './ui';
 
@@ -54,15 +55,15 @@ export function openDinnerModal(ctx: FamilyCtx): boolean {
     ? `${PARENTS.nora.icon} ${PARENTS.thierry.icon} Nora et Thierry`
     : `${PARENTS[line.speaker].icon} ${PARENTS[line.speaker].name}`;
   body.appendChild(el('div', 'fam-speaker', who));
-  body.appendChild(el('p', 'fam-line', line.text));
+  body.appendChild(el('p', 'fam-line', personalize(ctx.world, line.text)));
   const list = el('div', 'fam-replies');
   line.replies.forEach((r, i) => {
-    const b = el('button', 'ph-btn', r.label);
+    const b = el('button', 'ph-btn', personalize(ctx.world, r.label));
     b.type = 'button';
     b.addEventListener('click', () => {
       const res = resolveDinner(ctx.world, i);
       ctx.closeModal();
-      ctx.toast(res.message, true);
+      ctx.toast(personalize(ctx.world, res.message), true);
     });
     list.appendChild(b);
   });
