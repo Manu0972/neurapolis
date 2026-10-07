@@ -90,6 +90,10 @@ import { isSilenced, lessonWarnings, rewindOffer, sacrificeCandidates } from '..
 import { recordDay } from '../saves/chronicle';
 import { openRewindModal } from './rewind-ui';
 import { openConvocationModal, openDinnerModal, openFamilyPanel } from './family-ui';
+import { bedroomExtras, openPlanner, openShelf, type PlanCtx } from './plan-ui';
+import { openDuelModal } from './ascension-ui';
+import { ensureRoom, planChecklist } from '../simulation/room';
+import { IDEA_BY_ID } from '../data/ascension/ideas';
 import { attendClass, classWindow, ensureFamily, isHome, isInClass, pendingDinner } from '../simulation/family';
 import { mostUrgentTip } from '../simulation/ghost_tips';
 import { CITY, PLACE_ANCHORS } from '../data/map';
@@ -142,6 +146,29 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   let dinnerShownId = '';
   let convocationShownDay = -1;
   let classReminderKey = '';
+  // Plans de la chambre : petit rappel en haut à gauche, un clic ouvre le tableau.
+  const planChip = el('button', 'plan-chip hidden', '');
+  planChip.type = 'button';
+  planChip.addEventListener('click', () => openPlanner(planCtx()));
+  root.appendChild(planChip);
+  function planCtx(): PlanCtx {
+    return {
+      world, showModal, closeModal, toast,
+      openDuel: () => openDuelModal({ world, showModal, closeModal, toast, onChange: () => updateHud(ui, world, promptText()) }, () => openPhoneUi('ascension')),
+    };
+  }
+  function syncPlanChip(): void {
+    const p = ensureRoom(world).plans[0];
+    const idea = p ? IDEA_BY_ID[p.ideaId] : undefined;
+    planChip.classList.toggle('hidden', !idea);
+    if (!p || !idea) return;
+    const list = planChecklist(world, p.ideaId).filter((c) => !c.optional);
+    const done = list.filter((c) => c.ok).length;
+    const ready = done === list.length;
+    planChip.classList.toggle('ready', ready);
+    const text = ready ? `▶ Plan prêt : ${idea.name}` : `🎯 ${idea.name} · ${done}/${list.length}`;
+    if (planChip.textContent !== text) planChip.textContent = text;
+  }
   let modalOpen = false;
   const deferredArrivals = new Set<string>();
   let last = performance.now();
@@ -716,7 +743,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   function enterPlace(place: PlaceId, roomId?: string): boolean {
     if (!renderer3D || !use3D || !placeHasInterior(place)) return false;
-    const spec = placeInteriorSpec(place, roomId);
+    // La chambre-QG : tableau des plans et derniers objets gagnés.
+    const extras = place === 'maison' && (roomId ?? 'chambre') === 'chambre' ? bedroomExtras(world) : [];
+    const spec = placeInteriorSpec(place, roomId, extras, world.player.firstName || undefined);
     if (!spec) return false;
     renderer3D.enterInterior(spec, world);
     if (place === 'epicerie') audio.playDoorBell();
@@ -804,6 +833,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const spec = renderer3D?.interiorSpec;
     const h = renderer3D?.interiorHotspot;
     if (spec?.placeId === 'college' && classWindow(world)) return { label: 'E — Rejoindre ta classe', run: goToClass };
+    if (h?.kind === 'plan') return { label: `E — ${h.label}`, run: () => openPlanner(planCtx()) };
+    if (h?.kind === 'objet') return { label: `E — ${h.label}`, run: () => openShelf(planCtx(), h.target) };
     if (!spec || !h) return null;
     const label = `E — ${h.label}`;
     if (h.kind === 'sortie') return { label, run: exitInterior };
@@ -1725,6 +1756,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     else if (nav === 'Entreprises & Rôles') b.addEventListener('click', openEntreprisesRoles);
     else if (nav === 'Marchands & Tiers') b.addEventListener('click', openMarchandsTiers);
     else if (nav === 'Actualités & Chocs') b.addEventListener('click', openActualitesChocs);
+    else if (nav === 'Chambre & plans') b.addEventListener('click', () => openPlanner(planCtx()));
     else if (nav === 'Études & Famille') b.addEventListener('click', () => openFamilyPanel({ world, showModal, closeModal, toast }));
     else if (nav === 'Projet') b.addEventListener('click', openProjet);
     else if (nav === 'Concurrence') b.addEventListener('click', openConcurrence);
@@ -2828,6 +2860,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (++hudFrame % 30 === 0) {
       ghostBar.sync(world);
       newsToaster.check(world);
+      syncPlanChip();
       // Les cours ouvrent : une voix le rappelle si tu es loin du collège.
       const session = classWindow(world);
       const reminder = session ? `${dayIndexOf(world.time.tick)}:${session}` : '';

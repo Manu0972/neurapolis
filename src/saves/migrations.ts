@@ -13,6 +13,7 @@ import { createAscensionState } from '../core/ascension_types';
 import { createHappeningsState } from '../core/happenings_types';
 import { createRewindState } from '../core/rewind_types';
 import { createFamilyState } from '../core/family_types';
+import { createRoomState } from '../core/room_types';
 import { INITIAL_RIVALS } from '../data/rivals';
 import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
 import { COUNTER_STRATEGIES } from '../data/rivals';
@@ -373,6 +374,12 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
   19: (s) => {
     if (typeof s.family !== 'object' || s.family === null) s.family = createFamilyState();
     s.version = 20;
+    return s;
+  },
+  // 20 → 21 : la chambre-QG (objets, plans) — la photo de Lucien, aucun plan.
+  20: (s) => {
+    if (typeof s.room !== 'object' || s.room === null) s.room = createRoomState();
+    s.version = 21;
     return s;
   },
 };

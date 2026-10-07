@@ -210,6 +210,7 @@ export function buildUi(root: HTMLElement): UiRefs {
     'Marchands & Tiers',
     'Actualités & Chocs',
     'Études & Famille',
+    'Chambre & plans',
     'Projet',
     'Concurrence',
     'Conseil',

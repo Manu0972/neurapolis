@@ -43,7 +43,7 @@ export interface Hotspot {
   icon: string;
   x: number;
   z: number;
-  kind: 'mobilier' | 'sortie' | 'piece' | 'gestion' | 'decharger' | 'travail' | 'amenager' | 'activite' | 'depart';
+  kind: 'mobilier' | 'sortie' | 'piece' | 'gestion' | 'decharger' | 'travail' | 'amenager' | 'activite' | 'depart' | 'plan' | 'objet';
   /** Pièce de destination (kind = piece) ou identifiant de mobilier (kind = mobilier). */
   target?: string;
 }
@@ -147,7 +147,7 @@ function frontOf(it: InteriorItem): { x: number; z: number } {
 // ---------- Spécifications : lieux et commerces ----------
 
 const PLACE_ROOM_STYLE: Partial<Record<PlaceId, { floor: InteriorSpec['floor']; wall: string; w: number; d: number }>> = {
-  maison: { floor: 'parquet', wall: '#e8d9c0', w: 8, d: 7 },
+  maison: { floor: 'parquet', wall: '#e8d9c0', w: 10, d: 8 },
   college: { floor: 'lino', wall: '#dfe3d2', w: 11, d: 9 },
   epicerie: { floor: 'carrelage', wall: '#f0e2c4', w: 10, d: 8 },
   friche: { floor: 'beton', wall: '#9a8a7a', w: 13, d: 10 },
@@ -164,7 +164,10 @@ export function indoorRooms(place: PlaceId): string[] {
   return (INTERIOR_PLACES[place]?.rooms ?? []).filter((r) => !outdoor.test(r.id)).map((r) => r.id);
 }
 
-export function placeInteriorSpec(place: PlaceId, roomId?: string): InteriorSpec | null {
+/** Objets en plus dans une pièce (chambre-QG : tableau des plans, objets gagnés). */
+export interface ExtraItem { id: string; kind: ItemKind; label: string; icon: string; hotspot: 'plan' | 'objet' }
+
+export function placeInteriorSpec(place: PlaceId, roomId?: string, extras: ExtraItem[] = [], ownerName?: string): InteriorSpec | null {
   const style = PLACE_ROOM_STYLE[place];
   const def = INTERIOR_PLACES[place];
   if (!style || !def) return null;
@@ -172,8 +175,14 @@ export function placeInteriorSpec(place: PlaceId, roomId?: string): InteriorSpec
   const rid = roomId && rooms.includes(roomId) ? roomId : rooms[0];
   const room = def.rooms.find((r) => r.id === rid);
   if (!room) return null;
-  const items = arrange(room.furniture.map((f) => ({ id: f.id, kind: fixKind(f.id), label: f.name, icon: f.icon })), style.w, style.d);
-  const hotspots: Hotspot[] = items.map((it) => ({ id: it.id, label: `${it.label} — ${room.furniture.find((f) => f.id === it.id)?.actionLabel ?? ''}`, icon: it.icon, ...frontOf(it), kind: 'mobilier', target: it.id }));
+  const base = room.furniture.map((f) => ({ id: f.id, kind: fixKind(f.id), label: f.name, icon: f.icon }));
+  const items = arrange([...base, ...extras.map(({ id, kind, label, icon }) => ({ id, kind, label, icon }))], style.w, style.d);
+  const extraById = new Map(extras.map((e) => [e.id, e]));
+  const hotspots: Hotspot[] = items.map((it) => {
+    const ex = extraById.get(it.id);
+    if (ex) return { id: it.id, label: ex.hotspot === 'plan' ? `${it.label} — préparer tes plans` : `${it.label} — regarder`, icon: it.icon, ...frontOf(it), kind: ex.hotspot, target: it.id };
+    return { id: it.id, label: `${it.label} — ${room.furniture.find((f) => f.id === it.id)?.actionLabel ?? ''}`, icon: it.icon, ...frontOf(it), kind: 'mobilier', target: it.id };
+  });
   hotspots.push({ id: 'sortie', label: 'Sortir', icon: '🚪', x: style.w / 2, z: style.d - 0.6, kind: 'sortie' });
   if (place === 'epicerie' && rid === rooms[0]) {
     hotspots.push({ id: 'travail', label: 'Proposer ton aide à Mme Bertin (petit boulot, 4,50 €/h)', icon: '🧺', x: 1.2, z: style.d - 2.4, kind: 'travail' });
@@ -184,7 +193,8 @@ export function placeInteriorSpec(place: PlaceId, roomId?: string): InteriorSpec
     hotspots.push({ id: `piece_${r}`, label: `Aller : ${rr.name}`, icon: '➡️', x: i % 2 === 0 ? style.w - 0.6 : 0.6, z: style.d - 2.2, kind: 'piece', target: r });
   });
   const npcSlots = items.slice(0, 4).map((it) => ({ ...frontOf(it), face: Math.PI }));
-  return { key: `${place}:${rid}`, title: `${def.title} — ${room.name}`, ...style, items, hotspots, npcSlots, placeId: place, roomId: rid };
+  const roomName = ownerName ? room.name.replace('Camille', ownerName) : room.name;
+  return { key: `${place}:${rid}:${extras.map((e) => e.id).join(',')}`, title: `${def.title} — ${roomName}`, ...style, items, hotspots, npcSlots, placeId: place, roomId: rid };
 }
 
 const CAT_KIND: Record<string, ItemKind> = {

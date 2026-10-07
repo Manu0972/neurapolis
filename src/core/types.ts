@@ -625,6 +625,7 @@ import type { AscensionState } from './ascension_types';
 import type { HappeningsState } from './happenings_types';
 import type { RewindState } from './rewind_types';
 import type { FamilyState } from './family_types';
+import type { RoomState } from './room_types';
 
 export interface WorldState {
   version: number;
@@ -657,6 +658,8 @@ export interface WorldState {
   rewind?: RewindState;
   /** Parents, cours, absences, convocations, dîners (save v20). */
   family?: FamilyState;
+  /** Chambre-quartier général : objets et plans (save v21). */
+  room?: RoomState;
   events: GameEvent[];        // journal des événements (cap 250)
   lifeJournal: LifeJournalEntry[];
   flags: Record<string, number>; // compteurs libres (ventes, conflits, prévisions ratées…)
