@@ -773,9 +773,10 @@ function buildSkyline(group: THREE.Group, disposables: { dispose(): void }[]): v
   for (let i = 0; i < HILLS; i++) {
     const r = 80 + rnd() * 60;
     const hill = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), hillMat);
-    hill.scale.y = 0.35 + rnd() * 0.2;
+    hill.scale.y = 0.2 + rnd() * 0.12;
     const a = (i / HILLS) * Math.PI * 2;
-    hill.position.set(CITY_W / 2 + Math.cos(a) * (CITY_W / 2 + 90 + r), -2, CITY_H / 2 + Math.sin(a) * (CITY_H / 2 + 90 + r));
+    // Loin au-delà des bords (le centre historique touche le bord ouest) : silhouettes basses dans la brume.
+    hill.position.set(CITY_W / 2 + Math.cos(a) * (CITY_W / 2 + 320 + r), -2, CITY_H / 2 + Math.sin(a) * (CITY_H / 2 + 320 + r));
     group.add(hill);
     disposables.push(hill.geometry);
   }

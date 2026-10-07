@@ -15,7 +15,7 @@ import { ensureAscension, ideaStatus } from '../src/simulation/ascension';
 
 describe('contenu AG-2 branché', () => {
   it('les registres du jeu contiennent tout', () => {
-    expect(ECON_CONCEPTS).toHaveLength(32);
+    expect(ECON_CONCEPTS).toHaveLength(39);
     expect(DUELS).toHaveLength(9);
     expect(IDEAS.length).toBe(46);
     expect(SECRETS.length).toBeGreaterThanOrEqual(22);

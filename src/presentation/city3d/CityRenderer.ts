@@ -23,6 +23,7 @@ import { findPath, stepBody, tileOf, type BodyState } from './locomotion';
 import { INTERIOR_CELL, buildInterior, nearestHotspot, type BuiltInterior, type Hotspot, type InteriorSpec } from './interior3d';
 import { updateChunkVisibility } from './chunks';
 import { createBarriers, type Barriers } from './barriers';
+import { createMarketLife, type MarketLife } from './marketLife';
 
 /** Autre joueur (multijoueur) vu dans la ville. */
 export interface RemoteAvatar {
@@ -35,6 +36,8 @@ export interface RemoteAvatar {
   z: number;
   h: number;
   s: number;
+  /** Étiquette : joueur (doré, 🎮) par défaut, ou habitant. */
+  label?: { text: string; color: string; bg: string };
 }
 
 export interface CityFrameInput {
@@ -153,6 +156,7 @@ export class CityRenderer {
   private camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 1500);
   private city?: CityScene;
   private barriers?: Barriers;
+  private market?: MarketLife;
   private ambient?: Ambient;
   private sky = createSkyDome();
   private hemi = new THREE.HemisphereLight('#bcd4ff', '#8a7a62', 0.8);
@@ -220,6 +224,11 @@ export class CityRenderer {
     return Math.max(0.08, Math.min(1, 1 - d / 45));
   }
   /** Position continue et cap du joueur (mini-carte, repères). */
+  /** Mémoire graphique et coût de rendu (mesures, QA) : géométries, textures, appels de dessin, triangles. */
+  get gpuInfo(): { geometries: number; textures: number; calls: number; triangles: number; programs: number } {
+    const i = this.renderer?.info;
+    return { geometries: i?.memory.geometries ?? 0, textures: i?.memory.textures ?? 0, calls: i?.render.calls ?? 0, triangles: i?.render.triangles ?? 0, programs: i?.programs?.length ?? 0 };
+  }
   /** Bus en circulation (QA). */
   get busPositions(): { line: string; x: number; z: number; speed: number }[] { return this.ambient?.buses() ?? []; }
   get playerPose(): { x: number; z: number; heading: number; speed: number } { return { x: this.body.x, z: this.body.z, heading: this.body.heading, speed: this.body.speed }; }
@@ -249,6 +258,8 @@ export class CityRenderer {
     }
     this.ambient = createAmbient();
     this.scene.add(this.ambient.group);
+    this.market = createMarketLife();
+    this.scene.add(this.market.group);
     // Pluie : segments recyclés dans un volume qui suit la caméra.
     const N = 2400;
     const pos = new Float32Array(N * 6);
@@ -419,6 +430,7 @@ export class CityRenderer {
     this.syncNpcs(world, dt);
     this.syncGhost(world, dt);
     this.syncRemotes(dt);
+    this.market?.update(dt, world, { x: this.body.x, z: this.body.z });
 
     // Lumière selon l'heure et la météo.
     const hour = minutesOfDay(world.time.tick) / 60;
@@ -842,6 +854,12 @@ export class CityRenderer {
 
   private clearInterior(): void {
     if (!this.interior) return;
+    // Étiquettes des employés (sprites à texture de canevas) : libérées avec leur personnage.
+    for (const n of this.interiorNpcs) {
+      n.ch.root.traverse((o) => {
+        if (o instanceof THREE.Sprite) { o.material.map?.dispose(); o.material.dispose(); }
+      });
+    }
     for (const n of this.interiorNpcs) n.ch.dispose();
     for (const c of this.customers) c.ch.dispose();
     this.interiorNpcs = [];
@@ -947,7 +965,7 @@ export class CityRenderer {
       }
       if (!v) {
         const ch = createCharacter({ appearance: r.appearance, gender: r.gender, heightM: r.heightM });
-        const tag = textSprite(`🎮 ${r.name}`, '#ffe08a', 'rgba(60,36,10,0.85)');
+        const tag = r.label ? textSprite(r.label.text, r.label.color, r.label.bg) : textSprite(`🎮 ${r.name}`, '#ffe08a', 'rgba(60,36,10,0.85)');
         this.scene.add(ch.root, tag);
         v = { ch, tag, x: r.x, z: r.z, key };
         this.remoteViews.set(r.id, v);
@@ -974,6 +992,7 @@ export class CityRenderer {
 
   dispose(): void {
     this.ambient?.dispose();
+    this.market?.dispose();
     this.city?.dispose();
     this.player?.dispose();
     for (const v of this.npcs.values()) { v.ch.dispose(); v.tag.removeFromParent(); }

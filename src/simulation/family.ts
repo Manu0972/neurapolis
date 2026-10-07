@@ -307,3 +307,37 @@ export function familyTick(w: WorldState, prevTick: number): void {
   }
   syncSchoolLife(w);
 }
+
+
+// ---------- Coup de pouce d'urgence ----------
+
+/** En dessous de cette somme, tes parents peuvent te dépanner. */
+export const EMERGENCY_BELOW = 5;
+/** Une aide au plus tous les 14 jours. */
+export const EMERGENCY_GAP_DAYS = 14;
+
+/**
+ * Les parents dépannent quand l'argent manque : 40 € s'ils ont confiance, 20 € si elle est
+ * moyenne, rien en dessous de 35. Ça coûte un peu de leur confiance et de leur fierté, et ça
+ * inquiète : c'est un filet de sécurité, pas un salaire.
+ */
+export function emergencyHelpStatus(w: WorldState): { available: boolean; amount: number; reason: string } {
+  const day = dayIndexOf(w.time.tick);
+  const last = (w.flags['aideParents'] ?? 0) - 1;
+  if (w.player.money >= EMERGENCY_BELOW) return { available: false, amount: 0, reason: `Tu as encore ${w.player.money.toFixed(2)} €.` };
+  if (last >= 0 && day - last < EMERGENCY_GAP_DAYS) return { available: false, amount: 0, reason: `Ils t’ont déjà dépanné·e il y a ${day - last} jour(s). Encore ${EMERGENCY_GAP_DAYS - (day - last)} jour(s).` };
+  const trust = familyTrust(w);
+  if (trust < 35) return { available: false, amount: 0, reason: `Confiance trop basse (${Math.round(trust)}/100) : « Commence par revenir à l’heure et aller en cours. »` };
+  return { available: true, amount: trust >= 50 ? 40 : 20, reason: '' };
+}
+
+export function askParentsHelp(w: WorldState): { ok: boolean; message: string } {
+  const st = emergencyHelpStatus(w);
+  if (!st.available) return { ok: false, message: st.reason };
+  const f = ensureFamily(w);
+  w.player.money = Math.round((w.player.money + st.amount) * 100) / 100;
+  w.flags['aideParents'] = dayIndexOf(w.time.tick) + 1;
+  w.flags['aidesParentsTotal'] = (w.flags['aidesParentsTotal'] ?? 0) + st.amount;
+  bump(f, 'les_deux', { trust: -6, pride: -4, worry: 5 });
+  return { ok: true, message: `Nora glisse ${st.amount} € sur la table de la cuisine. Thierry ne dit rien, mais il a vu. « On compte sur toi pour qu’on n’ait pas à recommencer. »` };
+}

@@ -677,11 +677,21 @@ export function buildInterior(spec: InteriorSpec): BuiltInterior {
     walls,
     dispose(): void {
       group.traverse((o) => {
+        // Lumières à ombre : leur carte d'ombre est une texture de rendu à libérer.
+        if (o instanceof THREE.Light) {
+          (o as THREE.Light & { shadow?: THREE.LightShadow }).shadow?.map?.dispose();
+          o.dispose();
+        }
         const m = o as THREE.Mesh;
         if (m.geometry) m.geometry.dispose();
         const mt = m.material as THREE.Material | THREE.Material[] | undefined;
-        if (Array.isArray(mt)) mt.forEach((x) => x.dispose());
-        else mt?.dispose();
+        // Les textures (enseignes, étiquettes, sols) aussi : sinon elles restent sur la carte graphique.
+        const freeMat = (x: THREE.Material): void => {
+          for (const v of Object.values(x)) if (v instanceof THREE.Texture) v.dispose();
+          x.dispose();
+        };
+        if (Array.isArray(mt)) mt.forEach(freeMat);
+        else if (mt) freeMat(mt);
       });
       floorTex.dispose();
     },

@@ -6,10 +6,17 @@
 import type { WorldState } from '../core/types';
 import { STARTER_QUIZZES, type ConceptQuiz } from '../data/quiz_starter';
 import { QUIZZES as AG_QUIZZES } from '../data/ascension_ext/quiz';
+import { MULTI_QUIZZES_GROUPED } from '../data/ascension_ext/quiz_multi';
 import { addXp } from './skills';
 
 /** Quiz de départ, puis ceux d'Antigravity (workflow AG-2) pour tous les autres concepts. */
-export const QUIZZES: readonly ConceptQuiz[] = [...STARTER_QUIZZES, ...AG_QUIZZES.filter((q) => !STARTER_QUIZZES.some((s) => s.conceptId === q.conceptId))];
+/** Quiz du multijoueur (AG-3) : regroupés par concept, au format du carnet. */
+const MULTI_QUIZZES: ConceptQuiz[] = MULTI_QUIZZES_GROUPED.map((g) => ({
+  conceptId: g.conceptId,
+  questions: g.questions.map((q) => ({ q: q.q, choices: [...q.choices] as [string, string, string, string], answer: q.answer, explanation: q.explanation })),
+}));
+
+export const QUIZZES: readonly ConceptQuiz[] = [...STARTER_QUIZZES, ...AG_QUIZZES, ...MULTI_QUIZZES].filter((q, i, all) => all.findIndex((x) => x.conceptId === q.conceptId) === i);
 export const QUIZ_BY_CONCEPT: Readonly<Record<string, ConceptQuiz>> = Object.fromEntries(QUIZZES.map((q) => [q.conceptId, q]));
 
 export function quizBest(w: WorldState, conceptId: string): number {

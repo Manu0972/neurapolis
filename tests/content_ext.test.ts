@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 // 1. Données d'extension AG-2
 import { EXTRA_CONCEPTS } from '../src/data/ascension_ext/concepts';
+import { MULTI_CONCEPTS } from '../src/data/ascension_ext/concepts_multi';
 import { EXTRA_DUELS, POLANYI_THINKER } from '../src/data/ascension_ext/duels';
 import { EXTRA_IDEAS } from '../src/data/ascension_ext/ideas';
 import { QUIZZES } from '../src/data/ascension_ext/quiz';
@@ -30,7 +31,7 @@ import { ORIGIN_SCENE, LUCIEN_BEATS } from '../src/data/story/lucien';
 
 // Depuis le branchement (Claude Code, 2026-10-07), les registres contiennent aussi le contenu AG-2 :
 // « de base » = registre moins les ajouts d'Antigravity.
-const ECON_CONCEPTS = ALL_CONCEPTS.filter((c) => !EXTRA_CONCEPTS.some((x) => x.id === c.id));
+const ECON_CONCEPTS = ALL_CONCEPTS.filter((c) => !EXTRA_CONCEPTS.some((x) => x.id === c.id) && !MULTI_CONCEPTS.some((x) => x.id === c.id));
 const DUELS = ALL_DUELS.filter((d) => !EXTRA_DUELS.some((x) => x.id === d.id));
 const IDEAS = ALL_IDEAS.filter((i) => !EXTRA_IDEAS.some((x) => x.id === i.id));
 
@@ -239,7 +240,7 @@ describe('AG-2 Références croisées — Penseurs, Concepts, Rues, Objets, Cont
 
   it('l’univers compte exactement 32 concepts économiques (20 de base + 12 supplémentaires)', () => {
     expect(ECON_CONCEPTS).toHaveLength(20);
-    expect(ALL_CONCEPTS).toHaveLength(32);
+    expect(ALL_CONCEPTS).toHaveLength(39); // + 7 concepts du multijoueur (AG-3)
     expect(EXTRA_CONCEPTS).toHaveLength(12);
     expect(ALL_32_CONCEPTS.size).toBe(32);
   });

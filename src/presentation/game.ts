@@ -122,6 +122,10 @@ import { INITIAL_TUTORIALS } from '../data/tutorials';
 import { PACE_BY_ID, TASK_MINUTES, TASK_SPEED, loadPacePrefs, savePacePrefs, subMinutes, taskTicks } from './time-pace';
 import { setClockSubMinutes } from './ui';
 import { MultiplayerSession, openMultiplayerPanel } from './multiplayer';
+import { residentNear, residentsPresent, talkToResident } from '../simulation/residents';
+import { EMERGENCY_BELOW, emergencyHelpStatus } from '../simulation/family';
+import { randomAppearance } from './appearance-editor';
+import type { RemoteAvatar } from './city3d/CityRenderer';
 import { SKIP_LABELS, beginSkip, skipBlocker, skipReport, skipTarget, stepSkip, type SkipKind } from '../simulation/timeskip';
 
 /**
@@ -231,6 +235,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   let pendingTaskTicks = 0;
   /** Multijoueur : le joueur est occupé par une action jusqu'à ce tick. */
   let busyUntilTick = 0;
+  /** Habitants nommés des quartiers visibles autour du joueur (recalculés toutes les 30 images). */
+  let residentFigures: RemoteAvatar[] | null = null;
   // eslint-disable-next-line prefer-const
   let mp: MultiplayerSession | undefined;
   // File des fenêtres automatiques (voir la boucle).
@@ -521,6 +527,21 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       buses: () => renderer3D?.busPositions ?? [],
       /** Place le joueur devant un lieu (QA uniquement). */
       goto: (place: PlaceId) => { const a = PLACE_ANCHORS[place]; world.player.pos.x = a.x; world.player.pos.y = a.y; },
+      /** Mémoire graphique (géométries, textures) et coût du rendu. */
+      gpu: () => renderer3D?.gpuInfo,
+      /** Taille de la sauvegarde (octets) et ses plus gros champs. */
+      saveSize: () => {
+        const parts = Object.entries(world).map(([k, v]) => [k, JSON.stringify(v ?? null).length] as const).sort((a, b) => b[1] - a[1]);
+        return { bytes: JSON.stringify(world).length, top: parts.slice(0, 6) };
+      },
+      /** Entre et sort n fois d'un intérieur (recherche de fuite de mémoire graphique). */
+      interiorCycle: (n = 20, place: PlaceId = 'maison') => {
+        const before = renderer3D?.gpuInfo;
+        for (let i = 0; i < n; i++) {
+          if (enterPlace(place)) { let t = last; for (let k = 0; k < 3; k++) frame((t += 50)); exitInterior(); for (let k = 0; k < 3; k++) frame((t += 50)); }
+        }
+        return { before, after: renderer3D?.gpuInfo };
+      },
       /** Fait tourner la vraie boucle de jeu `n` images de `ms` (fenêtre masquée : rAF en pause). */
       step: (n: number, ms = 50) => { let t = last; for (let i = 0; i < n; i++) frame((t += ms)); },
     },
@@ -1191,6 +1212,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (eco) return eco.label;
     const lmNear = landmarkAdjacent(world);
     if (lmNear) return `E — Entrer : ${lmNear.name}`;
+    const resNear = residentNear(world);
+    if (resNear) return `E — Parler à ${resNear.name} (${resNear.role})`;
     const place = placeAtAdjacent(world);
     if (place) return `E — Entrer : ${PLACE_BY_ID[place]?.name ?? place}`;
     const near = npcsNearby(world, 2);
@@ -1222,6 +1245,21 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const lmNear = landmarkAdjacent(world);
     if (lmNear) {
       enterLandmark(lmNear);
+      return;
+    }
+    const resNear = residentNear(world);
+    if (resNear) {
+      const t = talkToResident(world, resNear.id);
+      const body = el('div', 'panel-body');
+      body.appendChild(el('p', 'dialog-line', `« ${t.greeting} »`));
+      body.appendChild(el('p', 'dialog-line', `« ${t.line} »`));
+      if (t.rumor) {
+        body.appendChild(el('h3', 'panel-sub', '🗣️ Ce qui se dit dans le quartier'));
+        body.appendChild(el('p', 'dialog-line', t.rumor));
+        if (t.clue) body.appendChild(el('p', 'ph-note', '🔎 Nouvel indice noté dans tes Carnets (Secrets et indices).'));
+      }
+      showModal(resNear.name, `${resNear.role} · ${resNear.age} ans`, body);
+      spendTaskTime(10, `Discussion avec ${resNear.name}`);
       return;
     }
     const place = placeAtAdjacent(world);
@@ -3068,6 +3106,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
               const curDay = dayIndexOf(world.time.tick);
               if (curDay !== prevDay) {
                 try { recordDay(world); } catch { /* stockage indisponible */ }
+                // Caisse vide : un fantôme rappelle le filet de sécurité (parents) et le petit boulot.
+                if (world.player.money < EMERGENCY_BELOW && emergencyHelpStatus(world).available) {
+                  ghostBar.push({ ghost: 'keynes', text: 'Plus un sou en caisse ? Même les économies les plus fières ont besoin d’un filet de sécurité. Parle à tes parents (☰ → Études & Famille), ou propose tes bras à l’épicerie Bertin.', pop: true, mood: 'alerte' });
+                }
                 const unlocks = checkAndUnlockThinkers(world);
                 for (const un of unlocks) {
                   showGhostBanner(un);
@@ -3144,16 +3186,28 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         running: input.running(),
         canMove: !modalOpen && !world.player.asleep && !inShift(world) && !layoutEdit && !travelFastForward() && !isOnBus(world) && !isInClass(world) && !busyUntilTick,
       }, ui.cw, ui.ch);
-      // Multijoueur : on envoie sa position, on affiche les autres.
+      // Multijoueur : on envoie sa position, on affiche les autres ; et les habitants des quartiers.
+      const figures: RemoteAvatar[] = [];
       if (mp?.connected) {
         mp.update(now, renderer3D.playerPose, renderer3D.inInterior, pacePrefs.pace);
         const others = mp.visibleRemotes(now);
-        renderer3D.remotePlayers = others.map((r) => ({ id: r.id, name: r.name, appearance: r.appearance, gender: r.gender, heightM: r.heightM, x: r.x, z: r.z, h: r.h, s: r.s }));
+        for (const r of others) figures.push({ id: r.id, name: r.name, appearance: r.appearance, gender: r.gender, heightM: r.heightM, x: r.x, z: r.z, h: r.h, s: r.s });
         setPlayerMarkers(others.map((r) => ({ x: r.x - 0.5, y: r.z - 0.5, label: r.name })));
       } else if (renderer3D.remotePlayers.length) {
-        renderer3D.remotePlayers = [];
         setPlayerMarkers([]);
       }
+      if (hudFrame % 30 === 0 || !residentFigures) {
+        const px = world.player.pos.x;
+        const py = world.player.pos.y;
+        residentFigures = residentsPresent(world)
+          .filter((r) => Math.abs(r.x - px) < 140 && Math.abs(r.y - py) < 140)
+          .map((r) => ({
+            id: `habitant:${r.def.id}`, name: r.def.name, heightM: heightForAge(r.def.age), x: r.x + 0.5, z: r.y + 0.5, h: (r.def.id.length % 4) * (Math.PI / 2), s: 0,
+            appearance: randomAppearance(r.def.id.split('').reduce((a, c) => a * 31 + c.charCodeAt(0), 7) >>> 0, r.def.age, 3),
+            label: { text: r.def.name, color: '#d8ecff', bg: 'rgba(20,40,70,0.82)' },
+          }));
+      }
+      renderer3D.remotePlayers = [...figures, ...residentFigures];
     } else {
       const rawD = input.dir();
       const isPlayerMoving = !world.player.asleep && (rawD.x !== 0 || rawD.y !== 0);

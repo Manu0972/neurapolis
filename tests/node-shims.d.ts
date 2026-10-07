@@ -20,3 +20,22 @@ declare module 'node:net' {
     port: number;
   }
 }
+
+declare module 'node:fs' {
+  export function existsSync(p: string): boolean;
+  export function readFileSync(p: string, encoding: string): string;
+  export function statSync(p: string): { size: number; isFile(): boolean; isDirectory(): boolean };
+  const fs: { existsSync: typeof existsSync; readFileSync: typeof readFileSync; statSync: typeof statSync };
+  export default fs;
+}
+
+declare module 'node:path' {
+  export function join(...parts: string[]): string;
+  export function dirname(p: string): string;
+  export function resolve(...parts: string[]): string;
+  const path: { join: typeof join; dirname: typeof dirname; resolve: typeof resolve };
+  export default path;
+}
+
+declare const process: { cwd(): string; env: Record<string, string | undefined> };
+declare const __dirname: string;

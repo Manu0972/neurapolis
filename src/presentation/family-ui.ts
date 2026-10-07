@@ -9,6 +9,7 @@ import { PARENTS, SCHOOL_STAFF } from '../data/family_starter';
 import {
   COSIGN_TRUST, SESSIONS, classWindow, ensureFamily, familyTrust, pendingDinner, resolveConvocation, resolveDinner,
   type ConvocationChoice,
+  EMERGENCY_BELOW, EMERGENCY_GAP_DAYS, askParentsHelp, emergencyHelpStatus,
 } from '../simulation/family';
 import { ensureSchoolLifeState } from '../simulation/school_life';
 import { personalize } from '../simulation/story';
@@ -126,6 +127,25 @@ export function openFamilyPanel(ctx: FamilyCtx): void {
     ? `⚠️ Confiance ${Math.round(trust)}/100 : ils refusent de se porter garants pour tes baux.`
     : `Ils se portent garants pour tes baux (confiance ${Math.round(trust)}/100).`));
   if (f.groundedUntil > day) body.appendChild(el('p', 'ph-note', `🔒 Puni encore ${f.groundedUntil - day} jour(s) : à la maison avant 18 h.`));
+  // Coup de pouce d'urgence quand l'argent manque.
+  const help = emergencyHelpStatus(w);
+  if (w.player.money < EMERGENCY_BELOW) {
+    const card = el('div', 'ph-card');
+    card.appendChild(el('div', 'ph-card-title', '🆘 Plus d’argent ?'));
+    card.appendChild(el('p', 'ph-note', help.available
+      ? `Tes parents peuvent te dépanner de ${help.amount} € (une fois tous les ${EMERGENCY_GAP_DAYS} jours). Ça leur coûte un peu de confiance. Autre piste : le coup de main à l’épicerie Bertin.`
+      : help.reason));
+    const b = el('button', 'ph-btn primary', `Demander de l’aide (${help.amount || 0} €)`);
+    b.type = 'button';
+    b.disabled = !help.available;
+    b.addEventListener('click', () => {
+      const r = askParentsHelp(w);
+      ctx.toast(r.message, r.ok);
+      openFamilyPanel(ctx);
+    });
+    card.appendChild(b);
+    body.appendChild(card);
+  }
   if (pendingDinner(w)) {
     const b = el('button', 'ph-btn primary', '🍝 Répondre au dîner');
     b.type = 'button';

@@ -6,6 +6,8 @@
  * `{autre}` est remplacé par le nom de l'autre joueur.
  */
 import type { MultiMechanicId, MultiMode } from '../core/multiplayer_types';
+import { MULTI_FLAVOR_BY_ID } from './multi/flavor';
+import { CONCEPT_BY_ID } from './ascension/concepts';
 
 export interface MultiMechanicDef {
   id: MultiMechanicId;
@@ -27,9 +29,11 @@ export interface MultiMechanicDef {
   discovered: string;
   ghostFor: { ghost: string; text: string };
   ghostAgainst: { ghost: string; text: string };
+  /** Leçon d'économie (AG-3). */
+  lesson?: string;
 }
 
-export const MULTI_MECHANICS: readonly MultiMechanicDef[] = [
+const BASE_MECHANICS: readonly MultiMechanicDef[] = [
   // ---------- Coopération ----------
   {
     id: 'pret', kind: 'coop', icon: '🤝', label: 'Prêter de l’argent', needsAccept: true, cost: 0, cooldownDays: 1, discovery: 0,
@@ -146,6 +150,16 @@ export const MULTI_MECHANICS: readonly MultiMechanicDef[] = [
     ghostAgainst: { ghost: 'marx', text: 'Tu n’as rien produit : tu as juste pris la place.' },
   },
 ];
+
+/** Les textes d'Antigravity (AG-3) remplacent ceux de départ ; les règles chiffrées restent celles du moteur. */
+export const MULTI_MECHANICS: readonly MultiMechanicDef[] = BASE_MECHANICS.map((m) => {
+  const f = MULTI_FLAVOR_BY_ID[m.id];
+  if (!f) return m;
+  return {
+    ...m, label: f.label, pitch: f.pitch, toActor: f.toActor, toTarget: f.toTarget, discovered: f.discovered || m.discovered,
+    ghostFor: f.ghostFor, ghostAgainst: f.ghostAgainst, concept: CONCEPT_BY_ID[f.concept] ? f.concept : m.concept, lesson: f.lesson,
+  };
+});
 
 export const MULTI_MECHANIC_BY_ID: Readonly<Record<MultiMechanicId, MultiMechanicDef>> = Object.fromEntries(MULTI_MECHANICS.map((m) => [m.id, m])) as Record<MultiMechanicId, MultiMechanicDef>;
 

@@ -3,6 +3,7 @@
  * par un verdict de duel, un palier franchi ou une rencontre ; le carnet les garde.
  */
 import { EXTRA_CONCEPTS } from '../ascension_ext/concepts';
+import { MULTI_CONCEPTS } from '../ascension_ext/concepts_multi';
 
 export interface EconConcept {
   id: string;
@@ -39,6 +40,6 @@ const BASE_CONCEPTS: readonly EconConcept[] = [
 ];
 
 /** Concepts d'Antigravity (workflow AG-2, src/data/ascension_ext/concepts.ts) : monopole, rente, aléa moral… */
-export const ECON_CONCEPTS: readonly EconConcept[] = [...BASE_CONCEPTS, ...EXTRA_CONCEPTS.filter((x) => !BASE_CONCEPTS.some((b) => b.id === x.id))];
+export const ECON_CONCEPTS: readonly EconConcept[] = [...BASE_CONCEPTS, ...EXTRA_CONCEPTS, ...MULTI_CONCEPTS].filter((c, i, all) => all.findIndex((x) => x.id === c.id) === i);
 
 export const CONCEPT_BY_ID: Readonly<Record<string, EconConcept>> = Object.fromEntries(ECON_CONCEPTS.map((c) => [c.id, c]));
