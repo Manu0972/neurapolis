@@ -20,6 +20,7 @@ import { el } from './ui';
 import { BIKE, buyBike, ownsBike } from '../simulation/vehicles';
 import { renderAscensionApp } from './ascension-ui';
 import { renderInfosApp } from './news-ui';
+import { isAppOpen, unlockOf } from '../simulation/unlocks';
 
 export type PhoneApp = 'ascension' | 'infos' | 'immobilier' | 'commerces' | 'commandes' | 'emploi' | 'banque';
 
@@ -57,7 +58,7 @@ function stat(label: string, value: string, tone: '' | 'good' | 'bad' = ''): HTM
   return box;
 }
 
-export function openPhone(ctx: PhoneContext, app: PhoneApp = 'commerces', focus?: { businessId?: string; unitId?: string }): void {
+export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?: { businessId?: string; unitId?: string }): void {
   const w = ctx.world;
   ensureEconomy(w);
   let current: PhoneApp = app;
@@ -79,8 +80,12 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'commerces', focus?
 
   function render(): void {
     tabs.replaceChildren();
+    // Sur place, devant un local (touche E), l'annonce s'ouvre toujours : c'est en y allant qu'on apprend.
+    const openHere = (id: PhoneApp): boolean => isAppOpen(w, id) || (id === 'immobilier' && !!focus?.unitId);
     for (const a of APPS) {
-      const tb = el('button', `ph-tab${a.id === current ? ' active' : ''}`, `${a.icon} ${a.label}`);
+      const open = openHere(a.id);
+      const tb = el('button', `ph-tab${a.id === current ? ' active' : ''}${open ? '' : ' locked'}`, `${open ? a.icon : '🔒'} ${a.label}`);
+      if (!open) tb.title = unlockOf(a.id)?.how ?? '';
       tb.type = 'button';
       tb.addEventListener('click', () => { current = a.id; render(); });
       tabs.appendChild(tb);
@@ -93,6 +98,16 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'commerces', focus?
     head.appendChild(stat('Dettes', eur(e.loans.reduce((s, l) => s + l.remaining, 0)), e.loans.length ? 'bad' : ''));
     head.appendChild(stat('Dans tes bras', `${carriedUnits(e)} / ${e.carryCapacity}`));
     screen.appendChild(head);
+    // Application pas encore méritée : on dit comment l'obtenir.
+    if (!openHere(current)) {
+      const u = unlockOf(current);
+      const card = el('div', 'ph-card locked-app');
+      card.appendChild(el('div', 'ph-card-title', `🔒 ${APPS.find((x) => x.id === current)?.label ?? ''}`));
+      card.appendChild(el('p', 'ph-note', `Pas encore. ${u?.how ?? ''}`));
+      card.appendChild(el('p', 'ph-note', 'Tu découvriras cette application en avançant ; une de tes voix te l’expliquera.'));
+      screen.appendChild(card);
+      return;
+    }
     if (current === 'immobilier') renderImmobilier();
     if (current === 'commerces') renderCommerces();
     if (current === 'commandes') renderCommandes();

@@ -91,3 +91,20 @@ describe('sauvegarde v21', () => {
     expect(importSave(exportSave(w)).room).toEqual(w.room);
   });
 });
+
+describe('objets d’Antigravity', () => {
+  it('chaque objet a une condition d’arrivée, sauf les doublons connus', async () => {
+    const { ROOM_ITEMS: AG } = await import('../src/data/room/items');
+    const { ROOM_ITEM_BY_ID } = await import('../src/data/room_registry');
+    const doublons = ['room_photo_lucien_fonderie', 'room_reveil_mecanique_rouille', 'room_tirelire_cochon_fonte', 'room_ordinateur_portable_reconditionne'];
+    const orphelins = AG.filter((i) => !ROOM_ITEM_BY_ID[i.id] && !doublons.includes(i.id)).map((i) => i.id);
+    expect(orphelins).toEqual([]);
+  });
+
+  it('une connexion fait arriver son objet', () => {
+    const w = createWorld();
+    ensureAscension(w).contacts['karim'] = 0;
+    runTicks(w, TICKS_PER_DAY);
+    expect(ensureRoom(w).owned['room_poste_radio_transistor']).toBeDefined();
+  });
+});

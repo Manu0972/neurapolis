@@ -41,6 +41,8 @@ export async function runE2E(root: HTMLElement): Promise<Step[]> {
 
   const world = createCustomWorld({ seed: 2026, customization: { firstName: 'Test', lastName: 'E2E' } });
   world.player.money = 120;
+  // Le scénario teste la gestion : la scène d'origine (récit) est considérée comme vue.
+  if (world.story) world.story.originDone = true;
   startGame(root, world);
   await wait(800);
   const hook = (window as unknown as { __NEURAPOLIS__?: { world: WorldState; qa: Qa } }).__NEURAPOLIS__;

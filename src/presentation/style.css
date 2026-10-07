@@ -900,3 +900,5 @@ canvas.map-canvas-3d { image-rendering: auto; touch-action: none; }
 .story-entry { text-align: left; cursor: pointer; font: inherit; color: inherit; }
 .story-entry:disabled { cursor: default; }
 @media (prefers-reduced-motion: reduce) { .origin-rain, .origin.flash, .origin-art { animation: none; } .origin-text { transition: none; } }
+.ph-tab.locked { opacity: 0.55; }
+.locked-app { border-style: dashed; }

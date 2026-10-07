@@ -355,7 +355,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (ok) audio.playUiClick();
   }
 
-  function openPhoneUi(app: PhoneApp = 'commerces', focus?: { businessId?: string; unitId?: string }): void {
+  function openPhoneUi(app: PhoneApp = 'ascension', focus?: { businessId?: string; unitId?: string }): void {
     openPhone({
       world,
       showModal,

@@ -43,7 +43,8 @@ function facts(w: WorldState): Facts {
   const shops = Object.values(w.economy?.businesses ?? {});
   const lastDays = shops.map((b) => ({ b, h: b.history[b.history.length - 1] })).filter((x) => x.h);
   const loss = lastDays.sort((a, b) => b.h!.lost - a.h!.lost)[0];
-  const emps = Object.values(w.economy?.employees ?? {});
+  // Seulement les personnes embauchées (le marché de l'emploi garde aussi des candidats).
+  const emps = Object.values(w.economy?.employees ?? {}).filter((e) => e.businessId !== null);
   return {
     money: w.player.money,
     stress: w.player.needs.stress,
