@@ -9,7 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lan": "node tools/lan-server.mjs"
+    "lan": "node tools/lan-server.mjs",
+    "build:single": "vite build --config tools/vite.single.config.ts"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

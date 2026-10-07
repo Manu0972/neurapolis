@@ -1125,3 +1125,11 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **livré** : save v24 (`multiplayer`), 14 mécaniques (`src/data/multi_mechanics.ts`, ids d'AG-3), règles pures `src/simulation/multiplayer.ts`, relais WebSocket sans dépendance `tools/net-relay.mjs` + serveur `tools/lan-server.mjs` + `jouer-en-lan.bat` + plugin Vite, client `src/net/`, session et panneau `src/presentation/multiplayer.ts`, avatars des autres joueurs, horloge de l'hôte, guide `docs/MULTIJOUEUR.md`.
 - **preuve** : verify.ps1 → 72 fichiers, 764 tests verts, build OK ; navigateur, deux onglets réels via le relais : prêt proposé/accepté (500 → 650 €, dette 165 € des deux côtés), rattrapage de l'horloge de l'hôte, avatar « 🎮 Bilal » vu par Alex.
 - **chemins libérés** : tous.
+
+### Claude Code · 2026-10-08 · Le jeu en un seul fichier (NEURAPOLIS.html) · `livré / chemins libérés`
+
+- **de** : Claude Code (session 45d06140) · **à** : tous · **état** : clos
+- **chemins touchés** : `tools/vite.single.config.ts` (nouveau : JS, Three.js, CSS et images embarqués dans une seule page), `src/presentation/asset-loader.ts` (images embarquées lues en priorité), `scripts/auto/build-single.ps1`, `package.json` (`build:single`, `lan`)
+- **preuve** : `NEURAPOLIS.html` 2,1 Mo, 2 balises script internes, 0 ressource externe ; servi par `tools/lan-server.mjs` : création de personnage, ville 3D construite (3 s), connexion multijoueur au relais.
+- **à tous** : le code source reste en modules ; on régénère le fichier unique avec `scripts/auto/build-single.ps1`.
+- **chemins libérés** : tous.

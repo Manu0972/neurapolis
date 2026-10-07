@@ -22,7 +22,9 @@ function loadImg(path: string): Promise<HTMLImageElement> {
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error(`Failed to load: ${path}`));
-    img.src = `${BASE}/${path}`;
+    // Build en un seul fichier : les images sont embarquées (data URI) dans la page.
+    const embedded = (globalThis as { __NEURAPOLIS_ASSETS__?: Record<string, string> }).__NEURAPOLIS_ASSETS__;
+    img.src = embedded?.[path] ?? `${BASE}/${path}`;
   });
 }
 
