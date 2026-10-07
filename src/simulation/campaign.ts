@@ -71,9 +71,8 @@ export function campaignTick(w: WorldState): Notification[] {
 
   // Vérification de progression des chapitres
   if (currentChapter === 1) {
-    const p = w.project;
-    const salesDone = (w.flags['ventes'] ?? 0) >= 3;
-    const teamReady = (p?.members.length ?? 0) >= 1;
+    const salesDone = chapter1Sales(w) >= 3;
+    const teamReady = chapter1Team(w) >= 1;
     const counterUsed = (w.flags['contreStrategiesLancees'] ?? 0) >= 1;
 
     if (salesDone && teamReady && counterUsed) {
@@ -119,6 +118,7 @@ export function campaignTick(w: WorldState): Notification[] {
       // Le chapitre 3 demande des actes nouveaux : les courses et tactiques
       // déjà réalisés avant l’ouverture du Réseau Solidaire ne comptent pas.
       w.flags['chapitre3CoursesDepart'] = w.flags['courses'] ?? 0;
+      w.flags['chapitre3BoulotsDepart'] = w.flags['jobShiftsDone'] ?? 0;
       w.flags['chapitre3ContreStrategiesDepart'] = w.flags['contreStrategiesLancees'] ?? 0;
 
       pushEvent(w, {
@@ -144,7 +144,8 @@ export function campaignTick(w: WorldState): Notification[] {
 
   if (currentChapter === 3) {
     const stage = w.campaign.stages.find((s) => s.chapter === 3);
-    const coursesSinceOpening = (w.flags['courses'] ?? 0) - (w.flags['chapitre3CoursesDepart'] ?? 0);
+    // Courses pour l'épicerie et services rendus chez Mme Bertin (petit boulot) depuis l'ouverture.
+    const coursesSinceOpening = chapter3Help(w);
     const strategiesSinceOpening = (w.flags['contreStrategiesLancees'] ?? 0)
       - (w.flags['chapitre3ContreStrategiesDepart'] ?? 0);
     if (stage && !stage.completed && w.player.age >= stage.targetAge
@@ -510,14 +511,35 @@ export interface CampaignSummary {
 }
 
 /** Fournit le résumé d'avancement en temps réel pour le HUD (.campaign-card). */
+/**
+ * Chapitre 1 : les ventes du Stand et celles d'un étal du marché comptent toutes deux
+ * (docs/VISION.md §4.2 : stand → étal → local).
+ */
+export function chapter1Sales(w: WorldState): number {
+  return (w.flags['ventes'] ?? 0) + (w.flags['ventesEtal'] ?? 0);
+}
+
+/** Chapitre 1 : membres du Stand, ou personnes embauchées dans un commerce du joueur. */
+export function chapter1Team(w: WorldState): number {
+  const hired = Object.values(w.economy?.employees ?? {}).filter((e) => e.businessId).length;
+  return (w.project?.members.length ?? 0) + hired;
+}
+
+/** Chapitre 3 : courses pour l'épicerie et services chez Mme Bertin depuis l'ouverture du chapitre. */
+export function chapter3Help(w: WorldState): number {
+  const courses = (w.flags['courses'] ?? 0) - (w.flags['chapitre3CoursesDepart'] ?? 0);
+  const shifts = (w.flags['jobShiftsDone'] ?? 0) - (w.flags['chapitre3BoulotsDepart'] ?? 0);
+  return Math.max(0, courses) + Math.max(0, shifts);
+}
+
 export function getCampaignProgressSummary(w: WorldState): CampaignSummary {
   const ch = w.campaign.currentChapter;
   const stage = w.campaign.stages.find((s) => s.chapter === ch);
   const age = w.player.age;
 
   if (ch === 1) {
-    const v = Math.min(3, w.flags['ventes'] ?? 0);
-    const m = w.project?.members.length ?? 0;
+    const v = Math.min(3, chapter1Sales(w));
+    const m = chapter1Team(w);
     const c = Math.min(1, w.flags['contreStrategiesLancees'] ?? 0);
     return {
       chapter: 1,
@@ -542,7 +564,7 @@ export function getCampaignProgressSummary(w: WorldState): CampaignSummary {
   }
 
   if (ch === 3) {
-    const courses = (w.flags['courses'] ?? 0) - (w.flags['chapitre3CoursesDepart'] ?? 0);
+    const courses = chapter3Help(w);
     const strat = (w.flags['contreStrategiesLancees'] ?? 0) - (w.flags['chapitre3ContreStrategiesDepart'] ?? 0);
     return {
       chapter: 3,

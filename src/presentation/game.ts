@@ -355,6 +355,54 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     renderer3D.setWaypoints(pts);
   }
 
+  // ---------- Astuces contextuelles (mini-tutos non bloquants, désactivables) ----------
+  const TIPS_OFF_KEY = 'neurapolis.astuces.off';
+  const tipsOff = (): boolean => { try { return localStorage.getItem(TIPS_OFF_KEY) === '1'; } catch { return false; } };
+  const tipCard = el('div', 'tip-card hidden');
+  root.appendChild(tipCard);
+  function showTip(tutoId: string): void {
+    if (tipsOff() || !tipCard.classList.contains('hidden')) return;
+    if (!world.tutorials) world.tutorials = { tutorials: structuredClone(INITIAL_TUTORIALS) };
+    let t = world.tutorials.tutorials[tutoId];
+    if (!t && INITIAL_TUTORIALS[tutoId]) {
+      // Ancienne sauvegarde : la fiche n'existait pas encore.
+      t = structuredClone(INITIAL_TUTORIALS[tutoId]!);
+      world.tutorials.tutorials[tutoId] = t;
+    }
+    if (!t || t.seen) return;
+    t.seen = true;
+    tipCard.replaceChildren();
+    tipCard.appendChild(el('div', 'tip-title', t.title));
+    tipCard.appendChild(el('p', 'tip-body', t.body));
+    const row = el('div', 'tip-actions');
+    const ok = el('button', 'tip-btn primary', 'Compris');
+    ok.addEventListener('click', () => tipCard.classList.add('hidden'));
+    const off = el('button', 'tip-btn', 'Ne plus afficher les astuces');
+    off.addEventListener('click', () => {
+      try { localStorage.setItem(TIPS_OFF_KEY, '1'); } catch { /* préférence non enregistrée */ }
+      tipCard.classList.add('hidden');
+    });
+    row.appendChild(ok);
+    row.appendChild(off);
+    tipCard.appendChild(row);
+    tipCard.classList.remove('hidden');
+  }
+
+  /** Choisit l'astuce utile à cet instant (une à la fois, chacune une seule fois). */
+  function syncTips(): void {
+    if (modalOpen) return;
+    const e = world.economy;
+    const bizs = Object.values(e?.businesses ?? {});
+    if (renderer3D?.inInterior) {
+      showTip(renderer3D.interiorSpec?.placeId === 'epicerie' ? 'tuto_boulot' : 'tuto_interieur');
+      return;
+    }
+    if (e?.orders.some((o) => o.status === 'a_retirer') || (e?.carried.length ?? 0) > 0) { showTip('tuto_eco_retrait'); return; }
+    if (bizs.some((b) => !b.open && Object.keys(b.stock).length > 0)) { showTip('tuto_eco_ouverture'); return; }
+    if (bizs.some((b) => Object.keys(b.stock).length === 0) && (e?.orders.length ?? 0) === 0) { showTip('tuto_eco_commande'); return; }
+    if (economyActionHere()?.label.includes('à louer')) showTip('tuto_eco_bail');
+  }
+
   function playerPose(): { x: number; z: number; heading: number } {
     return renderer3D && use3D ? renderer3D.playerPose : { x: world.player.pos.x + 0.5, z: world.player.pos.y + 0.5, heading: 0 };
   }
@@ -2326,6 +2374,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (++hudFrame % 30 === 0) {
       syncSigns();
       syncWaypoints();
+      syncTips();
     }
     if (hudFrame % 2 === 0 && ui.minimapCtx) {
       const pose = playerPose();

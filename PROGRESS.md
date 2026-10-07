@@ -30,8 +30,8 @@
 - [x] **Repères 3D** (2026-10-07) : flèche/colonne lumineuse au-dessus des points de retrait et de la boutique de destination quand on porte des cartons ; repère sur la mini-carte (déjà fait) et au sol.
 - [x] **Dormir et passer le temps** (2026-10-07 ; nuit en ellipse ×120, fondu ; « Attendre 1 h » reste à faire) : lit de la chambre → « Dormir jusqu'à 7 h » (avance la simulation tick par tick, sans sauter la clôture économique) ; option « Attendre 1 h » ; écran de transition.
 - [x] **Petit boulot** (2026-10-07 ; `src/simulation/jobs.ts`, remise Bertin après 3 services) : travailler chez Mme Bertin (mise en rayon, livraisons à pied) pour gagner ses premiers euros ; créneaux horaires, paie, effet sur la relation.
-- [ ] **Campagne × économie** : les objectifs des chapitres 1 et 2 utilisent l'étal (ventes réelles, équipe), sans casser les tests de campagne existants.
-- [ ] **Mini-tutos désactivables** : une fiche courte à la première utilisation de chaque mécanique (bail, commande, retrait, ouverture, embauche, prêt), option « ne plus afficher ».
+- [x] **Campagne × économie** (2026-10-07 ; ch. 1 : ventes de l'étal et employés ; ch. 3 : services chez Mme Bertin) : les objectifs des chapitres 1 et 2 utilisent l'étal (ventes réelles, équipe), sans casser les tests de campagne existants.
+- [x] **Mini-tutos désactivables** (2026-10-07 ; carte non bloquante, 6 nouvelles fiches, « ne plus afficher ») : une fiche courte à la première utilisation de chaque mécanique (bail, commande, retrait, ouverture, embauche, prêt), option « ne plus afficher ».
 - [ ] **Concurrents en ville** : des commerces tenus par les commerçants du lore (`src/data/lore/shopkeepers.ts`) occupent certains locaux ; ils prennent une part de la clientèle par rue ; enseignes visibles.
 - [ ] **Clients visibles à l'étal** : files de clients devant l'étal ouvert du joueur, proportionnelles aux ventes de l'heure.
 - [ ] **Aménagement manuel** : placer les meubles achetés sur une grille dans l'intérieur du commerce (glisser-déposer), collisions mises à jour.

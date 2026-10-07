@@ -379,3 +379,29 @@ describe('campagne — chapitre 5 : L’Héritage de Val-Ferrand & Épilogue', (
     expect(sDone.prompt).toContain('NEURAPOLIS accompli');
   });
 });
+
+describe('campagne × économie (refonte Big Ambitions)', () => {
+  it('chapitre 1 : les ventes d’un étal du marché comptent comme celles du Stand', async () => {
+    const { chapter1Sales, chapter1Team } = await import('../src/simulation/campaign');
+    const w = createWorld();
+    expect(chapter1Sales(w)).toBe(0);
+    w.flags['ventesEtal'] = 2;
+    w.flags['ventes'] = 1;
+    expect(chapter1Sales(w)).toBe(3);
+    expect(chapter1Team(w)).toBe(0);
+    w.economy!.employees['emp_x'] = { id: 'emp_x', name: 'Inès Martin', age: 19, role: 'vendeur', skill: 40, wage: 11, satisfaction: 70, businessId: 'biz_1', hiredDay: 0 };
+    expect(chapter1Team(w)).toBe(1);
+  });
+
+  it('chapitre 3 : les services chez Mme Bertin comptent, mais pas ceux d’avant l’ouverture', async () => {
+    const { chapter3Help } = await import('../src/simulation/campaign');
+    const w = createWorld();
+    w.flags['jobShiftsDone'] = 4;
+    w.flags['chapitre3BoulotsDepart'] = 4;
+    w.flags['courses'] = 2;
+    w.flags['chapitre3CoursesDepart'] = 0;
+    expect(chapter3Help(w)).toBe(2);
+    w.flags['jobShiftsDone'] = 7;
+    expect(chapter3Help(w)).toBe(5);
+  });
+});
