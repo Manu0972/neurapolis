@@ -67,6 +67,8 @@ export interface UiRefs {
   taskToggle: HTMLButtonElement;
   /** Bandeau de l'ellipse d'une action (« ⏩ Discussion · +10 min »). */
   taskChip: HTMLElement;
+  /** « 📅 Passer le temps » : journée, semaine, mois, vacances. */
+  skipBtn: HTMLButtonElement;
   lastIso: string;       // dernière date affichée (détection du changement de jour)
   saveTimer: number | undefined;
 }
@@ -131,6 +133,10 @@ export function buildUi(root: HTMLElement): UiRefs {
   taskToggle.type = 'button';
   taskToggle.title = 'Parler, acheter, travailler, décharger : l’horloge avance de la durée de l’action.';
   status.appendChild(taskToggle);
+  const skipBtn = el('button', 'task-toggle skip-btn', '📅 Passer le temps');
+  skipBtn.type = 'button';
+  skipBtn.title = 'Finir la journée, passer la semaine ou le mois : tout est simulé, tu vas en cours, tes affaires tournent, puis un bilan.';
+  status.appendChild(skipBtn);
   const taskChip = el('div', 'task-chip hidden', '');
   status.appendChild(taskChip);
   hud.appendChild(status);
@@ -279,7 +285,7 @@ export function buildUi(root: HTMLElement): UiRefs {
     barEls, promptEl, modalEl, joyZone, actionBtn, navEl, bannerEl,
     saveEl, cameraToolbarEl, btnRotLeft, btnRotRight, btnCamView, btnToggle3D,
     btnZoomIn, btnZoomOut, btnMuteAudio, weatherEl, bizEl, phoneBtn, mapBtn, menuBtn, menuDrawer,
-    minimapCanvas, minimapCtx, streetEl, taskToggle, taskChip, lastIso: '', saveTimer: undefined,
+    minimapCanvas, minimapCtx, streetEl, taskToggle, taskChip, skipBtn, lastIso: '', saveTimer: undefined,
   };
   resizeCanvas(ui, root);
   return ui;

@@ -53,7 +53,7 @@ import {
 import { DATA_SALE, ECO_CHOICE, STAND_CONFIG } from '../data/project';
 import { dateOf, dayIndexOf, minutesOfDay } from '../core/clock';
 import type { CharacteristicsId, GhostId, NpcId, Notification, PlaceId, Rel4, RepartitionMode, SkillId, SolidarityTariff, TerritorialZoneId, VendorId, VentureId, VentureRole, WorldState } from '../core/types';
-import { ZERO_REL } from '../core/types';
+import { TICKS_PER_DAY, ZERO_REL } from '../core/types';
 import { createInput } from './input';
 import { renderWorld } from './renderer';
 import { buildUi, el, resizeCanvas, updateHud, showGhostAdvicePopup, MOOD_EMOTICONS, type UiRefs } from './ui';
@@ -119,6 +119,7 @@ import { askActiveGhostAdvice, checkAndUnlockThinkers, getGhostCompanionThought,
 import { INITIAL_TUTORIALS } from '../data/tutorials';
 import { PACE_BY_ID, TASK_MINUTES, TASK_SPEED, loadPacePrefs, savePacePrefs, subMinutes, taskTicks } from './time-pace';
 import { setClockSubMinutes } from './ui';
+import { SKIP_LABELS, beginSkip, skipBlocker, skipReport, skipTarget, stepSkip, type SkipKind } from '../simulation/timeskip';
 
 /**
  * Un tick simulé dure 10 minutes de jeu. À vitesse ×1, 1 minute de jeu = 1 seconde réelle
@@ -225,6 +226,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   // Rythme du temps (préférence du joueur) et ellipse des actions en cours.
   const pacePrefs = loadPacePrefs();
   let pendingTaskTicks = 0;
+  // File des fenêtres automatiques (voir la boucle).
+  let lastAutoModalTick = -1e9;
+  let autoModalWasOpen = false;
   let lastTickMs = 0;
   let taskLabel = '';
   /** Une action vient d'être faite : l'horloge avance de sa durée (si l'option est active). */
@@ -382,6 +386,64 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     syncPaceUi();
   });
   syncPaceUi();
+
+  // ---------- Passer le temps (journée, semaine, mois, vacances) ----------
+  let skipping = false;
+  function openSkipMenu(): void {
+    if (skipping) return;
+    const body = el('div', 'panel-body');
+    body.appendChild(el('p', 'panel-desc', 'Le temps passe vraiment : tu vas en cours quand il y en a, tu manges et tu dors à la maison, tes commerces et tes entreprises tournent, le monde bouge. Un bilan t’attend à l’arrivée.'));
+    const list = el('div', 'ph-list');
+    for (const kind of ['jour', 'semaine', 'mois', 'vacances'] as SkipKind[]) {
+      const block = skipBlocker(world, kind);
+      if (kind === 'vacances' && block) continue;
+      const target = skipTarget(world, kind);
+      const d = dateOf(dayIndexOf(target));
+      const card = el('div', `ph-card${block ? ' locked' : ''}`);
+      card.appendChild(el('div', 'ph-card-title', `📅 ${SKIP_LABELS[kind]}`));
+      card.appendChild(el('p', 'ph-note', block ?? `Jusqu’au ${d.label}, 7 h.`));
+      const go = el('button', 'ph-btn primary', 'Y aller');
+      go.disabled = !!block;
+      go.addEventListener('click', () => { closeModal(); runSkip(kind); });
+      card.appendChild(go);
+      list.appendChild(card);
+    }
+    body.appendChild(list);
+    showModal('📅 Passer le temps', 'Une ellipse, pas une triche : tout est simulé', body, true);
+  }
+  function runSkip(kind: SkipKind): void {
+    const s = beginSkip(world, kind);
+    if ('error' in s) { toast(s.error, false); return; }
+    skipping = true;
+    const total = Math.max(1, s.target - world.time.tick);
+    const start = world.time.tick;
+    ui.taskChip.classList.remove('hidden');
+    const step = (): void => {
+      const done = stepSkip(world, s, TICKS_PER_DAY / 2);
+      ui.taskChip.textContent = `⏩ ${SKIP_LABELS[kind]} · ${Math.min(100, Math.round(((world.time.tick - start) / total) * 100))} %`;
+      updateHud(ui, world, promptText());
+      if (!done) { setTimeout(step, 0); return; }
+      skipping = false;
+      ui.taskChip.classList.add('hidden');
+      acc = 0;
+      const r = skipReport(world, s);
+      const body = el('div', 'panel-body');
+      if (r.stopped) body.appendChild(el('p', 'ph-note', `⏹ ${r.stopped}`));
+      const ul = el('ul', 'asc-checks');
+      for (const line of r.lines) ul.appendChild(el('li', '', line));
+      body.appendChild(ul);
+      if (r.highlights.length) {
+        body.appendChild(el('h3', 'panel-sub', 'Ce qui s’est passé'));
+        const hl = el('ul', 'skip-highlights');
+        for (const h of r.highlights) hl.appendChild(el('li', '', h));
+        body.appendChild(hl);
+      }
+      showModal(`📅 ${r.title}`, dateOf(dayIndexOf(world.time.tick)).label, body, true);
+      try { recordDay(world); } catch { /* stockage indisponible */ }
+    };
+    step();
+  }
+  ui.skipBtn.addEventListener('click', openSkipMenu);
 
   // Outil d'inspection (Bible Partie XII) : l'état du monde reste lisible depuis la console
   // et depuis les tests E2E. Lecture/écriture directe = leviers de QA, jamais du gameplay.
@@ -2808,6 +2870,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       currentBannerGhost = undefined;
     }
 
+    // File des fenêtres : une fenêtre automatique non urgente au plus par heure de jeu.
+    if (modalOpen && !autoModalWasOpen) autoModalWasOpen = true;
+    if (!modalOpen && autoModalWasOpen) { autoModalWasOpen = false; lastAutoModalTick = world.time.tick; }
+    const quietOk = world.time.tick - lastAutoModalTick >= 6;
     if (!modalOpen) {
       // Épilogue prêt : ouverture de l'écran de conclusion de la campagne
       if (world.campaign.completedChapters.includes(5) && !world.seen['epilogue_modal_shown']) {
@@ -2821,12 +2887,12 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       } else {
         // Scène d'arrivée : un fantôme attend le choix du joueur.
         const pend = councilPendingArrivals(world).filter((id) => !deferredArrivals.has(id));
-        if (pend.length > 0) {
+        if (pend.length > 0 && quietOk) {
           audio.playGhostArrival();
           openArrivalScene(pend[0] ?? '');
-        } else if (world.streetRecognition?.spontaneousEncounterPending) {
+        } else if (world.streetRecognition?.spontaneousEncounterPending && quietOk) {
           openStreetEncounterModal();
-        } else if (pendingSurprise(world) && world.time.tick >= surpriseRetryTick && !world.player.asleep && !travelFastForward() && !isOnBus(world)) {
+        } else if (quietOk && pendingSurprise(world) && world.time.tick >= surpriseRetryTick && !world.player.asleep && !travelFastForward() && !isOnBus(world)) {
           // Dilemme : deux fantômes défendent chacun une option. Fermé sans choisir, il revient une heure plus tard.
           surpriseRetryTick = world.time.tick + 6;
           audio.playMarketAlert();
@@ -2834,7 +2900,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
             ghostBar.push({ ghost, text, pop: true, mood: failed ? 'alerte' : 'joie' });
             updateHud(ui, world, promptText());
           });
-        } else if (pendingSchoolEvent(world) && !isInClass(world) && !world.player.asleep) {
+        } else if (quietOk && pendingSchoolEvent(world) && !isInClass(world) && !world.player.asleep) {
           // Sortie de cours : la vie du collège s'invite.
           openSchoolEventModal({ world, showModal, closeModal, toast }, (ghost, text) => ghostBar.push({ ghost, text, pop: true, mood: 'calme' }));
         } else if (pendingDinner(world) && world.family?.pendingDinner !== dinnerShownId && isHome(world) && !world.player.asleep) {
@@ -2845,10 +2911,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           // La principale convoque : un rendez-vous par jour tant que rien n'est réglé.
           convocationShownDay = dayIndexOf(world.time.tick);
           openConvocationModal({ world, showModal, closeModal, toast });
-        } else if ((world.story?.unread.length ?? 0) > 0 && !world.player.asleep && !isInClass(world) && !travelFastForward()) {
+        } else if (quietOk && (world.story?.unread.length ?? 0) > 0 && !world.player.asleep && !isInClass(world) && !travelFastForward()) {
           // Un cahier de Lucien vient d'être retrouvé : on le lit.
           openUnreadBeat({ world, showModal, closeModal });
-        } else if (laminoirDecisionPending(world) && laminoirAskedDay !== dayIndexOf(world.time.tick) && !world.player.asleep && !isTraveling(world)) {
+        } else if (quietOk && laminoirDecisionPending(world) && laminoirAskedDay !== dayIndexOf(world.time.tick) && !world.player.asleep && !isTraveling(world)) {
           // Karim revient chaque jour tant que le quartier n'a pas tranché.
           laminoirAskedDay = dayIndexOf(world.time.tick);
           openLaminoirModal();
@@ -2860,7 +2926,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           const paceScale = PACE_BY_ID[pacePrefs.pace].scale;
           const ellipse = isTraveling(world) || isOnBus(world) || isInClass(world) || world.player.asleep || inShift(world);
           const taskRunning = pendingTaskTicks > 0 && !ellipse;
-          const speed = (isOnSite(world) && !world.player.asleep) ? 0 : isTraveling(world) ? TRAVEL_SPEED : isOnBus(world) ? BUS_SPEED : isInClass(world) ? CLASS_SPEED : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : taskRunning ? TASK_SPEED : paceScale;
+          const speed = skipping || (isOnSite(world) && !world.player.asleep) ? 0 : isTraveling(world) ? TRAVEL_SPEED : isOnBus(world) ? BUS_SPEED : isInClass(world) ? CLASS_SPEED : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : taskRunning ? TASK_SPEED : paceScale;
           if (!taskRunning && pendingTaskTicks <= 0) ui.taskChip.classList.add('hidden');
           if (speed !== 0) {
             const tickMs = TICK_MS / speed;

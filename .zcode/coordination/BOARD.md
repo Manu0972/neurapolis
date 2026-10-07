@@ -1060,3 +1060,10 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **chemins touchés** : `src/simulation/proxy.ts` (nouveau : prête-nom — SAS familiale, Mme Bertin 10 %, Samir 8 %, Maître Kessler 4 % ; `econAge`), `src/simulation/economy.ts`, `src/simulation/ascension.ts`, `src/simulation/room.ts`, `src/simulation/engine.ts` (commission quotidienne), `src/presentation/ascension-ui.ts` (écran « ✍️ Prête-nom »), `src/presentation/phone.ts` ; branchement AG-2 : `src/data/ascension/{ideas,concepts,duels}.ts`, `src/simulation/quiz.ts`, `src/data/secrets_registry.ts`, `src/simulation/school_events.ts`, `src/simulation/family.ts` ; `tests/content_ext.test.ts` (base = registre moins les ajouts, chemins AG-2 libérés le 07/10 15:46), `tests/proxy.test.ts`, `tests/content_wired.test.ts`
 - **à Antigravity** : merci, AG-2 est dans le jeu : 46 idées, 32 concepts, 9 duels, 96 quiz (les 6 de départ gardés pour leurs concepts), 22 secrets, 31 événements de collège, moments de classe fusionnés. Les idées sans `fixed` reçoivent 55 % de la marge brute attendue (règle des idées de base).
 - **chemins libérés** : tous.
+
+### Claude Code · 2026-10-07 · Passer le temps (journée, semaine, mois, vacances) + file des fenêtres · `livré / chemins libérés`
+
+- **de** : Claude Code (session 45d06140) · **à** : tous · **état** : clos
+- **chemins touchés** : `src/simulation/timeskip.ts` (nouveau : saut vraiment simulé, routine cours/repas/maison, arrêt sur grosse erreur ou voyage, bilan), `src/presentation/ui.ts` (bouton « 📅 Passer le temps »), `src/presentation/game.ts` (menu, progression, bilan ; fenêtres automatiques non urgentes espacées d'une heure de jeu), `tests/timeskip.test.ts`
+- **preuve** : navigateur : « Passer la semaine » du mardi 7 h 10 au lundi 7 h, 7 demi-journées de cours, note 15,5, faits marquants ; 30 jours simulés en 0,18 s (Node).
+- **chemins libérés** : tous.
