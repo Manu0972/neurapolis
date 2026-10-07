@@ -13,9 +13,10 @@ import { INITIAL_ECONOMIC_HAZARDS, VENTURE_DEFS } from '../data/multi_ventures';
 import { MACRO_NEWS_TEMPLATES } from '../data/macro_news';
 import { INITIAL_TUTORIALS } from '../data/tutorials';
 import { PLACE_ANCHORS } from '../data/map';
+import { createAscensionState } from './ascension_types';
 import { createEconomyState } from './economy_types';
 
-export const SAVE_VERSION = 16;
+export const SAVE_VERSION = 17;
 
 const SKILL_IDS: SkillId[] = ['negociation', 'comptabilite', 'communication', 'organisation', 'technique', 'recherche'];
 
@@ -192,6 +193,7 @@ export function createWorld(opts: CreateWorldOptions = {}): WorldState {
       tutorials: structuredClone(INITIAL_TUTORIALS),
     },
     economy: createEconomyState(opts.sandbox ?? false),
+    ascension: createAscensionState(),
     ghostCompanion: {
       activeGhostId: 'smith',
       mood: 'curieux',

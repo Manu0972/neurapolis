@@ -621,6 +621,7 @@ export interface GhostCompanionState {
 
 // ---------- Monde ----------
 import type { EconomyState } from './economy_types';
+import type { AscensionState } from './ascension_types';
 
 export interface WorldState {
   version: number;
@@ -645,6 +646,8 @@ export interface WorldState {
   ghostCompanion?: GhostCompanionState;
   /** Économie « Big Ambitions » : baux, commerces, employés, prêts (save v13). */
   economy?: EconomyState;
+  /** L'Ascension : paliers, idées de business, doubles faces, carnet d'économie (save v17). */
+  ascension?: AscensionState;
   events: GameEvent[];        // journal des événements (cap 250)
   lifeJournal: LifeJournalEntry[];
   flags: Record<string, number>; // compteurs libres (ventes, conflits, prévisions ratées…)

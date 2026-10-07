@@ -9,6 +9,7 @@ import {
 import { SAVE_VERSION } from '../core/store';
 import { PLACE_ANCHORS } from '../data/map';
 import { createEconomyState } from '../core/economy_types';
+import { createAscensionState } from '../core/ascension_types';
 import { INITIAL_RIVALS } from '../data/rivals';
 import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
 import { COUNTER_STRATEGIES } from '../data/rivals';
@@ -345,6 +346,12 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
       if (typeof b.regulars !== 'number') b.regulars = 0;
     }
     s.version = 16;
+    return s;
+  },
+  // 16 → 17 : l'Ascension (paliers, idées, doubles faces, carnet) — palier 1, rien de lancé.
+  16: (s) => {
+    if (typeof s.ascension !== 'object' || s.ascension === null) s.ascension = createAscensionState();
+    s.version = 17;
     return s;
   },
 };

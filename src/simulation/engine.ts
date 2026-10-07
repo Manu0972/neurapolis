@@ -22,6 +22,7 @@ import { notify } from './events';
 import { economyTick } from './economy';
 import { jobTick } from './jobs';
 import { travelTick } from './travel';
+import { ascensionDay } from './ascension';
 import { worldTimelineDay } from './world_timeline';
 import { saveToSlot } from '../saves/persist';
 
@@ -66,6 +67,7 @@ export function tickWorld(w: WorldState): TickOutput {
     out.push(...campaignTick(w));
     out.push(...macroNewsDayTick(w));
     out.push(...multiVenturesDayTick(w));
+    out.push(...ascensionDay(w, prevDay));
     out.push(...schoolDayTick(w));
     out.push(...worldTimelineDay(w));
 

@@ -50,3 +50,7 @@
 
 - [x] **Habitués des commerces** (2026-10-07 ; save v16 ; `regularVisitsAt`, `updateRegulars`, stat « Habitués » au téléphone).
 - [x] **Bus ligne 1** (2026-10-07 ; `src/data/city/transit.ts`, `src/simulation/transit.ts` : 8 arrêts en boucle, abris en 3D, ticket 0,80 € jeune / 1,60 €, service 6 h – 22 h, trajet en ellipse).
+- [x] **Ascension, lots ASC-1 et ASC-2** (2026-10-07 ; save v17 ; `docs/ASCENSION.md` ; 6 paliers, 31 idées au choix libre, 6 fantômes double face avec verdict à 21 jours sur trois univers parallèles, carnet d'économie de 20 concepts, 11 connexions, application « Ascension »).
+- [ ] **ASC-3** : fonctionnalités à débloquer (applications du téléphone) avec mini-tutoriels portés par les fantômes.
+- [ ] **ASC-4** : création de personnage approfondie (peaux, coupes, morphologies, tenues, accessoires) ; save v18 ; coordination avec Jules.
+- [ ] **ASC-5** : secrets du monde, doubles faces sur les décisions courantes des commerces.

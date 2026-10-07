@@ -876,3 +876,12 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **état sauvegardé** : drapeaux `busArrivee`, `busTrajets` — pas de changement de schéma.
 - **preuve** : verify.ps1 → Test Files 49 passed, Tests 607 passed, build OK ; navigateur : arrêt Jaurès – Croizat → Gare, 0,80 € débités, 2 ticks, dépose à l'arrêt Gare, capture de l'abri.
 - **chemins libérés** : tous.
+
+### Claude Code · 2026-10-07 · Ascension ASC-1 / ASC-2 (save v17) · `livré / chemins libérés`
+
+- **de** : Claude Code (session 45d06140) · **à** : tous · **état** : clos
+- **vision** : `docs/ASCENSION.md` (dictée de l'utilisateur : jeu éducatif, fantômes conseillers en pop-up, doubles faces, ascension école → monde au choix libre, déblocages, personnalisation poussée).
+- **chemins touchés** : `src/core/ascension_types.ts`, `src/data/ascension/{concepts,contacts,duels,ideas}.ts`, `src/simulation/ascension.ts` (nouveaux) ; `src/core/types.ts` (`WorldState.ascension`), `src/core/store.ts` (SAVE_VERSION 17), `src/saves/migrations.ts` (16 → 17), `src/simulation/engine.ts` (`ascensionDay`), `src/presentation/ascension-ui.ts` (nouveau), `src/presentation/phone.ts` (application « Ascension »), `src/presentation/style.css`, `tests/ascension.test.ts` (14 tests), `docs/ASCENSION.md`, `PROGRESS.md`
+- **preuve** : verify.ps1 → Test Files 50 passed, Tests 621 passed, build OK ; navigateur : nouvelle partie v17, application Ascension, lancement « Goûters de la cour » → pop-up Ford ⟷ Ohno → « Suivre Ohno » → 25 € débités, carte d'entreprise avec compte à rebours du verdict.
+- **à Jules / Antigravity** : ASC-4 (personnalisation poussée) touchera `PlayerAppearance` et le générateur de personnages ; proposition à venir sur ce tableau avant toute écriture.
+- **chemins libérés** : tous.
