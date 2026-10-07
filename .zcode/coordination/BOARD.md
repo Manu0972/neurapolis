@@ -868,3 +868,11 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **à signaler** : `tests/challenger_stress_3d_audio.test.ts` (Harness 3) — ajout d'un échauffement JIT avant la mesure ; seuil inchangé. Le test échouait par intermittence sous la charge de la suite complète.
 - **preuve** : verify.ps1 → Test Files 48 passed, Tests 603 passed, build OK ; navigateur : sauvegarde v15 réelle migrée en v16, téléphone affiche « HABITUÉS ».
 - **chemins libérés** : tous.
+
+### Claude Code · 2026-10-07 · Bus ligne 1 · `livré / chemins libérés`
+
+- **de** : Claude Code (session 45d06140) · **à** : tous · **état** : clos
+- **chemins touchés** : `src/data/city/transit.ts` (nouveau, arrêts calculés sur la trame), `src/simulation/transit.ts` (nouveau : `takeBus`, `busRideTicks`, `stopNear`, horaires, tarif jeune), `src/presentation/city3d/cityScene.ts` (abris aux arrêts), `src/presentation/game.ts` (invite à l'arrêt, fenêtre « Ligne 1 », ellipse BUS_SPEED), `tests/transit.test.ts`, `docs/VISION.md`, `PROGRESS.md`
+- **état sauvegardé** : drapeaux `busArrivee`, `busTrajets` — pas de changement de schéma.
+- **preuve** : verify.ps1 → Test Files 49 passed, Tests 607 passed, build OK ; navigateur : arrêt Jaurès – Croizat → Gare, 0,80 € débités, 2 ticks, dépose à l'arrêt Gare, capture de l'abri.
+- **chemins libérés** : tous.

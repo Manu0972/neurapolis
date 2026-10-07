@@ -81,6 +81,8 @@ import {
   isOnSite, isTraveling, leaveDestination, startTravel, travelSlotsLeft,
 } from '../simulation/travel';
 import { LAMINOIR_OPTIONS, chooseLaminoirFuture, laminoirDecisionPending } from '../simulation/laminoir';
+import { BUS_HOURS, busFare, busRideTicks, busRunning, isOnBus, stopNear, takeBus } from '../simulation/transit';
+import { BUS_STOPS, BUS_STOP_BY_ID } from '../data/city/transit';
 import { CITY } from '../data/map';
 import * as economyApi from '../simulation/economy';
 import { openDetailedInteriorModal } from './interiors';
@@ -103,6 +105,8 @@ import { INITIAL_TUTORIALS } from '../data/tutorials';
 const TICK_MS = 10_000;
 /** Multiplicateur de vitesse pendant le sommeil : une nuit de 9 h passe en ~5 s. */
 const NIGHT_SPEED = 120;
+/** En bus, un trajet de 10 à 30 minutes passe en une ou deux secondes. */
+const BUS_SPEED = 25;
 /** En voyage, trois jours passent en ~20 s. */
 const TRAVEL_SPEED = 200;
 /** Pendant un petit boulot, deux heures de service passent en ~15 s. */
@@ -325,6 +329,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (gareDoor && Math.abs(gareDoor.x - x) <= 2 && Math.abs(gareDoor.y + 1 - y) <= 1) {
       return { label: 'E — Gare de Val-Ferrand : voir les départs', run: openDepartures };
     }
+    const stop = stopNear(world);
+    if (stop) return { label: `E — Arrêt « ${stop.name} » : prendre le bus (ligne 1)`, run: () => openBusStop(stop.id) };
     for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
       const unitId = unitAt(x + dx, y + dy);
       if (!unitId) continue;
@@ -428,6 +434,34 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     body.appendChild(list);
     body.appendChild(el('p', 'panel-note', 'Tu peux réfléchir : Karim reviendra demain.'));
     showModal('🏭 La halle du laminoir', 'Val-Ferrand, après la fermeture', body, true);
+  }
+
+  // ---------- Bus : ligne 1 ----------
+  function openBusStop(fromId: string): void {
+    const from = BUS_STOP_BY_ID[fromId];
+    if (!from) return;
+    const body = el('div', 'panel-body');
+    const fare = busFare(world);
+    body.appendChild(el('p', 'panel-desc', `Ticket : ${fare.toFixed(2)} €${world.player.age < 18 ? ' (tarif jeune)' : ''}. Service de ${BUS_HOURS[0]} h à ${BUS_HOURS[1]} h. Le bus fait la boucle : centre, avenue Jean-Jaurès, Gare, rue des Forges.`));
+    if (!busRunning(world)) body.appendChild(el('p', 'ph-note', 'Plus de bus à cette heure-ci : il faudra marcher (ou pédaler).'));
+    const list = el('div', 'ph-list');
+    for (const s of BUS_STOPS) {
+      if (s.id === fromId) continue;
+      const card = el('div', 'ph-card');
+      card.appendChild(el('div', 'ph-card-title', `🚌 ${s.name}`));
+      card.appendChild(el('p', 'ph-note', `environ ${busRideTicks(fromId, s.id) * 10} min`));
+      const btn = el('button', 'ph-btn primary', `Monter (${fare.toFixed(2)} €)`);
+      btn.disabled = !busRunning(world) || world.player.money < fare;
+      btn.addEventListener('click', () => {
+        const r = takeBus(world, s.id);
+        toast(r.message, r.ok);
+        if (r.ok) closeModal();
+      });
+      card.appendChild(btn);
+      list.appendChild(card);
+    }
+    body.appendChild(list);
+    showModal('🚌 Ligne 1', from.name, body, true);
   }
 
   // ---------- Voyage : la destination est une place à explorer ----------
@@ -818,7 +852,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   function interact(): void {
     if (modalOpen) return;
-    if (world.player.asleep || inShift(world) || travelFastForward()) return;
+    if (world.player.asleep || inShift(world) || travelFastForward() || isOnBus(world)) return;
     if (renderer3D?.inInterior) {
       const inside = interiorActionHere();
       if (inside) { inside.run(); return; }
@@ -2609,7 +2643,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           // La nuit défile en accéléré (ellipse) : 9 heures de sommeil en quelques secondes,
           // tick par tick, sans jamais sauter la clôture économique ni les événements.
           // Sur place, le temps attend le joueur : seules les activités, le train et la nuit le font avancer.
-          const speed = world.time.speed === 0 || (isOnSite(world) && !world.player.asleep) ? 0 : isTraveling(world) ? TRAVEL_SPEED : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : world.time.speed;
+          const speed = world.time.speed === 0 || (isOnSite(world) && !world.player.asleep) ? 0 : isTraveling(world) ? TRAVEL_SPEED : isOnBus(world) ? BUS_SPEED : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : world.time.speed;
           if (speed !== 0) {
             acc += dt;
             const tickMs = TICK_MS / speed;
@@ -2676,7 +2710,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       renderer3D.frame(world, dt / 1000, {
         move: input.vector(),
         running: input.running(),
-        canMove: !modalOpen && !world.player.asleep && !inShift(world) && !layoutEdit && !travelFastForward(),
+        canMove: !modalOpen && !world.player.asleep && !inShift(world) && !layoutEdit && !travelFastForward() && !isOnBus(world),
       }, ui.cw, ui.ch);
     } else {
       const rawD = input.dir();
@@ -2689,10 +2723,14 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
     syncDestinationScene();
     const away = travelFastForward();
-    sleepOverlay.classList.toggle('on', world.player.asleep || away);
+    const riding = isOnBus(world);
+    sleepOverlay.classList.toggle('on', world.player.asleep || away || riding);
     const destName = currentDestination(world)?.name ?? '…';
     const homeward = (world.flags['voyageAvance'] ?? 0) >= (world.flags['voyageRetour'] ?? 0);
-    const sleepMsg = !away
+    const busStop = riding ? stopNear(world, 0) : undefined;
+    const sleepMsg = riding
+      ? `🚌 Ligne 1 → ${busStop?.name ?? '…'}`
+      : !away
       ? '😴 Tu dors… la nuit passe'
       : homeward
         ? `🚆 Retour vers Val-Ferrand — arrivée le ${dateOf(dayIndexOf(world.flags['voyageRetour'] ?? world.time.tick)).label}`

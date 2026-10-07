@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CITY, CITY_H, CITY_W, FLOOR_H, type CityBuilding, type Face, type FacadeStyle } from '../../data/city/layout';
 import { surfaceAt, type Surface } from '../../data/map';
+import { BUS_STOPS } from '../../data/city/transit';
 import {
   asphaltTexture, cobbleTexture, dirtTexture, facadeEmissiveTexture, facadeTexture, flatRoofTexture, glowTexture,
   grassTexture, gravelTexture, parkingTexture, playgroundTexture, roofTileTexture, shopfrontEmissiveTexture,
@@ -565,6 +566,12 @@ function buildProps(group: THREE.Group, disposables: { dispose(): void }[], nigh
       default:
         break;
     }
+  }
+
+  // Abris de la ligne 1 (src/data/city/transit.ts), sauf là où un abri existe déjà.
+  for (const s of BUS_STOPS) {
+    if (CITY.props.some((p) => p.kind === 'arret_bus' && Math.abs(p.x - s.x) <= 3 && Math.abs(p.y - s.y) <= 3)) continue;
+    special.push(busStop(s.x + 0.5, groundHeightAt(s.x + 0.5, s.y + 0.5), s.y + 0.5));
   }
 
   const trunkGeo = new THREE.CylinderGeometry(0.16, 0.24, 3.4, 7).translate(0, 1.7, 0);

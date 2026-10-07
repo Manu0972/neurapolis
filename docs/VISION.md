@@ -91,7 +91,7 @@ S'adapter ◀── Conséquences ◀── Monter l'activité : local, aménage
 | Système | Cible | État au 2026-10-07 (soir) |
 |---|---|---|
 | **Ville 3D explorable** | Rues nommées, trottoirs, voitures, piétons, commerces, intérieurs, jour/nuit, météo | **Fait** : ville 414 × 268 m (`city3d`), quartier de la Gare, intérieurs praticables |
-| **Déplacement** | Marche fluide en troisième personne, caméra orbitale, course, plus tard vélo et bus | **Fait** : marche, course, vélo (B) ; bus : à faire |
+| **Déplacement** | Marche fluide en troisième personne, caméra orbitale, course, plus tard vélo et bus | **Fait** : marche, course, vélo (B), bus ligne 1 (8 arrêts, tarif jeune, 6 h – 22 h) |
 | **Immobilier commercial** | Annonces de locaux (adresse, m², loyer, trafic piéton), bail, caution | **Fait**, plus achat des murs et mise en location (save v15) |
 | **Commerces** | Types (épicerie, café, boutique, atelier…), aménagement, capacité, horaires | **Fait** : catalogue étendu, aménagement à la main (save v14), horaires |
 | **Stocks et fournisseurs** | Catalogue produits, grossistes, livraisons, péremption | **Fait** : retrait physique des cartons, livraisons, péremption |

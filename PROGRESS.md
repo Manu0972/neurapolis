@@ -48,3 +48,5 @@
 - [x] **Achat de murs** (2026-10-07 ; rendement 8 %, loyer supprimé pour son commerce, mise en location, revente à −7 % ; save v15) : acheter un local ou un immeuble (plus de loyer, valeur patrimoniale, loyers perçus), réservé à l'âge adulte ou au bac à sable.
 - [x] **Clients et employés à l'intérieur** (2026-10-07 ; `customersInStore`, employés nommés à la caisse et aux rayons) : voir ses employés derrière la caisse et des clients faire leurs courses dans les commerces du joueur, en nombre tiré des ventes réelles de l'heure.
 
+- [x] **Habitués des commerces** (2026-10-07 ; save v16 ; `regularVisitsAt`, `updateRegulars`, stat « Habitués » au téléphone).
+- [x] **Bus ligne 1** (2026-10-07 ; `src/data/city/transit.ts`, `src/simulation/transit.ts` : 8 arrêts en boucle, abris en 3D, ticket 0,80 € jeune / 1,60 €, service 6 h – 22 h, trajet en ellipse).
