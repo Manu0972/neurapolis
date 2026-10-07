@@ -19,6 +19,7 @@ import { IDEA_BY_ID } from '../data/ascension/ideas';
 import { econRand } from './economy';
 import { ensureAscension, learnConcept } from './ascension';
 import { notify, pushEvent } from './events';
+import { markCatastrophe } from './rewind';
 
 export const NEWS_HOURS: readonly number[] = [7, 12, 18];
 /** Pas de surprise pendant les premiers jours : le joueur apprend d'abord. */
@@ -135,7 +136,7 @@ function record(w: WorldState, def: SurpriseDef, cash: number, text: string): vo
   const day = dayIndexOf(w.time.tick);
   h.history.unshift({ day, surpriseId: def.id, title: def.title, tone: def.tone, cash, text });
   if (h.history.length > 30) h.history.length = 30;
-  if (def.tone === 'catastrophe') w.flags['catastropheJour'] = day;
+  if (def.tone === 'catastrophe') markCatastrophe(w, 'catastrophe', `${def.title} : ${text}`);
   if (def.concept) learnConcept(w, def.concept);
   pushEvent(w, {
     type: def.tone === 'bon' ? 'opportunite' : 'consequence',

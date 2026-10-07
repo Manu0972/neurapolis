@@ -829,3 +829,13 @@ canvas.map-canvas-3d { image-rendering: auto; touch-action: none; }
 .surprise-mauvais { border-left: 4px solid var(--or); }
 .surprise-catastrophe { border-left: 4px solid var(--rouge); }
 @media (prefers-reduced-motion: reduce) { .news-toast { animation: none; transition: none; } }
+
+/* ---------- Retour en arrière ---------- */
+.rewind-days, .rewind-ghosts { display: flex; flex-wrap: wrap; gap: 6px; }
+.rewind-ghost {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 8px; border-radius: 12px;
+  border: 2px solid transparent; background: var(--panel2); color: var(--ink); cursor: pointer; font: inherit;
+}
+.rewind-ghost.chosen { border-color: var(--or); box-shadow: 0 0 0 3px rgba(255, 217, 138, 0.25); }
+.rewind-ghost:focus-visible { outline: 3px solid var(--or); }
+.rewind-ghost-name { font-size: 12px; font-weight: 700; }

@@ -21,6 +21,7 @@ import { IDEAS, IDEA_BY_ID, TIERS, TIER_REQUIREMENTS, type IdeaDef } from '../da
 import { econRand } from './economy';
 import { notify, pushEvent } from './events';
 import { sectorDemand } from './happenings_effects';
+import { markCatastrophe } from './rewind';
 
 /** Jours avant le verdict d'une décision. */
 export const VERDICT_DAYS = 21;
@@ -329,6 +330,7 @@ function ventureDay(w: WorldState, run: VentureRun, day: number): Notification[]
   if (run.redDays >= BANKRUPTCY_DAYS) {
     run.closed = true;
     learnConcept(w, 'faillite');
+    markCatastrophe(w, 'faillite', `« ${idea.name} » a fait faillite après ${BANKRUPTCY_DAYS} jours dans le rouge.`, idea.id);
     out.push(notify('alerte', `💥 ${idea.name} fait faillite après ${BANKRUPTCY_DAYS} jours dans le rouge.`));
     pushEvent(w, {
       type: 'consequence',

@@ -6,6 +6,7 @@
  */
 import type { WorldState } from '../core/types';
 import { adviceFor } from '../simulation/ghost_tips';
+import { isSilenced } from '../simulation/rewind';
 import { ghostAvatar, thinkerMeta, type GhostMood } from './ghost-avatar';
 import { el } from './ui';
 
@@ -57,7 +58,8 @@ export function createGhostBar(host: HTMLElement, getWorld: () => WorldState, is
     const met = Object.keys(world.ascension?.trust ?? {});
     // La première voix (celle de la nuit de la médiathèque) est là dès le début.
     const first = world.ghostCompanion?.unlockedThinkers ?? ['smith'];
-    return [...new Set([...council, ...first, ...met])].slice(0, MAX_HEADS);
+    // Les voix sacrifiées pour un retour en arrière se taisent un temps.
+    return [...new Set([...council, ...first, ...met])].filter((g) => !isSilenced(world, g)).slice(0, MAX_HEADS);
   }
 
   function badge(id: string): void {

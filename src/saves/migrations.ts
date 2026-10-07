@@ -11,6 +11,7 @@ import { PLACE_ANCHORS } from '../data/map';
 import { createEconomyState } from '../core/economy_types';
 import { createAscensionState } from '../core/ascension_types';
 import { createHappeningsState } from '../core/happenings_types';
+import { createRewindState } from '../core/rewind_types';
 import { INITIAL_RIVALS } from '../data/rivals';
 import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
 import { COUNTER_STRATEGIES } from '../data/rivals';
@@ -359,6 +360,12 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
   17: (s) => {
     if (typeof s.happenings !== 'object' || s.happenings === null) s.happenings = createHappeningsState();
     s.version = 18;
+    return s;
+  },
+  // 18 → 19 : retours en arrière (leçons, sacrifices) — aucun pour l'instant.
+  18: (s) => {
+    if (typeof s.rewind !== 'object' || s.rewind === null) s.rewind = createRewindState();
+    s.version = 19;
     return s;
   },
 };

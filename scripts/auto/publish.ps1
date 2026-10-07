@@ -31,8 +31,8 @@ $ErrorActionPreference = 'Continue'
 node node_modules/typescript/bin/tsc --noEmit
 if ($LASTEXITCODE -ne 0) { Pop-Location; Write-Output 'tsc en échec : publication annulée'; exit 1 }
 $out = (node node_modules/vitest/vitest.mjs run 2>&1 | Out-String) -replace "$([char]27)\[[0-9;]*m", ''
-$out -split "`n" | Where-Object { $_ -match 'Test Files|Tests |FAIL' } | ForEach-Object { Write-Output $_ }
-if ($out -match 'FAIL') { Pop-Location; Write-Output 'Tests en échec : publication annulée'; exit 1 }
+$out -split "`n" | Where-Object { $_ -cmatch 'Test Files|Tests |FAIL' } | ForEach-Object { Write-Output $_ }
+if ($out -cmatch 'FAIL') { Pop-Location; Write-Output 'Tests en échec : publication annulée'; exit 1 }
 node node_modules/vite/bin/vite.js build | Out-Null
 if ($LASTEXITCODE -ne 0) { Pop-Location; Write-Output 'Build en échec : publication annulée'; exit 1 }
 Remove-Item -Recurse -Force dist -ErrorAction SilentlyContinue

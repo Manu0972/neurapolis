@@ -15,9 +15,10 @@ import { INITIAL_TUTORIALS } from '../data/tutorials';
 import { PLACE_ANCHORS } from '../data/map';
 import { createAscensionState } from './ascension_types';
 import { createHappeningsState } from './happenings_types';
+import { createRewindState } from './rewind_types';
 import { createEconomyState } from './economy_types';
 
-export const SAVE_VERSION = 18;
+export const SAVE_VERSION = 19;
 
 const SKILL_IDS: SkillId[] = ['negociation', 'comptabilite', 'communication', 'organisation', 'technique', 'recherche'];
 
@@ -196,6 +197,7 @@ export function createWorld(opts: CreateWorldOptions = {}): WorldState {
     economy: createEconomyState(opts.sandbox ?? false),
     ascension: createAscensionState(),
     happenings: createHappeningsState(),
+    rewind: createRewindState(),
     ghostCompanion: {
       activeGhostId: 'smith',
       mood: 'curieux',

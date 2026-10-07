@@ -86,6 +86,9 @@ import { BUS_STOPS, BUS_STOP_BY_ID } from '../data/city/transit';
 import { createGhostBar } from './ghost-bar';
 import { createNewsToaster, openSurpriseModal } from './news-ui';
 import { pendingSurprise } from '../simulation/happenings';
+import { lessonWarnings, rewindOffer, sacrificeCandidates } from '../simulation/rewind';
+import { recordDay } from '../saves/chronicle';
+import { openRewindModal } from './rewind-ui';
 import { mostUrgentTip } from '../simulation/ghost_tips';
 import { CITY } from '../data/map';
 import * as economyApi from '../simulation/economy';
@@ -129,6 +132,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   // Notifications façon téléphone pour le fil d'infos ; un clic ouvre l'application « Infos ».
   const newsToaster = createNewsToaster(root, () => openPhoneUi('infos'));
   let surpriseRetryTick = 0;
+  // Chronique : un instantané chaque matin pour un éventuel retour en arrière.
+  try { recordDay(world); } catch { /* stockage indisponible */ }
+  let rewindOfferKey = '';
   let modalOpen = false;
   const deferredArrivals = new Set<string>();
   let last = performance.now();
@@ -2673,6 +2679,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
               if (isOnSite(world) && !world.player.asleep) acc = 0;
               const curDay = dayIndexOf(world.time.tick);
               if (curDay !== prevDay) {
+                try { recordDay(world); } catch { /* stockage indisponible */ }
                 const unlocks = checkAndUnlockThinkers(world);
                 for (const un of unlocks) {
                   showGhostBanner(un);
@@ -2690,6 +2697,12 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
               }
               // Toutes les deux heures de jeu, le penseur le plus concerné par ta situation lève la main.
               if (world.time.tick % 12 === 0 && !world.player.asleep) {
+                // Une voix sacrifiée reconnaît l'erreur qui recommence : elle prévient en priorité.
+                const warn = lessonWarnings(world)[0];
+                if (warn && warn.text !== lastTipText) {
+                  lastTipText = warn.text;
+                  ghostBar.push({ ghost: warn.ghost, text: warn.text, pop: true, mood: 'alerte' });
+                }
                 const t = mostUrgentTip(world, ghostBar.roster());
                 if (t && t.weight >= 2 && t.text !== lastTipText) {
                   lastTipText = t.text;
@@ -2783,6 +2796,20 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (++hudFrame % 30 === 0) {
       ghostBar.sync(world);
       newsToaster.check(world);
+      // Très grosse erreur : une voix propose de se sacrifier pour remonter le temps.
+      const cat = rewindOffer(world);
+      const key = cat ? `${cat.day}|${cat.text}` : '';
+      if (cat && key !== rewindOfferKey) {
+        rewindOfferKey = key;
+        const g = sacrificeCandidates(world)[0];
+        if (g) {
+          ghostBar.push({
+            ghost: g, mood: 'alerte', pop: true,
+            text: `${cat.text} Je peux te ramener avant… mais j’y laisserai ma voix pour un temps.`,
+            action: { label: '⏳ Remonter le temps', run: () => openRewindModal({ world, showModal, closeModal, toast }) },
+          });
+        }
+      }
       syncSigns();
       syncWaypoints();
       syncTips();

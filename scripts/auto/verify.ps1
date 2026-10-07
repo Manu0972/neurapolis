@@ -16,8 +16,9 @@ if ($LASTEXITCODE -ne 0) { $failed = $true }
 Write-Output '== vitest run'
 $out = node node_modules/vitest/vitest.mjs run 2>&1 | Out-String
 $clean = $out -replace "$([char]27)\[[0-9;]*m", ''
-$clean -split "`n" | Where-Object { $_ -match 'Test Files|Tests |FAIL|×' } | ForEach-Object { Write-Output $_ }
-if ($clean -match 'FAIL') { $failed = $true }
+$clean -split "`n" | Where-Object { $_ -cmatch 'Test Files|Tests |FAIL|×' } | ForEach-Object { Write-Output $_ }
+# -cmatch : sensible à la casse (« faillite » n'est pas un échec).
+if ($clean -cmatch 'FAIL') { $failed = $true }
 
 Write-Output '== vite build'
 $build = node node_modules/vite/bin/vite.js build 2>&1 | Out-String
