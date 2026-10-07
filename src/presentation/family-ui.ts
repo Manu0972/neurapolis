@@ -12,6 +12,7 @@ import {
 } from '../simulation/family';
 import { ensureSchoolLifeState } from '../simulation/school_life';
 import { personalize } from '../simulation/story';
+import { pendingSchoolEvent, resolveSchoolEvent } from '../simulation/school_events';
 import { ghostAvatar, thinkerMeta } from './ghost-avatar';
 import { el } from './ui';
 
@@ -151,4 +152,33 @@ export function openFamilyPanel(ctx: FamilyCtx): void {
   for (const g of f.grades.slice(-5).reverse()) school.appendChild(el('p', 'ph-note', `📝 ${g.subject} (${dateOf(g.day).label}) : ${g.note}/20`));
   body.appendChild(school);
   ctx.showModal('👪 Famille & collège', 'Nora, Thierry, et le collège Jean-Moulin', body, true);
+}
+
+/** Un événement de collège : deux ou trois choix, chacun conseillé par une voix. */
+export function openSchoolEventModal(ctx: FamilyCtx, onResolved: (ghost: string, text: string) => void): boolean {
+  const e = pendingSchoolEvent(ctx.world);
+  if (!e) return false;
+  const body = el('div', 'panel-body');
+  body.appendChild(el('p', 'panel-desc', personalize(ctx.world, e.text)));
+  const grid = el('div', 'fam-voices');
+  e.options.forEach((o, i) => {
+    const box = el('div', 'duel-face');
+    box.style.setProperty('--face', thinkerMeta(o.ghost).color);
+    box.appendChild(ghostAvatar(o.ghost, 'calme', 44));
+    box.appendChild(el('div', 'duel-name', thinkerMeta(o.ghost).name));
+    box.appendChild(el('div', 'duel-strategy', personalize(ctx.world, o.label)));
+    box.appendChild(el('p', 'duel-advice', `« ${o.advice} »`));
+    const b = el('button', 'ph-btn primary', 'Choisir');
+    b.type = 'button';
+    b.addEventListener('click', () => {
+      const r = resolveSchoolEvent(ctx.world, i);
+      ctx.closeModal();
+      if (r.ok) onResolved(o.ghost, personalize(ctx.world, r.message));
+    });
+    box.appendChild(b);
+    grid.appendChild(box);
+  });
+  body.appendChild(grid);
+  ctx.showModal(`🏫 ${e.title}`, 'Collège Jean-Moulin', body, true);
+  return true;
 }

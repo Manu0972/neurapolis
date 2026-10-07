@@ -89,7 +89,8 @@ import { pendingSurprise } from '../simulation/happenings';
 import { isSilenced, lessonWarnings, rewindOffer, sacrificeCandidates } from '../simulation/rewind';
 import { recordDay } from '../saves/chronicle';
 import { openRewindModal } from './rewind-ui';
-import { openConvocationModal, openDinnerModal, openFamilyPanel } from './family-ui';
+import { openConvocationModal, openDinnerModal, openFamilyPanel, openSchoolEventModal } from './family-ui';
+import { pendingSchoolEvent } from '../simulation/school_events';
 import { bedroomExtras, openPlanner, openShelf, type PlanCtx } from './plan-ui';
 import { openDuelModal } from './ascension-ui';
 import { openNotebooks, openUnreadBeat, playOrigin } from './story-ui';
@@ -2735,6 +2736,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
             ghostBar.push({ ghost, text, pop: true, mood: failed ? 'alerte' : 'joie' });
             updateHud(ui, world, promptText());
           });
+        } else if (pendingSchoolEvent(world) && !isInClass(world) && !world.player.asleep) {
+          // Sortie de cours : la vie du collège s'invite.
+          openSchoolEventModal({ world, showModal, closeModal, toast }, (ghost, text) => ghostBar.push({ ghost, text, pop: true, mood: 'calme' }));
         } else if (pendingDinner(world) && world.family?.pendingDinner !== dinnerShownId && isHome(world) && !world.player.asleep) {
           // Le dîner : Nora et Thierry attendent une réponse.
           dinnerShownId = world.family?.pendingDinner ?? '';

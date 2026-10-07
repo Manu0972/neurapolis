@@ -24,6 +24,7 @@ import { FAMILY_LINES, FAMILY_LINE_BY_ID } from '../data/family_registry';
 import { econRand } from './economy';
 import { pushEvent } from './events';
 import { attendSchoolClass, ensureSchoolLifeState } from './school_life';
+import { rollSchoolEvent } from './school_events';
 
 export const SESSIONS: Record<SessionId, { start: number; end: number }> = {
   matin: { start: 8 * 60 + 30, end: 12 * 60 },
@@ -258,7 +259,11 @@ export function familyTick(w: WorldState, prevTick: number): void {
   }
   const pm = dayIndexOf(prevTick) === day ? minutesOfDay(prevTick) : -1;
   const m = minutesOfDay(w.time.tick);
-  if (f.inClass && w.time.tick >= f.inClass.untilTick) f.inClass = undefined;
+  if (f.inClass && w.time.tick >= f.inClass.untilTick) {
+    // À la sortie du cours, la vie du collège peut s'inviter.
+    rollSchoolEvent(w, `${f.inClass.day}:${f.inClass.session}`);
+    f.inClass = undefined;
+  }
   for (const s of sessionsOf(day)) {
     if (crossed(pm, m, SESSIONS[s].end) && !f.attended.includes(`${day}:${s}`)) recordAbsence(w, day, s);
   }
