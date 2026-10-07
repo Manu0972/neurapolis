@@ -388,3 +388,20 @@ describe('aménagement manuel (save v14)', () => {
     expect(Object.values(migrated.economy!.businesses)[0]!.layout).toEqual({});
   });
 });
+
+describe('clients présents en boutique', () => {
+  it('personne quand c’est fermé ou sans personnel, des clients quand la boutique tourne', async () => {
+    const { customersInStore } = await import('../src/simulation/economy');
+    const { w, biz } = stallReady(21);
+    const b = w.economy!.businesses[biz]!;
+    expect(customersInStore(w, b)).toBe(0); // fermé
+    setOpen(w, biz, true);
+    w.player.pos = { ...UNIT_BY_ID[STALL]!.door };
+    advanceTo(w, 8);
+    advanceTo(w, 11);
+    expect(b.today.customers).toBeGreaterThan(0);
+    expect(customersInStore(w, b)).toBeGreaterThan(0);
+    w.player.pos = { x: 39, y: 95 }; // le joueur s'en va : plus personne pour servir
+    expect(customersInStore(w, b)).toBe(0);
+  });
+});

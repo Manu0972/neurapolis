@@ -548,8 +548,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   function enterBusiness(bizId: string): void {
     const b = world.economy?.businesses[bizId];
     if (!b || !renderer3D) return;
-    const customers = b.open ? Math.max(1, Math.min(5, Math.round(appeal(b) * 2))) : 0;
-    renderer3D.enterInterior(businessInteriorSpec(b), world, { customers });
+    const customers = economyApi.customersInStore(world, b);
+    const staff = b.employeeIds.map((id) => world.economy?.employees[id]).filter((e) => !!e).map((e) => ({ id: e!.id, name: e!.name }));
+    renderer3D.enterInterior(businessInteriorSpec(b), world, { customers, staff });
     audio.playDoorBell();
   }
 

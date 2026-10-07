@@ -742,6 +742,19 @@ export function staffCapacity(w: WorldState, b: BusinessState): { staff: number;
   return { staff, perHour, playerPresent };
 }
 
+/**
+ * Clients présents à un instant dans la boutique : moyenne horaire des clients du jour depuis
+ * l'ouverture (fermé, hors horaires ou sans personnel : personne).
+ */
+export function customersInStore(w: WorldState, b: BusinessState): number {
+  const hour = Math.floor(minutesOfDay(w.time.tick) / 60);
+  if (!b.open || hour < b.hours[0] || hour >= b.hours[1]) return 0;
+  if (staffCapacity(w, b).staff === 0) return 0;
+  const hoursOpen = Math.max(1, hour - b.hours[0]);
+  // Un client reste une dizaine de minutes : environ un sixième des clients d'une heure.
+  return Math.max(b.today.customers > 0 ? 1 : 0, Math.min(8, Math.round(b.today.customers / hoursOpen / 2)));
+}
+
 /** Clients servis par heure selon l'équipement (caisses, comptoirs, machines). */
 export function equipmentCapacity(b: BusinessState): number {
   const u = UNIT_BY_ID[b.unitId];

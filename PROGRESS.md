@@ -46,5 +46,5 @@
 - [ ] **Voyages** : depuis la gare, partir (âge adulte ou vacances) vers Néo-Baie ou Plateau Blanc (fiches de `2.pdf`, `docs/VISION.md` §3.6) ; d'abord un écran de voyage et une carte régionale, puis une deuxième ville jouable.
 - [ ] **Reprise du laminoir en coopérative (2032)** : choix jouable proposé par Karim et TaretCoop après la fermeture (rachat, reprise ouvrière, reconversion), avec effets sur le quartier de la Gare.
 - [ ] **Achat de murs** : acheter un local ou un immeuble (plus de loyer, valeur patrimoniale, loyers perçus), réservé à l'âge adulte ou au bac à sable.
-- [ ] **Clients et employés à l'intérieur** : voir ses employés derrière la caisse et des clients faire leurs courses dans les commerces du joueur, en nombre tiré des ventes réelles de l'heure.
+- [x] **Clients et employés à l'intérieur** (2026-10-07 ; `customersInStore`, employés nommés à la caisse et aux rayons) : voir ses employés derrière la caisse et des clients faire leurs courses dans les commerces du joueur, en nombre tiré des ventes réelles de l'heure.
 

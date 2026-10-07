@@ -690,7 +690,7 @@ export class CityRenderer {
   }
 
   /** Entre dans un intérieur : la ville est mise en pause visuelle, le joueur apparaît sur le seuil. */
-  enterInterior(spec: InteriorSpec, world: WorldState, opts: { customers?: number } = {}): void {
+  enterInterior(spec: InteriorSpec, world: WorldState, opts: { customers?: number; staff?: { id: string; name: string }[] } = {}): void {
     if (!this.player) return;
     if (this.riding) this.setRiding(false);
     const same = this.interior?.spec.key === spec.key;
@@ -735,6 +735,23 @@ export class CityRenderer {
         this.interiorNpcs.push({ id: n.id, ch });
       });
     }
+    // Employés du commerce : le premier à la caisse, les autres près des rayons.
+    (opts.staff ?? []).forEach((emp, i) => {
+      const ch = createCharacter({ appearance: npcAppearance(emp.id), heightM: 1.66 + (i % 3) * 0.05, bodyColor: '#3f6d5a' });
+      const slot = spec.npcSlots[0];
+      const shelf = spec.items.filter((it) => it.kind === 'rayon' || it.kind === 'frigo')[i - 1];
+      const x = i === 0 && slot ? slot.x : shelf ? shelf.x : spec.w / 2 + i;
+      const z = i === 0 && slot ? slot.z : shelf ? Math.min(spec.d - 1.5, shelf.z + shelf.d / 2 + 0.7) : spec.d / 2;
+      ch.root.position.set(x, 0, z);
+      ch.setHeading(i === 0 ? 0 : Math.PI);
+      this.interiorScene.add(ch.root);
+      this.interiorNpcs.push({ id: emp.id, ch });
+      const tag = textSprite(emp.name, '#fbf3e2', 'rgba(47,93,58,0.85)');
+      tag.position.set(x, 2.05, z);
+      tag.scale.set(1.3, 0.33, 1);
+      ch.root.add(tag);
+      tag.position.set(0, 2.05, 0);
+    });
     // Clients d'un commerce ouvert : ils flânent entre les rayons et la caisse.
     for (let i = 0; i < (opts.customers ?? 0); i++) {
       const r = (k: number): number => ((Math.sin((i + 1) * 91.7 + k * 12.3) * 43758.5) % 1 + 1) % 1;
