@@ -35,7 +35,7 @@
 - [ ] **Concurrents en ville** : des commerces tenus par les commerçants du lore (`src/data/lore/shopkeepers.ts`) occupent certains locaux ; ils prennent une part de la clientèle par rue ; enseignes visibles.
 - [ ] **Clients visibles à l'étal** : files de clients devant l'étal ouvert du joueur, proportionnelles aux ventes de l'heure.
 - [ ] **Aménagement manuel** : placer les meubles achetés sur une grille dans l'intérieur du commerce (glisser-déposer), collisions mises à jour.
-- [ ] **Personnages de Jules** : quand la PR `jules/personnages-3d` est fusionnée dans `refonte-3d`, remplacer `simpleCharacter.ts` par `characters.ts` dans `CityRenderer`, `ambient.ts` et les intérieurs.
+- [~] **Personnages de Jules** (module intégré 2026-10-07, 7 tests verts ; le moteur garde `simpleCharacter.ts` en attendant la V2 arrondie demandée dans `docs/jules/RETOUR-PERSONNAGES-3D.md`) : quand la PR `jules/personnages-3d` est fusionnée dans `refonte-3d`, remplacer `simpleCharacter.ts` par `characters.ts` dans `CityRenderer`, `ambient.ts` et les intérieurs.
 - [ ] **Sons de ville** : brancher `audio.playDoorBell()` (entrée en boutique), `audio.setTrafficLevel()` (distance aux voitures), `audio.playFootstep()` par revêtement (asphalte, pavé, herbe, parquet).
 - [ ] **Vélo** : acheter un vélo (dès 12 ans), monter/descendre, vitesse ×2,5, capacité de transport +30.
 - [ ] **Performance** : instanciation des passants, découpage du bundle (Three.js à part), mesure des images/seconde ; viser 60 i/s.
