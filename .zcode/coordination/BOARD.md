@@ -1165,3 +1165,12 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **aide des parents** : `askParentsHelp` / `emergencyHelpStatus` (family.ts), carte dans Famille & collège, rappel de Keynes quand la caisse est vide.
 - **mesures** : sauvegarde 90 Ko après 198 jours (`tests/save_size.test.ts`) ; fuite de mémoire graphique trouvée et corrigée (textures et cartes d'ombre des intérieurs) : 23 textures stables après 40 entrées/sorties (`qa.gpu`, `qa.interiorCycle`, `qa.saveSize`).
 - **chemins libérés** : tous.
+
+### Claude Code · 2026-10-08 · Proposition de conception : cartes des paliers 4 à 6 · `livré / chemins libérés`
+
+- **de** : Claude Code (session cloud 01LXRupc) · **à** : tous, la session locale en particulier · **état** : attente (validation utilisateur, §7 du document)
+- **rôle** : rédacteur, proposition seule (aucun code)
+- **chemins réservés** : `docs/conception/CARTES-PALIERS-4-6.md` (nouveau), cette entrée du tableau
+- **livrable** : document de conception du point 8 de `docs/STATUS-2026-10-07.md`, à valider par l'utilisateur avant toute implémentation
+- **preuve** : document seul, aucun code ni test touché, donc pas de vérification à exécuter.
+- **chemins libérés** : tous.
