@@ -10,6 +10,7 @@ import { SAVE_VERSION } from '../core/store';
 import { PLACE_ANCHORS } from '../data/map';
 import { createEconomyState } from '../core/economy_types';
 import { createAscensionState } from '../core/ascension_types';
+import { createHappeningsState } from '../core/happenings_types';
 import { INITIAL_RIVALS } from '../data/rivals';
 import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
 import { COUNTER_STRATEGIES } from '../data/rivals';
@@ -352,6 +353,12 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
   16: (s) => {
     if (typeof s.ascension !== 'object' || s.ascension === null) s.ascension = createAscensionState();
     s.version = 17;
+    return s;
+  },
+  // 17 → 18 : fil d'infos du monde et surprises — rien de publié, aucun effet en cours.
+  17: (s) => {
+    if (typeof s.happenings !== 'object' || s.happenings === null) s.happenings = createHappeningsState();
+    s.version = 18;
     return s;
   },
 };

@@ -20,6 +20,7 @@ import { DUEL_BY_ID, type StrategyEffects } from '../data/ascension/duels';
 import { IDEAS, IDEA_BY_ID, TIERS, TIER_REQUIREMENTS, type IdeaDef } from '../data/ascension/ideas';
 import { econRand } from './economy';
 import { notify, pushEvent } from './events';
+import { sectorDemand } from './happenings_effects';
 
 /** Jours avant le verdict d'une décision. */
 export const VERDICT_DAYS = 21;
@@ -214,7 +215,8 @@ function marketDemand(w: WorldState, idea: IdeaDef, day: number, eff: StrategyEf
   const phase = econRand(w, 'asc-phase', idea.id) * 60;
   const cycle = Math.sin((2 * Math.PI * (day + phase)) / 60);
   const noise = econRand(w, 'asc-demande', idea.id, day) - 0.5;
-  return Math.max(0, 1 + 0.15 * cycle * (eff.cycle ?? 1) + 0.35 * noise * eff.volatility);
+  // Le fil d'infos et les surprises pèsent sur le secteur et sur l'entreprise elle-même.
+  return Math.max(0, (1 + 0.15 * cycle * (eff.cycle ?? 1) + 0.35 * noise * eff.volatility) * sectorDemand(w, idea.sector, idea.id));
 }
 
 interface DayOutcome { revenue: number; costs: number; profit: number; unsold: number; missed: number; interest: number; repay: number }

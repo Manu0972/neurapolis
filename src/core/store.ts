@@ -14,9 +14,10 @@ import { MACRO_NEWS_TEMPLATES } from '../data/macro_news';
 import { INITIAL_TUTORIALS } from '../data/tutorials';
 import { PLACE_ANCHORS } from '../data/map';
 import { createAscensionState } from './ascension_types';
+import { createHappeningsState } from './happenings_types';
 import { createEconomyState } from './economy_types';
 
-export const SAVE_VERSION = 17;
+export const SAVE_VERSION = 18;
 
 const SKILL_IDS: SkillId[] = ['negociation', 'comptabilite', 'communication', 'organisation', 'technique', 'recherche'];
 
@@ -194,6 +195,7 @@ export function createWorld(opts: CreateWorldOptions = {}): WorldState {
     },
     economy: createEconomyState(opts.sandbox ?? false),
     ascension: createAscensionState(),
+    happenings: createHappeningsState(),
     ghostCompanion: {
       activeGhostId: 'smith',
       mood: 'curieux',

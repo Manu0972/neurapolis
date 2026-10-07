@@ -19,8 +19,9 @@ import {
 import { el } from './ui';
 import { BIKE, buyBike, ownsBike } from '../simulation/vehicles';
 import { renderAscensionApp } from './ascension-ui';
+import { renderInfosApp } from './news-ui';
 
-export type PhoneApp = 'ascension' | 'immobilier' | 'commerces' | 'commandes' | 'emploi' | 'banque';
+export type PhoneApp = 'ascension' | 'infos' | 'immobilier' | 'commerces' | 'commandes' | 'emploi' | 'banque';
 
 export interface PhoneContext {
   world: WorldState;
@@ -32,6 +33,7 @@ export interface PhoneContext {
 
 const APPS: { id: PhoneApp; icon: string; label: string }[] = [
   { id: 'ascension', icon: '🚀', label: 'Ascension' },
+  { id: 'infos', icon: '📰', label: 'Infos' },
   { id: 'immobilier', icon: '🏢', label: 'Immobilier' },
   { id: 'commerces', icon: '🏪', label: 'Commerces' },
   { id: 'commandes', icon: '📦', label: 'Commandes' },
@@ -96,6 +98,7 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'commerces', focus?
     if (current === 'commandes') renderCommandes();
     if (current === 'emploi') renderEmploi();
     if (current === 'banque') renderBanque();
+    if (current === 'infos') renderInfosApp(w, screen);
     if (current === 'ascension') renderAscensionApp(ctx, screen, render, () => openPhone(ctx, 'ascension'));
   }
 

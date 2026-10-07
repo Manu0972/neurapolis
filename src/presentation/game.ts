@@ -84,6 +84,8 @@ import { LAMINOIR_OPTIONS, chooseLaminoirFuture, laminoirDecisionPending } from 
 import { BUS_HOURS, busFare, busRideTicks, busRunning, isOnBus, stopNear, takeBus } from '../simulation/transit';
 import { BUS_STOPS, BUS_STOP_BY_ID } from '../data/city/transit';
 import { createGhostBar } from './ghost-bar';
+import { createNewsToaster, openSurpriseModal } from './news-ui';
+import { pendingSurprise } from '../simulation/happenings';
 import { mostUrgentTip } from '../simulation/ghost_tips';
 import { CITY } from '../data/map';
 import * as economyApi from '../simulation/economy';
@@ -124,6 +126,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   // Barre des fantômes : leurs têtes en haut de l'écran, qui bougent quand ils veulent parler.
   const ghostBar = createGhostBar(root, () => world, () => modalOpen);
   let lastTipText = '';
+  // Notifications façon téléphone pour le fil d'infos ; un clic ouvre l'application « Infos ».
+  const newsToaster = createNewsToaster(root, () => openPhoneUi('infos'));
+  let surpriseRetryTick = 0;
   let modalOpen = false;
   const deferredArrivals = new Set<string>();
   let last = performance.now();
@@ -2640,6 +2645,14 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           openArrivalScene(pend[0] ?? '');
         } else if (world.streetRecognition?.spontaneousEncounterPending) {
           openStreetEncounterModal();
+        } else if (pendingSurprise(world) && world.time.tick >= surpriseRetryTick && !world.player.asleep && !travelFastForward() && !isOnBus(world)) {
+          // Dilemme : deux fantômes défendent chacun une option. Fermé sans choisir, il revient une heure plus tard.
+          surpriseRetryTick = world.time.tick + 6;
+          audio.playMarketAlert();
+          openSurpriseModal({ world, showModal, closeModal, toast }, (ghost, text, failed) => {
+            ghostBar.push({ ghost, text, pop: true, mood: failed ? 'alerte' : 'joie' });
+            updateHud(ui, world, promptText());
+          });
         } else if (laminoirDecisionPending(world) && laminoirAskedDay !== dayIndexOf(world.time.tick) && !world.player.asleep && !isTraveling(world)) {
           // Karim revient chaque jour tant que le quartier n'a pas tranché.
           laminoirAskedDay = dayIndexOf(world.time.tick);
@@ -2769,6 +2782,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
     if (++hudFrame % 30 === 0) {
       ghostBar.sync(world);
+      newsToaster.check(world);
       syncSigns();
       syncWaypoints();
       syncTips();

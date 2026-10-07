@@ -23,6 +23,7 @@ import { economyTick } from './economy';
 import { jobTick } from './jobs';
 import { travelTick } from './travel';
 import { ascensionDay } from './ascension';
+import { happeningsTick } from './happenings';
 import { worldTimelineDay } from './world_timeline';
 import { saveToSlot } from '../saves/persist';
 
@@ -57,6 +58,7 @@ export function tickWorld(w: WorldState): TickOutput {
   out.push(...economyTick(w, prevTick));
   out.push(...jobTick(w));
   out.push(...travelTick(w));
+  out.push(...happeningsTick(w, prevTick));
 
   if (day !== prevDay) {
     out.push(...rivalDay(w));

@@ -801,3 +801,31 @@ canvas.map-canvas-3d { image-rendering: auto; touch-action: none; }
 }
 .duel-mascot-svg { display: flex; justify-content: center; animation: duel-float 2.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .duel-mascot-svg { animation: none; } }
+
+/* ---------- Fil d'infos : notifications façon téléphone, application Infos, dilemmes ---------- */
+.news-toasts {
+  position: absolute; top: 118px; right: 16px; z-index: 24; width: min(320px, calc(100vw - 32px));
+  display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+}
+.news-toast {
+  pointer-events: auto; text-align: left; cursor: pointer; border: 0; border-radius: 16px; padding: 10px 12px;
+  background: rgba(251, 243, 226, 0.97); color: #2a1a14; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  display: flex; flex-direction: column; gap: 4px; font: inherit;
+  animation: news-in 0.35s cubic-bezier(.2, 1.3, .4, 1); transition: opacity 0.5s, transform 0.5s;
+}
+.news-toast.leaving { opacity: 0; transform: translateX(24px); }
+.news-toast:focus-visible { outline: 3px solid var(--or); }
+.news-toast-top { display: flex; justify-content: space-between; font-size: 11px; opacity: 0.7; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.news-toast-title { font-weight: 800; font-size: 14px; line-height: 1.3; }
+@keyframes news-in { from { opacity: 0; transform: translateY(-14px) scale(0.96); } to { opacity: 1; transform: none; } }
+.news-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.news-chip { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; background: #e9dcc0; color: #2a1a14; }
+.news-chip.up { background: #cfe8c8; color: #1f4d1c; }
+.news-chip.down { background: #f2c9bd; color: #6b1f0f; }
+.news-chip.over { opacity: 0.45; text-decoration: line-through; }
+.news-reaction { display: flex; align-items: center; gap: 8px; }
+.news-reaction .ph-note { margin: 0; font-style: italic; }
+.surprise-bon { border-left: 4px solid var(--vert); }
+.surprise-mauvais { border-left: 4px solid var(--or); }
+.surprise-catastrophe { border-left: 4px solid var(--rouge); }
+@media (prefers-reduced-motion: reduce) { .news-toast { animation: none; transition: none; } }

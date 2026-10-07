@@ -622,6 +622,7 @@ export interface GhostCompanionState {
 // ---------- Monde ----------
 import type { EconomyState } from './economy_types';
 import type { AscensionState } from './ascension_types';
+import type { HappeningsState } from './happenings_types';
 
 export interface WorldState {
   version: number;
@@ -648,6 +649,8 @@ export interface WorldState {
   economy?: EconomyState;
   /** L'Ascension : paliers, idées de business, doubles faces, carnet d'économie (save v17). */
   ascension?: AscensionState;
+  /** Fil d'infos du monde et surprises (save v18). */
+  happenings?: HappeningsState;
   events: GameEvent[];        // journal des événements (cap 250)
   lifeJournal: LifeJournalEntry[];
   flags: Record<string, number>; // compteurs libres (ventes, conflits, prévisions ratées…)
