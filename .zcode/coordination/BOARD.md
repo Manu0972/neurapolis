@@ -844,3 +844,11 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
   - `tests/character_creation.test.ts` (suite unitaire P-PERSO)
 - **résultat** : Le flux de création de personnage persiste et recharge de bout en bout en version 10.
 - **chemins libérés** : Tous les chemins ci-dessus sont désormais libérés.
+
+### Claude Code · 2026-10-07 · Avenir du laminoir (2032) · `livré / chemins libérés`
+
+- **de** : Claude Code (session 45d06140) · **à** : tous · **état** : clos
+- **chemins touchés** : `src/simulation/laminoir.ts` (nouveau), `src/simulation/economy.ts` (multiplicateur `laminoirDemand` dans `simulateHour`), `src/presentation/game.ts` (fenêtre « La halle du laminoir »), `tests/laminoir.test.ts`, `PROGRESS.md`
+- **résumé** : après `flags.laminoirFerme`, trois choix (coopérative 2000 € / rép. 60 ; entrepôt HyperVal ; tiers-lieu 500 € / rép. 45), stockés dans `flags.laminoirChoix` — pas de changement de schéma.
+- **preuve** : `verify.ps1` → tsc OK, Test Files 47 passed, Tests 593 passed, vite build OK.
+- **chemins libérés** : tous.

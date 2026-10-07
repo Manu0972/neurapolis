@@ -77,6 +77,7 @@ import { hhmmOfTick } from '../core/clock';
 import { appeal } from '../simulation/economy';
 import { ownsBike } from '../simulation/vehicles';
 import { DESTINATIONS, DESTINATION_BY_ID, canTravel, isTraveling, startTravel } from '../simulation/travel';
+import { LAMINOIR_OPTIONS, chooseLaminoirFuture, laminoirDecisionPending } from '../simulation/laminoir';
 import { CITY } from '../data/map';
 import * as economyApi from '../simulation/economy';
 import { openDetailedInteriorModal } from './interiors';
@@ -396,6 +397,32 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       }
     }
     renderer3D.setWaypoints(pts);
+  }
+
+  // ---------- Laminoir Taret (2032) : l'avenir de la halle ----------
+  let laminoirAskedDay = -1;
+  function openLaminoirModal(): void {
+    const body = el('div', 'panel-body');
+    body.appendChild(el('p', 'panel-desc', 'Le laminoir a fermé. Karim et TaretCoop réunissent le quartier dans la halle froide : trois projets sont sur la table, et ta voix compte. Ce choix change durablement le quartier de la Gare.'));
+    const list = el('div', 'ph-list');
+    for (const o of LAMINOIR_OPTIONS) {
+      const card = el('div', 'ph-card');
+      card.appendChild(el('div', 'ph-card-title', o.title));
+      card.appendChild(el('p', 'ph-note', o.text));
+      const req = [o.cost > 0 ? `apport ${o.cost} €` : 'sans apport', o.minReputation > 0 ? `réputation ≥ ${o.minReputation}` : ''].filter(Boolean).join(' · ');
+      card.appendChild(el('p', 'ph-note', req));
+      const btn = el('button', 'ph-btn primary', 'Soutenir ce projet');
+      btn.addEventListener('click', () => {
+        const r = chooseLaminoirFuture(world, o.id);
+        toast(r.message, r.ok);
+        if (r.ok) closeModal();
+      });
+      card.appendChild(btn);
+      list.appendChild(card);
+    }
+    body.appendChild(list);
+    body.appendChild(el('p', 'panel-note', 'Tu peux réfléchir : Karim reviendra demain.'));
+    showModal('🏭 La halle du laminoir', 'Val-Ferrand, après la fermeture', body, true);
   }
 
   // ---------- Gare : tableau des départs ----------
@@ -2521,6 +2548,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           openArrivalScene(pend[0] ?? '');
         } else if (world.streetRecognition?.spontaneousEncounterPending) {
           openStreetEncounterModal();
+        } else if (laminoirDecisionPending(world) && laminoirAskedDay !== dayIndexOf(world.time.tick) && !world.player.asleep && !isTraveling(world)) {
+          // Karim revient chaque jour tant que le quartier n'a pas tranché.
+          laminoirAskedDay = dayIndexOf(world.time.tick);
+          openLaminoirModal();
         } else {
           // La nuit défile en accéléré (ellipse) : 9 heures de sommeil en quelques secondes,
           // tick par tick, sans jamais sauter la clôture économique ni les événements.

@@ -20,6 +20,7 @@ import { notify, pushEvent } from './events';
 import { createEconomyState } from '../core/economy_types';
 import { bertinLoyaltyDiscount } from './jobs';
 import { timelineDemand } from './world_timeline';
+import { laminoirDemand } from './laminoir';
 import { COMPETITORS, COMPETITOR_BY_UNIT } from '../data/city/competitors';
 
 export interface EconomyResult {
@@ -912,7 +913,7 @@ export function simulateHour(w: WorldState, b: BusinessState, hour: number): Hou
     ? clamp(1 - (rival.marketShare - 50) / 200, 0.7, 1.1) : 1;
   // Conjoncture : la chronologie du monde (src/simulation/world_timeline.ts) module la demande.
   const conj = t.productCategories.reduce((s, c) => s + timelineDemand(w, c), 0) / Math.max(1, t.productCategories.length);
-  const visitors = Math.round(passersby * t.baseConversion * appeal(b) * priceFactor * variety * rivalPressure * competitionFactor(b) * conj);
+  const visitors = Math.round(passersby * t.baseConversion * appeal(b) * priceFactor * variety * rivalPressure * competitionFactor(b) * conj * laminoirDemand(w, b.unitId));
   const staff = staffCapacity(w, b);
   const capacity = Math.floor(Math.min(staff.perHour, equipmentCapacity(b)));
   const served = Math.min(visitors, capacity);
