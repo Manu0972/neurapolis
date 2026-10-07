@@ -109,12 +109,17 @@ S'adapter ◀── Conséquences ◀── Monter l'activité : local, aménage
 
 Le jeu commence à 12 ans. *Big Ambitions* met un adulte aux commandes ; NEURAPOLIS fait **grandir** l'accès, c'est la « progression en spirale » de la Bible :
 
-| Âge | Ce qui est possible | Garde-fou narratif |
+**Mise à jour du 2026-10-07 (implémentée).** L'accès ne dépend pas que de l'âge, mais des **preuves** :
+l'utilisateur veut qu'on prenne la ville en un an de jeu environ, pas qu'on attende ses 16 ans.
+
+| Étape | Ce qui est possible | Condition (code : `leaseEligibility`) |
 |---|---|---|
-| 12-13 | Stand, petits services, vente au marché | Argent de poche, accord des parents |
-| 14-15 | Coopérative, atelier de la Friche, location d'un emplacement de marché | Karim ou Mme Bertin servent de garant |
-| 16-17 | **Premier local commercial** (bail co-signé par un parent ou un mentor), premiers salariés à temps partiel | Le co-signataire peut refuser si la trésorerie est mauvaise |
-| 18+ | Tout : plusieurs commerces, prêts bancaires, immobilier, chaînes | — |
+| 1. Stand | Le Stand des Roses, petits services | Dès 12 ans (campagne, chapitre 1) |
+| 2. **Étal du marché** | Emplacement loué à la journée (4 à 6 €/jour), équipé, on vend soi-même sur place | Dès 12 ans, parents garants |
+| 3. **Premier local** | Boutique sur une rue passante, mobilier, employés | Parents garants **si** : un étal tenu au moins 5 jours, 40 articles vendus, réputation ≥ 55 ; ou 16 ans |
+| 4. Tout | Plusieurs commerces, prêts bancaires plafonnés plus haut, grossistes livrés | 18 ans, ou mode bac à sable |
+
+Prêts : prêt familial co-signé (≤ 3 000 €, 3,5 %) pour un mineur ; caisse coopérative du Taret (5,9 %) adulte.
 
 Pour le **développement et les tests**, un mode « bac à sable » (option de création de partie) débloque tout dès le départ, comme *Big Ambitions*.
 
@@ -155,7 +160,22 @@ Pour le **développement et les tests**, un mode « bac à sable » (option de c
 | **E-5** | Intérieurs praticables (on entre et on marche dans le commerce) | Capture |
 | **A-x** | Délégués à Antigravity (voir `docs/ANTIGRAVITY-BRIEF-2026-10-07.md`) | Selon le brief |
 
-## 9. Ce qui reste à confirmer par l'utilisateur
+## 9. Ce que l'utilisateur a précisé (via Antigravity, 2026-10-07)
+
+Réponses recueillies par Antigravity auprès de l'utilisateur (`docs/ANTIGRAVITY-BRIEF-2026-10-07.md` §5) et désormais canon :
+
+- **Logistique physique** : pas de stock téléporté. On va chercher les cartons chez le fournisseur (Bertin, Cash HyperVal) ou on se fait livrer par un grossiste. *Implémenté* (`orderStock`, `pickUpOrder`, `unloadAt`, capacité de transport).
+- **Exploration libre dans une vraie ville 3D**, pas de menus abstraits où tout se règle en un clic. *Implémenté* (E-1, E-5).
+- **Rythme** : pas de grind. Prendre la ville en un an de jeu environ, puis s'exporter. **Ellipses** (vacances, nuits) plutôt que d'attendre en temps réel.
+- **Expansion** : le personnage commence enfant, puis s'étend à d'autres villes, au département, à la région, au pays. La phase adulte (18+) est prévue à terme.
+- **Fantômes** : de petits compagnons kawaii qui suivent le joueur, cliquables pour un avis, ou qui viennent d'eux-mêmes donner leur avis, sans prendre toute la place à l'écran. *Implémenté* : sprite flottant près de l'épaule en 3D et widget du HUD.
+- **Mini-tutos désactivables** à chaque nouvelle mécanique débloquée.
+- **Ton** : social et engagé, mais chaleureux et accessible. Ni cynisme noir, ni jeu enfantin.
+- **HUD façon Big Ambitions** : bandeau d'état épuré, mini-carte, menus fenêtrés. *Implémenté*.
+- **Commerces au lancement** : 6 à 8 types (goûters/épicerie, boulangerie-snack, café, librairie-papeterie, friperie, atelier vélo avec Karim, fleuriste, kiosque presse). Base implémentée ; le catalogue étendu d'Antigravity arrive.
+- **Petits boulots** avant d'entreprendre : courses et livraisons pour Mme Bertin (dans `PROGRESS.md`).
+
+## 10. Ce qui reste à confirmer par l'utilisateur
 
 Ces points ont une valeur par défaut (indiquée) et ne bloquent pas le travail :
 

@@ -39,7 +39,7 @@ export interface Hotspot {
   icon: string;
   x: number;
   z: number;
-  kind: 'mobilier' | 'sortie' | 'piece' | 'gestion' | 'decharger';
+  kind: 'mobilier' | 'sortie' | 'piece' | 'gestion' | 'decharger' | 'travail';
   /** Pièce de destination (kind = piece) ou identifiant de mobilier (kind = mobilier). */
   target?: string;
 }
@@ -167,6 +167,9 @@ export function placeInteriorSpec(place: PlaceId, roomId?: string): InteriorSpec
   const items = arrange(room.furniture.map((f) => ({ id: f.id, kind: fixKind(f.id), label: f.name, icon: f.icon })), style.w, style.d);
   const hotspots: Hotspot[] = items.map((it) => ({ id: it.id, label: `${it.label} — ${room.furniture.find((f) => f.id === it.id)?.actionLabel ?? ''}`, icon: it.icon, ...frontOf(it), kind: 'mobilier', target: it.id }));
   hotspots.push({ id: 'sortie', label: 'Sortir', icon: '🚪', x: style.w / 2, z: style.d - 0.6, kind: 'sortie' });
+  if (place === 'epicerie' && rid === rooms[0]) {
+    hotspots.push({ id: 'travail', label: 'Proposer ton aide à Mme Bertin (petit boulot, 4,50 €/h)', icon: '🧺', x: 1.2, z: style.d - 2.4, kind: 'travail' });
+  }
   const others = rooms.filter((r) => r !== rid);
   others.forEach((r, i) => {
     const rr = def.rooms.find((x) => x.id === r)!;

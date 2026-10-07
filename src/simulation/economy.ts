@@ -18,6 +18,7 @@ import {
 } from '../data/economy';
 import { notify, pushEvent } from './events';
 import { createEconomyState } from '../core/economy_types';
+import { bertinLoyaltyDiscount } from './jobs';
 
 export interface EconomyResult {
   ok: boolean;
@@ -409,7 +410,9 @@ export function orderStock(w: WorldState, bizId: string, wholesalerId: string, l
     const p = PRODUCT_BY_ID[l.productId]!;
     if (!t.productCategories.includes(p.category)) return ko(`${p.name} ne se vend pas dans un commerce de ce type.`);
   }
-  const priced = clean.map((l) => ({ ...l, unitCost: round2(PRODUCT_BY_ID[l.productId]!.wholesaleBase * g.priceMult) }));
+  // Mme Bertin consent un prix plus doux au jeune qui l'a aidée à l'épicerie (src/simulation/jobs.ts).
+  const mult = g.id === 'g_bertin_depannage' ? g.priceMult - bertinLoyaltyDiscount(w) : g.priceMult;
+  const priced = clean.map((l) => ({ ...l, unitCost: round2(PRODUCT_BY_ID[l.productId]!.wholesaleBase * mult) }));
   const goods = round2(priced.reduce((s, l) => s + l.unitCost * l.qty, 0));
   if (goods < g.minOrder) return ko(`Commande minimale chez ${g.name} : ${g.minOrder} € (ta commande : ${goods.toFixed(2)} €).`);
   const total = round2(goods + g.deliveryFee);

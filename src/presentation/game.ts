@@ -70,6 +70,8 @@ import { streetNameAt, unitAt } from '../data/map';
 import { drawMinimap, renderCityMap } from './minimap';
 import { businessInteriorSpec, placeHasInterior, placeInteriorSpec } from './city3d/interior3d';
 import { useFurniture } from '../simulation/interior_actions';
+import { JOB, inShift, startShift } from '../simulation/jobs';
+import { hhmmOfTick } from '../core/clock';
 import { appeal } from '../simulation/economy';
 import * as economyApi from '../simulation/economy';
 import { openDetailedInteriorModal } from './interiors';
@@ -90,6 +92,10 @@ import { INITIAL_TUTORIALS } from '../data/tutorials';
  * (docs/DECISIONS.md, 2026-10-07) : une journée éveillée dure environ 16 minutes réelles.
  */
 const TICK_MS = 10_000;
+/** Multiplicateur de vitesse pendant le sommeil : une nuit de 9 h passe en ~5 s. */
+const NIGHT_SPEED = 120;
+/** Pendant un petit boulot, deux heures de service passent en ~15 s. */
+const SHIFT_SPEED = 50;
 const MOVE_MS = 150;  // cadence d'un pas de tuile en maintenant une direction
 
 const REL_DIMS: ReadonlyArray<keyof Rel4> = ['amitie', 'confiance', 'respect', 'rivalite'];
@@ -244,6 +250,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     },
   };
 
+  // Fondu « Tu dors… » pendant l'ellipse de la nuit.
+  const sleepOverlay = el('div', 'sleep-overlay', '');
+  sleepOverlay.appendChild(el('div', 'sleep-text', '😴 Tu dors… la nuit passe'));
+  root.appendChild(sleepOverlay);
+
   // ---------- Économie : interactions physiques et téléphone ----------
 
   const ecoToastEl = el('div', 'eco-toast hidden', '');
@@ -324,6 +335,26 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   }
   syncSigns();
 
+  /** Repères 3D : cartons à retirer (jaune), puis boutique où les décharger (vert). */
+  function syncWaypoints(): void {
+    const e = world.economy;
+    if (!e || !renderer3D) return;
+    const pts: { x: number; y: number; color: string }[] = [];
+    if (e.carried.length > 0) {
+      for (const bizId of new Set(e.carried.map((c) => c.businessId))) {
+        const b = e.businesses[bizId];
+        if (b) pts.push({ ...businessDoor(b), color: '#5fd17a' });
+      }
+    } else {
+      for (const o of e.orders) {
+        if (o.status !== 'a_retirer') continue;
+        const p = pickupPoint(o.wholesalerId);
+        if (p && !pts.some((q) => q.x === p.x && q.y === p.y)) pts.push({ ...p, color: '#ffd84a' });
+      }
+    }
+    renderer3D.setWaypoints(pts);
+  }
+
   function playerPose(): { x: number; z: number; heading: number } {
     return renderer3D && use3D ? renderer3D.playerPose : { x: world.player.pos.x + 0.5, z: world.player.pos.y + 0.5, heading: 0 };
   }
@@ -377,6 +408,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (!spec || !h) return null;
     const label = `E — ${h.label}`;
     if (h.kind === 'sortie') return { label, run: exitInterior };
+    if (h.kind === 'travail') {
+      return { label, run: () => { const r = startShift(world); toast(r.message, r.ok); } };
+    }
     if (h.kind === 'piece' && spec.placeId) return { label, run: () => { enterPlace(spec.placeId!, h.target); } };
     if (h.kind === 'gestion' && spec.businessId) return { label, run: () => openPhoneUi('commerces', { businessId: spec.businessId }) };
     if (h.kind === 'decharger' && spec.businessId) {
@@ -408,6 +442,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   function promptText(): string {
     if (world.player.asleep) return '😴 Tu dors. La nuit passe…';
+    if (inShift(world)) return `🧺 ${JOB.title} — fin du service à ${hhmmOfTick(world.flags['jobShiftEnd'] ?? world.time.tick)}`;
     if (renderer3D?.inInterior) {
       const inside = interiorActionHere();
       if (inside) return inside.label;
@@ -426,7 +461,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   function interact(): void {
     if (modalOpen) return;
-    if (world.player.asleep) return;
+    if (world.player.asleep || inShift(world)) return;
     if (renderer3D?.inInterior) {
       const inside = interiorActionHere();
       if (inside) { inside.run(); return; }
@@ -2209,7 +2244,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         } else if (world.streetRecognition?.spontaneousEncounterPending) {
           openStreetEncounterModal();
         } else {
-          const speed = world.time.speed;
+          // La nuit défile en accéléré (ellipse) : 9 heures de sommeil en quelques secondes,
+          // tick par tick, sans jamais sauter la clôture économique ni les événements.
+          const speed = world.time.speed === 0 ? 0 : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : world.time.speed;
           if (speed !== 0) {
             acc += dt;
             const tickMs = TICK_MS / speed;
@@ -2274,7 +2311,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       renderer3D.frame(world, dt / 1000, {
         move: input.vector(),
         running: input.running(),
-        canMove: !modalOpen && !world.player.asleep,
+        canMove: !modalOpen && !world.player.asleep && !inShift(world),
       }, ui.cw, ui.ch);
     } else {
       const rawD = input.dir();
@@ -2285,7 +2322,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       });
     }
 
-    if (++hudFrame % 30 === 0) syncSigns();
+    sleepOverlay.classList.toggle('on', world.player.asleep);
+    if (++hudFrame % 30 === 0) {
+      syncSigns();
+      syncWaypoints();
+    }
     if (hudFrame % 2 === 0 && ui.minimapCtx) {
       const pose = playerPose();
       drawMinimap(ui.minimapCtx, 360, world, pose, pose.heading, renderer3D?.cameraYaw ?? 0);

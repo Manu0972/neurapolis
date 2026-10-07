@@ -236,6 +236,62 @@ export class CityRenderer {
     this.city?.setUnitSign(unitId, text, color);
   }
 
+  // ---------- Repères de destination (colonne lumineuse + flèche) ----------
+  private waypointGroup = new THREE.Group();
+  private waypointKey = '';
+
+  /** Affiche des repères au-dessus des tuiles données (retrait de cartons, boutique à livrer…). */
+  setWaypoints(points: { x: number; y: number; color: string }[]): void {
+    const key = JSON.stringify(points);
+    if (key === this.waypointKey) return;
+    this.waypointKey = key;
+    for (const c of [...this.waypointGroup.children]) {
+      c.traverse((o) => {
+        const m = o as THREE.Mesh;
+        m.geometry?.dispose();
+        (m.material as THREE.Material | undefined)?.dispose();
+      });
+      this.waypointGroup.remove(c);
+    }
+    if (!this.waypointGroup.parent) this.scene.add(this.waypointGroup);
+    for (const p of points) {
+      const g = new THREE.Group();
+      const beam = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.35, 0.6, 14, 16, 1, true),
+        new THREE.MeshBasicMaterial({ color: p.color, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }),
+      );
+      beam.position.y = 7;
+      const arrow = new THREE.Mesh(
+        new THREE.ConeGeometry(0.45, 0.9, 4),
+        new THREE.MeshBasicMaterial({ color: p.color }),
+      );
+      arrow.rotation.x = Math.PI;
+      arrow.position.y = 3.2;
+      arrow.userData.bob = true;
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.7, 0.95, 32),
+        new THREE.MeshBasicMaterial({ color: p.color, transparent: true, opacity: 0.8, side: THREE.DoubleSide }),
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.2;
+      g.add(beam, arrow, ring);
+      g.position.set(p.x + 0.5, groundHeightAt(p.x + 0.5, p.y + 0.5), p.y + 0.5);
+      this.waypointGroup.add(g);
+    }
+  }
+
+  private animateWaypoints(): void {
+    const t = performance.now() / 1000;
+    for (const g of this.waypointGroup.children) {
+      for (const c of g.children) {
+        if (c.userData.bob) {
+          c.position.y = 3.2 + Math.sin(t * 2.4) * 0.25;
+          c.rotation.y = t * 1.5;
+        }
+      }
+    }
+  }
+
   /** Avance la présentation d'une image : déplacement du joueur, PNJ, ambiance, rendu. */
   frame(world: WorldState, dt: number, input: CityFrameInput, cw: number, ch: number): void {
     if (!this.renderer || !this.city) return;
@@ -281,6 +337,7 @@ export class CityRenderer {
     (this.city.water.material as THREE.MeshStandardMaterial).color.setHSL(0.53, 0.3, 0.32 + Math.sin(performance.now() / 1300) * 0.015 - s.night * 0.15);
 
     this.ambient?.update(dt, { x: this.body.x, z: this.body.z }, s.night);
+    this.animateWaypoints();
     if (this.rain) {
       this.rain.visible = rainy;
       if (rainy) {

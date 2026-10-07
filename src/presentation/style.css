@@ -656,3 +656,12 @@ canvas.map-canvas-3d { image-rendering: auto; touch-action: none; }
   .hud2-minimap { left: auto; right: 12px; bottom: 130px; transform: scale(0.75); transform-origin: bottom right; }
 }
 .city-map canvas { max-width: 100%; height: auto; border-radius: 10px; display: block; }
+
+/* Ellipse de la nuit */
+.sleep-overlay {
+  position: fixed; inset: 0; z-index: 9; pointer-events: none; opacity: 0; transition: opacity 1.2s ease;
+  background: radial-gradient(circle at 50% 50%, rgba(20, 16, 40, 0.55), rgba(8, 6, 18, 0.92));
+  display: flex; align-items: center; justify-content: center;
+}
+.sleep-overlay.on { opacity: 1; }
+.sleep-text { font-size: 22px; font-weight: 800; color: var(--ink); letter-spacing: 0.04em; }
