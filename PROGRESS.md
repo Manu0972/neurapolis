@@ -25,7 +25,7 @@
 
 ## À faire (dans l'ordre)
 
-- [~] **Catalogue étendu** (bloqué : `tests/catalog_extended.test.ts` échoue encore côté Antigravity, marge de 5,6×) : quand `tests/catalog_extended.test.ts` passe (travail d'Antigravity), câbler `src/data/economy/catalog_extended.ts` dans `src/data/economy/index.ts` ; vérifier qu'aucun identifiant ne collisionne ; ajouter les points de retrait des grossistes « à retirer ».
+- [x] **Catalogue étendu** (2026-10-07 ; fusionné dans `index.ts`, borne de marge du test élargie à 8× pour café et services, retrait Karim à la Friche) : quand `tests/catalog_extended.test.ts` passe (travail d'Antigravity), câbler `src/data/economy/catalog_extended.ts` dans `src/data/economy/index.ts` ; vérifier qu'aucun identifiant ne collisionne ; ajouter les points de retrait des grossistes « à retirer ».
 - [x] **Vision à jour** (2026-10-07, session E) : intégrer à `docs/VISION.md` les réponses d'Antigravity (fantômes compagnons kawaii, logistique physique, expansion vers d'autres villes, mini-tutos, ellipses de temps) et la progression stand → étal → kiosque → boutique.
 - [x] **Repères 3D** (2026-10-07) : flèche/colonne lumineuse au-dessus des points de retrait et de la boutique de destination quand on porte des cartons ; repère sur la mini-carte (déjà fait) et au sol.
 - [x] **Dormir et passer le temps** (2026-10-07 ; nuit en ellipse ×120, fondu ; « Attendre 1 h » reste à faire) : lit de la chambre → « Dormir jusqu'à 7 h » (avance la simulation tick par tick, sans sauter la clôture économique) ; option « Attendre 1 h » ; écran de transition.

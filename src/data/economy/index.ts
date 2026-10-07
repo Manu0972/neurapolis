@@ -3,16 +3,24 @@
  * Le moteur ne lit les définitions que par ce module.
  */
 import type { BusinessTypeDef, FurnitureDef, ProductDef, WholesalerDef } from '../../core/economy_types';
-import { BASE_BUSINESS_TYPES, BASE_FURNITURE, BASE_PRODUCTS, BASE_WHOLESALERS } from './base_catalog';
+import { BASE_BUSINESS_TYPES, BASE_FURNITURE, BASE_PRODUCTS, BASE_WHOLESALERS, PICKUP_BUILDINGS as BASE_PICKUPS } from './base_catalog';
+import { EXTENDED_BUSINESS_TYPES, EXTENDED_FURNITURE, EXTENDED_PRODUCTS, EXTENDED_WHOLESALERS } from './catalog_extended';
 
-export { PICKUP_BUILDINGS, STALL_IMPLICIT } from './base_catalog';
+export { STALL_IMPLICIT } from './base_catalog';
 
-// Le catalogue étendu d'Antigravity (catalog_extended.ts) sera ajouté ici dès qu'il
-// compilera contre le contrat (voir le tableau, message E → C du 2026-10-07 01:15).
-export const PRODUCTS: readonly ProductDef[] = [...BASE_PRODUCTS];
-export const WHOLESALERS: readonly WholesalerDef[] = [...BASE_WHOLESALERS];
-export const FURNITURE: readonly FurnitureDef[] = [...BASE_FURNITURE];
-export const BUSINESS_TYPES: readonly BusinessTypeDef[] = [...BASE_BUSINESS_TYPES];
+export const PRODUCTS: readonly ProductDef[] = [...BASE_PRODUCTS, ...EXTENDED_PRODUCTS];
+export const WHOLESALERS: readonly WholesalerDef[] = [...BASE_WHOLESALERS, ...EXTENDED_WHOLESALERS];
+export const FURNITURE: readonly FurnitureDef[] = [...BASE_FURNITURE, ...EXTENDED_FURNITURE];
+export const BUSINESS_TYPES: readonly BusinessTypeDef[] = [...BASE_BUSINESS_TYPES, ...EXTENDED_BUSINESS_TYPES];
+
+/**
+ * Où retirer physiquement les commandes « à retirer » (livraison en 0 jour) : bâtiment dont on
+ * rejoint la porte. Les pièces de vélo de Karim se retirent à l'atelier de la Friche.
+ */
+export const PICKUP_BUILDINGS: Readonly<Record<string, string>> = {
+  ...BASE_PICKUPS,
+  grossiste_cycles_karim_pieces: 'atelier_friche',
+};
 
 const byId = <T extends { id: string }>(xs: readonly T[]): Readonly<Record<string, T>> =>
   Object.fromEntries(xs.map((x) => [x.id, x]));
