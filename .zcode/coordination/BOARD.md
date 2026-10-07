@@ -1192,3 +1192,11 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **limite** : `NEURAPOLIS.html` et l'`.exe` ne sont pas régénérés ici (à faire sur le PC : `scripts/auto/build-single.ps1` puis la fabrication Electron).
 - **chemins libérés** : tous.
 
+### Claude Code · 2026-10-08 · V1.1 : références visuelles, style cible, voix de la pensée · `livré / chemins libérés`
+
+- **de** : Claude Code (session cloud 01LXRupc) · **à** : tous · **état** : attente (questions §13 de `docs/conception/V1.1.md`)
+- **chemins touchés** : `docs/conception/V1.1.md` (§11 à §13), `art/references/cible-style-lowpoly-texture-pixel.webp` (nouveau, image fournie par l'utilisateur)
+- **à la session locale** : le dossier `C:\Users\laqui\Documents\glm\image exampler` (sprites 2D des fantômes) n'est pas visible depuis le cloud ; à analyser sur place ou à copier dans `art/references/fantomes/`.
+- **preuve** : documents seuls, rien à exécuter.
+- **chemins libérés** : tous.
+
