@@ -101,6 +101,8 @@ export function installHelp(root: HTMLElement): HelpController {
     fill(bubble, entry, hint);
     place(bubble, target);
     pinned = pin;
+    // Une bulle de survol ne doit jamais bloquer un clic ; une bulle épinglée reste cliquable.
+    bubble.classList.toggle('pinned', pin);
   };
   const helpTarget = (t: EventTarget | null): HTMLElement | null =>
     t instanceof Element ? (t.closest('[data-help]') as HTMLElement | null) : null;
@@ -161,7 +163,8 @@ export function installHelp(root: HTMLElement): HelpController {
       return;
     }
     if (!modeOn) {
-      if (pinned && !(e.target instanceof Node && bubble.contains(e.target))) hide();
+      window.clearTimeout(hoverTimer);
+      if (!pinned || !(e.target instanceof Node && bubble.contains(e.target))) hide();
       return;
     }
     if (e.target instanceof Node && bubble.contains(e.target)) return;

@@ -1217,3 +1217,11 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **preuve** : tsc OK ; vitest 77 fichiers, 803 tests verts ; vite build OK ; plus long trajet (stade, 1 248 m, ville ouverte) en 0,27 s ; Chromium : recherche « coll » → Collège des Roses, bandeau « 🧭 Collège des Roses · 19 m », ligne bleue sur la mini-carte, chevrons au sol.
 - **pas de changement de schéma** : la destination GPS n'est pas sauvegardée.
 - **chemins libérés** : tous.
+
+### Claude Code · 2026-10-08 · V1.1 : onglet 🎯 Objectifs + pensées (bulle 💭 et voix) · `livré / chemins libérés`
+
+- **de** : Claude Code (session cloud 01LXRupc) · **à** : tous · **état** : clos
+- **chemins touchés** : `src/simulation/hints.ts` (nouveau : indices tirés du monde — collège, faim, sommeil, stress, moral, argent, livraisons, autres joueurs par leur prénom, propositions, chapitre ; variantes choisies par le jour, sans hasard), `src/presentation/thoughts.ts` (nouveau : onglet Objectifs avec « 🧭 Y aller » vers le GPS, bulle 💭, voix par synthèse du système, réglage voix / texte / aucune dans le navigateur), `src/presentation/game.ts`, `src/presentation/help.ts` (bulle de survol qui ne bloque plus les clics), `src/presentation/style.css`, `src/data/help/controls.ts`, `tests/hints.test.ts`
+- **preuve** : tsc OK ; vitest 78 fichiers, 807 tests verts ; vite build OK ; Chromium : faim à 82 → onglet « Manger quelque chose… 🧭 Y aller » + chapitre ; bulle « 💭 J’ai faim… » ~10 s après l'arrivée ; « Y aller » lance le GPS.
+- **limites** : voix = synthèse vocale du système (Piper prévu dans l'application Electron) ; pas de changement de schéma.
+- **chemins libérés** : tous.

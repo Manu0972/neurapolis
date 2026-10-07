@@ -124,6 +124,7 @@ import { setClockSubMinutes } from './ui';
 import { MultiplayerSession, OPEN_MULTI_KEY, openMultiplayerPanel } from './multiplayer';
 import { installHelp, setHelp, type HelpController } from './help';
 import { GpsController } from './gps';
+import { Thoughts } from './thoughts';
 import { residentNear, residentsPresent, talkToResident } from '../simulation/residents';
 import { EMERGENCY_BELOW, emergencyHelpStatus } from '../simulation/family';
 import { randomAppearance } from './appearance-editor';
@@ -283,6 +284,19 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     toast: (text, ok) => toast(text, ok),
   });
   ui.phoneBtn.parentElement?.parentElement?.appendChild(gps.chip);
+  // Onglet 🎯 Objectifs (haut gauche) et pensées du personnage (bulle 💭 et voix).
+  const thoughts = new Thoughts({
+    world,
+    context: () => ({
+      others: mp?.connected ? mp.visibleRemotes(performance.now()).map((r) => ({ name: r.name, x: r.x, y: r.z })) : [],
+      pendingOffers: mp?.pendingOffers() ?? 0,
+    }),
+    age: () => world.player.age,
+    busy: () => modalOpen,
+    goTo: (t) => { if (gps.go({ id: `objectif:${t.name}`, kind: 'lieu', icon: '🎯', name: t.name, x: t.x, y: t.y, locked: false })) syncWaypoints(); },
+  });
+  ui.mpBtn.after(thoughts.button, thoughts.panel);
+  root.appendChild(thoughts.bubble);
   try {
     renderer3D = new CityRenderer(ui.canvas3d);
     renderer3D.onPlayerTile = (x, y) => {
@@ -3317,6 +3331,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       syncStallCrowds();
     }
     gps.tick(performance.now());
+    thoughts.tick(performance.now());
     if (hudFrame % 2 === 0 && ui.minimapCtx) {
       const pose = playerPose();
       drawMinimap(ui.minimapCtx, 360, world, pose, pose.heading, renderer3D?.cameraYaw ?? 0);

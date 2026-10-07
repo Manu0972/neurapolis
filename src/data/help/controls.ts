@@ -29,6 +29,8 @@ export const CONTROL_HELP: Readonly<Record<string, HelpEntry>> = {
   'need:faim': { title: 'Faim', body: 'Monte avec le temps. Mange (à la maison, à la cantine, dans un commerce) pour la faire baisser.' },
   'need:stress': { title: 'Stress', body: 'Monte avec les soucis d’argent, les disputes et les échecs. Le repos, les amis et les loisirs le font baisser.' },
   'need:moral': { title: 'Moral', body: 'Ton humeur générale. Les réussites, les bons moments et les gens que tu aimes le font remonter.' },
+  objectives: { title: 'Objectifs', body: 'Ce qui compte maintenant : le collège, tes besoins, tes livraisons, les autres joueurs et le fil de ton chapitre, du plus urgent au moins urgent. « 🧭 Y aller » lance le GPS. En bas, choisis si tu veux entendre tes pensées, les lire seulement, ou rien.' },
+  thought: { title: 'Ta pensée', body: 'Ce que ton personnage se dit : un indice sur ce qui compte maintenant. Tu peux l’entendre, la lire seulement, ou la couper dans 🎯 Objectifs.' },
   campaign: { title: 'Objectif du chapitre', body: 'Ce que tu cherches à accomplir en ce moment, avec ta progression. Clique pour replier ou déplier la carte.' },
 
   // ---------- Colonne droite ----------
