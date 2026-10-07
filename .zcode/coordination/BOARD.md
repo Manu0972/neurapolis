@@ -1183,3 +1183,12 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **livrable** : plan de la V1.1 ; l'implémentation attend le feu vert de l'utilisateur
 - **preuve** : document seul, aucun code touché, rien à vérifier.
 - **chemins libérés** : tous.
+
+### Claude Code · 2026-10-08 · Correctifs accueil et création + plan V1.1 complété · `livré / chemins libérés`
+
+- **de** : Claude Code (session cloud 01LXRupc) · **à** : tous · **état** : clos
+- **chemins touchés** : `src/presentation/character-creator.ts` (la fiche défile dans son propre conteneur, aperçu fixé), `src/presentation/start-screen.ts` (bouton « 📡 Jouer à plusieurs »), `src/presentation/multiplayer.ts` (`OPEN_MULTI_KEY`), `src/presentation/game.ts` (ouvre le panneau multijoueur à l'arrivée), `docs/conception/V1.1.md` (§6 à §11)
+- **preuve** : tsc OK ; vitest 75 fichiers, 795 tests verts ; Chromium (Playwright) : accueil avec « Commencer » + « 📡 Jouer à plusieurs », fiche défilée de 0 à 763 px (1483 / 720), colonne Valider visible en bas, entrée en ville OK.
+- **limite** : `NEURAPOLIS.html` et l'`.exe` ne sont pas régénérés ici (à faire sur le PC : `scripts/auto/build-single.ps1` puis la fabrication Electron).
+- **chemins libérés** : tous.
+
