@@ -123,3 +123,15 @@ Sonde : les 31 idées, 3 graines, 60 jours, stratégie « à ma façon ». Aucun
 | Schumpeter ⟷ Ostrom | 13 | 5 |
 
 Ford gagne surtout sur les idées à faible marge (centrale d'achat, épiceries) : les économies d'échelle y pèsent plus. Keynes dépend du cycle économique de chaque marché, haut ou bas pendant les trois semaines du verdict.
+
+## 7. Deuxième vague (vision du 2026-10-07, soir) : état
+
+| Lot | Contenu | État |
+|---|---|---|
+| Barre des fantômes | Têtes kawaii en haut de l'écran, qui bougent quand elles veulent parler ; pop-up dessinés ; « que penses-tu de ma situation ? » lu dans les vrais chiffres | **fait** |
+| Le monde bouge (save v18) | Fil d'infos 3 fois par jour avec effets par secteur et réaction d'un fantôme ; surprises bonnes ou terribles après 10 jours de grâce, difficulté croissante ; dilemmes à deux fantômes | **fait** (contenu de départ ; grand lot d'Antigravity à brancher) |
+| Retour en arrière (save v19) | Chronique des 7 derniers matins ; faillite, catastrophe ou chute de 40 % → une voix propose de se sacrifier ; savoir conservé, voix muette 45 jours, leçon qui prévient | **fait** |
+| Famille et collège (save v20) | Nora et Thierry (confiance, inquiétude, fierté), cours à suivre au collège, absences, convocation chez Mme Garnier (vérité / promesse / mensonge), convention jeune entrepreneur, dîners, note du vendredi, argent de poche, punition, garant des baux | **fait** |
+| Chambre-QG (save v21) | Objets gagnés en faisant, avec avantages ; tableau des plans (objectif → besoins → manques → exécution) ; pastille 🎯 | **fait** |
+| Récit (save v22) | Nuit de la Maison du Peuple en ouverture (origine des voix), cahiers de Lucien selon la progression, textes accordés au prénom et au genre | **fait** (version courte ; les 14 cahiers d'Antigravity à brancher) |
+| Horizon chaebol | Conglomérat, influence sur l'État : débat des fantômes aux paliers 5-6 | V4-V5 |

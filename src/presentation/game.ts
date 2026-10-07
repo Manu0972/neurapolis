@@ -92,6 +92,7 @@ import { openRewindModal } from './rewind-ui';
 import { openConvocationModal, openDinnerModal, openFamilyPanel } from './family-ui';
 import { bedroomExtras, openPlanner, openShelf, type PlanCtx } from './plan-ui';
 import { openDuelModal } from './ascension-ui';
+import { openNotebooks, openUnreadBeat, playOrigin } from './story-ui';
 import { ensureRoom, planChecklist } from '../simulation/room';
 import { IDEA_BY_ID } from '../data/ascension/ideas';
 import { attendClass, classWindow, ensureFamily, isHome, isInClass, pendingDinner } from '../simulation/family';
@@ -140,6 +141,14 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   // Notifications façon téléphone pour le fil d'infos ; un clic ouvre l'application « Infos ».
   const newsToaster = createNewsToaster(root, () => openPhoneUi('infos'));
   let surpriseRetryTick = 0;
+  // Nouvelle partie : la nuit de la Maison du Peuple, avant tout le reste. Le jeu attend.
+  if (!world.story?.originDone) {
+    // Différé : l'état de l'interface (modalOpen…) est déclaré plus bas dans startGame.
+    queueMicrotask(() => {
+      modalOpen = true;
+      playOrigin(root, world, () => { modalOpen = false; });
+    });
+  }
   // Chronique : un instantané chaque matin pour un éventuel retour en arrière.
   try { recordDay(world); } catch { /* stockage indisponible */ }
   let rewindOfferKey = '';
@@ -1756,6 +1765,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     else if (nav === 'Entreprises & Rôles') b.addEventListener('click', openEntreprisesRoles);
     else if (nav === 'Marchands & Tiers') b.addEventListener('click', openMarchandsTiers);
     else if (nav === 'Actualités & Chocs') b.addEventListener('click', openActualitesChocs);
+    else if (nav === 'Carnets de Lucien') b.addEventListener('click', () => openNotebooks({ world, showModal, closeModal }));
     else if (nav === 'Chambre & plans') b.addEventListener('click', () => openPlanner(planCtx()));
     else if (nav === 'Études & Famille') b.addEventListener('click', () => openFamilyPanel({ world, showModal, closeModal, toast }));
     else if (nav === 'Projet') b.addEventListener('click', openProjet);
@@ -2720,6 +2730,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           // La principale convoque : un rendez-vous par jour tant que rien n'est réglé.
           convocationShownDay = dayIndexOf(world.time.tick);
           openConvocationModal({ world, showModal, closeModal, toast });
+        } else if ((world.story?.unread.length ?? 0) > 0 && !world.player.asleep && !isInClass(world) && !travelFastForward()) {
+          // Un cahier de Lucien vient d'être retrouvé : on le lit.
+          openUnreadBeat({ world, showModal, closeModal });
         } else if (laminoirDecisionPending(world) && laminoirAskedDay !== dayIndexOf(world.time.tick) && !world.player.asleep && !isTraveling(world)) {
           // Karim revient chaque jour tant que le quartier n'a pas tranché.
           laminoirAskedDay = dayIndexOf(world.time.tick);

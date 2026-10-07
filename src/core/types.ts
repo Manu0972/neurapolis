@@ -626,6 +626,7 @@ import type { HappeningsState } from './happenings_types';
 import type { RewindState } from './rewind_types';
 import type { FamilyState } from './family_types';
 import type { RoomState } from './room_types';
+import type { StoryState } from './story_types';
 
 export interface WorldState {
   version: number;
@@ -660,6 +661,8 @@ export interface WorldState {
   family?: FamilyState;
   /** Chambre-quartier général : objets et plans (save v21). */
   room?: RoomState;
+  /** Récit : origine des voix, cahiers de Lucien (save v22). */
+  story?: StoryState;
   events: GameEvent[];        // journal des événements (cap 250)
   lifeJournal: LifeJournalEntry[];
   flags: Record<string, number>; // compteurs libres (ventes, conflits, prévisions ratées…)

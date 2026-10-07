@@ -18,9 +18,10 @@ import { createHappeningsState } from './happenings_types';
 import { createRewindState } from './rewind_types';
 import { createFamilyState } from './family_types';
 import { createRoomState } from './room_types';
+import { createStoryState } from './story_types';
 import { createEconomyState } from './economy_types';
 
-export const SAVE_VERSION = 21;
+export const SAVE_VERSION = 22;
 
 const SKILL_IDS: SkillId[] = ['negociation', 'comptabilite', 'communication', 'organisation', 'technique', 'recherche'];
 
@@ -202,6 +203,7 @@ export function createWorld(opts: CreateWorldOptions = {}): WorldState {
     rewind: createRewindState(),
     family: createFamilyState(),
     room: createRoomState(),
+    story: createStoryState(),
     ghostCompanion: {
       activeGhostId: 'smith',
       mood: 'curieux',

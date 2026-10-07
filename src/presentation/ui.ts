@@ -211,6 +211,7 @@ export function buildUi(root: HTMLElement): UiRefs {
     'Actualités & Chocs',
     'Études & Famille',
     'Chambre & plans',
+    'Carnets de Lucien',
     'Projet',
     'Concurrence',
     'Conseil',

@@ -14,6 +14,7 @@ import { createHappeningsState } from '../core/happenings_types';
 import { createRewindState } from '../core/rewind_types';
 import { createFamilyState } from '../core/family_types';
 import { createRoomState } from '../core/room_types';
+import { createStoryState } from '../core/story_types';
 import { INITIAL_RIVALS } from '../data/rivals';
 import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
 import { COUNTER_STRATEGIES } from '../data/rivals';
@@ -380,6 +381,13 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
   20: (s) => {
     if (typeof s.room !== 'object' || s.room === null) s.room = createRoomState();
     s.version = 21;
+    return s;
+  },
+  // 21 → 22 : le récit. Une partie déjà commencée ne rejoue pas la scène d'origine (relisible
+  // dans les Carnets) ; les cahiers se découvriront selon la progression.
+  21: (s) => {
+    if (typeof s.story !== 'object' || s.story === null) s.story = { ...createStoryState(), originDone: true };
+    s.version = 22;
     return s;
   },
 };

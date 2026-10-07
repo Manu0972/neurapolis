@@ -867,3 +867,36 @@ canvas.map-canvas-3d { image-rendering: auto; touch-action: none; }
 .plan-chip:focus-visible { outline: 3px solid var(--or); }
 .plan-hint { font-size: 12px; color: var(--or); margin: 2px 0 4px 22px; }
 @media (prefers-reduced-motion: reduce) { .plan-chip.ready { animation: none; } }
+
+/* ---------- Récit : la nuit de la Maison du Peuple, les Carnets ---------- */
+.origin {
+  position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: radial-gradient(ellipse at 50% 30%, #2c2540 0%, #120c10 70%); color: var(--ink);
+  transition: opacity 0.6s;
+}
+.origin.leaving { opacity: 0; }
+.origin.flash { animation: origin-flash 1.6s ease-out; }
+@keyframes origin-flash { 0% { background: #f9ecd0; } 8% { background: #2c2540; } 14% { background: #d8d0ff; } 100% { background: radial-gradient(ellipse at 50% 30%, #2c2540 0%, #120c10 70%); } }
+.origin-rain {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0.35;
+  background-image: repeating-linear-gradient(105deg, transparent 0 14px, rgba(159, 195, 220, 0.5) 14px 15px);
+  background-size: 100% 200%; animation: origin-rain 0.6s linear infinite;
+}
+@keyframes origin-rain { from { background-position: 0 0; } to { background-position: -20px 60px; } }
+.origin-card {
+  position: relative; width: min(640px, 100%); display: flex; flex-direction: column; gap: 14px; align-items: center; text-align: center;
+}
+.origin-title { font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--or); }
+.origin-text { font-size: clamp(16px, 2.4vw, 20px); line-height: 1.6; margin: 0; min-height: 7em; opacity: 0; transform: translateY(6px); transition: opacity 0.8s, transform 0.8s; }
+.origin-text.in { opacity: 1; transform: none; }
+.origin-note { font-family: 'Segoe Script', 'Bradley Hand', cursive; color: #9fc3dc; font-size: 15px; margin: 0; }
+.origin-note:empty { display: none; }
+.origin-art { display: flex; flex-direction: column; align-items: center; gap: 4px; animation: ghost-idle 2.4s ease-in-out infinite; }
+.origin-art:empty { display: none; }
+.origin-ghost-name { font-weight: 800; color: var(--or); }
+.origin-actions { display: flex; gap: 10px; }
+.story-page { line-height: 1.6; margin: 0 0 10px; }
+.story-note { font-family: 'Segoe Script', 'Bradley Hand', cursive; color: var(--bleu); border-left: 3px solid var(--bleu); padding-left: 10px; }
+.story-entry { text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.story-entry:disabled { cursor: default; }
+@media (prefers-reduced-motion: reduce) { .origin-rain, .origin.flash, .origin-art { animation: none; } .origin-text { transition: none; } }
