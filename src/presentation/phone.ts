@@ -16,6 +16,7 @@ import {
   type EconomyResult,
 } from '../simulation/economy';
 import { el } from './ui';
+import { BIKE, buyBike, ownsBike } from '../simulation/vehicles';
 
 export type PhoneApp = 'immobilier' | 'commerces' | 'commandes' | 'emploi' | 'banque';
 
@@ -419,6 +420,15 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'commerces', focus?
 
   // ----- Banque -----
   function renderBanque(): void {
+    const bikeCard = el('div', 'ph-card');
+    bikeCard.appendChild(el('div', 'ph-card-title', '🚲 Cycles du Taret'));
+    if (ownsBike(w)) {
+      bikeCard.appendChild(el('p', 'ph-note', 'Tu as un vélo : B pour monter ou descendre. Vitesse ×2,5 en ville, 30 unités de plus à transporter.'));
+    } else {
+      bikeCard.appendChild(el('p', 'ph-note', `${BIKE.name} : ${BIKE.price} €. Vitesse ×${BIKE.speedScale} en ville, +${BIKE.extraCarry} unités transportables.`));
+      bikeCard.appendChild(button(`Acheter (${BIKE.price} €)`, () => act(buyBike(w)), 'ph-btn primary'));
+    }
+    screen.appendChild(bikeCard);
     const offer = loanOffer(w);
     const card = el('div', 'ph-card');
     card.appendChild(el('div', 'ph-card-title', '🏦 Caisse coopérative du Taret'));

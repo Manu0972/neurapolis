@@ -36,8 +36,8 @@
 - [x] **Clients visibles à l'étal** (2026-10-07 ; seulement si quelqu'un sert et qu'il y a du stock ; étal avec montants et cagettes) : files de clients devant l'étal ouvert du joueur, proportionnelles aux ventes de l'heure.
 - [x] **Aménagement manuel** (2026-10-07 ; clavier : Tab, flèches, R, Entrée, Échap ; save v14 ; glisser-déposer à la souris à faire plus tard) : placer les meubles achetés sur une grille dans l'intérieur du commerce (glisser-déposer), collisions mises à jour.
 - [~] **Personnages de Jules** (module intégré 2026-10-07, 7 tests verts ; le moteur garde `simpleCharacter.ts` en attendant la V2 arrondie demandée dans `docs/jules/RETOUR-PERSONNAGES-3D.md`) : quand la PR `jules/personnages-3d` est fusionnée dans `refonte-3d`, remplacer `simpleCharacter.ts` par `characters.ts` dans `CityRenderer`, `ambient.ts` et les intérieurs.
-- [ ] **Sons de ville** : brancher `audio.playDoorBell()` (entrée en boutique), `audio.setTrafficLevel()` (distance aux voitures), `audio.playFootstep()` par revêtement (asphalte, pavé, herbe, parquet).
-- [ ] **Vélo** : acheter un vélo (dès 12 ans), monter/descendre, vitesse ×2,5, capacité de transport +30.
+- [x] **Sons de ville** (2026-10-07 ; sonnette, rumeur selon la voiture la plus proche, pas par revêtement et en intérieur) : brancher `audio.playDoorBell()` (entrée en boutique), `audio.setTrafficLevel()` (distance aux voitures), `audio.playFootstep()` par revêtement (asphalte, pavé, herbe, parquet).
+- [x] **Vélo** (2026-10-07 ; 85 € dans le téléphone, B, ×2,5, +30 unités ; `src/simulation/vehicles.ts`) : acheter un vélo (dès 12 ans), monter/descendre, vitesse ×2,5, capacité de transport +30.
 - [ ] **Performance** : instanciation des passants, découpage du bundle (Three.js à part), mesure des images/seconde ; viser 60 i/s.
 - [ ] **Sauvegardes multiples** : trois emplacements nommés + auto-sauvegarde, depuis le menu ☰.
 - [ ] **Écran titre 3D** : vue animée de Val-Ferrand derrière le menu.

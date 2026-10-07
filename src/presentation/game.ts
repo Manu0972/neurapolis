@@ -74,6 +74,7 @@ import { useFurniture } from '../simulation/interior_actions';
 import { JOB, inShift, startShift } from '../simulation/jobs';
 import { hhmmOfTick } from '../core/clock';
 import { appeal } from '../simulation/economy';
+import { ownsBike } from '../simulation/vehicles';
 import * as economyApi from '../simulation/economy';
 import { openDetailedInteriorModal } from './interiors';
 import { tileAt } from '../data/map';
@@ -112,6 +113,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   let moveAcc = 0;
   let footstepAcc = 0;
   let hudFrame = 0;
+  let interiorStepAcc = 0;
   let lastAdviceMood = '';
   let lastAdviceBubbleTime = 0;
 
@@ -125,7 +127,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       if (ok) {
         const tile = tileAt(x, y);
         const surface = tile?.surface === 'herbe' || tile?.surface === 'aire_jeux' ? 'herbe'
-          : tile?.surface === 'terre' || tile?.surface === 'gravier' ? 'terre' : 'pave';
+          : tile?.surface === 'terre' || tile?.surface === 'gravier' ? 'terre'
+            : tile?.surface === 'chaussee' || tile?.surface === 'parking' ? 'asphalte' : 'pave';
         footstepAcc += 1;
         if (footstepAcc % 2 === 0) audio.playFootstep(surface);
       }
@@ -252,6 +255,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       enterBusiness: (id: string) => enterBusiness(id),
       sync: () => { syncSigns(); syncWaypoints(); syncStallCrowds(); },
       layout: (id: string) => startLayoutEdit(id),
+      ride: (on: boolean) => renderer3D?.setRiding(on),
     },
   };
 
@@ -312,7 +316,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       const biz = Object.values(e.businesses).find((b) => b.unitId === unitId);
       const comp = COMPETITOR_BY_UNIT[unitId];
       if (comp) {
-        return { label: `E — Entrer chez ${comp.shopName}`, run: () => toast(`« ${comp.greeting} » — ${comp.owner}, ${comp.shopName}`, true) };
+        return { label: `E — Entrer chez ${comp.shopName}`, run: () => { audio.playDoorBell(); toast(`« ${comp.greeting} » — ${comp.owner}, ${comp.shopName}`, true); } };
       }
       if (biz) {
         if (renderer3D && use3D && !u.buildingId.startsWith('etal_')) {
@@ -449,6 +453,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       openCityMap();
     } else if (e.code === 'Escape' && modalOpen) {
       closeModal();
+    } else if (e.code === 'KeyB' && !modalOpen && renderer3D) {
+      if (!ownsBike(world)) { toast('Tu n’as pas de vélo : achète-en un dans le téléphone (application Banque).', false); return; }
+      if (renderer3D.inInterior) { toast('On ne roule pas à l’intérieur.', false); return; }
+      renderer3D.setRiding(!renderer3D.isRiding);
+      toast(renderer3D.isRiding ? '🚲 En selle ! (B pour descendre)' : 'Tu descends de vélo.', true);
     }
   });
 
@@ -459,7 +468,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (!b || !renderer3D) return;
     const customers = b.open ? Math.max(1, Math.min(5, Math.round(appeal(b) * 2))) : 0;
     renderer3D.enterInterior(businessInteriorSpec(b), world, { customers });
-    audio.playUiClick();
+    audio.playDoorBell();
   }
 
   function enterPlace(place: PlaceId, roomId?: string): boolean {
@@ -467,6 +476,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const spec = placeInteriorSpec(place, roomId);
     if (!spec) return false;
     renderer3D.enterInterior(spec, world);
+    if (place === 'epicerie') audio.playDoorBell();
     currentLocation = place === 'friche' ? 'atelier' : (place as AmbientLocation);
     audio.updateAmbient(currentLocation, minutesOfDay(world.time.tick) / 60, world.district.meteo);
     return true;
@@ -2472,6 +2482,17 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
 
     sleepOverlay.classList.toggle('on', world.player.asleep);
+    if (renderer3D && use3D && hudFrame % 10 === 0) audio.setTrafficLevel(renderer3D.trafficLevel);
+    if (renderer3D?.inInterior && !modalOpen && !layoutEditActive()) {
+      const v = input.vector();
+      if (v.x !== 0 || v.y !== 0) {
+        interiorStepAcc += dt;
+        if (interiorStepAcc > (input.running() ? 300 : 460)) {
+          interiorStepAcc = 0;
+          audio.playFootstep(renderer3D.interiorSpec?.floor === 'parquet' ? 'parquet' : 'sol');
+        }
+      }
+    }
     if (++hudFrame % 30 === 0) {
       syncSigns();
       syncWaypoints();

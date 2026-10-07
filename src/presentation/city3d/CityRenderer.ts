@@ -89,6 +89,41 @@ function textSprite(text: string, color = '#fbf3e2', bg = 'rgba(42,26,20,0.78)')
   return sp;
 }
 
+/** Vélo de ville stylisé : deux roues, cadre, guidon, selle, panier. Avant vers −Z. */
+function buildBike(): THREE.Group {
+  const g = new THREE.Group();
+  const frame = new THREE.MeshStandardMaterial({ color: '#2f6d8a', roughness: 0.4, metalness: 0.5 });
+  const dark = new THREE.MeshStandardMaterial({ color: '#1c1c1c', roughness: 0.8 });
+  const wheelGeo = new THREE.TorusGeometry(0.34, 0.04, 8, 20);
+  for (const z of [-0.55, 0.55]) {
+    const wheel = new THREE.Mesh(wheelGeo, dark);
+    wheel.rotation.y = Math.PI / 2;
+    wheel.position.set(0, 0.36, z);
+    wheel.userData.wheel = true;
+    wheel.castShadow = true;
+    g.add(wheel);
+  }
+  const bar = (len: number, x: number, y: number, z: number, rx: number): void => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, len, 6), frame);
+    m.position.set(x, y, z);
+    m.rotation.x = rx;
+    m.castShadow = true;
+    g.add(m);
+  };
+  bar(1.0, 0, 0.62, 0, Math.PI / 2.4);
+  bar(0.55, 0, 0.6, 0.3, 0.3);
+  bar(0.5, 0, 0.75, -0.5, -0.25);
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.05, 0.26), dark);
+  seat.position.set(0, 0.88, 0.32);
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 6), dark);
+  handle.rotation.z = Math.PI / 2;
+  handle.position.set(0, 1.0, -0.55);
+  const basket = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.22, 0.28), new THREE.MeshStandardMaterial({ color: '#a07a4a', roughness: 0.9 }));
+  basket.position.set(0, 0.92, -0.78);
+  for (const m of [seat, handle, basket]) { m.castShadow = true; g.add(m); }
+  return g;
+}
+
 export class CityRenderer {
   readonly isWebGLAvailable: boolean;
   onContextLost?: () => void;
@@ -154,6 +189,12 @@ export class CityRenderer {
   /** Azimut de la caméra autour du joueur (0 = caméra au sud). */
   get cameraYaw(): number { return this.yaw; }
   get isTopDown(): boolean { return this.topDown; }
+  /** Intensité de circulation perçue (0 à 1) : voitures proches, et rien à l'intérieur. */
+  get trafficLevel(): number {
+    if (this.interior || !this.ambient) return 0;
+    const d = this.ambient.nearestCar({ x: this.body.x, z: this.body.z });
+    return Math.max(0.08, Math.min(1, 1 - d / 45));
+  }
   /** Position continue et cap du joueur (mini-carte, repères). */
   get playerPose(): { x: number; z: number; heading: number } { return { x: this.body.x, z: this.body.z, heading: this.body.heading }; }
 
@@ -419,7 +460,7 @@ export class CityRenderer {
       this.lastSimTile = { ...p.pos };
     }
     const move = input.canMove ? input.move : { x: 0, y: 0 };
-    const next = stepBody(this.body, move, this.yaw, Math.min(dt, 0.05), input.running, isWalkable);
+    const next = stepBody(this.body, move, this.yaw, Math.min(dt, 0.05), input.running, isWalkable, 1, this.riding ? 2.5 : 1);
     const nt = tileOf(next);
     if (nt.x !== p.pos.x || nt.y !== p.pos.y) {
       const accepted = this.onPlayerTile ? this.onPlayerTile(nt.x, nt.y) : false;
@@ -432,9 +473,17 @@ export class CityRenderer {
     } else {
       this.body = next;
     }
-    this.player.root.position.set(this.body.x, groundHeightAt(this.body.x, this.body.z), this.body.z);
+    const gy = groundHeightAt(this.body.x, this.body.z);
+    // À vélo : assis sur la selle (personnage surélevé, jambes qui pédalent doucement).
+    this.player.root.position.set(this.body.x, gy + (this.riding ? 0.42 : 0), this.body.z);
     this.player.setHeading(this.body.heading);
-    this.player.update(dt, this.body.speed);
+    this.player.update(dt, this.riding ? Math.min(1.6, this.body.speed * 0.25) : this.body.speed);
+    if (this.bike && this.riding) {
+      this.bike.position.set(this.body.x, gy, this.body.z);
+      this.bike.rotation.y = this.player.root.rotation.y;
+      const spin = (this.body.speed * dt) / 0.34;
+      for (const w of this.bike.children) if (w.userData.wheel) w.rotation.x -= spin;
+    }
     this.player.root.visible = !p.asleep;
   }
 
@@ -608,6 +657,22 @@ export class CityRenderer {
   }
   private lastCamClip?: number;
 
+  // ---------- Vélo ----------
+  private riding = false;
+  private bike?: THREE.Group;
+
+  get isRiding(): boolean { return this.riding; }
+
+  /** Monte ou descend du vélo (seulement en ville). */
+  setRiding(on: boolean): void {
+    this.riding = on && !this.interior;
+    if (this.riding && !this.bike) this.bike = buildBike();
+    if (this.bike) {
+      if (this.riding) this.scene.add(this.bike);
+      else this.bike.removeFromParent();
+    }
+  }
+
   // ---------- Intérieurs praticables ----------
   private interior?: BuiltInterior;
   private interiorScene = new THREE.Scene();
@@ -627,6 +692,7 @@ export class CityRenderer {
   /** Entre dans un intérieur : la ville est mise en pause visuelle, le joueur apparaît sur le seuil. */
   enterInterior(spec: InteriorSpec, world: WorldState, opts: { customers?: number } = {}): void {
     if (!this.player) return;
+    if (this.riding) this.setRiding(false);
     const same = this.interior?.spec.key === spec.key;
     if (same) return;
     const wasInside = !!this.interior;

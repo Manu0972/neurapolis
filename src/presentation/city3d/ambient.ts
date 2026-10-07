@@ -74,6 +74,8 @@ function carMesh(color: string, shared: { body: THREE.BufferGeometry; cabin: THR
 export interface Ambient {
   group: THREE.Group;
   update(dt: number, player: { x: number; z: number }, night: number): void;
+  /** Distance (m) entre le joueur et la voiture la plus proche (pour le son de circulation). */
+  nearestCar(player: { x: number; z: number }): number;
   dispose(): void;
 }
 
@@ -233,6 +235,11 @@ export function createAmbient(opts: { cars?: number; pedestrians?: number } = {}
         w.ch.update(dt, close ? 0 : w.speed);
         if (close) w.t -= (w.speed * dt) / len;
       }
+    },
+    nearestCar(player: { x: number; z: number }): number {
+      let best = Infinity;
+      for (const c of cars) best = Math.min(best, Math.hypot(c.shown.x - player.x, c.shown.z - player.z));
+      return best;
     },
     dispose(): void {
       group.traverse((o) => {

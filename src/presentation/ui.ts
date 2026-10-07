@@ -223,7 +223,7 @@ export function buildUi(root: HTMLElement): UiRefs {
   menuDrawer.appendChild(navEl);
   menuDrawer.appendChild(el('div', 'hud2-drawer-title', 'Caméra et son'));
   menuDrawer.appendChild(cameraToolbarEl);
-  menuDrawer.appendChild(el('p', 'hud2-help', 'ZQSD / WASD : marcher · Maj : courir · clic glissé : tourner la caméra · molette : zoom · E : interagir · P : téléphone · M : plan'));
+  menuDrawer.appendChild(el('p', 'hud2-help', 'ZQSD / WASD : marcher · Maj : courir · B : vélo · clic glissé : tourner la caméra · molette : zoom · E : interagir · P : téléphone · M : plan'));
   menuBtn.addEventListener('click', () => menuDrawer.classList.toggle('hidden'));
   root.appendChild(menuDrawer);
 
