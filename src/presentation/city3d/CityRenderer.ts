@@ -204,6 +204,8 @@ export class CityRenderer {
     return Math.max(0.08, Math.min(1, 1 - d / 45));
   }
   /** Position continue et cap du joueur (mini-carte, repères). */
+  /** Bus en circulation (QA). */
+  get busPositions(): { line: string; x: number; z: number; speed: number }[] { return this.ambient?.buses() ?? []; }
   get playerPose(): { x: number; z: number; heading: number } { return { x: this.body.x, z: this.body.z, heading: this.body.heading }; }
 
   private setupScene(): void {

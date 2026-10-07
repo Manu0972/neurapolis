@@ -9,6 +9,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { CITY, CITY_H, CITY_W, FLOOR_H, type CityBuilding, type Face, type FacadeStyle } from '../../data/city/layout';
 import { surfaceAt, surfaceFast, type Surface } from '../../data/map';
 import { BUS_STOPS } from '../../data/city/transit';
+import { buildLotProps } from './lotProps';
 import { CHUNK, chunkify, type CityChunk } from './chunks';
 import {
   asphaltTexture, cobbleTexture, dirtTexture, facadeEmissiveTexture, facadeTexture, flatRoofTexture, glowTexture,
@@ -748,23 +749,33 @@ function buildSkyline(group: THREE.Group, disposables: { dispose(): void }[]): v
   const geo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
   const ring: [number, number][] = [];
   for (let x = -60; x < CITY_W + 60; x += 14) { ring.push([x, -30]); }
-  for (let z = -30; z < CITY.canal.y; z += 14) { ring.push([-30, z]); ring.push([CITY_W + 30, z]); }
+  for (let x = -60; x < CITY_W + 60; x += 14) { ring.push([x, CITY_H + 30]); }
+  for (let z = -30; z < CITY_H + 30; z += 14) { ring.push([-30, z]); ring.push([CITY_W + 30, z]); }
+  // Grande carte : ~400 immeubles lointains, instanciés par façade (5 appels de dessin).
+  const perMat: THREE.Matrix4[][] = mats.map(() => []);
   for (const [x, z] of ring) {
     const h = 8 + rnd() * 18;
     const w = 10 + rnd() * 6;
     const d = 10 + rnd() * 8;
-    const m = new THREE.Mesh(geo, mats[Math.floor(rnd() * mats.length)]!);
-    m.scale.set(w, h, d);
-    m.position.set(x, 0, z);
-    group.add(m);
+    perMat[Math.floor(rnd() * mats.length)]!.push(new THREE.Matrix4().compose(V(x, 0, z), new THREE.Quaternion(), V(w, h, d)));
   }
-  // Collines de la Vallée du Taret au loin.
+  perMat.forEach((list, i) => {
+    if (!list.length) return;
+    const im = new THREE.InstancedMesh(geo, mats[i]!, list.length);
+    list.forEach((m, k) => im.setMatrixAt(k, m));
+    im.instanceMatrix.needsUpdate = true;
+    im.computeBoundingSphere();
+    group.add(im);
+  });
+  // Collines de la Vallée du Taret au loin, toujours au-delà des bords de la grande carte.
   const hillMat = new THREE.MeshStandardMaterial({ color: '#6f7f5a', roughness: 1, flatShading: true });
-  for (let i = 0; i < 9; i++) {
-    const hill = new THREE.Mesh(new THREE.SphereGeometry(80 + rnd() * 60, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), hillMat);
+  const HILLS = 18;
+  for (let i = 0; i < HILLS; i++) {
+    const r = 80 + rnd() * 60;
+    const hill = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), hillMat);
     hill.scale.y = 0.35 + rnd() * 0.2;
-    const a = (i / 9) * Math.PI * 2;
-    hill.position.set(CITY_W / 2 + Math.cos(a) * 420, -2, CITY_H / 2 + Math.sin(a) * 380);
+    const a = (i / HILLS) * Math.PI * 2;
+    hill.position.set(CITY_W / 2 + Math.cos(a) * (CITY_W / 2 + 90 + r), -2, CITY_H / 2 + Math.sin(a) * (CITY_H / 2 + 90 + r));
     group.add(hill);
     disposables.push(hill.geometry);
   }
@@ -796,6 +807,8 @@ export function buildCityScene(): CityScene {
   lap('batiments');
   const { lamps, glows } = buildProps(group, disposables, nightMaterials);
   lap('mobilier');
+  buildLotProps(group, disposables, groundHeightAt);
+  lap('terrains');
   (globalThis as { __cityLaps?: Record<string, number> }).__cityLaps = tm;
   // Grande carte : la ville est redécoupée en blocs de 128 m ; l'eau et le décor lointain restent entiers.
   const keep = new Set<THREE.Object3D>([water]);

@@ -51,7 +51,7 @@ export class TitleFlyover {
     this.scene.add(hemi, sun, sun.target);
     this.scene.fog = new THREE.Fog(s.fogColor, 120, 520);
     for (const { mat, strength } of this.city.nightMaterials) mat.emissiveIntensity = Math.max(0.15, s.night) * strength;
-    this.ambient = createAmbient({ cars: 22, pedestrians: 26 });
+    this.ambient = createAmbient({ cars: 22, pedestrians: 26, anchor: { x: this.center.x, z: this.center.z } });
     this.scene.add(this.ambient.group);
     sky.mesh.position.copy(this.center);
     this.loop();

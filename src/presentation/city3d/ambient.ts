@@ -2,11 +2,16 @@
  * Vie d'ambiance de la ville (présentation pure, n'écrit jamais l'état du monde) :
  *  - voitures qui roulent à droite sur la trame des rues, tournent aux carrefours et
  *    s'arrêtent devant un piéton ;
- *  - passants qui font le tour des îlots sur les trottoirs.
+ *  - passants qui font le tour des îlots sur les trottoirs ;
+ *  - bus des trois lignes TVT qui suivent leur boucle et marquent l'arrêt.
+ * Grande carte : voitures et passants trop loin du joueur reviennent autour de lui (la ville
+ * reste animée là où l'on regarde) ; une voiture fait demi-tour où la chaussée s'arrête (canal).
  * Le hasard vient de `visualRng`, jamais du PRNG du monde.
  */
 import * as THREE from 'three';
 import { CITY, CITY_W, ROAD_W } from '../../data/city/layout';
+import { surfaceFast } from '../../data/map';
+import { BUS_LINES, BUS_STOP_BY_ID, type BusLine } from '../../data/city/transit';
 import {
   VALID_HAIR_COLORS, VALID_HAIR_STYLES, VALID_OUTFIT_COLORS, VALID_OUTFIT_STYLES, VALID_SKIN_TONES, type PlayerAppearance,
 } from '../../core/types';
@@ -21,6 +26,95 @@ const ROAD_END_Z = Math.max(...CITY.roads.filter((r) => r.axis === 'v').map((r) 
 // Route verticale à vx : vers le sud x = vx + 2.2, vers le nord x = vx + 5.8.
 const laneZ = (hy: number, dir: number): number => hy + (dir > 0 ? ROAD_W - 2.2 : 2.2);
 const laneX = (vx: number, dir: number): number => vx + (dir > 0 ? 2.2 : ROAD_W - 2.2);
+
+/** La chaussée continue-t-elle en (x, z) ? (le canal coupe les rues qui n'ont pas de pont) */
+function onRoad(x: number, z: number): boolean {
+  const ix = Math.floor(x);
+  const iz = Math.floor(z);
+  if (ix < 0 || iz < 0 || ix >= CITY_W || iz >= ROAD_END_Z) return false;
+  const s = surfaceFast(ix, iz);
+  return s === 'chaussee' || s === 'passage';
+}
+
+/** Rayon autour du joueur où vit l'ambiance ; au-delà, voitures et passants sont replacés. */
+const LIVE_RADIUS = 320;
+
+interface Bus {
+  line: BusLine;
+  pts: { x: number; z: number }[];
+  cum: number[];
+  total: number;
+  stops: number[];
+  s: number;
+  speed: number;
+  dwell: number;
+  mesh: THREE.Group;
+  heading: number;
+  lights: THREE.MeshStandardMaterial;
+}
+
+/** Tracé d'une ligne sur la voie de droite (carrefours décalés de 1,9 m vers la droite). */
+function busLane(line: BusLine): { pts: { x: number; z: number }[]; cum: number[]; total: number; stops: number[] } {
+  const c = line.path.map((p) => ({ x: p.x + ROAD_W / 2, z: p.y + ROAD_W / 2 }));
+  const n = c.length;
+  const dirOf = (a: { x: number; z: number }, b: { x: number; z: number }): { x: number; z: number } => {
+    const l = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+    return { x: (b.x - a.x) / l, z: (b.z - a.z) / l };
+  };
+  const pts = c.map((p, k) => {
+    const din = dirOf(c[(k - 1 + n) % n]!, p);
+    const dout = dirOf(p, c[(k + 1) % n]!);
+    const rin = { x: -din.z, z: din.x };
+    const rout = { x: -dout.z, z: dout.x };
+    const same = Math.abs(din.x - dout.x) + Math.abs(din.z - dout.z) < 1e-6;
+    return same ? { x: p.x + rin.x * 1.9, z: p.z + rin.z * 1.9 } : { x: p.x + (rin.x + rout.x) * 1.9, z: p.z + (rin.z + rout.z) * 1.9 };
+  });
+  const cum = [0];
+  for (let k = 1; k <= n; k++) cum.push(cum[k - 1]! + Math.hypot(pts[k % n]!.x - pts[k - 1]!.x, pts[k % n]!.z - pts[k - 1]!.z));
+  const total = cum[n]!;
+  // Arrêt : point du tracé le plus proche de l'abri (le bus s'arrête à sa hauteur).
+  const stops = line.stops.map((id) => {
+    const st = BUS_STOP_BY_ID[id]!;
+    const px = st.x + 0.5;
+    const pz = st.y + 0.5;
+    let best = 0;
+    let bd = Infinity;
+    for (let k = 0; k < n; k++) {
+      const a = pts[k]!;
+      const b = pts[(k + 1) % n]!;
+      const len2 = (b.x - a.x) ** 2 + (b.z - a.z) ** 2 || 1;
+      const u = Math.max(0, Math.min(1, ((px - a.x) * (b.x - a.x) + (pz - a.z) * (b.z - a.z)) / len2));
+      const d = Math.hypot(a.x + (b.x - a.x) * u - px, a.z + (b.z - a.z) * u - pz);
+      if (d < bd) { bd = d; best = cum[k]! + u * (cum[k + 1]! - cum[k]!); }
+    }
+    return best % total;
+  }).sort((a, b) => a - b);
+  return { pts, cum, total, stops };
+}
+
+function busMesh(color: string): { g: THREE.Group; lights: THREE.MeshStandardMaterial } {
+  const g = new THREE.Group();
+  const paint = new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.35 });
+  const white = new THREE.MeshStandardMaterial({ color: '#f1efe8', roughness: 0.5 });
+  const glass = new THREE.MeshStandardMaterial({ color: '#1f2a33', roughness: 0.1, metalness: 0.6 });
+  const tire = new THREE.MeshStandardMaterial({ color: '#1c1c1c', roughness: 0.9 });
+  const lights = new THREE.MeshStandardMaterial({ color: '#fff6dd', emissive: new THREE.Color('#ffe9b0'), emissiveIntensity: 0 });
+  const add = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number): void => {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(x, y, z);
+    m.castShadow = true;
+    g.add(m);
+  };
+  add(new THREE.BoxGeometry(2.5, 1.3, 11), paint, 0, 0.95, 0);
+  add(new THREE.BoxGeometry(2.52, 0.95, 10.2), glass, 0, 2.05, 0.25);
+  add(new THREE.BoxGeometry(2.5, 0.35, 11), white, 0, 2.7, 0);
+  add(new THREE.BoxGeometry(2.3, 1.35, 0.06), glass, 0, 1.95, -5.52);
+  add(new THREE.BoxGeometry(1.6, 0.3, 0.08), new THREE.MeshStandardMaterial({ color: '#111', emissive: new THREE.Color('#f2b33a'), emissiveIntensity: 0.9 }), 0, 2.75, -5.53);
+  for (const side of [-0.85, 0.85]) add(new THREE.BoxGeometry(0.35, 0.16, 0.05), lights, side, 0.7, -5.53);
+  const wheel = new THREE.CylinderGeometry(0.5, 0.5, 0.3, 12).rotateZ(Math.PI / 2);
+  for (const z of [-3.6, 3.4]) for (const x of [-1.15, 1.15]) add(wheel, tire, x, 0.5, z);
+  return { g, lights };
+}
 
 interface Car {
   axis: 'h' | 'v';
@@ -76,10 +170,12 @@ export interface Ambient {
   update(dt: number, player: { x: number; z: number }, night: number): void;
   /** Distance (m) entre le joueur et la voiture la plus proche (pour le son de circulation). */
   nearestCar(player: { x: number; z: number }): number;
+  /** Position des bus (QA). */
+  buses(): { line: string; x: number; z: number; speed: number }[];
   dispose(): void;
 }
 
-export function createAmbient(opts: { cars?: number; pedestrians?: number } = {}): Ambient {
+export function createAmbient(opts: { cars?: number; pedestrians?: number; buses?: boolean; anchor?: { x: number; z: number } } = {}): Ambient {
   const group = new THREE.Group();
   group.name = 'ambiance';
   const rnd = visualRng(9001);
@@ -94,7 +190,7 @@ export function createAmbient(opts: { cars?: number; pedestrians?: number } = {}
 
   // ----- Voitures -----
   const cars: Car[] = [];
-  const nCars = opts.cars ?? 26;
+  const nCars = opts.cars ?? 30;
   for (let i = 0; i < nCars; i++) {
     const r = visualRng(500 + i * 17);
     const axis: 'h' | 'v' = r() > 0.5 ? 'h' : 'v';
@@ -138,6 +234,46 @@ export function createAmbient(opts: { cars?: number; pedestrians?: number } = {}
     c.s = pick.s;
   }
 
+  /** Replace une voiture sur une rue à 150–240 m du point suivi (hors de la vue rapprochée). */
+  function respawnCar(c: Car, focus: { x: number; z: number }): void {
+    for (let tries = 0; tries < 12; tries++) {
+      const axis: 'h' | 'v' = c.rnd() > 0.5 ? 'h' : 'v';
+      const dir: 1 | -1 = c.rnd() > 0.5 ? 1 : -1;
+      const near = (axis === 'h' ? HY : VX).filter((v) => Math.abs(v + ROAD_W / 2 - (axis === 'h' ? focus.z : focus.x)) < 220);
+      if (!near.length) continue;
+      const road = near[Math.floor(c.rnd() * near.length)]!;
+      const along = (axis === 'h' ? focus.x : focus.z) + (c.rnd() > 0.5 ? 1 : -1) * (150 + c.rnd() * 90);
+      const p = axis === 'h' ? { x: along, z: laneZ(road, dir) } : { x: laneX(road, dir), z: along };
+      if (!onRoad(p.x, p.z)) continue;
+      Object.assign(c, { axis, dir, road, s: along, lastCross: -1 });
+      c.shown.set(p.x, 0, p.z);
+      return;
+    }
+  }
+
+  // ----- Bus -----
+  const buses: Bus[] = [];
+  if (opts.buses !== false) {
+    for (const line of BUS_LINES) {
+      const lane = busLane(line);
+      for (let k = 0; k < 2; k++) {
+        const { g, lights } = busMesh(line.color);
+        group.add(g);
+        buses.push({ line, ...lane, s: (lane.total * k) / 2, speed: 0, dwell: 0, mesh: g, heading: 0, lights });
+      }
+    }
+  }
+  const busPos = (b: Bus, s: number): { x: number; z: number; dx: number; dz: number } => {
+    const t = ((s % b.total) + b.total) % b.total;
+    let k = 0;
+    while (k < b.pts.length - 1 && b.cum[k + 1]! <= t) k++;
+    const a = b.pts[k]!;
+    const c = b.pts[(k + 1) % b.pts.length]!;
+    const len = b.cum[k + 1]! - b.cum[k]! || 1;
+    const u = (t - b.cum[k]!) / len;
+    return { x: a.x + (c.x - a.x) * u, z: a.z + (c.z - a.z) * u, dx: (c.x - a.x) / len, dz: (c.z - a.z) / len };
+  };
+
   // ----- Passants -----
   interface Walker { ch: Character3D; loop: { x: number; z: number }[]; seg: number; t: number; speed: number; pos: THREE.Vector3 }
   const walkers: Walker[] = [];
@@ -164,10 +300,83 @@ export function createAmbient(opts: { cars?: number; pedestrians?: number } = {}
     group.add(ch.root);
     walkers.push({ ch, loop, seg: Math.floor(r() * 4), t: r(), speed: 1.1 + r() * 0.45, pos: new THREE.Vector3() });
   }
+  const blockCenters = blocks.map((b) => ({ b, x: b.x + b.w / 2, z: b.y + b.h / 2 }));
+  const wrnd = visualRng(4711);
+  /** Replace un passant autour d'un îlot à 70–200 m du point suivi. */
+  function respawnWalker(w: Walker, focus: { x: number; z: number }): void {
+    const near = blockCenters.filter((c) => {
+      const d = Math.hypot(c.x - focus.x, c.z - focus.z);
+      return d > 70 && d < 200;
+    });
+    if (!near.length) return;
+    const b = near[Math.floor(wrnd() * near.length)]!.b;
+    const inset = 1.9 + wrnd() * 0.4;
+    const pts = [
+      { x: b.x + inset, z: b.y + inset }, { x: b.x + b.w - inset, z: b.y + inset },
+      { x: b.x + b.w - inset, z: b.y + b.h - inset }, { x: b.x + inset, z: b.y + b.h - inset },
+    ];
+    w.loop = wrnd() > 0.5 ? pts : pts.reverse();
+    w.seg = Math.floor(wrnd() * 4);
+    w.t = wrnd();
+  }
+  let recycleTick = 0;
 
   return {
     group,
     update(dt: number, player: { x: number; z: number }, night: number): void {
+      const focus = opts.anchor ?? player;
+      // Grande carte : toutes les demi-secondes, ce qui est trop loin revient près du joueur.
+      recycleTick += dt;
+      if (recycleTick > 0.5) {
+        recycleTick = 0;
+        for (const c of cars) {
+          const p = carPos(c);
+          if (Math.hypot(p.x - focus.x, p.z - focus.z) > LIVE_RADIUS) respawnCar(c, focus);
+        }
+        for (const w of walkers) {
+          const a = w.loop[w.seg]!;
+          if (Math.hypot(a.x - focus.x, a.z - focus.z) > LIVE_RADIUS - 60) respawnWalker(w, focus);
+        }
+      }
+      // Bus : vitesse de croisière, ralentit aux virages et aux arrêts, attend 6 s, cède au piéton.
+      for (const b of buses) {
+        if (b.dwell > 0) {
+          b.dwell -= dt;
+          if (b.dwell <= 0) b.s += 0.8; // repart sans re-marquer le même arrêt
+        } else {
+          const t = ((b.s % b.total) + b.total) % b.total;
+          let dStop = Infinity;
+          for (const st of b.stops) dStop = Math.min(dStop, ((st - t) % b.total + b.total) % b.total);
+          let dTurn = Infinity;
+          for (let k = 0; k < b.pts.length; k++) dTurn = Math.min(dTurn, ((b.cum[k]! - t) % b.total + b.total) % b.total);
+          let target = 9;
+          if (dTurn < 12) target = Math.min(target, 3.5 + dTurn * 0.4);
+          if (dStop < 20) target = Math.min(target, 0.8 + dStop * 0.45);
+          const here = busPos(b, b.s);
+          const along = (player.x - here.x) * here.dx + (player.z - here.z) * here.dz;
+          const side = Math.abs((player.x - here.x) * here.dz - (player.z - here.z) * here.dx);
+          if (along > 0 && along < 9 && side < 1.8) target = 0;
+          b.speed += Math.sign(target - b.speed) * Math.min(Math.abs(target - b.speed), (target < b.speed ? 6 : 2.5) * dt);
+          const step = b.speed * dt;
+          if (dStop < 0.6 || (dStop < step + 0.05 && dStop !== Infinity)) {
+            b.s += dStop;
+            b.speed = 0;
+            b.dwell = 6;
+          } else {
+            b.s += step;
+          }
+        }
+        const p = busPos(b, b.s);
+        const h = Math.atan2(-p.dx, -p.dz);
+        let dh = h - b.heading;
+        while (dh > Math.PI) dh -= Math.PI * 2;
+        while (dh < -Math.PI) dh += Math.PI * 2;
+        b.heading += dh * Math.min(1, dt * 4);
+        b.mesh.position.set(p.x, 0, p.z);
+        b.mesh.rotation.y = b.heading;
+        b.mesh.visible = Math.hypot(p.x - focus.x, p.z - focus.z) < LIVE_RADIUS + 140;
+        b.lights.emissiveIntensity = night * 2.5;
+      }
       // Voitures.
       for (const c of cars) {
         const p = carPos(c);
@@ -203,6 +412,13 @@ export function createAmbient(opts: { cars?: number; pedestrians?: number } = {}
         // Hors des limites : demi-tour.
         const maxS = c.axis === 'h' ? CITY_W : ROAD_END_Z;
         if (c.s < 1 || c.s > maxS - 1) { c.dir = (c.dir * -1) as 1 | -1; c.s = Math.max(1, Math.min(maxS - 1, c.s)); }
+        // Fin de la chaussée devant (canal sans pont, bord de carte) : demi-tour.
+        {
+          const q = carPos(c);
+          const fx = c.axis === 'h' ? q.x + c.dir * 2.5 : q.x;
+          const fz = c.axis === 'v' ? q.z + c.dir * 2.5 : q.z;
+          if (!onRoad(fx, fz)) { c.s = prevS; c.dir = (c.dir * -1) as 1 | -1; }
+        }
         const np = carPos(c);
         // Rendu lissé (les virages sont des sauts de voie : on les adoucit).
         const tgt = new THREE.Vector3(np.x, 0, np.z);
@@ -239,7 +455,11 @@ export function createAmbient(opts: { cars?: number; pedestrians?: number } = {}
     nearestCar(player: { x: number; z: number }): number {
       let best = Infinity;
       for (const c of cars) best = Math.min(best, Math.hypot(c.shown.x - player.x, c.shown.z - player.z));
+      for (const b of buses) best = Math.min(best, Math.hypot(b.mesh.position.x - player.x, b.mesh.position.z - player.z));
       return best;
+    },
+    buses(): { line: string; x: number; z: number; speed: number }[] {
+      return buses.map((b) => ({ line: b.line.id, x: b.mesh.position.x, z: b.mesh.position.z, speed: b.speed }));
     },
     dispose(): void {
       group.traverse((o) => {

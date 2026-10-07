@@ -580,6 +580,20 @@ canvas.map-canvas-3d { image-rendering: auto; touch-action: none; }
   background: rgba(255, 255, 255, 0.06); color: var(--ink); cursor: pointer; font-weight: 800;
 }
 .hud2 .speed-btn:hover { background: rgba(255, 255, 255, 0.14); }
+.hud2 .speed-btn { padding: 4px 4px; min-width: 0; }
+.hud2 .speed-btn.active { background: var(--or); color: var(--bg); }
+.hud2 .task-toggle {
+  font-size: 11px; padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(255, 217, 138, 0.25);
+  background: rgba(255, 255, 255, 0.06); color: var(--ink); cursor: pointer; font-weight: 700; text-align: left; opacity: 0.7;
+}
+.hud2 .task-toggle.on { opacity: 1; border-color: var(--or); }
+.hud2 .task-chip {
+  font-size: 12px; font-weight: 800; padding: 4px 8px; border-radius: 8px; background: rgba(255, 217, 138, 0.18);
+  color: var(--or); animation: task-chip-pulse 0.9s ease-in-out infinite alternate;
+}
+.hud2 .task-chip.hidden { display: none; }
+@keyframes task-chip-pulse { from { opacity: 0.75; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .hud2 .task-chip { animation: none; } }
 .hud2-needs { padding: 7px 10px; gap: 4px; margin: 0; }
 .hud2 .need-label { width: 92px; text-align: left; font-size: 11.5px; }
 .hud2 .need-track { width: 120px; height: 7px; border: none; background: rgba(0, 0, 0, 0.45); border-radius: 4px; }

@@ -4,7 +4,8 @@
  * et barre de contrôle de caméra 3D rotative & audio.
  */
 import type { NeedId, WorldState } from '../core/types';
-import { dateOf, dayIndexOf, hhmmOfTick } from '../core/clock';
+import { dateOf, dayIndexOf, hhmm, minutesOfDay } from '../core/clock';
+import { PACES } from './time-pace';
 import { NEED_LABELS } from '../data/places';
 import { SAVE_LABEL } from '../data/texts';
 import { getCampaignProgressSummary } from '../simulation/campaign';
@@ -62,6 +63,10 @@ export interface UiRefs {
   minimapCanvas: HTMLCanvasElement;
   minimapCtx: CanvasRenderingContext2D | null;
   streetEl: HTMLElement;
+  /** Bouton « les actions prennent du temps ». */
+  taskToggle: HTMLButtonElement;
+  /** Bandeau de l'ellipse d'une action (« ⏩ Discussion · +10 min »). */
+  taskChip: HTMLElement;
   lastIso: string;       // dernière date affichée (détection du changement de jour)
   saveTimer: number | undefined;
 }
@@ -113,14 +118,21 @@ export function buildUi(root: HTMLElement): UiRefs {
   clockRow.appendChild(clockEl);
   clockRow.appendChild(dateCol);
   status.appendChild(clockRow);
+  // Rythme du temps : allure continue (pause → ×20) et actions qui prennent du temps.
   const speedRow = el('div', 'speed-row');
-  for (const [spd, label] of [[0, '⏸'], [1, '▶'], [5, '▶▶'], [20, '▶▶▶']] as const) {
-    const btn = el('button', 'speed-btn', label);
-    btn.dataset.speed = String(spd);
-    btn.title = spd === 0 ? 'Pause' : `Vitesse ×${spd}`;
+  for (const p of PACES) {
+    const btn = el('button', 'speed-btn', p.label);
+    btn.dataset.pace = p.id;
+    btn.title = p.title;
     speedRow.appendChild(btn);
   }
   status.appendChild(speedRow);
+  const taskToggle = el('button', 'task-toggle', '⏱ Les actions prennent du temps');
+  taskToggle.type = 'button';
+  taskToggle.title = 'Parler, acheter, travailler, décharger : l’horloge avance de la durée de l’action.';
+  status.appendChild(taskToggle);
+  const taskChip = el('div', 'task-chip hidden', '');
+  status.appendChild(taskChip);
   hud.appendChild(status);
 
   // Besoins (sous la carte d'état).
@@ -267,7 +279,7 @@ export function buildUi(root: HTMLElement): UiRefs {
     barEls, promptEl, modalEl, joyZone, actionBtn, navEl, bannerEl,
     saveEl, cameraToolbarEl, btnRotLeft, btnRotRight, btnCamView, btnToggle3D,
     btnZoomIn, btnZoomOut, btnMuteAudio, weatherEl, bizEl, phoneBtn, mapBtn, menuBtn, menuDrawer,
-    minimapCanvas, minimapCtx, streetEl, lastIso: '', saveTimer: undefined,
+    minimapCanvas, minimapCtx, streetEl, taskToggle, taskChip, lastIso: '', saveTimer: undefined,
   };
   resizeCanvas(ui, root);
   return ui;
@@ -332,6 +344,12 @@ interface HudCache {
 
 const hudCache = new WeakMap<UiRefs, HudCache>();
 
+/** Minutes écoulées dans le tick en cours : l'horloge avance à la minute (temps réel, allure lente). */
+let clockSubMinutes = 0;
+export function setClockSubMinutes(n: number): void {
+  clockSubMinutes = n;
+}
+
 export function updateHud(ui: UiRefs, w: WorldState, prompt: string): void {
   let cache = hudCache.get(ui);
   if (!cache) {
@@ -340,7 +358,7 @@ export function updateHud(ui: UiRefs, w: WorldState, prompt: string): void {
   }
 
   const day = dayIndexOf(w.time.tick);
-  const clockStr = hhmmOfTick(w.time.tick);
+  const clockStr = hhmm(minutesOfDay(w.time.tick) + clockSubMinutes);
   if (cache.clock !== clockStr) {
     ui.clockEl.textContent = clockStr;
     cache.clock = clockStr;

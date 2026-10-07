@@ -84,7 +84,9 @@ export interface CityZone {
 
 export type CityPropKind =
   | 'arbre' | 'lampadaire' | 'banc' | 'fontaine' | 'jardiniere' | 'arret_bus' | 'poubelle'
-  | 'cheminee' | 'etal' | 'jeux' | 'feu' | 'kiosque' | 'grue' | 'bollard' | 'velo';
+  | 'cheminee' | 'etal' | 'jeux' | 'feu' | 'kiosque' | 'grue' | 'bollard' | 'velo'
+  // Terrains de la grande carte (2026-10-07) : parkings, cours d'entrepôts, friches, jardins, stade.
+  | 'voiture' | 'camion' | 'conteneur' | 'palettes' | 'gravats' | 'buisson' | 'haie' | 'but' | 'terrain_foot';
 
 export interface CityProp {
   kind: CityPropKind;
@@ -92,6 +94,15 @@ export interface CityProp {
   y: number;
   /** Les petits objets (bollards, vélos) ne bloquent pas le passage. */
   blocks: boolean;
+  /** Grands objets : emprise en tuiles à partir de (x, y) (1 × 1 par défaut). */
+  w?: number;
+  h?: number;
+  /** Centre exact (mètres) et cap (radians ; 0 = grand axe nord-sud) pour le rendu. */
+  cx?: number;
+  cy?: number;
+  ry?: number;
+  /** Variante de rendu : 'ambulance', 'rouille' (épave), 'empile' (conteneurs sur deux niveaux). */
+  variant?: string;
 }
 
 export interface CityRoad {
@@ -656,7 +667,32 @@ export function buildCityLayout(): CityLayout {
   }
   blocks.push(...newBlocks);
 
-  /** Pavillons avec jardin : maisons individuelles en grille. */
+  /**
+   * Grand objet posé au mètre près : `len` le long du cap (`along` = 'z' : nord-sud), `wid` en
+   * travers ; l'emprise bloquante couvre les tuiles touchées.
+   */
+  const bigProp = (kind: CityPropKind, cx: number, cy: number, wid: number, len: number, along: 'x' | 'z', variant?: string): void => {
+    const w = along === 'z' ? wid : len;
+    const h = along === 'z' ? len : wid;
+    const x = Math.floor(cx - w / 2 + 0.01);
+    const y = Math.floor(cy - h / 2 + 0.01);
+    props.push({ kind, x, y, w: Math.ceil(cx + w / 2 - 0.01) - x, h: Math.ceil(cy + h / 2 - 0.01) - y, cx, cy, ry: along === 'z' ? 0 : Math.PI / 2, blocks: true, variant });
+  };
+  /** Voitures garées sur un parking (places de 2,5 m, rangées de 4,5 m tous les 10 m) ; une colonne sur cinq reste libre. */
+  const parkCars = (zx: number, zy: number, zw: number, zh: number, fill: number, seed: number): void => {
+    for (let k = Math.ceil((zx + 1) / 2.5); (k + 1) * 2.5 <= zx + zw - 1; k++) {
+      if (k % 5 === 0) continue;
+      for (let m = Math.floor(zy / 10); m * 10 < zy + zh; m++) {
+        for (const off of [2.25, 7.75]) {
+          const cy = m * 10 + off;
+          if (cy - 2.2 < zy || cy + 2.2 > zy + zh) continue;
+          if (hash(k, m * 2 + (off > 5 ? 1 : 0), seed) < fill) bigProp('voiture', k * 2.5 + 1.25, cy, 2, 4, 'z');
+        }
+      }
+    }
+  };
+
+  /** Pavillons avec jardin : maisons individuelles en grille, haie au fond, voiture dans l'allée. */
   const pavillons = (b: CityBlock): void => {
     zones.push({ kind: 'herbe', x: b.x + 3, y: b.y + 3, w: b.w - 6, h: b.h - 6, walkable: true });
     for (let yy = b.y + 6; yy + 9 < b.y + b.h - 4; yy += 16) {
@@ -664,6 +700,10 @@ export function buildCityLayout(): CityLayout {
         const hh = hash(xx, yy, 21);
         special({ id: `pav_${xx}_${yy}`, x: xx, y: yy, w: 9, d: 8, floors: hh > 0.6 ? 2 : 1, style: hh > 0.5 ? 'enduit_creme' : 'enduit_rose', roof: 'deux_pans', front: 'n' });
         if (hh > 0.4) props.push({ kind: 'arbre', x: xx + 11, y: yy + 3, blocks: true });
+        else bigProp('voiture', xx + 11.5, yy + 3, 2, 4, 'z');
+        // Haie au fond du jardin (un passage d'un mètre entre deux voisins).
+        if (yy + 14 < b.y + b.h - 4) props.push({ kind: 'haie', x: xx - 2, y: yy + 13, w: 13, h: 1, cx: xx + 4.5, cy: yy + 13.5, ry: Math.PI / 2, blocks: true });
+        if (hash(xx, yy, 22) > 0.55) props.push({ kind: 'buisson', x: xx - 2, y: yy + 10, blocks: true });
       }
     }
     streetFurniture(b, ['n', 's']);
@@ -689,7 +729,27 @@ export function buildCityLayout(): CityLayout {
     const half = Math.floor((b.w - 14) / 2);
     special({ id: `entrepot_${b.id}_a`, x: b.x + 5, y: b.y + 10, w: half, d: Math.min(34, b.h - 22), floors: 2, style: 'industriel', roof: 'sheds', front: 'n', label: labels?.[0] });
     special({ id: `entrepot_${b.id}_b`, x: b.x + 9 + half, y: b.y + 10, w: half, d: Math.min(34, b.h - 22), floors: 2, style: 'industriel', roof: hash(b.x, b.y, 41) > 0.5 ? 'plat' : 'sheds', front: 'n', label: labels?.[1] });
-    if (hash(b.x, b.y, 42) > 0.6) props.push({ kind: 'grue', x: b.x + b.w - 8, y: b.y + b.h - 8, blocks: true });
+    const crane = hash(b.x, b.y, 42) > 0.6;
+    if (crane) props.push({ kind: 'grue', x: b.x + b.w - 8, y: b.y + b.h - 8, blocks: true });
+    // Cour arrière : semi-remorques à quai, conteneurs alignés, palettes devant les portes.
+    const y0 = b.y + 10 + Math.min(34, b.h - 22) + 1;
+    const y1 = b.y + b.h - 4;
+    if (y1 - y0 >= 18) {
+      for (const [i, hx] of [b.x + 5 + 4, b.x + 9 + half + 4].entries()) {
+        if (hash(b.x, b.y, 43 + i) > 0.35) bigProp('camion', hx + 1.5, y0 + 5.5, 3, 10, 'z');
+      }
+    }
+    if (y1 - y0 >= 6) {
+      const cy = y1 - 2;
+      const xEnd = crane ? b.x + b.w - 14 : b.x + b.w - 5;
+      for (let cx = b.x + 18 + half / 2; cx + 3.2 < xEnd; cx += 7) {
+        if (hash(cx, cy, 44) > 0.25) bigProp('conteneur', cx, cy, 2.6, 6.2, 'x', hash(cx, cy, 45) > 0.6 ? 'empile' : undefined);
+      }
+    }
+    for (let i = 0; i < 6; i++) {
+      const px = b.x + 6 + Math.floor(hash(i, b.x, 46) * (b.w - 12));
+      if (y0 + 1 < y1) props.push({ kind: 'palettes', x: px, y: y0, blocks: true });
+    }
     streetFurniture(b, ['n', 'w']);
   };
   /** Grande surface et son parking. */
@@ -697,6 +757,9 @@ export function buildCityLayout(): CityLayout {
     zones.push({ kind: 'parking', x: b.x + 3, y: b.y + 3, w: b.w - 6, h: 28, walkable: true });
     special({ id: `magasin_${b.id}`, x: b.x + 6, y: b.y + 34, w: b.w - 12, d: Math.min(30, b.h - 40), floors: 2, style: 'hyper', roof: 'plat', front: 'n', label });
     for (let i = 0; i < 5; i++) props.push({ kind: 'lampadaire', x: b.x + 8 + i * 13, y: b.y + 16, blocks: true });
+    parkCars(b.x + 3, b.y + 3, b.w - 6, 28, 0.55, b.x + b.y);
+    // Arbres d'alignement devant le magasin.
+    for (let x = b.x + 6; x < b.x + b.w - 6; x += 9) props.push({ kind: 'arbre', x, y: b.y + 32, blocks: true });
   };
   /** Friche : halles en ruine, terre et bouleaux. */
   const friche = (b: CityBlock): void => {
@@ -704,6 +767,11 @@ export function buildCityLayout(): CityLayout {
     if (hash(b.x, b.y, 51) > 0.35) special({ id: `ruine_${b.id}`, x: b.x + 10, y: b.y + 12, w: b.w - 24, d: Math.min(30, b.h - 26), floors: 3, style: 'industriel', roof: 'sheds', front: 'n', ruined: true });
     if (hash(b.x, b.y, 52) > 0.7) props.push({ kind: 'cheminee', x: b.x + b.w - 10, y: b.y + b.h - 12, blocks: true });
     for (let i = 0; i < 4; i++) props.push({ kind: 'arbre', x: b.x + 6 + Math.floor(hash(i, b.x, 53) * (b.w - 12)), y: b.y + b.h - 8, blocks: true });
+    // Ce que la friche garde : tas de gravats, broussailles, une épave, un conteneur rouillé.
+    for (let i = 0; i < 3; i++) bigProp('gravats', b.x + 8 + hash(i, b.y, 54) * (b.w - 16), b.y + b.h - 16 + hash(i, b.x, 55) * 6, 3, 3, 'z');
+    for (let i = 0; i < 9; i++) props.push({ kind: 'buisson', x: b.x + 5 + Math.floor(hash(i, b.x, 56) * (b.w - 10)), y: b.y + 5 + Math.floor(hash(i, b.y, 57) * (b.h - 10)), blocks: true });
+    if (hash(b.x, b.y, 58) > 0.5) bigProp('voiture', b.x + 6.5, b.y + b.h - 7, 2, 4, 'x', 'rouille');
+    if (hash(b.x, b.y, 59) > 0.45) bigProp('conteneur', b.x + b.w - 9, b.y + 7, 2.6, 6.2, 'x', 'rouille');
   };
   /** Quartier d'immeubles : bandes sur rue, commerces sur les avenues. */
   const immeubles = (b: CityBlock, shops: Face[], styles: FacadeStyle[], floors: [number, number]): void => {
@@ -714,11 +782,36 @@ export function buildCityLayout(): CityLayout {
   // Bâtiments de lore, posés sur des îlots précis (colonne, rangée).
   const LORE: Record<string, (b: CityBlock) => void> = {
     // Hôpital de Val-Ferrand : là où Nora fait ses gardes de nuit.
-    s0803: (b) => { zones.push({ kind: 'herbe', x: b.x + 3, y: b.y + 3, w: b.w - 6, h: b.h - 6, walkable: true }); special({ id: 'hopital', x: b.x + 6, y: b.y + 8, w: b.w - 12, d: 40, floors: 6, style: 'enduit_creme', roof: 'plat', front: 's', label: 'Hôpital de Val-Ferrand' }); },
+    s0803: (b) => {
+      zones.push({ kind: 'herbe', x: b.x + 3, y: b.y + 3, w: b.w - 6, h: b.h - 6, walkable: true });
+      special({ id: 'hopital', x: b.x + 6, y: b.y + 8, w: b.w - 12, d: 40, floors: 6, style: 'enduit_creme', roof: 'plat', front: 's', label: 'Hôpital de Val-Ferrand' });
+      // Parvis des urgences : parking des visiteurs et deux ambulances.
+      zones.push({ kind: 'parking', x: b.x + 6, y: b.y + 50, w: b.w - 12, h: b.h - 56, walkable: true });
+      parkCars(b.x + 16, b.y + 50, b.w - 22, b.h - 56, 0.6, 803);
+      bigProp('voiture', b.x + 9.5, b.y + 53, 2.2, 5, 'z', 'ambulance');
+      bigProp('voiture', b.x + 12.5, b.y + 53, 2.2, 5, 'z', 'ambulance');
+    },
     // Lycée Louise-Michel : après le collège, à quinze ans.
-    s0806: (b) => { special({ id: 'lycee', x: b.x + 6, y: b.y + 10, w: b.w - 12, d: 26, floors: 3, style: 'ecole', roof: 'deux_pans', front: 's', label: 'Lycée Louise-Michel' }); zones.push({ kind: 'pave', x: b.x + 6, y: b.y + 40, w: b.w - 12, h: b.h - 46, walkable: true }); },
+    s0806: (b) => {
+      special({ id: 'lycee', x: b.x + 6, y: b.y + 10, w: b.w - 12, d: 26, floors: 3, style: 'ecole', roof: 'deux_pans', front: 's', label: 'Lycée Louise-Michel' });
+      zones.push({ kind: 'pave', x: b.x + 6, y: b.y + 40, w: b.w - 12, h: b.h - 46, walkable: true });
+      // Cour : platanes en quinconce, un banc à l'ombre de chacun.
+      for (let x = b.x + 12, i = 0; x < b.x + b.w - 10; x += 12, i++) {
+        props.push({ kind: 'arbre', x, y: b.y + 46 + (i % 2) * 8, blocks: true });
+        props.push({ kind: 'banc', x: x + 2, y: b.y + 46 + (i % 2) * 8, blocks: true });
+      }
+    },
     // Stade Marcel-Cerdan : pelouse et tribune.
-    s0809: (b) => { zones.push({ kind: 'herbe', x: b.x + 8, y: b.y + 8, w: b.w - 16, h: b.h - 16, walkable: true }); special({ id: 'tribune', x: b.x + 10, y: b.y + 4, w: b.w - 20, d: 6, floors: 2, style: 'civique', roof: 'plat', front: 's', label: 'Stade Marcel-Cerdan' }); },
+    s0809: (b) => {
+      // Piste en cendrée autour de la pelouse, buts aux deux bouts.
+      zones.push({ kind: 'terre', x: b.x + 4, y: b.y + 12, w: b.w - 8, h: b.h - 16, walkable: true });
+      zones.push({ kind: 'herbe', x: b.x + 9, y: b.y + 17, w: b.w - 18, h: b.h - 26, walkable: true });
+      special({ id: 'tribune', x: b.x + 10, y: b.y + 4, w: b.w - 20, d: 6, floors: 2, style: 'civique', roof: 'plat', front: 's', label: 'Stade Marcel-Cerdan' });
+      const midY = b.y + 17 + (b.h - 26) / 2;
+      props.push({ kind: 'terrain_foot', x: b.x + 10, y: b.y + 18, w: b.w - 20, h: b.h - 28, blocks: false });
+      props.push({ kind: 'but', x: b.x + 10, y: Math.floor(midY) - 2, w: 1, h: 4, cx: b.x + 10.2, cy: midY, ry: 0, blocks: true });
+      props.push({ kind: 'but', x: b.x + b.w - 11, y: Math.floor(midY) - 2, w: 1, h: 4, cx: b.x + b.w - 10.2, cy: midY, ry: Math.PI, blocks: true });
+    },
     // Cimetière du Taret : là où repose Lucien.
     s1001: (b) => {
       zones.push({ kind: 'herbe', x: b.x + 3, y: b.y + 3, w: b.w - 6, h: b.h - 6, walkable: true });

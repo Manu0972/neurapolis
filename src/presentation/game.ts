@@ -83,8 +83,8 @@ import {
   isOnSite, isTraveling, leaveDestination, startTravel, travelSlotsLeft,
 } from '../simulation/travel';
 import { LAMINOIR_OPTIONS, chooseLaminoirFuture, laminoirDecisionPending } from '../simulation/laminoir';
-import { BUS_HOURS, busFare, busRideTicks, busRunning, isOnBus, stopNear, takeBus } from '../simulation/transit';
-import { BUS_STOPS, BUS_STOP_BY_ID } from '../data/city/transit';
+import { BUS_HOURS, busFare, busRoute, busRunning, isOnBus, stopNear, stopOpen, takeBus } from '../simulation/transit';
+import { BUS_LINES, BUS_STOPS, BUS_STOP_BY_ID } from '../data/city/transit';
 import { createGhostBar } from './ghost-bar';
 import { createNewsToaster, openSurpriseModal } from './news-ui';
 import { pendingSurprise } from '../simulation/happenings';
@@ -117,6 +117,8 @@ import { attendSchoolClass, ensureSchoolLifeState, negotiateWithTeacher, skipSch
 import { ensureStreetRecognitionState, handleStreetEncounterChoice } from '../simulation/street_synergies';
 import { askActiveGhostAdvice, checkAndUnlockThinkers, getGhostCompanionThought, switchCompanionGhost } from '../simulation/ghost_companions';
 import { INITIAL_TUTORIALS } from '../data/tutorials';
+import { PACE_BY_ID, TASK_MINUTES, TASK_SPEED, loadPacePrefs, savePacePrefs, subMinutes, taskTicks } from './time-pace';
+import { setClockSubMinutes } from './ui';
 
 /**
  * Un tick simulé dure 10 minutes de jeu. À vitesse ×1, 1 minute de jeu = 1 seconde réelle
@@ -220,6 +222,19 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   let hudFrame = 0;
   let interiorStepAcc = 0;
   let lastAdviceMood = '';
+  // Rythme du temps (préférence du joueur) et ellipse des actions en cours.
+  const pacePrefs = loadPacePrefs();
+  let pendingTaskTicks = 0;
+  let lastTickMs = 0;
+  let taskLabel = '';
+  /** Une action vient d'être faite : l'horloge avance de sa durée (si l'option est active). */
+  function spendTaskTime(minutes: number, label: string): void {
+    if (!pacePrefs.tasksTakeTime) return;
+    pendingTaskTicks += taskTicks(minutes);
+    taskLabel = label;
+    ui.taskChip.textContent = `⏩ ${label} · +${pendingTaskTicks * 10} min`;
+    ui.taskChip.classList.remove('hidden');
+  }
   let lastAdviceBubbleTime = 0;
 
   // Initialisation du rendu 3D WebGL / fallback 2D
@@ -343,16 +358,30 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   // Charger les assets pixel-art en arrière-plan (le renderer bascule automatiquement)
   loadAssetKit().catch(() => { /* fallback procédural si le chargement échoue */ });
 
-  // Contrôle de vitesse (×1, ×2, ×4)
+  // Rythme du temps : allure (pause → ×20, temps réel compris) et actions qui prennent du temps.
+  const syncPaceUi = (): void => {
+    for (const b of root.querySelectorAll<HTMLButtonElement>('.speed-btn')) b.classList.toggle('active', b.dataset.pace === pacePrefs.pace);
+    ui.taskToggle.classList.toggle('on', pacePrefs.tasksTakeTime);
+    ui.taskToggle.textContent = pacePrefs.tasksTakeTime ? '⏱ Les actions prennent du temps' : '⏱ Actions instantanées';
+    ui.taskToggle.setAttribute('aria-pressed', String(pacePrefs.tasksTakeTime));
+    // L'ancien champ de vitesse reste cohérent (pause ou en marche) pour la sauvegarde.
+    world.time.speed = PACE_BY_ID[pacePrefs.pace].scale === 0 ? 0 : 1;
+  };
   for (const btn of root.querySelectorAll<HTMLButtonElement>('.speed-btn')) {
     btn.addEventListener('click', () => {
-      world.time.speed = (Number(btn.dataset.speed) || 1) as import('../core/types').Speed;
-      for (const b of root.querySelectorAll<HTMLButtonElement>('.speed-btn')) {
-        b.style.background = Number(b.dataset.speed) === world.time.speed ? 'var(--or)' : 'var(--panel2)';
-        b.style.color = Number(b.dataset.speed) === world.time.speed ? 'var(--bg)' : 'var(--ink)';
-      }
+      const id = btn.dataset.pace as keyof typeof PACE_BY_ID;
+      if (!PACE_BY_ID[id]) return;
+      pacePrefs.pace = id;
+      savePacePrefs(pacePrefs);
+      syncPaceUi();
     });
   }
+  ui.taskToggle.addEventListener('click', () => {
+    pacePrefs.tasksTakeTime = !pacePrefs.tasksTakeTime;
+    savePacePrefs(pacePrefs);
+    syncPaceUi();
+  });
+  syncPaceUi();
 
   // Outil d'inspection (Bible Partie XII) : l'état du monde reste lisible depuis la console
   // et depuis les tests E2E. Lecture/écriture directe = leviers de QA, jamais du gameplay.
@@ -373,6 +402,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       sync: () => { syncSigns(); syncWaypoints(); syncStallCrowds(); },
       layout: (id: string) => startLayoutEdit(id),
       ride: (on: boolean) => renderer3D?.setRiding(on),
+      buses: () => renderer3D?.busPositions ?? [],
       /** Place le joueur devant un lieu (QA uniquement). */
       goto: (place: PlaceId) => { const a = PLACE_ANCHORS[place]; world.player.pos.x = a.x; world.player.pos.y = a.y; },
       /** Fait tourner la vraie boucle de jeu `n` images de `ms` (fenêtre masquée : rAF en pause). */
@@ -565,32 +595,47 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     showModal('🏭 La halle du laminoir', 'Val-Ferrand, après la fermeture', body, true);
   }
 
-  // ---------- Bus : ligne 1 ----------
+  // ---------- Bus : réseau des TVT (3 lignes) ----------
   function openBusStop(fromId: string): void {
     const from = BUS_STOP_BY_ID[fromId];
     if (!from) return;
     const body = el('div', 'panel-body');
     const fare = busFare(world);
-    body.appendChild(el('p', 'panel-desc', `Ticket : ${fare.toFixed(2)} €${world.player.age < 18 ? ' (tarif jeune)' : ''}. Service de ${BUS_HOURS[0]} h à ${BUS_HOURS[1]} h. Le bus fait la boucle : centre, avenue Jean-Jaurès, Gare, rue des Forges.`));
+    body.appendChild(el('p', 'panel-desc', `Ticket : ${fare.toFixed(2)} €${world.player.age < 18 ? ' (tarif jeune)' : ''}, correspondance comprise. Service de ${BUS_HOURS[0]} h à ${BUS_HOURS[1]} h. Les bus tournent en boucle ; on change de ligne à la Gare, au Laminoir ou à Forges – Louise-Michel.`));
     if (!busRunning(world)) body.appendChild(el('p', 'ph-note', 'Plus de bus à cette heure-ci : il faudra marcher (ou pédaler).'));
-    const list = el('div', 'ph-list');
-    for (const s of BUS_STOPS) {
-      if (s.id === fromId) continue;
-      const card = el('div', 'ph-card');
-      card.appendChild(el('div', 'ph-card-title', `🚌 ${s.name}`));
-      card.appendChild(el('p', 'ph-note', `environ ${busRideTicks(fromId, s.id) * 10} min`));
-      const btn = el('button', 'ph-btn primary', `Monter (${fare.toFixed(2)} €)`);
-      btn.disabled = !busRunning(world) || world.player.money < fare;
-      btn.addEventListener('click', () => {
-        const r = takeBus(world, s.id);
-        toast(r.message, r.ok);
-        if (r.ok) closeModal();
-      });
-      card.appendChild(btn);
-      list.appendChild(card);
+    // Lignes de l'arrêt d'abord, puis les autres (accessibles avec une correspondance).
+    const order = [...BUS_LINES].sort((a, b) => Number(!from.lines.includes(a.id)) - Number(!from.lines.includes(b.id)));
+    const seen = new Set<string>([fromId]);
+    for (const line of order) {
+      const stops = line.stops.filter((id) => !seen.has(id));
+      if (!stops.length) continue;
+      const head = el('h3', 'ph-h bus-line-title', line.name);
+      head.style.borderLeft = `6px solid ${line.color}`;
+      head.style.paddingLeft = '8px';
+      body.appendChild(head);
+      const list = el('div', 'ph-list');
+      for (const id of stops) {
+        seen.add(id);
+        const s = BUS_STOP_BY_ID[id]!;
+        const route = busRoute(fromId, id);
+        const gate = stopOpen(world, id);
+        const card = el('div', `ph-card${gate.open ? '' : ' locked'}`);
+        card.appendChild(el('div', 'ph-card-title', `${gate.open ? '🚌' : '🔒'} ${s.name}`));
+        const via = route?.transfer ? ` · correspondance à ${BUS_STOP_BY_ID[route.transfer]!.name}` : '';
+        card.appendChild(el('p', 'ph-note', gate.open ? `environ ${(route?.ticks ?? 0) * 10} min · ligne ${route?.lines.join(' puis ') ?? '?'}${via}` : gate.reason));
+        const btn = el('button', 'ph-btn primary', gate.open ? `Monter (${fare.toFixed(2)} €)` : 'Fermé');
+        btn.disabled = !gate.open || !route || !busRunning(world) || world.player.money < fare;
+        btn.addEventListener('click', () => {
+          const r = takeBus(world, id);
+          toast(r.message, r.ok);
+          if (r.ok) closeModal();
+        });
+        card.appendChild(btn);
+        list.appendChild(card);
+      }
+      body.appendChild(list);
     }
-    body.appendChild(list);
-    showModal('🚌 Ligne 1', from.name, body, true);
+    showModal('🚌 Bus du Taret', `${from.name} · ligne${from.lines.length > 1 ? 's' : ''} ${from.lines.join(', ')}`, body, true);
   }
 
   // ---------- Voyage : la destination est une place à explorer ----------
@@ -955,6 +1000,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           if (r.special === 'open_workshop') { openWorkshopModal(); return; }
           if (r.special === 'open_debate') { openUrbanDebate(); return; }
           toast(r.message, r.ok);
+          if (r.ok) spendTaskTime(TASK_MINUTES.meuble, label.replace(/^E — /, ''));
           updateHud(ui, world, promptText());
         },
       };
@@ -997,7 +1043,13 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
     const eco = economyActionHere();
     if (eco) {
+      const before = world.player.money;
+      const stamp = JSON.stringify(world.economy?.orders?.map((o) => o.status) ?? []);
       eco.run();
+      // Une action économique qui a changé quelque chose (cartons, argent) prend du temps.
+      if (world.player.money !== before || JSON.stringify(world.economy?.orders?.map((o) => o.status) ?? []) !== stamp) {
+        spendTaskTime(TASK_MINUTES.economie, eco.label.replace(/^E — /, ''));
+      }
       return;
     }
     const place = placeAtAdjacent(world);
@@ -1087,6 +1139,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         const btn = el('button', 'btn btn-reply', reply.label);
         btn.addEventListener('click', () => {
           const res = replyDialogue(world, id, reply.id);
+          spendTaskTime(TASK_MINUTES.parler, `Discussion avec ${def?.name ?? 'quelqu’un'}`);
           const effects = Object.entries(res.applied)
             .map(([k, d]) => `${REL_LABELS[k as keyof typeof REL_LABELS]} ${d > 0 ? '+' : ''}${d}`);
           lineBox.textContent =
@@ -1149,6 +1202,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           btn.addEventListener('click', () => {
             const r = performGatedAction(world, a.id);
             btn.textContent = `${a.label} → ${r.message}`;
+            if (r.ok) spendTaskTime(TASK_MINUTES.competence, a.label);
           });
         }
         body.appendChild(btn);
@@ -2802,12 +2856,29 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           // La nuit défile en accéléré (ellipse) : 9 heures de sommeil en quelques secondes,
           // tick par tick, sans jamais sauter la clôture économique ni les événements.
           // Sur place, le temps attend le joueur : seules les activités, le train et la nuit le font avancer.
-          const speed = world.time.speed === 0 || (isOnSite(world) && !world.player.asleep) ? 0 : isTraveling(world) ? TRAVEL_SPEED : isOnBus(world) ? BUS_SPEED : isInClass(world) ? CLASS_SPEED : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : world.time.speed;
+          // Une action en cours (ellipse) fait avancer l'horloge même en pause.
+          const paceScale = PACE_BY_ID[pacePrefs.pace].scale;
+          const ellipse = isTraveling(world) || isOnBus(world) || isInClass(world) || world.player.asleep || inShift(world);
+          const taskRunning = pendingTaskTicks > 0 && !ellipse;
+          const speed = (isOnSite(world) && !world.player.asleep) ? 0 : isTraveling(world) ? TRAVEL_SPEED : isOnBus(world) ? BUS_SPEED : isInClass(world) ? CLASS_SPEED : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : taskRunning ? TASK_SPEED : paceScale;
+          if (!taskRunning && pendingTaskTicks <= 0) ui.taskChip.classList.add('hidden');
           if (speed !== 0) {
-            acc += dt;
             const tickMs = TICK_MS / speed;
+            // Changement d'allure (ou d'ellipse) : la fraction de tick entamée est conservée,
+            // pas la durée réelle accumulée (sinon passer du temps réel à ×20 sauterait des heures).
+            if (lastTickMs > 0 && tickMs !== lastTickMs) acc = Math.min(acc / lastTickMs, 1) * tickMs;
+            lastTickMs = tickMs;
+            acc += dt;
+            // Horloge à la minute entre deux ticks (temps réel, allure lente).
+            setClockSubMinutes(ellipse || taskRunning ? 0 : subMinutes(acc, tickMs));
             while (acc >= tickMs) {
               acc -= tickMs;
+              if (taskRunning && pendingTaskTicks > 0) {
+                pendingTaskTicks -= 1;
+                ui.taskChip.textContent = `⏩ ${taskLabel} · +${pendingTaskTicks * 10} min`;
+                // Fin de l'action : on reprend l'allure choisie au début d'un tick.
+                if (pendingTaskTicks === 0) acc = 0;
+              }
               const prevDay = dayIndexOf(world.time.tick);
               const out = tickWorld(world);
               // Arrivé sur place (fin du train ou d'une activité) : le temps s'arrête net.

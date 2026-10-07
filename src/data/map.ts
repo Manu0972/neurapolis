@@ -90,9 +90,16 @@ const PROP_AS_DECORATION: Partial<Record<CityPropKind, WorldPropId>> = {
 export const DECORATIONS: { x: number; y: number; id: WorldPropId }[] = [];
 for (const p of CITY.props) {
   if (!p.blocks) continue;
-  const i = idx(p.x, p.y);
   const decoration = PROP_AS_DECORATION[p.kind];
-  special.set(i, Object.freeze({ kind: 'decor', surface: SURFACES[surface[i]!]!, prop: p.kind, decoration }) as Tile);
+  // Grands objets (voitures, conteneurs, haies) : toute leur emprise bloque, sans écraser une porte.
+  for (let yy = p.y; yy < p.y + (p.h ?? 1); yy++) {
+    for (let xx = p.x; xx < p.x + (p.w ?? 1); xx++) {
+      if (xx < 0 || yy < 0 || xx >= CITY_W || yy >= CITY_H) continue;
+      const i = idx(xx, yy);
+      if (special.get(i)?.kind === 'entree') continue;
+      special.set(i, Object.freeze({ kind: 'decor', surface: SURFACES[surface[i]!]!, prop: p.kind, decoration }) as Tile);
+    }
+  }
   if (decoration) DECORATIONS.push({ x: p.x, y: p.y, id: decoration });
 }
 
