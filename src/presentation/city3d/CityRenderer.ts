@@ -21,6 +21,8 @@ import { createAmbient, type Ambient } from './ambient';
 import { createCharacter, type Character3D } from './simpleCharacter';
 import { findPath, stepBody, tileOf, type BodyState } from './locomotion';
 import { INTERIOR_CELL, buildInterior, nearestHotspot, type BuiltInterior, type Hotspot, type InteriorSpec } from './interior3d';
+import { updateChunkVisibility } from './chunks';
+import { createBarriers, type Barriers } from './barriers';
 
 export interface CityFrameInput {
   /** Direction demandée (clavier/joystick), x vers la droite, y vers le bas de l'écran. */
@@ -129,11 +131,15 @@ export class CityRenderer {
   onContextLost?: () => void;
   /** Rappel vers la simulation : renvoie false si la tuile est refusée. */
   onPlayerTile?: (x: number, y: number) => boolean;
+  /** Filtre supplémentaire du sol praticable (quartiers fermés) : le corps glisse le long des barrières. */
+  walkFilter?: (x: number, y: number) => boolean;
+  private readonly playerWalkable = (x: number, y: number): boolean => isWalkable(x, y) && (this.walkFilter ? this.walkFilter(x, y) : true);
 
   private renderer?: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(55, 16 / 9, 0.1, 1500);
   private city?: CityScene;
+  private barriers?: Barriers;
   private ambient?: Ambient;
   private sky = createSkyDome();
   private hemi = new THREE.HemisphereLight('#bcd4ff', '#8a7a62', 0.8);
@@ -201,8 +207,13 @@ export class CityRenderer {
   get playerPose(): { x: number; z: number; heading: number } { return { x: this.body.x, z: this.body.z, heading: this.body.heading }; }
 
   private setupScene(): void {
+    const tBuild = performance.now();
     this.city = buildCityScene();
+    // Mesure exposée pour la QA (temps de construction de la grande carte).
+    (globalThis as { __cityBuildMs?: number }).__cityBuildMs = Math.round(performance.now() - tBuild);
     this.scene.add(this.city.group);
+    this.barriers = createBarriers();
+    this.scene.add(this.barriers.group);
     this.scene.add(this.sky.mesh);
     this.scene.add(this.hemi);
     this.sun.castShadow = true;
@@ -376,6 +387,12 @@ export class CityRenderer {
   frame(world: WorldState, dt: number, input: CityFrameInput, cw: number, ch: number): void {
     if (!this.renderer || !this.city) return;
     this.frameCount++;
+    // Grande carte : seuls les blocs à portée du brouillard sont dessinés.
+    if (this.city && this.frameCount % 10 === 1) {
+      const far = (this.scene.fog as THREE.Fog).far;
+      updateChunkVisibility(this.city.chunks, this.camera.position.x, this.camera.position.z, far);
+      this.barriers?.update(world, this.camera.position.x, this.camera.position.z, far);
+    }
     if (this.interior) {
       this.frameInterior(world, dt, input, cw, ch);
       return;
@@ -463,7 +480,7 @@ export class CityRenderer {
       this.lastSimTile = { ...p.pos };
     }
     const move = input.canMove ? input.move : { x: 0, y: 0 };
-    const next = stepBody(this.body, move, this.yaw, Math.min(dt, 0.05), input.running, isWalkable, 1, this.riding ? 2.5 : 1);
+    const next = stepBody(this.body, move, this.yaw, Math.min(dt, 0.05), input.running, this.playerWalkable, 1, this.riding ? 2.5 : 1);
     const nt = tileOf(next);
     if (nt.x !== p.pos.x || nt.y !== p.pos.y) {
       const accepted = this.onPlayerTile ? this.onPlayerTile(nt.x, nt.y) : false;

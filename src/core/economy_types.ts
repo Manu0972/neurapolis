@@ -104,7 +104,9 @@ export interface BusinessTypeDef {
   defaultHours: readonly [number, number];
 }
 
-export type CityDistrict = 'roses' | 'centre' | 'canal' | 'friche' | 'gare' | 'hyperval';
+export type CityDistrict =
+  | 'roses' | 'centre' | 'canal' | 'friche' | 'gare' | 'hyperval'
+  | 'industrie' | 'collines' | 'berges' | 'faubourg' | 'grand_ensemble' | 'friche_sud' | 'bellevue';
 
 /** Un local commercial vacant ou occupé — un « lot » de Big Ambitions. Données de la ville. */
 export interface CommercialUnitDef {

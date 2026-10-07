@@ -9,8 +9,12 @@
 import type { PlaceId } from '../../core/types';
 import type { CityDistrict, CommercialUnitDef } from '../../core/economy_types';
 
-export const CITY_W = 414;
-export const CITY_H = 268;
+/**
+ * Grande carte (2026-10-07) : la ville historique (414 × 266 m, au nord-ouest) est entourée
+ * de nouveaux quartiers à l'est et au sud du canal ; 1 562 × 1 154 m au total.
+ */
+export const CITY_W = 1562;
+export const CITY_H = 1154;
 export const ROAD_W = 8;
 export const SIDEWALK_W = 3;
 export const FLOOR_H = 3.2;
@@ -124,6 +128,8 @@ export interface CityLayout {
   /** Passages piétons (rendu + ralentissement des voitures). */
   crossings: { x: number; y: number; w: number; h: number }[];
   canal: { x: number; y: number; w: number; h: number };
+  /** Ponts : chaussée au-dessus du canal (grande carte). */
+  bridges: { x: number; y: number; w: number; h: number }[];
 }
 
 // ---------- Trame ----------
@@ -133,6 +139,60 @@ const HY = [0, 80, 160, 242] as const;
 const V_NAMES = ['Rue des Houillères', 'Rue Ambroise-Croizat', 'Rue de la Verrerie', 'Rue Louise-Michel', "Boulevard de l'Est", 'Rue du Laminoir'];
 const H_NAMES = ['Rue de la Mine', 'Avenue Jean-Jaurès', 'Rue des Forges', 'Quai de la Malterie'];
 const ROAD_BOTTOM = HY[3] + ROAD_W; // 250
+
+// Grande carte : rues de l'est (prolongent la trame) et du sud (au-delà du canal).
+const EAST_VX = [488, 570, 652, 734, 816, 898, 980, 1062, 1144, 1226, 1308, 1390, 1472, 1554] as const;
+const EAST_V_NAMES = [
+  'Rue de la Gare', 'Avenue des Grossistes', 'Rue Henri-Barbusse', 'Rue des Entrepôts', 'Boulevard Taret', 'Rue de la Coulée',
+  'Rue des Fondeurs', 'Rue du Haut-Fourneau', 'Chemin des Collines', 'Rue de Bellevue', 'Rue des Vergers', 'Allée des Hauts-Tilleuls',
+  'Rue du Belvédère', 'Route de Néo-Baie',
+];
+const ALL_VX: readonly number[] = [...VX, ...EAST_VX];
+const ALL_V_NAMES: readonly string[] = [...V_NAMES, ...EAST_V_NAMES];
+const SOUTH_HY = [266, 346, 426, 506, 586, 666, 746, 826, 906, 986, 1066, 1146] as const;
+const SOUTH_H_NAMES = [
+  'Quai Sud de la Malterie', 'Rue de la Brasserie', 'Avenue Salvador-Allende', 'Rue Ambroise-Paré', 'Rue des Écluses',
+  'Boulevard du Grand Ensemble', 'Rue Pierre-Mendès-France', 'Avenue de l’Hôpital', 'Rue du Lycée', 'Rue des Glycines',
+  'Chemin du Cimetière', 'Route du Plateau Blanc',
+];
+/** Colonnes de rues qui franchissent le canal par un pont. */
+const BRIDGE_COLS = [0, 2, 4, 6, 9, 12, 15, 19];
+
+/**
+ * Quartiers de la grande carte : chacun s'ouvre à un palier de l'Ascension.
+ * Les limites passent derrière les trottoirs (rue + 11 m) et au bord nord du canal : une rue
+ * appartient entière à un quartier, et seules les entrées (rues, ponts) reçoivent une barrière.
+ */
+export interface CityArea {
+  id: string;
+  name: string;
+  district: CityDistrict;
+  tier: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Pourquoi c'est encore fermé (panneau de chantier). */
+  lock: string;
+}
+
+export const CITY_AREAS: readonly CityArea[] = [
+  { id: 'centre', name: 'Centre de Val-Ferrand', district: 'centre', tier: 1, x: 0, y: 0, w: 417, h: 253, lock: '' },
+  { id: 'gare_est', name: 'Gare Est', district: 'gare', tier: 2, x: 417, y: 0, w: 164, h: 253, lock: 'Rénovation du quartier de la gare : ouverture prochaine.' },
+  { id: 'hyperval', name: 'Zone HyperVal', district: 'hyperval', tier: 3, x: 581, y: 0, w: 246, h: 253, lock: 'Zone commerciale réservée aux professionnels : carte de grossiste exigée.' },
+  { id: 'industrie', name: 'Zone industrielle du Taret', district: 'industrie', tier: 4, x: 827, y: 0, w: 328, h: 253, lock: 'Site industriel : accès réservé aux entreprises partenaires.' },
+  { id: 'collines', name: 'Les Hauts du Taret', district: 'collines', tier: 3, x: 1155, y: 0, w: 407, h: 253, lock: 'Lotissement privé : on n’y entre qu’invité·e.' },
+  { id: 'berges', name: 'Berges de la Malterie', district: 'berges', tier: 2, x: 0, y: 253, w: 581, h: 264, lock: 'Pont en travaux depuis la crue de 2019.' },
+  { id: 'faubourg', name: 'Faubourg Saint-Éloi', district: 'faubourg', tier: 3, x: 581, y: 253, w: 981, h: 264, lock: 'Quartier en travaux : le tram n’y passe pas encore.' },
+  { id: 'grand_ensemble', name: 'Grand Ensemble des Roses Sud', district: 'grand_ensemble', tier: 2, x: 0, y: 517, w: 827, h: 320, lock: 'Réhabilitation des barres : chantier en cours.' },
+  { id: 'friche_sud', name: 'Friche Taret Sud', district: 'friche_sud', tier: 4, x: 827, y: 517, w: 735, h: 320, lock: 'Site Taret-Acier : dépollution en cours depuis 2014.' },
+  { id: 'bellevue', name: 'Bellevue', district: 'bellevue', tier: 3, x: 0, y: 837, w: 1562, h: 317, lock: 'Quartier résidentiel éloigné : il faudra le bus ou le vélo… et une raison d’y aller.' },
+];
+
+/** Quartier d'une tuile (le centre par défaut). */
+export function areaAt(x: number, y: number): CityArea {
+  return CITY_AREAS.find((a) => x >= a.x && x < a.x + a.w && y >= a.y && y < a.y + a.h) ?? CITY_AREAS[0]!;
+}
 
 /** Hachage entier stable (aucun PRNG du monde n'est consommé). */
 function hash(a: number, b: number, c = 0): number {
@@ -146,6 +206,8 @@ function streetTraffic(street: string): number {
   if (street === 'Place du Marché') return 110;
   if (street === 'Rue de la Verrerie' || street === 'Rue des Forges') return 70;
   if (street === 'Quai de la Malterie') return 55;
+  if (street === 'Avenue Salvador-Allende' || street === 'Avenue de l’Hôpital') return 90;
+  if (street === 'Avenue des Grossistes' || street === 'Boulevard Taret' || street === 'Rue de la Gare') return 65;
   return 40;
 }
 
@@ -159,6 +221,7 @@ export function buildCityLayout(): CityLayout {
   const props: CityProp[] = [];
   const units: CommercialUnitDef[] = [];
   const crossings: CityLayout['crossings'] = [];
+  const bridges: CityLayout['bridges'] = [];
   const anchors: Partial<Record<PlaceId, { x: number; y: number }>> = {};
 
   VX.forEach((x, i) => roads.push({ id: `v${i}`, name: V_NAMES[i]!, axis: 'v', x, y: 0, w: ROAD_W, h: ROAD_BOTTOM }));
@@ -212,12 +275,15 @@ export function buildCityLayout(): CityLayout {
 
   // Nom de la rue qui borde un îlot sur une face donnée.
   const streetOf = (b: CityBlock, face: Face): string => {
-    const col = VX.findIndex((x) => x + ROAD_W === b.x);
-    const row = HY.findIndex((y) => y + ROAD_W === b.y);
-    if (face === 'n') return H_NAMES[row]!;
-    if (face === 's') return H_NAMES[row + 1]!;
-    if (face === 'w') return V_NAMES[col]!;
-    return V_NAMES[col + 1]!;
+    const cx = b.x + b.w / 2;
+    const cy = b.y + b.h / 2;
+    const road = roads.find((r) => {
+      if (face === 'n') return r.axis === 'h' && r.y + ROAD_W === b.y && cx >= r.x && cx < r.x + r.w;
+      if (face === 's') return r.axis === 'h' && r.y === b.y + b.h && cx >= r.x && cx < r.x + r.w;
+      if (face === 'w') return r.axis === 'v' && r.x + ROAD_W === b.x && cy >= r.y && cy < r.y + r.h;
+      return r.axis === 'v' && r.x === b.x + b.w && cy >= r.y && cy < r.y + r.h;
+    });
+    return road?.name ?? 'Rue sans nom';
   };
 
   let unitCounter = 0;
@@ -541,7 +607,154 @@ export function buildCityLayout(): CityLayout {
   const canal = { x: 0, y: ROAD_BOTTOM + 3, w: CITY_W, h: 10 };
   zones.push({ kind: 'eau', ...canal, walkable: false });
   zones.push({ kind: 'pave', x: 0, y: ROAD_BOTTOM, w: CITY_W, h: 3, walkable: true });
-  for (let x = 6; x < CITY_W; x += 14) props.push({ kind: x % 28 === 6 ? 'lampadaire' : 'banc', x, y: ROAD_BOTTOM + 2, blocks: true });
+  for (let x = 6; x < 414; x += 14) props.push({ kind: x % 28 === 6 ? 'lampadaire' : 'banc', x, y: ROAD_BOTTOM + 2, blocks: true });
+
+  // ===== Grande carte (2026-10-07) : l'est au-delà de la Gare, le sud au-delà du canal =====
+  // Tout est généré APRÈS la ville historique : ses identifiants et coordonnées ne bougent pas.
+  // Les quartiers s'ouvrent avec l'Ascension (CITY_AREAS) ; on les voit dès le début.
+  const southBank = { x: 0, y: canal.y + canal.h, w: CITY_W, h: SOUTH_HY[0]! - (canal.y + canal.h) };
+  zones.push({ kind: 'pave', ...southBank, walkable: true });
+  // Rues de l'est (prolongent la trame nord) et rues du sud (au-delà du quai sud).
+  EAST_VX.forEach((x, i) => roads.push({ id: `v${VX.length + i}`, name: EAST_V_NAMES[i]!, axis: 'v', x, y: 0, w: ROAD_W, h: ROAD_BOTTOM }));
+  SOUTH_HY.forEach((y, i) => roads.push({ id: `hs${i}`, name: SOUTH_H_NAMES[i]!, axis: 'h', x: 0, y, w: CITY_W, h: ROAD_W }));
+  ALL_VX.forEach((x, i) => {
+    const bridge = BRIDGE_COLS.includes(i);
+    const y0 = bridge ? ROAD_BOTTOM : SOUTH_HY[0]!;
+    roads.push({ id: `vs${i}`, name: ALL_V_NAMES[i]!, axis: 'v', x, y: y0, w: ROAD_W, h: CITY_H - y0 });
+    if (bridge) bridges.push({ x, y: ROAD_BOTTOM, w: ROAD_W, h: SOUTH_HY[0]! - ROAD_BOTTOM });
+  });
+  // Passages piétons des nouveaux carrefours.
+  const addCrossings = (vxs: readonly number[], hys: readonly number[], yMin: number): void => {
+    for (const vx of vxs) {
+      for (const hy of hys) {
+        if (hy - 3 >= yMin) crossings.push({ x: vx, y: hy - 3, w: ROAD_W, h: 3 });
+        if (hy + ROAD_W + 3 <= CITY_H) crossings.push({ x: vx, y: hy + ROAD_W, w: ROAD_W, h: 3 });
+        if (vx - 3 >= 0) crossings.push({ x: vx - 3, y: hy, w: 3, h: ROAD_W });
+        if (vx + ROAD_W + 3 <= CITY_W) crossings.push({ x: vx + ROAD_W, y: hy, w: 3, h: ROAD_W });
+      }
+    }
+  };
+  addCrossings(EAST_VX, HY, 0);
+  addCrossings(ALL_VX, SOUTH_HY, SOUTH_HY[0]!);
+
+  // Îlots : nord-est (3 rangées) puis sud (11 rangées), colonne par colonne.
+  const areaOfBlock = (x: number, y: number): CityArea => CITY_AREAS.find((a) => x >= a.x && x < a.x + a.w && y >= a.y && y < a.y + a.h)!;
+  const newBlock = (x0: number, x1: number, y0: number, y1: number, id: string): CityBlock => {
+    const area = areaOfBlock(x0 + 1, y0 + 1);
+    const x = x0 + ROAD_W;
+    const y = y0 + ROAD_W;
+    return { id, name: `${area.name} ${id.slice(1)}`, district: area.district, x, y, w: x1 - x, h: y1 - y };
+  };
+  const newBlocks: CityBlock[] = [];
+  for (let c = 0; c < EAST_VX.length - 1 + 1; c++) {
+    const xa = c === 0 ? VX[VX.length - 1]! : EAST_VX[c - 1]!;
+    const xb = EAST_VX[c]!;
+    for (let r = 0; r < HY.length - 1; r++) newBlocks.push(newBlock(xa, xb, HY[r]!, HY[r + 1]!, `e${r}${String(c).padStart(2, '0')}`));
+  }
+  for (let r = 0; r < SOUTH_HY.length - 1; r++) {
+    for (let c = 0; c < ALL_VX.length - 1; c++) newBlocks.push(newBlock(ALL_VX[c]!, ALL_VX[c + 1]!, SOUTH_HY[r]!, SOUTH_HY[r + 1]!, `s${String(r).padStart(2, '0')}${String(c).padStart(2, '0')}`));
+  }
+  blocks.push(...newBlocks);
+
+  /** Pavillons avec jardin : maisons individuelles en grille. */
+  const pavillons = (b: CityBlock): void => {
+    zones.push({ kind: 'herbe', x: b.x + 3, y: b.y + 3, w: b.w - 6, h: b.h - 6, walkable: true });
+    for (let yy = b.y + 6; yy + 9 < b.y + b.h - 4; yy += 16) {
+      for (let xx = b.x + 6; xx + 9 < b.x + b.w - 4; xx += 15) {
+        const hh = hash(xx, yy, 21);
+        special({ id: `pav_${xx}_${yy}`, x: xx, y: yy, w: 9, d: 8, floors: hh > 0.6 ? 2 : 1, style: hh > 0.5 ? 'enduit_creme' : 'enduit_rose', roof: 'deux_pans', front: 'n' });
+        if (hh > 0.4) props.push({ kind: 'arbre', x: xx + 11, y: yy + 3, blocks: true });
+      }
+    }
+    streetFurniture(b, ['n', 's']);
+  };
+  /** Grand ensemble : barres et tours sur pelouse, comme la Cité des Roses. */
+  const grandEnsemble = (b: CityBlock): void => {
+    zones.push({ kind: 'herbe', x: b.x + 3, y: b.y + 3, w: b.w - 6, h: b.h - 6, walkable: true });
+    const tower = hash(b.x, b.y, 31) > 0.5;
+    if (tower) {
+      special({ id: `tour_${b.id}`, x: b.x + 10, y: b.y + 12, w: 18, d: 18, floors: 9 + Math.floor(hash(b.x, b.y, 32) * 5), style: 'hlm', roof: 'plat', front: 's' });
+      special({ id: `barre_${b.id}`, x: b.x + 36, y: b.y + 20, w: Math.min(34, b.w - 42), d: 12, floors: 5, style: 'hlm', roof: 'plat', front: 's' });
+    } else {
+      special({ id: `barre_${b.id}`, x: b.x + 8, y: b.y + 10, w: b.w - 16, d: 12, floors: 5 + Math.floor(hash(b.x, b.y, 33) * 3), style: 'hlm', roof: 'plat', front: 'n' });
+      zones.push({ kind: 'aire_jeux', x: b.x + 12, y: b.y + 32, w: 14, h: 12, walkable: true });
+      props.push({ kind: 'jeux', x: b.x + 17, y: b.y + 37, blocks: true });
+    }
+    for (let i = 0; i < 5; i++) props.push({ kind: 'arbre', x: b.x + 8 + Math.floor(hash(i, b.x, 34) * (b.w - 16)), y: b.y + b.h - 10 - Math.floor(hash(i, b.y, 35) * 8), blocks: true });
+    streetFurniture(b);
+  };
+  /** Entrepôts et ateliers : zone industrielle et Allée des Grossistes. */
+  const entrepots = (b: CityBlock, labels?: string[]): void => {
+    zones.push({ kind: 'gravier', x: b.x + 3, y: b.y + 3, w: b.w - 6, h: b.h - 6, walkable: true });
+    const half = Math.floor((b.w - 14) / 2);
+    special({ id: `entrepot_${b.id}_a`, x: b.x + 5, y: b.y + 10, w: half, d: Math.min(34, b.h - 22), floors: 2, style: 'industriel', roof: 'sheds', front: 'n', label: labels?.[0] });
+    special({ id: `entrepot_${b.id}_b`, x: b.x + 9 + half, y: b.y + 10, w: half, d: Math.min(34, b.h - 22), floors: 2, style: 'industriel', roof: hash(b.x, b.y, 41) > 0.5 ? 'plat' : 'sheds', front: 'n', label: labels?.[1] });
+    if (hash(b.x, b.y, 42) > 0.6) props.push({ kind: 'grue', x: b.x + b.w - 8, y: b.y + b.h - 8, blocks: true });
+    streetFurniture(b, ['n', 'w']);
+  };
+  /** Grande surface et son parking. */
+  const grandeSurface = (b: CityBlock, label: string): void => {
+    zones.push({ kind: 'parking', x: b.x + 3, y: b.y + 3, w: b.w - 6, h: 28, walkable: true });
+    special({ id: `magasin_${b.id}`, x: b.x + 6, y: b.y + 34, w: b.w - 12, d: Math.min(30, b.h - 40), floors: 2, style: 'hyper', roof: 'plat', front: 'n', label });
+    for (let i = 0; i < 5; i++) props.push({ kind: 'lampadaire', x: b.x + 8 + i * 13, y: b.y + 16, blocks: true });
+  };
+  /** Friche : halles en ruine, terre et bouleaux. */
+  const friche = (b: CityBlock): void => {
+    zones.push({ kind: 'terre', x: b.x + 3, y: b.y + 3, w: b.w - 6, h: b.h - 6, walkable: true });
+    if (hash(b.x, b.y, 51) > 0.35) special({ id: `ruine_${b.id}`, x: b.x + 10, y: b.y + 12, w: b.w - 24, d: Math.min(30, b.h - 26), floors: 3, style: 'industriel', roof: 'sheds', front: 'n', ruined: true });
+    if (hash(b.x, b.y, 52) > 0.7) props.push({ kind: 'cheminee', x: b.x + b.w - 10, y: b.y + b.h - 12, blocks: true });
+    for (let i = 0; i < 4; i++) props.push({ kind: 'arbre', x: b.x + 6 + Math.floor(hash(i, b.x, 53) * (b.w - 12)), y: b.y + b.h - 8, blocks: true });
+  };
+  /** Quartier d'immeubles : bandes sur rue, commerces sur les avenues. */
+  const immeubles = (b: CityBlock, shops: Face[], styles: FacadeStyle[], floors: [number, number]): void => {
+    perimeter(b, { shops, styles, floors });
+    streetFurniture(b);
+  };
+
+  // Bâtiments de lore, posés sur des îlots précis (colonne, rangée).
+  const LORE: Record<string, (b: CityBlock) => void> = {
+    // Hôpital de Val-Ferrand : là où Nora fait ses gardes de nuit.
+    s0803: (b) => { zones.push({ kind: 'herbe', x: b.x + 3, y: b.y + 3, w: b.w - 6, h: b.h - 6, walkable: true }); special({ id: 'hopital', x: b.x + 6, y: b.y + 8, w: b.w - 12, d: 40, floors: 6, style: 'enduit_creme', roof: 'plat', front: 's', label: 'Hôpital de Val-Ferrand' }); },
+    // Lycée Louise-Michel : après le collège, à quinze ans.
+    s0806: (b) => { special({ id: 'lycee', x: b.x + 6, y: b.y + 10, w: b.w - 12, d: 26, floors: 3, style: 'ecole', roof: 'deux_pans', front: 's', label: 'Lycée Louise-Michel' }); zones.push({ kind: 'pave', x: b.x + 6, y: b.y + 40, w: b.w - 12, h: b.h - 46, walkable: true }); },
+    // Stade Marcel-Cerdan : pelouse et tribune.
+    s0809: (b) => { zones.push({ kind: 'herbe', x: b.x + 8, y: b.y + 8, w: b.w - 16, h: b.h - 16, walkable: true }); special({ id: 'tribune', x: b.x + 10, y: b.y + 4, w: b.w - 20, d: 6, floors: 2, style: 'civique', roof: 'plat', front: 's', label: 'Stade Marcel-Cerdan' }); },
+    // Cimetière du Taret : là où repose Lucien.
+    s1001: (b) => {
+      zones.push({ kind: 'herbe', x: b.x + 3, y: b.y + 3, w: b.w - 6, h: b.h - 6, walkable: true });
+      for (let yy = b.y + 10; yy < b.y + b.h - 8; yy += 5) for (let xx = b.x + 8; xx < b.x + b.w - 8; xx += 4) props.push({ kind: 'bollard', x: xx, y: yy, blocks: false });
+      special({ id: 'chapelle', x: b.x + Math.floor(b.w / 2) - 4, y: b.y + 4, w: 8, d: 6, floors: 1, style: 'pierre', roof: 'deux_pans', front: 's', label: 'Cimetière du Taret' });
+    },
+    // Brasserie de la Malterie : la fabrique qui a donné son nom au canal.
+    s0002: (b) => { special({ id: 'brasserie_malterie', x: b.x + 6, y: b.y + 6, w: b.w - 12, d: 28, floors: 3, style: 'brique', roof: 'sheds', front: 'n', label: 'Brasserie de la Malterie' }); zones.push({ kind: 'pave', x: b.x + 6, y: b.y + 38, w: b.w - 12, h: b.h - 44, walkable: true }); },
+    // Allée des Grossistes (zone HyperVal).
+    e102: (b) => entrepots(b, ['Grossiste Malterie Boissons', 'Cash Fruits du Taret']),
+    e103: (b) => entrepots(b, ['Allée des Grossistes — Frais', 'Dépôt Papeterie Vallée']),
+  };
+
+  // Un compteur de locaux par quartier (les quartiers alternent dans le parcours des îlots) ;
+  // « gare_est » pour ne pas recouvrir les locaux « gare_* » historiques.
+  const counters = new Map<string, number>();
+  for (const b of newBlocks) {
+    const prefix = b.district === 'gare' ? 'gare_est' : b.district;
+    unitPrefix = prefix;
+    unitCounter = counters.get(prefix) ?? 0;
+    const lore = LORE[b.id];
+    if (lore) { lore(b); counters.set(prefix, unitCounter); continue; }
+    const k = hash(b.x, b.y, 61);
+    switch (b.district) {
+      case 'gare': immeubles(b, ['n', 's'], ['pierre', 'enduit_creme', 'brique'], [3, 5]); break;
+      case 'hyperval': if (k > 0.55) grandeSurface(b, k > 0.8 ? 'Brico Taret' : k > 0.68 ? 'Meubles Val-Ferrand' : 'Hyper Discount'); else entrepots(b); break;
+      case 'industrie': if (k > 0.25) entrepots(b); else friche(b); break;
+      case 'collines': pavillons(b); break;
+      case 'berges': if (k > 0.5) immeubles(b, ['n'], ['brique', 'enduit_ocre'], [2, 4]); else pavillons(b); break;
+      case 'faubourg': immeubles(b, k > 0.5 ? ['n', 'w'] : ['n'], ['enduit_creme', 'enduit_rose', 'pierre', 'enduit_ocre'], [3, 5]); break;
+      case 'grand_ensemble': grandEnsemble(b); break;
+      case 'friche_sud': friche(b); break;
+      default: if (k > 0.45) pavillons(b); else immeubles(b, ['n'], ['enduit_creme', 'pierre'], [2, 3]);
+    }
+    counters.set(prefix, unitCounter);
+  }
 
   // Domiciles des habitants nommés : une porte d'immeuble dans leur quartier.
   const homeIn = (blockId: string, index = 0): { x: number; y: number } => {
@@ -572,7 +785,7 @@ export function buildCityLayout(): CityLayout {
   for (const p of required) {
     if (!anchors[p]) throw new Error(`Ville : le lieu ${p} n'a pas d'entrée.`);
   }
-  return { roads, blocks, buildings, zones, props, units, anchors: anchors as Record<PlaceId, { x: number; y: number }>, npcHomes, crossings, canal };
+  return { roads, blocks, buildings, zones, props, units, anchors: anchors as Record<PlaceId, { x: number; y: number }>, npcHomes, crossings, canal, bridges };
 }
 
 export const CITY: CityLayout = buildCityLayout();

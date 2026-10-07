@@ -7,8 +7,9 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CITY, CITY_H, CITY_W, FLOOR_H, type CityBuilding, type Face, type FacadeStyle } from '../../data/city/layout';
-import { surfaceAt, type Surface } from '../../data/map';
+import { surfaceAt, surfaceFast, type Surface } from '../../data/map';
 import { BUS_STOPS } from '../../data/city/transit';
+import { CHUNK, chunkify, type CityChunk } from './chunks';
 import {
   asphaltTexture, cobbleTexture, dirtTexture, facadeEmissiveTexture, facadeTexture, flatRoofTexture, glowTexture,
   grassTexture, gravelTexture, parkingTexture, playgroundTexture, roofTileTexture, shopfrontEmissiveTexture,
@@ -40,6 +41,8 @@ export interface CityScene {
   /** Enseignes des locaux commerciaux, modifiables quand un commerce ouvre. */
   setUnitSign(unitId: string, text: string, color: string): void;
   water: THREE.Mesh;
+  /** Blocs de 128 m (grande carte) : visibilité selon la distance à la caméra. */
+  chunks: CityChunk[];
   dispose(): void;
 }
 
@@ -129,47 +132,78 @@ function buildGround(group: THREE.Group, disposables: { dispose(): void }[]): TH
     if (!b) { b = new GeoBuilder(); builders.set(s, b); }
     return b;
   };
-  // Dalles par rangées (RLE).
+  // Dalles : bandes par rangée, fusionnées verticalement en rectangles (sans franchir un bloc
+  // de 128 m), pour une grande carte légère à construire et à dessiner.
+  type Rect = { x0: number; x1: number; z0: number; s: Surface };
+  const emit = (r: Rect, z1: number): void => {
+    if (r.s === 'eau') return;
+    const h = SURFACE_HEIGHT[r.s];
+    get(r.s).quad(V(r.x0, h, z1), V(r.x1, h, z1), V(r.x1, h, r.z0), V(r.x0, h, r.z0), [r.x0, -z1, r.x1, -z1, r.x1, -r.z0, r.x0, -r.z0]);
+  };
+  let open = new Map<string, Rect>();
   for (let z = 0; z < CITY_H; z++) {
+    const next = new Map<string, Rect>();
     let x = 0;
     while (x < CITY_W) {
-      const s = surfaceAt(x, z)!;
+      const s = surfaceFast(x, z);
+      const limit = Math.min(CITY_W, (Math.floor(x / CHUNK) + 1) * CHUNK);
       let x1 = x + 1;
-      while (x1 < CITY_W && surfaceAt(x1, z) === s) x1++;
-      if (s !== 'eau') {
-        const h = SURFACE_HEIGHT[s];
-        get(s).quad(V(x, h, z + 1), V(x1, h, z + 1), V(x1, h, z), V(x, h, z), [x, -z - 1, x1, -z - 1, x1, -z, x, -z]);
+      while (x1 < limit && surfaceFast(x1, z) === s) x1++;
+      const key = `${x}|${x1}|${s}`;
+      const prev = open.get(key);
+      if (prev && Math.floor(prev.z0 / CHUNK) === Math.floor(z / CHUNK)) {
+        open.delete(key);
+        next.set(key, prev);
+      } else {
+        next.set(key, { x0: x, x1, z0: z, s });
       }
       x = x1;
     }
+    for (const r of open.values()) emit(r, z);
+    open = next;
   }
+  for (const r of open.values()) emit(r, CITY_H);
   // Bordures : faces verticales entre deux tuiles de hauteurs différentes.
   const curb = new GeoBuilder();
   const curbMat = new THREE.MeshStandardMaterial({ color: '#b9b2a6', roughness: 0.85 });
   const quayMat = new THREE.MeshStandardMaterial({ color: '#8f8577', roughness: 0.95 });
   const quay = new GeoBuilder();
-  for (let z = 0; z < CITY_H; z++) {
-    for (let x = 0; x < CITY_W; x++) {
-      const s = surfaceAt(x, z)!;
-      const h = SURFACE_HEIGHT[s];
-      if (x + 1 < CITY_W) {
-        const s2 = surfaceAt(x + 1, z)!;
-        const h2 = SURFACE_HEIGHT[s2];
-        if (h !== h2) {
-          const target = s === 'eau' || s2 === 'eau' ? quay : curb;
-          if (h > h2) wall(target, x + 1, z, x + 1, z + 1, h2, h, 1, 1);
-          else wall(target, x + 1, z + 1, x + 1, z, h, h2, 1, 1);
-        }
-      }
-      if (z + 1 < CITY_H) {
-        const s2 = surfaceAt(x, z + 1)!;
-        const h2 = SURFACE_HEIGHT[s2];
-        if (h !== h2) {
-          const target = s === 'eau' || s2 === 'eau' ? quay : curb;
-          if (h > h2) wall(target, x + 1, z + 1, x, z + 1, h2, h, 1, 1);
-          else wall(target, x, z + 1, x + 1, z + 1, h, h2, 1, 1);
-        }
-      }
+  // Bordures et quais : faces verticales entre deux hauteurs, fusionnées en longs segments
+  // (sans franchir un bloc de 128 m).
+  const hAt = (x: number, z: number): number => SURFACE_HEIGHT[surfaceFast(x, z)];
+  const isEau = (x: number, z: number): boolean => surfaceFast(x, z) === 'eau';
+  // Limites verticales (entre les colonnes x et x + 1).
+  for (let x = 0; x + 1 < CITY_W; x++) {
+    let z = 0;
+    while (z < CITY_H) {
+      const h = hAt(x, z);
+      const h2 = hAt(x + 1, z);
+      if (h === h2) { z++; continue; }
+      const q = isEau(x, z) || isEau(x + 1, z);
+      const limit = Math.min(CITY_H, (Math.floor(z / CHUNK) + 1) * CHUNK);
+      let z1 = z + 1;
+      while (z1 < limit && hAt(x, z1) === h && hAt(x + 1, z1) === h2 && (isEau(x, z1) || isEau(x + 1, z1)) === q) z1++;
+      const target = q ? quay : curb;
+      if (h > h2) wall(target, x + 1, z, x + 1, z1, h2, h, 1, 1);
+      else wall(target, x + 1, z1, x + 1, z, h, h2, 1, 1);
+      z = z1;
+    }
+  }
+  // Limites horizontales (entre les rangées z et z + 1).
+  for (let z = 0; z + 1 < CITY_H; z++) {
+    let x = 0;
+    while (x < CITY_W) {
+      const h = hAt(x, z);
+      const h2 = hAt(x, z + 1);
+      if (h === h2) { x++; continue; }
+      const q = isEau(x, z) || isEau(x, z + 1);
+      const limit = Math.min(CITY_W, (Math.floor(x / CHUNK) + 1) * CHUNK);
+      let x1 = x + 1;
+      while (x1 < limit && hAt(x1, z) === h && hAt(x1, z + 1) === h2 && (isEau(x1, z) || isEau(x1, z + 1)) === q) x1++;
+      const target = q ? quay : curb;
+      if (h > h2) wall(target, x1, z + 1, x, z + 1, h2, h, 1, 1);
+      else wall(target, x, z + 1, x1, z + 1, h, h2, 1, 1);
+      x = x1;
     }
   }
   for (const [s, b] of builders) {
@@ -751,19 +785,36 @@ export function buildCityScene(): CityScene {
   group.name = 'ville';
   const disposables: { dispose(): void }[] = [];
   const nightMaterials: CityScene['nightMaterials'] = [];
+  const tm: Record<string, number> = {};
+  let t0 = performance.now();
+  const lap = (k: string): void => { const t = performance.now(); tm[k] = Math.round(t - t0); t0 = t; };
   const water = buildGround(group, disposables);
+  lap('sol');
   buildMarkings(group, disposables);
+  lap('marquages');
   const { meshes, signs } = buildBuildings(group, disposables, nightMaterials);
+  lap('batiments');
   const { lamps, glows } = buildProps(group, disposables, nightMaterials);
+  lap('mobilier');
+  (globalThis as { __cityLaps?: Record<string, number> }).__cityLaps = tm;
+  // Grande carte : la ville est redécoupée en blocs de 128 m ; l'eau et le décor lointain restent entiers.
+  const keep = new Set<THREE.Object3D>([water]);
+  const before = group.children.length;
   buildSkyline(group, disposables);
+  for (const o of group.children.slice(before)) keep.add(o);
+  const tChunk = performance.now();
+  const { chunks, remapped } = chunkify(group, keep);
+  (globalThis as { __cityChunkMs?: number }).__cityChunkMs = Math.round(performance.now() - tChunk);
+  const buildingMeshes = meshes.flatMap((m) => remapped.get(m) ?? [m]);
 
   return {
     group,
     nightMaterials,
     lampPositions: lamps,
     glowSprites: glows,
-    buildingMeshes: meshes,
+    buildingMeshes,
     water,
+    chunks,
     setUnitSign(unitId: string, text: string, color: string): void {
       const sign = signs.get(unitId);
       if (!sign) return;

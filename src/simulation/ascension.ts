@@ -19,6 +19,7 @@ import { CONTACTS, CONTACT_BY_ID } from '../data/ascension/contacts';
 import { DUEL_BY_ID, type StrategyEffects } from '../data/ascension/duels';
 import { IDEAS, IDEA_BY_ID, TIERS, TIER_REQUIREMENTS, type IdeaDef } from '../data/ascension/ideas';
 import { econRand } from './economy';
+import { areasOfTier } from './areas';
 import { notify, pushEvent } from './events';
 import { sectorDemand } from './happenings_effects';
 import { markCatastrophe } from './rewind';
@@ -98,10 +99,12 @@ export function checkTier(w: WorldState): Notification[] {
     a.tier = next;
     const t = TIERS[next - 1]!;
     out.push(notify('journal', `🚀 Nouveau palier : ${t.name} (${t.scale}).`));
+    const areas = areasOfTier(next).map((ar) => ar.name);
+    if (areas.length) out.push(notify('journal', `🗺️ Nouveaux quartiers ouverts : ${areas.join(', ')}.`));
     pushEvent(w, {
       type: 'opportunite',
       title: `Palier ${next} — ${t.name}`,
-      text: `${t.lore} De nouvelles idées de business t’attendent dans l’application Ascension.`,
+      text: `${t.lore} De nouvelles idées de business t’attendent dans l’application Ascension.${areas.length ? ` Les barrières tombent : ${areas.join(', ')}.` : ''}`,
       causes: [
         { facteur: 'bénéfices cumulés', seuil: `${Math.floor(provenProfit(w)).toLocaleString('fr-FR')} €`, poids: 3 },
         { facteur: 'carnet d’économie', seuil: `${Object.keys(a.concepts).length} concepts`, poids: 2 },

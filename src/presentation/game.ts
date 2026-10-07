@@ -63,6 +63,8 @@ import { loadAssetKit } from './asset-loader';
 import { audio, type AmbientLocation } from './audio';
 import { CityRenderer, heightForAge } from './city3d/CityRenderer';
 import { moveToTile } from '../simulation/movement';
+import { areaPassable } from '../simulation/areas';
+import { areaAt } from '../data/city/layout';
 import { openPhone, type PhoneApp } from './phone';
 import { BUSINESS_TYPE_BY_ID, WHOLESALER_BY_ID } from '../data/economy';
 import { UNIT_BY_ID, ensureEconomy, pickUpOrder, pickupPoint, unloadAt, businessDoor } from '../simulation/economy';
@@ -236,6 +238,18 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         if (footstepAcc % 2 === 0) audio.playFootstep(surface);
       }
       return ok;
+    };
+    // Quartiers fermés : on longe la barrière, et le panneau dit pourquoi (une fois toutes les 8 s).
+    let lastLockToast = -1e9;
+    renderer3D.walkFilter = (x, y) => {
+      if (areaPassable(world, world.player.pos.x, world.player.pos.y, x, y)) return true;
+      const now = performance.now();
+      if (now - lastLockToast > 8000) {
+        lastLockToast = now;
+        const a = areaAt(x, y);
+        toast(`🚧 ${a.name} — ${a.lock} (palier ${a.tier} de l’Ascension)`, false);
+      }
+      return false;
     };
     renderer3D.onContextLost = () => {
       use3D = false;

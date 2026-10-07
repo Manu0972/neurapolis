@@ -3,7 +3,9 @@
  * Le fond est peint une fois depuis la grille ; seuls le joueur et les repères bougent.
  */
 import type { WorldState } from '../core/types';
-import { CITY, MAP_H, MAP_W, surfaceAt, type Surface } from '../data/map';
+import { CITY, MAP_H, MAP_W, surfaceFast, type Surface } from '../data/map';
+import { CITY_AREAS } from '../data/city/layout';
+import { lockedAreas } from '../simulation/areas';
 import { PLACE_ANCHORS } from '../data/map';
 import { PLACE_BY_ID } from '../data/places';
 import { pickupPoint, UNIT_BY_ID } from '../simulation/economy';
@@ -34,7 +36,7 @@ function baseImage(): HTMLCanvasElement {
   const cache = new Map<string, [number, number, number]>();
   for (let y = 0; y < MAP_H; y++) {
     for (let x = 0; x < MAP_W; x++) {
-      const s = surfaceAt(x, y) ?? 'eau';
+      const s = surfaceFast(x, y);
       const hex = COLORS[s];
       let v = cache.get(hex);
       if (!v) { v = rgb(hex); cache.set(hex, v); }
@@ -52,6 +54,32 @@ function baseImage(): HTMLCanvasElement {
   }
   base = c;
   return c;
+}
+
+/** Hachures sombres sur les quartiers encore fermés. */
+function shadeLocked(ctx: CanvasRenderingContext2D, w: WorldState, ox: number, oy: number, scale: number): void {
+  const locked = lockedAreas(w);
+  if (!locked.length) return;
+  ctx.save();
+  for (const a of locked) {
+    const x = ox + a.x * scale;
+    const y = oy + a.y * scale;
+    const ww = a.w * scale;
+    const hh = a.h * scale;
+    ctx.fillStyle = 'rgba(28, 22, 30, 0.5)';
+    ctx.fillRect(x, y, ww, hh);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, ww, hh);
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(242, 194, 48, 0.28)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let d = -hh; d < ww; d += 14) { ctx.moveTo(x + d, y + hh); ctx.lineTo(x + d + hh, y); }
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
 }
 
 interface Marker { x: number; y: number; color: string; label?: string; ring?: boolean }
@@ -93,6 +121,7 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, size: number, w: Worl
   ctx.fillRect(0, 0, size, size);
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(img, half - pos.x * scale, half - pos.z * scale, MAP_W * scale, MAP_H * scale);
+  shadeLocked(ctx, w, half - pos.x * scale, half - pos.z * scale, scale);
   // Cône de vision de la caméra.
   ctx.fillStyle = 'rgba(255, 240, 200, 0.16)';
   ctx.beginPath();
@@ -151,12 +180,35 @@ export function renderCityMap(w: WorldState, pos: { x: number; z: number }): HTM
   const wrap = document.createElement('div');
   wrap.className = 'city-map';
   const c = document.createElement('canvas');
-  const scale = 2.4;
-  c.width = MAP_W * scale;
-  c.height = MAP_H * scale;
+  // Grande carte : le plan entier tient dans ~1 600 pixels de large (2,4 px/m sur l'ancienne ville).
+  const scale = Math.min(2.4, 1600 / MAP_W);
+  c.width = Math.round(MAP_W * scale);
+  c.height = Math.round(MAP_H * scale);
   const ctx = c.getContext('2d')!;
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(baseImage(), 0, 0, c.width, c.height);
+  shadeLocked(ctx, w, 0, 0, scale);
+  // Noms des quartiers (cadenas et palier pour ceux encore fermés).
+  const shut = new Set(lockedAreas(w).map((a) => a.id));
+  ctx.save();
+  ctx.textAlign = 'center';
+  for (const a of CITY_AREAS) {
+    const cx = (a.x + a.w / 2) * scale;
+    const cy = (a.y + a.h / 2) * scale;
+    ctx.font = '800 15px system-ui, sans-serif';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(20,14,10,0.85)';
+    ctx.fillStyle = shut.has(a.id) ? '#f2c230' : '#fbf3e2';
+    const label = shut.has(a.id) ? `🔒 ${a.name}` : a.name;
+    ctx.strokeText(label, cx, cy);
+    ctx.fillText(label, cx, cy);
+    if (shut.has(a.id)) {
+      ctx.font = '600 11px system-ui, sans-serif';
+      ctx.strokeText(`palier ${a.tier}`, cx, cy + 15);
+      ctx.fillText(`palier ${a.tier}`, cx, cy + 15);
+    }
+  }
+  ctx.restore();
   ctx.font = '600 11px system-ui, sans-serif';
   ctx.textAlign = 'center';
   for (const r of CITY.roads) {

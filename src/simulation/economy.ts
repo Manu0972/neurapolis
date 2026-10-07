@@ -24,6 +24,8 @@ import { laminoirDemand } from './laminoir';
 import { sectorDemand, sectorOfBusinessType } from './happenings_effects';
 import { travelShelfBonus, travelSupplierDiscount } from './travel';
 import { COMPETITORS, COMPETITOR_BY_UNIT } from '../data/city/competitors';
+import { areaAt } from '../data/city/layout';
+import { areaUnlocked } from './areas';
 
 export interface EconomyResult {
   ok: boolean;
@@ -144,6 +146,8 @@ export function leaseEligibility(w: WorldState, unitId: string): Eligibility {
   const u = UNIT_BY_ID[unitId];
   if (!u) return { allowed: false, coSigner: null, reason: 'Local inconnu.' };
   if (e.leases[unitId]) return { allowed: false, coSigner: null, reason: 'Tu loues déjà ce local.' };
+  const area = areaAt(u.door.x, u.door.y);
+  if (!areaUnlocked(w, area)) return { allowed: false, coSigner: null, reason: `${area.name} n’est pas encore ouvert : ${area.lock} (palier ${area.tier} de l’Ascension).` };
   const comp = COMPETITOR_BY_UNIT[unitId];
   if (comp) return { allowed: false, coSigner: null, reason: `Ce local est occupé par ${comp.shopName}, tenu par ${comp.owner}.` };
   const tenant = e.owned?.[unitId]?.tenant;

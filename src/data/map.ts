@@ -57,14 +57,18 @@ const ZONE_SURFACE: Record<string, Surface> = {
   herbe: 'herbe', terre: 'terre', pave: 'pave', parking: 'parking', eau: 'eau', cour: 'cour', aire_jeux: 'aire_jeux', gravier: 'gravier',
 };
 for (const z of CITY.zones) fill(z.x, z.y, z.w, z.h, ZONE_SURFACE[z.kind] ?? 'pave');
-// Rive sud du canal : talus infranchissable jusqu'au bord de la carte.
-fill(0, CITY.canal.y + CITY.canal.h, CITY_W, CITY_H, 'eau');
+// Ponts : la chaussée enjambe le canal (après les zones, donc après l'eau).
+for (const b of CITY.bridges) fill(b.x, b.y, b.w, b.h, 'chaussee');
 // 3. Bâtiments.
-const buildingOf = new Map<number, string>();
-for (const b of CITY.buildings) {
+// Grande carte : un indice de bâtiment par tuile dans un tableau compact (pas une Map par tuile).
+const buildingIds: string[] = CITY.buildings.map((b) => b.id);
+const buildingOf = new Int32Array(CITY_W * CITY_H).fill(-1);
+CITY.buildings.forEach((b, bi) => {
   fill(b.x, b.y, b.w, b.d, 'batiment');
-  for (let yy = b.y; yy < b.y + b.d; yy++) for (let xx = b.x; xx < b.x + b.w; xx++) buildingOf.set(idx(xx, yy), b.id);
-}
+  for (let yy = Math.max(0, b.y); yy < Math.min(CITY_H, b.y + b.d); yy++) {
+    for (let xx = Math.max(0, b.x); xx < Math.min(CITY_W, b.x + b.w); xx++) buildingOf[idx(xx, yy)] = bi;
+  }
+});
 // 4. Portes : entrées des lieux et des locaux (franchissables), portes d'immeubles (décor).
 for (const b of CITY.buildings) {
   for (const d of b.doors) {
@@ -107,7 +111,8 @@ export function tileAt(x: number, y: number): Tile | null {
   if (sp) return sp;
   const s = surface[i]!;
   if (SURFACES[s] === 'batiment') {
-    const id = buildingOf.get(i);
+    const bi = buildingOf[i]!;
+    const id = bi >= 0 ? buildingIds[bi] : undefined;
     if (id) {
       let t = buildingTiles.get(id);
       if (!t) {
@@ -134,6 +139,11 @@ export function entranceAt(x: number, y: number): PlaceId | undefined {
 export function unitAt(x: number, y: number): string | undefined {
   const t = tileAt(x, y);
   return t && t.kind === 'entree' ? t.unitId : undefined;
+}
+
+/** Accès rapide au revêtement (construction de la scène 3D de la grande carte). */
+export function surfaceFast(x: number, y: number): Surface {
+  return SURFACES[surface[y * CITY_W + x]!]!;
 }
 
 export function surfaceAt(x: number, y: number): Surface | null {

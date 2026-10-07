@@ -409,8 +409,12 @@ export class WorldRenderer3D {
     const roofGeo = new THREE.ConeGeometry(0.7, 0.9, 4);
     roofGeo.rotateY(Math.PI / 4);
 
-    for (let y = 0; y < MAP_H; y++) {
-      for (let x = 0; x < MAP_W; x++) {
+    // Ancien moteur 2,5D (secours) : un objet par tuile, donc limité à la ville historique ;
+    // la grande carte (2026-10-07) est rendue par city3d/, par blocs.
+    const legacyW = Math.min(MAP_W, 414);
+    const legacyH = Math.min(MAP_H, 266);
+    for (let y = 0; y < legacyH; y++) {
+      for (let x = 0; x < legacyW; x++) {
         const t = tileAt(x, y);
         if (!t) continue;
 
