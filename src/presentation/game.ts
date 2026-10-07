@@ -72,7 +72,9 @@ import { streetNameAt, unitAt } from '../data/map';
 import { COMPETITOR_BY_UNIT } from '../data/city/competitors';
 import { drawMinimap, renderCityMap } from './minimap';
 import { PENDING_LOAD_KEY, deleteSlot, exportSave, importSave, saveToSlot, slotSummary } from '../saves/persist';
-import { businessInteriorSpec, destinationSpec, placeHasInterior, placeInteriorSpec } from './city3d/interior3d';
+import { businessInteriorSpec, destinationSpec, landmarkSpec, placeHasInterior, placeInteriorSpec } from './city3d/interior3d';
+import { activityBlocker, doLandmarkActivity, landmarkAdjacent } from '../simulation/landmarks';
+import { LANDMARK_BY_ID, type LandmarkDef } from '../data/city/landmarks';
 import { useFurniture } from '../simulation/interior_actions';
 import { JOB, inShift, startShift } from '../simulation/jobs';
 import { hhmmOfTick } from '../core/clock';
@@ -927,6 +929,38 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     return true;
   }
 
+  /** Lieu remarquable de la grande carte : intérieur 3D, ou fenêtre en 2D. */
+  function enterLandmark(lm: LandmarkDef): void {
+    const acts = lm.activities.map((a) => ({ id: a.id, icon: a.icon, title: a.title, host: a.host, minutes: a.minutes, blocker: activityBlocker(world, a) }));
+    if (renderer3D && use3D) {
+      const hosts = [...new Set(lm.activities.map((a) => a.host).filter((h) => /^[A-ZÉ]/.test(h) && h !== 'Lucien'))];
+      renderer3D.enterInterior(landmarkSpec(lm, acts), world, { staff: hosts.map((h, i) => ({ id: `${lm.id}_${i}`, name: h.split(',')[0]! })), customers: lm.id === 'hopital' ? 4 : lm.id === 'stade' ? 6 : 2 });
+      toast(lm.lore, true);
+      return;
+    }
+    const body = el('div', 'panel-body');
+    body.appendChild(el('p', 'panel-desc', lm.lore));
+    const list = el('div', 'ph-list');
+    for (const a of lm.activities) {
+      const block = activityBlocker(world, a);
+      const card = el('div', `ph-card${block ? ' locked' : ''}`);
+      card.appendChild(el('div', 'ph-card-title', `${a.icon} ${a.title}`));
+      card.appendChild(el('p', 'ph-note', block ?? `Avec ${a.host} · ${a.minutes} min`));
+      const go = el('button', 'ph-btn primary', 'Y aller');
+      go.disabled = !!block;
+      go.addEventListener('click', () => {
+        const r = doLandmarkActivity(world, lm.id, a.id);
+        toast(r.message, r.ok);
+        if (r.ok) spendTaskTime(r.minutes, a.title);
+        closeModal();
+      });
+      card.appendChild(go);
+      list.appendChild(card);
+    }
+    body.appendChild(list);
+    showModal(lm.name, 'Lieu remarquable', body, true);
+  }
+
   function exitInterior(): void {
     renderer3D?.exitInterior();
     currentLocation = 'ville';
@@ -1012,6 +1046,23 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (!spec || !h) return null;
     const label = `E — ${h.label}`;
     if (h.kind === 'sortie') return { label, run: exitInterior };
+    if (h.kind === 'repere' && spec.landmarkId && h.target) {
+      const lmId = spec.landmarkId;
+      const actId = h.target;
+      return {
+        label,
+        run: () => {
+          const r = doLandmarkActivity(world, lmId, actId);
+          toast(r.message, r.ok);
+          if (r.ok) {
+            const a = LANDMARK_BY_ID[lmId]?.activities.find((x) => x.id === actId);
+            spendTaskTime(r.minutes, a?.title ?? 'Activité');
+            audio.playMarketAlert();
+          }
+          updateHud(ui, world, promptText());
+        },
+      };
+    }
     if (h.kind === 'activite' && h.target) {
       const id = h.target;
       return {
@@ -1086,6 +1137,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
     const eco = economyActionHere();
     if (eco) return eco.label;
+    const lmNear = landmarkAdjacent(world);
+    if (lmNear) return `E — Entrer : ${lmNear.name}`;
     const place = placeAtAdjacent(world);
     if (place) return `E — Entrer : ${PLACE_BY_ID[place]?.name ?? place}`;
     const near = npcsNearby(world, 2);
@@ -1112,6 +1165,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       if (world.player.money !== before || JSON.stringify(world.economy?.orders?.map((o) => o.status) ?? []) !== stamp) {
         spendTaskTime(TASK_MINUTES.economie, eco.label.replace(/^E — /, ''));
       }
+      return;
+    }
+    const lmNear = landmarkAdjacent(world);
+    if (lmNear) {
+      enterLandmark(lmNear);
       return;
     }
     const place = placeAtAdjacent(world);

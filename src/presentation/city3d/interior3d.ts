@@ -43,7 +43,7 @@ export interface Hotspot {
   icon: string;
   x: number;
   z: number;
-  kind: 'mobilier' | 'sortie' | 'piece' | 'gestion' | 'decharger' | 'travail' | 'amenager' | 'activite' | 'depart' | 'plan' | 'objet' | 'armoire';
+  kind: 'mobilier' | 'sortie' | 'piece' | 'gestion' | 'decharger' | 'travail' | 'amenager' | 'activite' | 'depart' | 'plan' | 'objet' | 'armoire' | 'repere';
   /** Pièce de destination (kind = piece) ou identifiant de mobilier (kind = mobilier). */
   target?: string;
 }
@@ -66,6 +66,8 @@ export interface InteriorSpec {
   placeId?: PlaceId;
   roomId?: string;
   businessId?: string;
+  /** Lieu remarquable de la grande carte (src/data/city/landmarks.ts). */
+  landmarkId?: string;
 }
 
 export interface BuiltInterior {
@@ -750,4 +752,57 @@ export function destinationSpec(destId: string, activities: { id: string; icon: 
   });
   hotspots.push({ id: 'depart', label: 'Reprendre le train pour Val-Ferrand', icon: '🚆', x: w / 2, z: d - 0.8, kind: 'depart' });
   return { key: `voyage:${destId}:${activities.filter((a) => a.done).length}`, title: st.title, w, d, floor: st.floor, wall: st.wall, outdoor: { sky: st.sky }, destinationId: destId, items, hotspots, npcSlots };
+}
+
+// ---------- Lieux remarquables de la grande carte (hôpital, lycée, stade, cimetière, brasserie) ----------
+
+/** Meuble principal de chaque activité. */
+const LANDMARK_KIND: Record<string, ItemKind> = {
+  h_nora: 'table', h_benevolat: 'comptoir', h_urgences: 'tableau', h_cafeteria: 'machine_cafe',
+  l_cdi: 'etagere', l_club_eco: 'table', l_sortie: 'comptoir',
+  s_piste: 'plante', s_buvette: 'comptoir', s_entrainement: 'caisse_bois',
+  c_lucien: 'plante', c_gardien: 'ferraille',
+  b_visite: 'machine', b_dreches: 'caisse_bois',
+};
+
+const LANDMARK_DECOR: Record<string, { kind: ItemKind; x: number; z: number; rot?: number }[]> = {
+  hopital: [{ kind: 'plante', x: 0.6, z: 0.6 }, { kind: 'canape', x: 15.8, z: 9.4 }, { kind: 'plante', x: 17.4, z: 0.6 }, { kind: 'machine_cafe', x: 1.2, z: 9.6 }],
+  lycee: [{ kind: 'etagere', x: 1.2, z: 0.4 }, { kind: 'etagere', x: 3.2, z: 0.4 }, { kind: 'tableau', x: 9, z: 0.2 }, { kind: 'plante', x: 17.4, z: 0.6 }],
+  stade: [{ kind: 'caisse_bois', x: 1.2, z: 1.2 }, { kind: 'caisse_bois', x: 2.4, z: 1.2 }, { kind: 'plante', x: 17.4, z: 12.6 }],
+  cimetiere: [{ kind: 'plante', x: 2, z: 2 }, { kind: 'plante', x: 6, z: 2 }, { kind: 'plante', x: 12, z: 2 }, { kind: 'plante', x: 16, z: 2 }],
+  brasserie: [{ kind: 'machine', x: 1.2, z: 1.2 }, { kind: 'machine', x: 2.8, z: 1.2 }, { kind: 'machine', x: 4.4, z: 1.2 }, { kind: 'caisse_bois', x: 16.8, z: 11.6 }],
+};
+
+/**
+ * Intérieur d'un lieu remarquable : un point d'activité par activité, avec son hôte, et la porte
+ * pour ressortir. Les activités indisponibles disent pourquoi.
+ */
+export function landmarkSpec(
+  lm: { id: string; name: string; floor: InteriorSpec['floor']; wall: string; outdoor?: string },
+  activities: { id: string; icon: string; title: string; host: string; minutes: number; blocker: string | null }[],
+): InteriorSpec {
+  const w = 18;
+  const d = 12;
+  const spots = [{ x: 3.5, z: 3.2 }, { x: 9, z: 4.6 }, { x: 14.5, z: 3.2 }, { x: 9, z: 1.4 }];
+  const items: InteriorItem[] = [];
+  const hotspots: Hotspot[] = [];
+  const npcSlots: InteriorSpec['npcSlots'] = [];
+  activities.slice(0, spots.length).forEach((a, i) => {
+    const kind = LANDMARK_KIND[a.id] ?? 'table';
+    const [iw, id] = SIZES[kind];
+    const p = spots[i]!;
+    const it: InteriorItem = { id: a.id, kind, label: a.title, icon: a.icon, x: p.x, z: p.z, rot: 0, w: iw, d: id };
+    items.push(it);
+    const f = frontOf(it);
+    const dur = a.minutes >= 60 ? `${Math.round((a.minutes / 60) * 10) / 10} h` : `${a.minutes} min`;
+    hotspots.push({ id: a.id, label: a.blocker ? `${a.title} — ${a.blocker}` : `${a.title} — avec ${a.host} (${dur})`, icon: a.blocker ? '⏳' : a.icon, x: f.x, z: f.z, kind: 'repere', target: a.id });
+    npcSlots.push({ x: p.x + iw / 2 + 0.5, z: p.z, face: Math.PI });
+  });
+  (LANDMARK_DECOR[lm.id] ?? []).forEach((pr, i) => {
+    const [iw, id] = SIZES[pr.kind];
+    items.push({ id: `deco_${i}`, kind: pr.kind, label: '', icon: '', x: pr.x, z: pr.z, rot: pr.rot ?? 0, w: iw, d: id });
+  });
+  hotspots.push({ id: 'sortie', label: `Sortir — ${lm.name}`, icon: '🚪', x: w / 2, z: d - 0.8, kind: 'sortie' });
+  const key = `repere:${lm.id}:${activities.map((a) => (a.blocker ? '0' : '1')).join('')}`;
+  return { key, title: lm.name, w, d, floor: lm.floor, wall: lm.wall, outdoor: lm.outdoor ? { sky: lm.outdoor } : undefined, landmarkId: lm.id, items, hotspots, npcSlots };
 }

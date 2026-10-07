@@ -7,6 +7,7 @@
 import type { ProductCategory } from '../../core/economy_types';
 import { SHOPKEEPERS } from '../lore/shopkeepers';
 import { CITY } from './layout';
+import { DISTRICT_SHOPS } from './district_shops';
 
 export interface CompetitorDef {
   id: string;
@@ -68,5 +69,26 @@ function assign(): CompetitorDef[] {
   return out;
 }
 
-export const COMPETITORS: readonly CompetitorDef[] = assign();
+/**
+ * Grande carte : les commerçants des nouveaux quartiers prennent un local sur trois parmi les
+ * plus passants de leur quartier (les autres restent libres pour le joueur).
+ */
+function assignDistricts(): CompetitorDef[] {
+  const out: CompetitorDef[] = [];
+  const districts = [...new Set(DISTRICT_SHOPS.map((s) => s.district))];
+  for (const d of districts) {
+    const units = CITY.units
+      .filter((u) => u.id.startsWith(`${d}_`) && !/^gare_est_/.test(u.id) === (d !== 'gare_est'))
+      .sort((a, b) => b.footTraffic - a.footTraffic || a.id.localeCompare(b.id));
+    const shops = DISTRICT_SHOPS.filter((s) => s.district === d);
+    shops.forEach((s, k) => {
+      const u = units[k * 3 + 1];
+      if (!u) return;
+      out.push({ id: `concurrent_${s.id}`, unitId: u.id, shopName: s.shopName, owner: s.owner, greeting: s.greeting, categories: s.categories, strength: s.strength });
+    });
+  }
+  return out;
+}
+
+export const COMPETITORS: readonly CompetitorDef[] = [...assign(), ...assignDistricts()];
 export const COMPETITOR_BY_UNIT: Readonly<Record<string, CompetitorDef>> = Object.fromEntries(COMPETITORS.map((c) => [c.unitId, c]));

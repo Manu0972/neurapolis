@@ -7,6 +7,7 @@
  *  - `kind` : la sémantique de simulation (franchissable ou non, entrée de lieu, mobilier) ;
  *  - `surface` : le revêtement, lu par le rendu (chaussée, trottoir, herbe, eau…).
  */
+import { LANDMARK_BY_BUILDING } from './city/landmarks';
 import type { PlaceId } from '../core/types';
 import { CITY, CITY_H, CITY_W, type CityPropKind } from './city/layout';
 
@@ -28,6 +29,7 @@ export interface Tile {
   surface: Surface;
   place?: PlaceId;     // présent si kind === 'entree' d'un lieu
   unitId?: string;     // porte d'un local commercial
+  landmark?: string;   // porte d'un lieu remarquable (src/data/city/landmarks.ts)
   buildingId?: string; // tuile occupée par un bâtiment
   decoration?: WorldPropId;
   prop?: CityPropKind;
@@ -71,7 +73,13 @@ CITY.buildings.forEach((b, bi) => {
 });
 // 4. Portes : entrées des lieux et des locaux (franchissables), portes d'immeubles (décor).
 for (const b of CITY.buildings) {
+  const lm = LANDMARK_BY_BUILDING[b.id];
   for (const d of b.doors) {
+    // Lieux remarquables de la grande carte : la porte devient une entrée.
+    if (lm) {
+      special.set(idx(d.x, d.y), Object.freeze({ kind: 'entree', surface: 'batiment', landmark: lm.id, buildingId: b.id }) as Tile);
+      continue;
+    }
     if (d.residential) continue;
     special.set(idx(d.x, d.y), Object.freeze({
       kind: 'entree', surface: 'batiment', place: d.place, unitId: d.unitId, buildingId: b.id,
@@ -140,6 +148,12 @@ export function isWalkable(x: number, y: number): boolean {
 export function entranceAt(x: number, y: number): PlaceId | undefined {
   const t = tileAt(x, y);
   return t && t.kind === 'entree' ? t.place : undefined;
+}
+
+/** Lieu remarquable dont la porte est sur cette tuile. */
+export function landmarkAt(x: number, y: number): string | undefined {
+  const t = tileAt(x, y);
+  return t && t.kind === 'entree' ? t.landmark : undefined;
 }
 
 /** Local commercial dont la porte est sur cette tuile. */
