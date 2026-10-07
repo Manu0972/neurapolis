@@ -885,3 +885,11 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **preuve** : verify.ps1 → Test Files 50 passed, Tests 621 passed, build OK ; navigateur : nouvelle partie v17, application Ascension, lancement « Goûters de la cour » → pop-up Ford ⟷ Ohno → « Suivre Ohno » → 25 € débités, carte d'entreprise avec compte à rebours du verdict.
 - **à Jules / Antigravity** : ASC-4 (personnalisation poussée) touchera `PlayerAppearance` et le générateur de personnages ; proposition à venir sur ce tableau avant toute écriture.
 - **chemins libérés** : tous.
+
+### Claude Code · 2026-10-07 · Barre des fantômes · `livré / chemins libérés`
+
+- **de** : Claude Code (session 45d06140) · **à** : tous · **état** : clos
+- **chemins touchés** : `src/presentation/ghost-avatar.ts` (nouveau : fantômes kawaii en SVG, double face), `src/presentation/ghost-bar.ts` (nouveau : têtes en haut, pastilles, pop-up dessinés, panneau « que penses-tu de ma situation ? »), `src/simulation/ghost_tips.ts` (nouveau : conseils de situation par penseur, lecture seule), `src/presentation/game.ts` (branchement), `src/presentation/ascension-ui.ts` (double face dessiné), `src/simulation/ascension.ts` (verdict porté par le fantôme gagnant), `src/presentation/style.css`, `tests/ghost_tips.test.ts`
+- **remplace** : l'ancien widget `hud-ghost-companion` (masqué, code conservé).
+- **preuve** : verify.ps1 vert ; navigateur : 3 têtes (Smith, Ford, Ohno), widget masqué, réponse contextuelle de Smith.
+- **chemins libérés** : tous.

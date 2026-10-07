@@ -296,7 +296,7 @@ function verdict(w: WorldState, run: VentureRun): Notification[] {
       { facteur: 'à ta façon', seuil: fmt(profits.C), poids: 1 },
     ],
   });
-  return [notify('journal', `⚖️ Verdict ${idea.name} : ${winner.name} avait raison${learned ? ' — nouveau concept au carnet' : ''}.`)];
+  return [notify('journal', `⚖️ ${winner.name} avait raison pour « ${idea.name} » : ${winner.right}${learned ? ' (nouveau concept au carnet)' : ''}`, winner.thinker)];
 }
 
 function ventureDay(w: WorldState, run: VentureRun, day: number): Notification[] {

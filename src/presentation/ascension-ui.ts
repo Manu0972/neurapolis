@@ -15,6 +15,7 @@ import {
 } from '../simulation/ascension';
 import { dayIndexOf } from '../core/clock';
 import { el } from './ui';
+import { duoAvatar } from './ghost-avatar';
 
 export interface AscensionCtx {
   world: WorldState;
@@ -153,11 +154,8 @@ export function openDuelModal(ctx: AscensionCtx, back: () => void): void {
   const body = el('div', 'panel-body duel');
   body.appendChild(el('p', 'duel-question', `${idea.icon} ${idea.name} — ${duel.question}`));
   // La silhouette coupée en deux.
-  const mascot = el('div', 'duel-mascot');
-  mascot.style.setProperty('--ca', duel.a.color);
-  mascot.style.setProperty('--cb', duel.b.color);
-  mascot.appendChild(el('span', 'duel-half left', duel.a.emoji));
-  mascot.appendChild(el('span', 'duel-half right', duel.b.emoji));
+  const mascot = el('div', 'duel-mascot-svg');
+  mascot.appendChild(duoAvatar(duel.a.thinker, duel.b.thinker, 'alerte', 112));
   body.appendChild(mascot);
   const split = el('div', 'duel-split');
   split.appendChild(faceEl(duel.a, 'a', () => decide('A')));

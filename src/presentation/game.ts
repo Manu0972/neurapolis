@@ -83,6 +83,8 @@ import {
 import { LAMINOIR_OPTIONS, chooseLaminoirFuture, laminoirDecisionPending } from '../simulation/laminoir';
 import { BUS_HOURS, busFare, busRideTicks, busRunning, isOnBus, stopNear, takeBus } from '../simulation/transit';
 import { BUS_STOPS, BUS_STOP_BY_ID } from '../data/city/transit';
+import { createGhostBar } from './ghost-bar';
+import { mostUrgentTip } from '../simulation/ghost_tips';
 import { CITY } from '../data/map';
 import * as economyApi from '../simulation/economy';
 import { openDetailedInteriorModal } from './interiors';
@@ -119,6 +121,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   const world: WorldState = initialWorld;
   root.replaceChildren();
   const ui = buildUi(root);
+  // Barre des fantômes : leurs têtes en haut de l'écran, qui bougent quand ils veulent parler.
+  const ghostBar = createGhostBar(root, () => world, () => modalOpen);
+  let lastTipText = '';
   let modalOpen = false;
   const deferredArrivals = new Set<string>();
   let last = performance.now();
@@ -2663,7 +2668,20 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
               }
               for (const n of out.notifications) {
                 if (n.kind === 'journal') audio.playMarketAlert();
-                if (n.kind === 'fantome' || n.kind === 'journal') showGhostBanner(n);
+                if (n.ghost) {
+                  // Un fantôme parle : sa tête s'anime, et il surgit en dessin si c'est important.
+                  ghostBar.push({ ghost: n.ghost, text: n.text, pop: n.kind === 'fantome' || n.kind === 'journal' || n.kind === 'alerte', mood: n.kind === 'alerte' ? 'alerte' : n.kind === 'bien' ? 'joie' : 'calme' });
+                } else if (n.kind === 'fantome' || n.kind === 'journal') {
+                  showGhostBanner(n);
+                }
+              }
+              // Toutes les deux heures de jeu, le penseur le plus concerné par ta situation lève la main.
+              if (world.time.tick % 12 === 0 && !world.player.asleep) {
+                const t = mostUrgentTip(world, ghostBar.roster());
+                if (t && t.weight >= 2 && t.text !== lastTipText) {
+                  lastTipText = t.text;
+                  ghostBar.push({ ghost: t.ghost, text: t.text, pop: t.weight >= 3, mood: t.weight >= 3 ? 'alerte' : 'calme' });
+                }
               }
             }
           }
@@ -2750,6 +2768,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       }
     }
     if (++hudFrame % 30 === 0) {
+      ghostBar.sync(world);
       syncSigns();
       syncWaypoints();
       syncTips();
