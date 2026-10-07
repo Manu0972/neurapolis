@@ -125,7 +125,7 @@ import { MultiplayerSession, OPEN_MULTI_KEY, openMultiplayerPanel } from './mult
 import { installHelp, setHelp, type HelpController } from './help';
 import { GpsController } from './gps';
 import { Thoughts } from './thoughts';
-import { generateLook, playerHeightM } from '../core/human_variety';
+import { generateLook, playerHeightM, visibleAppearance } from '../core/human_variety';
 import { residentNear, residentsPresent, talkToResident } from '../simulation/residents';
 import { EMERGENCY_BELOW, emergencyHelpStatus } from '../simulation/family';
 import { randomAppearance } from './appearance-editor';
@@ -201,14 +201,14 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const body = el('div', 'panel-body wardrobe');
     const preview = createAvatarPreview(220, 280);
     if (preview) {
-      preview.setAppearance(draft, world.player.gender, playerHeightM({ ...world.player, appearance: draft }));
+      preview.setAppearance(visibleAppearance(draft, world.player.age), world.player.gender, playerHeightM({ ...world.player, appearance: draft }));
       body.appendChild(preview.canvas);
     }
     const editor = buildAppearanceEditor(draft, {
       age: world.player.age,
       tier: world.ascension?.tier ?? 1,
       gender: () => world.player.gender,
-      onChange: (a) => { draft = a; preview?.setAppearance(a, world.player.gender, playerHeightM({ ...world.player, appearance: a })); },
+      onChange: (a) => { draft = a; preview?.setAppearance(visibleAppearance(a, world.player.age), world.player.gender, playerHeightM({ ...world.player, appearance: a })); },
     });
     body.appendChild(editor.root);
     const save = el('button', 'ph-btn primary', 'Enfiler cette tenue');
@@ -531,7 +531,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       ui.mpBtn.classList.toggle('on', !!mp?.connected);
       syncPaceUi();
     },
-    me: () => ({ appearance: world.player.appearance, gender: world.player.gender, heightM: playerHeightM(world.player) }),
+    me: () => ({ appearance: visibleAppearance(world.player.appearance, world.player.age), gender: world.player.gender, heightM: playerHeightM(world.player) }),
   });
   ui.mpBtn.addEventListener('click', () => {
     if (modalOpen || !mp) return;

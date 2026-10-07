@@ -59,6 +59,20 @@ export type PlayerEyeColor = 'brun' | 'noisette' | 'vert' | 'bleu' | 'gris';
 export type PlayerGlasses = 'aucune' | 'rondes' | 'carrees' | 'ecaille' | 'fines' | 'soleil';
 export type PlayerBeard = 'aucune' | 'duvet' | 'moustache' | 'courte' | 'pleine';
 export type PlayerAccessory = 'aucun' | 'casquette' | 'bonnet' | 'ecouteurs' | 'montre' | 'echarpe' | 'sac_dos' | 'sacoche';
+export type BodyShapeKey = 'epaules' | 'poitrine' | 'taille' | 'hanches' | 'fessier' | 'ventre' | 'muscles' | 'cuisses';
+export type BodyShape = Partial<Record<BodyShapeKey, number>>;
+export const BODY_SHAPE_KEYS: readonly BodyShapeKey[] = ['epaules', 'poitrine', 'taille', 'hanches', 'fessier', 'ventre', 'muscles', 'cuisses'];
+export const BODY_SHAPE_INFO: Record<BodyShapeKey, { label: string; low: string; high: string }> = {
+  epaules: { label: 'Épaules', low: 'étroites', high: 'larges' },
+  poitrine: { label: 'Poitrine / pectoraux', low: 'plate', high: 'volumineuse' },
+  taille: { label: 'Tour de taille', low: 'marqué', high: 'droit' },
+  hanches: { label: 'Hanches', low: 'étroites', high: 'larges' },
+  fessier: { label: 'Fessier', low: 'plat', high: 'rond' },
+  ventre: { label: 'Ventre', low: 'plat', high: 'rond' },
+  muscles: { label: 'Musculature', low: 'menue', high: 'très musclée' },
+  cuisses: { label: 'Cuisses', low: 'fines', high: 'fortes' },
+};
+
 export interface PlayerAppearance {
   skinTone: PlayerSkinTone;
   hairColor: PlayerHairColor;
@@ -71,6 +85,11 @@ export interface PlayerAppearance {
   heightAdj?: number;
   /** Taille adulte visée, en cm (145 – 205) : la taille réelle suit la croissance (save v25). */
   adultHeightCm?: number;
+  /**
+   * Silhouette adulte (save v25) : chaque trait de −1 à +1, 0 = moyen. Elle ne s'applique qu'à
+   * partir de 18 ans ; avant, le corps suit l'âge.
+   */
+  physique?: BodyShape;
   eyes?: PlayerEyes;
   eyeColor?: PlayerEyeColor;
   glasses?: PlayerGlasses;

@@ -6,7 +6,9 @@ import { describe, expect, it } from 'vitest';
 import { createWorld } from '../src/core/store';
 import { createCustomWorld } from '../src/core/player_customization';
 import { VALID_SKIN_TONES, type PlayerAppearance } from '../src/core/types';
-import { adultHeightOf, familyLooks, generateLook, growthFraction, heightAtAge, playerHeightM } from '../src/core/human_variety';
+import { adultHeightOf, familyLooks, generateLook, growthFraction, heightAtAge, playerHeightM, visibleAppearance } from '../src/core/human_variety';
+import { validateAppearance } from '../src/core/player_customization';
+import { BODY_SHAPE_KEYS } from '../src/core/types';
 import { CURRENT_SAVE_VERSION, migrateSave } from '../src/saves/migrations';
 
 const kid = (over: Partial<PlayerAppearance> = {}): PlayerAppearance => ({
@@ -97,6 +99,28 @@ describe('habitants', () => {
   });
 });
 
+describe('silhouette adulte', () => {
+  it('les adultes ont une silhouette variée, les enfants non', () => {
+    const adults = Array.from({ length: 300 }, (_, i) => generateLook(`s${i}`, { age: 35 }));
+    for (const k of BODY_SHAPE_KEYS) {
+      const vals = adults.map((l) => l.appearance.physique![k]!);
+      // Toute l'amplitude : des valeurs basses et hautes pour chaque trait.
+      expect(Math.min(...vals)).toBeLessThan(-0.5);
+      expect(Math.max(...vals)).toBeGreaterThan(0.5);
+    }
+    expect(generateLook('enfant', { age: 12 }).appearance.physique).toBeUndefined();
+    for (const p of familyLooks(kid(), 'fille')) expect(p.appearance.physique).toBeDefined();
+  });
+
+  it('la silhouette du joueur est réglée dès la création mais ne se voit qu’à 18 ans', () => {
+    const a = kid({ physique: { fessier: 0.8, muscles: 0.6 } });
+    expect(visibleAppearance(a, 12).physique).toBeUndefined();
+    expect(visibleAppearance(a, 18).physique).toEqual({ fessier: 0.8, muscles: 0.6 });
+    expect(validateAppearance(a).valid).toBe(true);
+    expect(validateAppearance({ ...a, physique: { fessier: 3 } }).valid).toBe(false);
+  });
+});
+
 describe('sauvegarde v25', () => {
   it('une v24 avec l’ancienne échelle de taille migre vers une taille adulte visée', () => {
     const w = createWorld();
@@ -112,5 +136,8 @@ describe('sauvegarde v25', () => {
     const back = migrateSave(JSON.parse(JSON.stringify(m)));
     expect(back.player.appearance.adultHeightCm).toBe(188);
     expect(adultHeightOf(back.player.appearance, 'garcon')).toBe(188);
+    // La silhouette adulte (champ facultatif de v25) fait aussi l'aller-retour.
+    back.player.appearance.physique = { hanches: 0.4, ventre: -0.2 };
+    expect(migrateSave(JSON.parse(JSON.stringify(back))).player.appearance.physique).toEqual({ hanches: 0.4, ventre: -0.2 });
   });
 });

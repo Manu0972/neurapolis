@@ -14,11 +14,11 @@
  * consommé, pas de Math.random()).
  */
 import type {
-  PlayerAppearance, PlayerBeard, PlayerBody, PlayerEyeColor, PlayerGender, PlayerHairColor, PlayerHairStyle,
+  BodyShape, PlayerAppearance, PlayerBeard, PlayerBody, PlayerEyeColor, PlayerGender, PlayerHairColor, PlayerHairStyle,
   PlayerOutfitStyle,
 } from './types';
 import {
-  VALID_ACCESSORIES, VALID_EYES, VALID_GLASSES, VALID_OUTFIT_COLORS, VALID_SKIN_TONES,
+  BODY_SHAPE_KEYS, VALID_ACCESSORIES, VALID_EYES, VALID_GLASSES, VALID_OUTFIT_COLORS, VALID_SKIN_TONES,
 } from './types';
 
 // ---------- Croissance ----------
@@ -135,6 +135,42 @@ function bodyFor(r: () => number, age: number): PlayerBody {
   return weighted(r, [['fine', 2.5], ['moyenne', 4], ['sportive', 1.5], ['ronde', 2.5]]);
 }
 
+/** Âge à partir duquel la silhouette adulte s'applique. */
+export const ADULT_SHAPE_AGE = 18;
+
+/** Apparence telle qu'on la voit à cet âge : la silhouette adulte n'apparaît qu'à 18 ans. */
+export function visibleAppearance(a: PlayerAppearance, age: number): PlayerAppearance {
+  if (age >= ADULT_SHAPE_AGE || !a.physique) return a;
+  const { physique: _hidden, ...rest } = a;
+  return rest;
+}
+
+/** Silhouette visible à cet âge : aucune avant 18 ans (le corps suit l'âge). */
+export function physiqueAtAge(a: PlayerAppearance, age: number): BodyShape | undefined {
+  return age >= ADULT_SHAPE_AGE ? a.physique : undefined;
+}
+
+const clamp1 = (v: number): number => Math.max(-1, Math.min(1, Math.round(v * 100) / 100));
+
+/**
+ * Silhouette d'un adulte : tendances selon la corpulence et le genre, mais chaque trait garde
+ * une large part de hasard (des épaules larges et des hanches larges, un ventre rond et des bras
+ * musclés…) pour une vraie variété, ni tout sculpté ni tout rond.
+ */
+function physiqueFor(r: () => number, body: PlayerBody, gender: PlayerGender | undefined): BodyShape {
+  const lean: Record<PlayerBody, Partial<BodyShape>> = {
+    fine: { epaules: -0.3, poitrine: -0.3, hanches: -0.3, fessier: -0.3, ventre: -0.5, muscles: -0.3, cuisses: -0.4, taille: -0.3 },
+    moyenne: {},
+    sportive: { epaules: 0.4, muscles: 0.6, ventre: -0.4, cuisses: 0.3, fessier: 0.2, taille: -0.2 },
+    ronde: { ventre: 0.6, hanches: 0.4, cuisses: 0.5, fessier: 0.4, poitrine: 0.4, taille: 0.5, epaules: 0.2 },
+  };
+  const g: Partial<BodyShape> = gender === 'garcon' ? { epaules: 0.25, muscles: 0.15, hanches: -0.25, fessier: -0.1, poitrine: -0.2 }
+    : gender === 'fille' ? { hanches: 0.3, fessier: 0.25, poitrine: 0.3, epaules: -0.2, taille: -0.15 } : {};
+  const out: BodyShape = {};
+  for (const k of BODY_SHAPE_KEYS) out[k] = clamp1((lean[body][k] ?? 0) + (g[k] ?? 0) + bell(r, 0, 0.75));
+  return out;
+}
+
 function outfitFor(r: () => number, age: number): PlayerOutfitStyle {
   if (age < 15) return weighted(r, [['ecolier', 5], ['streetwear', 3], ['sportif', 2]]);
   if (age < 20) return weighted(r, [['streetwear', 5], ['sportif', 3], ['ecolier', 1], ['citoyen', 1]]);
@@ -170,14 +206,16 @@ export function generateLook(seed: string, opts: { age?: number; gender?: Player
   let hairColor: PlayerHairColor = r() < 0.06 ? DYED_HAIR[Math.floor(r() * DYED_HAIR.length)]! : naturalHair(r, skin);
   if (age > 50 && r() < Math.min(0.85, (age - 45) / 30)) hairColor = 'gris';
   const adultCm = clampHeight(bell(r, gender === 'garcon' ? 176 : gender === 'fille' ? 163 : 170, 17));
+  const body = bodyFor(r, age);
   const appearance: PlayerAppearance = {
     skinTone: SKIN[skin]!,
     hairColor,
     hairStyle: age > 60 && gender === 'garcon' && r() < 0.3 ? 'rase' : hairStyleFor(r, gender, coily),
     outfitStyle: outfitFor(r, age),
     outfitColor: VALID_OUTFIT_COLORS[Math.floor(r() * VALID_OUTFIT_COLORS.length)]!,
-    body: bodyFor(r, age),
+    body,
     adultHeightCm: adultCm,
+    ...(age >= ADULT_SHAPE_AGE ? { physique: physiqueFor(r, body, gender) } : {}),
     eyes: VALID_EYES[Math.floor(r() * VALID_EYES.length)]!,
     eyeColor: eyeColorFor(r, skin),
     glasses: r() < (age > 45 ? 0.5 : 0.22) ? VALID_GLASSES[1 + Math.floor(r() * (VALID_GLASSES.length - 1))]! : 'aucune',
@@ -232,14 +270,17 @@ export function familyLooks(child: PlayerAppearance, childGender: PlayerGender |
     const plausible = skin >= 6 ? ['noir', 'brun'].includes(child.hairColor) : skin >= 3 ? child.hairColor !== 'blond' || skin < 5 : true;
     let hairColor: PlayerHairColor = shares && childNatural && plausible ? child.hairColor : naturalHair(r, skin);
     if (age > 44 && r() < 0.25) hairColor = 'gris';
+    const body = bodyFor(r, age);
+    // Règle de l'utilisateur : la famille n'a pas de handicap (les habitants, eux, couvrent toute la variété).
     const appearance: PlayerAppearance = {
       skinTone: SKIN[skin]!,
       hairColor,
       hairStyle: hairStyleFor(r, gender, coily),
       outfitStyle: id === 'nora' ? 'citoyen' : 'artisan',
       outfitColor: VALID_OUTFIT_COLORS[Math.floor(r() * VALID_OUTFIT_COLORS.length)]!,
-      body: bodyFor(r, age),
+      body,
       adultHeightCm: cm,
+      physique: physiqueFor(r, body, gender),
       eyes: shares && child.eyes ? child.eyes : VALID_EYES[Math.floor(r() * VALID_EYES.length)]!,
       eyeColor: shares && child.eyeColor ? child.eyeColor : eyeColorFor(r, skin),
       glasses: r() < 0.35 ? VALID_GLASSES[1 + Math.floor(r() * (VALID_GLASSES.length - 1))]! : 'aucune',

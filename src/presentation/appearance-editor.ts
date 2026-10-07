@@ -4,6 +4,7 @@
  * palier ; barbe à partir de 16 ans ; « Aléatoire » déterministe.
  */
 import type { PlayerAppearance, PlayerGender } from '../core/types';
+import { BODY_SHAPE_INFO, BODY_SHAPE_KEYS } from '../core/types';
 import {
   ADULT_HEIGHT_MAX_CM, ADULT_HEIGHT_MIN_CM, adultHeightOf, familyLooks, formatHeight, heightAtAge,
 } from '../core/human_variety';
@@ -132,6 +133,26 @@ export function buildAppearanceEditor(initial: PlayerAppearance, opts: Appearanc
       range.addEventListener('input', () => refresh(Number(range.value)));
       range.addEventListener('change', () => change({ adultHeightCm: Number(range.value) }));
       g.append(range, now);
+      // Silhouette adulte : réglée dès maintenant, visible à partir de 18 ans.
+      const sil = group(opts.age >= 18 ? 'Silhouette' : 'Silhouette adulte (visible à partir de 18 ans ; avant, ton corps suit ton âge)');
+      for (const key of BODY_SHAPE_KEYS) {
+        const info = BODY_SHAPE_INFO[key];
+        const row = h('label', 'ae-shape');
+        const val = a.physique?.[key] ?? 0;
+        row.appendChild(h('span', 'ae-shape-label', info.label));
+        row.appendChild(h('span', 'ae-shape-end', info.low));
+        const r = h('input', 'ae-range ae-shape-range');
+        r.type = 'range';
+        r.min = '-1';
+        r.max = '1';
+        r.step = '0.05';
+        r.value = String(val);
+        r.setAttribute('aria-label', info.label);
+        r.addEventListener('change', () => change({ physique: { ...(a.physique ?? {}), [key]: Number(r.value) } }));
+        row.appendChild(r);
+        row.appendChild(h('span', 'ae-shape-end', info.high));
+        sil.appendChild(row);
+      }
       // La famille suit le personnage : teintes, cheveux, yeux et tailles cohérents.
       const fam = group('Ta famille (elle découle de tes choix)');
       for (const p of familyLooks(a, gender)) {
@@ -222,6 +243,9 @@ function ensureEditorStyles(): void {
   .ae-tab:focus-visible, .ae-swatch:focus-visible, .ae-pill:focus-visible { outline: 3px solid #f48c5d; outline-offset: 2px; }
   .ae-range { width: 100%; accent-color: #3c2a20; }
   .ae-note { margin: 4px 0 0; font-size: 12px; opacity: 0.8; }
+  .ae-shape { display: grid; grid-template-columns: 9.5em 4.5em 1fr 5.5em; align-items: center; gap: 6px; font-size: 12px; margin-top: 3px; }
+  .ae-shape-end { font-size: 11px; opacity: 0.7; }
+  .ae-shape-end:last-child { text-align: left; }
   .ae-family { display: flex; align-items: center; gap: 6px; font-size: 12.5px; margin-top: 4px; }
   .ae-family-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--sw); border: 1px solid rgba(0,0,0,0.3); flex: 0 0 auto; }
   .avatar-preview-canvas { width: 100%; max-width: 240px; aspect-ratio: 4 / 5; height: auto; display: block; margin: 0 auto; cursor: grab; border-radius: 16px; background: radial-gradient(ellipse at 50% 40%, #fff7e6 0%, #e9d9bc 100%); }

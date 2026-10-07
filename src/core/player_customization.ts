@@ -3,6 +3,7 @@
  * Définit les types stricts, tokens d'apparence, règles d'allocation des caractéristiques,
  * constructeur de monde personnalisé et logique de migration de sauvegarde vers v10.
  */
+import { BODY_SHAPE_KEYS, type BodyShape, type BodyShapeKey } from './types';
 import { ADULT_HEIGHT_MAX_CM, ADULT_HEIGHT_MIN_CM, adultHeightOf } from './human_variety';
 import {
   DEFAULT_PLAYER_APPEARANCE,
@@ -416,6 +417,16 @@ export function validateAppearance(raw: unknown): AppearanceValidationResult {
     if (typeof obj.adultHeightCm === 'number' && Number.isFinite(obj.adultHeightCm) && obj.adultHeightCm >= ADULT_HEIGHT_MIN_CM && obj.adultHeightCm <= ADULT_HEIGHT_MAX_CM) adultHeightCm = Math.round(obj.adultHeightCm);
     else errors.push(`Taille adulte invalide : « ${String(obj.adultHeightCm)} » (de ${ADULT_HEIGHT_MIN_CM} à ${ADULT_HEIGHT_MAX_CM} cm).`);
   }
+  let physique: BodyShape | undefined;
+  if (obj.physique !== undefined) {
+    if (typeof obj.physique === 'object' && obj.physique !== null) {
+      physique = {};
+      for (const [k, v] of Object.entries(obj.physique as Record<string, unknown>)) {
+        if (BODY_SHAPE_KEYS.includes(k as BodyShapeKey) && typeof v === 'number' && Number.isFinite(v) && v >= -1 && v <= 1) physique[k as BodyShapeKey] = v;
+        else errors.push(`Silhouette invalide : « ${k} = ${String(v)} » (de −1 à +1).`);
+      }
+    } else errors.push('Silhouette invalide.');
+  }
   let freckles = false;
   if (obj.freckles !== undefined) {
     if (typeof obj.freckles === 'boolean') freckles = obj.freckles;
@@ -433,6 +444,7 @@ export function validateAppearance(raw: unknown): AppearanceValidationResult {
       outfitColor,
       body, heightAdj, eyes, eyeColor, glasses, freckles, beard, accessory,
       ...(adultHeightCm !== undefined ? { adultHeightCm } : {}),
+      ...(physique !== undefined ? { physique } : {}),
     },
   };
 }

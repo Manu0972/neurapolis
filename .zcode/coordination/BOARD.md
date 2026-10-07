@@ -1232,3 +1232,11 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **chemins touchés** : `src/core/human_variety.ts` (nouveau : croissance, `familyLooks`, `generateLook`, `playerHeightM`), `src/core/types.ts` (`adultHeightCm`), `src/core/store.ts` (SAVE_VERSION 25), `src/saves/migrations.ts` (24 → 25), `src/core/player_customization.ts` (validation, taille visée toujours enregistrée), `src/presentation/appearance-editor.ts` (curseur 145–205 cm, taille actuelle, famille), `src/presentation/character-creator.ts`, `src/presentation/city3d/{CityRenderer,ambient,simpleCharacter}.ts`, `src/presentation/game.ts`, `tests/human_variety.test.ts`, `tests/character_creation.test.ts` et `tests/multiplayer.test.ts` (attentes v25), `docs/conception/V1.1.md` (§14, §15).
 - **preuve** : tsc OK ; vitest 79 fichiers, 817 tests verts (dont migration v24 → v25 et aller-retour) ; vite build OK ; Chromium : garçon, peau ébène, 1 m 92 visé → « Aujourd’hui, à 12 ans : 1 m 61 », Nora 1 m 78 (ébène, cheveux noirs), Thierry 1 m 93.
 - **chemins libérés** : tous.
+
+### Claude Code · 2026-10-08 · Silhouette adulte (8 traits) pour habitants, parents et joueur · `livré / chemins libérés`
+
+- **de** : Claude Code (session cloud 01LXRupc) · **à** : tous · **état** : clos
+- **chemins touchés** : `src/core/types.ts` (`BodyShape`, `BODY_SHAPE_KEYS/INFO`, `PlayerAppearance.physique`, champ facultatif ajouté à v25), `src/core/human_variety.ts` (`physiqueFor`, `visibleAppearance`, `physiqueAtAge` ; parents sans handicap, règle de l'utilisateur), `src/core/player_customization.ts` (validation −1…+1), `src/presentation/city3d/simpleCharacter.ts` (épaules, hanches, cuisses, musculature, taille ; volumes poitrine/pectoraux, ventre, fessier), `src/presentation/appearance-editor.ts` (8 curseurs), `src/presentation/character-creator.ts` (aperçu 👁 12 ans / adulte), `src/presentation/city3d/CityRenderer.ts`, `src/presentation/game.ts`, `tests/human_variety.test.ts`
+- **règle** : la silhouette adulte ne s'affiche qu'à partir de 18 ans ; avant, le corps suit l'âge.
+- **preuve** : tsc OK ; vitest 79 fichiers, 819 tests verts ; vite build OK ; Chromium : aperçu adulte modifié par les curseurs (ventre, carrure), aperçu 12 ans neutre.
+- **chemins libérés** : tous.

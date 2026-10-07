@@ -10,7 +10,7 @@
  * Même API que le module promis à Jules (`characters.ts`). Pieds à y = 0, regard vers −Z.
  */
 import * as THREE from 'three';
-import type { PlayerAppearance, PlayerGender } from '../../core/types';
+import type { BodyShape, BodyShapeKey, PlayerAppearance, PlayerGender } from '../../core/types';
 import { DEFAULT_PLAYER_APPEARANCE } from '../../core/types';
 import { EYE_COLOR_INFO, HAIR_COLOR_INFO, OUTFIT_COLOR_INFO, SKIN_TONE_INFO } from '../../core/player_customization';
 
@@ -24,6 +24,8 @@ export interface CharacterSpec {
   legColor?: string;
   /** « low » pour la foule d'ambiance : silhouette complète, petits détails du visage omis, une seule ombre. */
   detail?: 'full' | 'low';
+  /** Silhouette adulte (−1…+1 par trait) ; absente avant 18 ans (le corps suit l'âge). */
+  physique?: BodyShape;
 }
 
 export interface Character3D {
@@ -103,7 +105,13 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   const H = baseH;
   const k = H / 1.7; // échelle relative à un adulte de 1,70 m
   const build = { fine: 0.86, moyenne: 1, sportive: 1.08, ronde: 1.22 }[a.body ?? 'moyenne'];
-  const limb = { fine: 0.88, moyenne: 1, sportive: 1.1, ronde: 1.14 }[a.body ?? 'moyenne'];
+  // Silhouette adulte : chaque trait module un volume (0 = moyen).
+  const physique = spec.physique ?? a.physique;
+  const ph = (key: BodyShapeKey): number => physique?.[key] ?? 0;
+  const shoulderW = 1 + 0.12 * ph('epaules');
+  const hipW = 1 + 0.2 * ph('hanches');
+  const thighW = 1 + 0.25 * ph('cuisses');
+  const limb = { fine: 0.88, moyenne: 1, sportive: 1.1, ronde: 1.14 }[a.body ?? 'moyenne'] * (1 + 0.18 * ph('muscles'));
   const skin = SKIN_TONE_INFO[a.skinTone]?.hex ?? '#e2ad7a';
   const hair = HAIR_COLOR_INFO[a.hairColor]?.hex ?? '#6b4a2f';
   const look = outfitLook(a, spec.bodyColor, spec.legColor);
@@ -136,9 +144,9 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   const shoeG = geo('v2shoe', () => new THREE.CapsuleGeometry(0.055, 0.13, 4, 8).rotateX(Math.PI / 2).scale(1.05, 0.75, 1).translate(0, -0.02, -0.05));
   const makeLeg = (side: number): { hip: THREE.Group; knee: THREE.Group; ankle: THREE.Group } => {
     const hip = new THREE.Group();
-    hip.position.set(side * 0.095 * k * build, 0.86 * k, 0);
+    hip.position.set(side * 0.095 * k * build * (1 + 0.15 * ph('hanches')), 0.86 * k, 0);
     const thigh = mk(thighG, legM);
-    thigh.scale.set(k * limb * build, k, k * limb * build);
+    thigh.scale.set(k * limb * build * thighW, k, k * limb * build * thighW);
     hip.add(thigh);
     const knee = new THREE.Group();
     knee.position.y = -0.41 * k;
@@ -161,8 +169,22 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   // --- Bassin et torse arrondis ---
   const pelvis = mk(geo('v2pelvis', () => new THREE.SphereGeometry(0.135, 14, 10).scale(1.05, 0.5, 0.72)), legM);
   pelvis.position.y = 0.9 * k;
-  pelvis.scale.set(k * build, k, k * build);
+  pelvis.scale.set(k * build * hipW, k, k * build);
   hips.add(pelvis);
+  if (physique) {
+    // Fessier : deux volumes à l'arrière du bassin (dos = +Z).
+    const g = ph('fessier');
+    if (g > -0.7) {
+      const gG = geo('v2glute', () => new THREE.SphereGeometry(0.075, 12, 10));
+      for (const side of [-1, 1]) {
+        const glute = mk(gG, legM);
+        const r = 0.75 + 0.45 * g;
+        glute.position.set(side * 0.058 * k * build * hipW, 0.87 * k, (0.035 + 0.03 * g) * k * build);
+        glute.scale.set(k * build * r, k * r * 0.95, k * build * r * 0.9);
+        hips.add(glute);
+      }
+    }
+  }
   chest.position.y = 0.92 * k;
   // Torse sculpté : taille fine, poitrine pleine, épaules arrondies (profil tourné).
   const torso = mk(geo('v2torsoLathe', () => new THREE.LatheGeometry([
@@ -171,8 +193,29 @@ export function createCharacter(spec: CharacterSpec): Character3D {
     new THREE.Vector2(0.045, 0.58), new THREE.Vector2(0.001, 0.585),
   ], 18).scale(1.18, 1, 0.72)), topM);
   torso.position.y = 0.02 * k;
-  torso.scale.set(k * build, k, k * build);
+  torso.scale.set(k * build * shoulderW, k, k * build * (1 + 0.08 * ph('taille')));
   chest.add(torso);
+  if (physique) {
+    // Poitrine ou pectoraux, et ventre : des volumes sous le haut (même tissu).
+    const b = ph('poitrine');
+    if (b > -0.6) {
+      const bG = geo('v2bust', () => new THREE.SphereGeometry(0.06, 12, 10));
+      for (const side of [-1, 1]) {
+        const m = mk(bG, topM, false);
+        const r = 0.55 + 0.55 * (b + 0.6) / 1.6;
+        m.position.set(side * 0.058 * k * build * shoulderW, 0.33 * k, -(0.088 + 0.02 * r) * k * build);
+        m.scale.set(k * build * r, k * r * 0.9, k * build * r * (0.55 + 0.35 * Math.max(0, b)));
+        chest.add(m);
+      }
+    }
+    const v = ph('ventre');
+    if (v > 0) {
+      const belly = mk(geo('v2belly', () => new THREE.SphereGeometry(0.11, 14, 10)), topM, false);
+      belly.position.set(0, 0.11 * k, -(0.05 + 0.03 * v) * k * build);
+      belly.scale.set(k * build * (0.9 + 0.3 * v), k * (0.8 + 0.2 * v), k * build * (0.5 + 0.45 * v));
+      chest.add(belly);
+    }
+  }
   torso.castShadow = true;
   if (jacketM) {
     // Veste : coque qui épouse le torse, ouverte devant (la chemise et la cravate restent visibles).
@@ -187,7 +230,7 @@ export function createCharacter(spec: CharacterSpec): Character3D {
     const jm = matDouble(look.jacket ?? '#333333', 0.75);
     const shell = mk(geo(coatLong ? 'v2coatShell' : 'v2jacketShell', () => new THREE.LatheGeometry(profile, 20, Math.PI + gap / 2, Math.PI * 2 - gap).scale(1.18, 1, 0.74)), jm);
     shell.position.y = 0.02 * k;
-    shell.scale.set(k * build, k, k * build);
+    shell.scale.set(k * build * shoulderW, k, k * build * (1 + 0.08 * ph('taille')));
     chest.add(shell);
     // Revers du col.
     for (const side of [-1, 1]) {
@@ -268,7 +311,7 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   const sleeveM = jacketM ?? topM;
   const makeArm = (side: number): { shoulder: THREE.Group; elbow: THREE.Group } => {
     const shoulder = new THREE.Group();
-    shoulder.position.set(side * 0.158 * k * build, 0.49 * k, 0.005 * k);
+    shoulder.position.set(side * 0.158 * k * build * shoulderW, 0.49 * k, 0.005 * k);
     if (full) {
       const cap = mk(shoulderG, sleeveM);
       cap.scale.setScalar(k * limb);

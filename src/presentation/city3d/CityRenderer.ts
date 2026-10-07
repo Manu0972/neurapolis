@@ -5,7 +5,7 @@
  * Voir docs/VISION.md §5.
  */
 import * as THREE from 'three';
-import { generateLook, playerHeightM } from '../../core/human_variety';
+import { generateLook, playerHeightM, visibleAppearance } from '../../core/human_variety';
 import type { NpcId, PlayerGender, WorldState } from '../../core/types';
 import { minutesOfDay } from '../../core/clock';
 import { NPC_BY_ID } from '../../data/npcs';
@@ -545,7 +545,7 @@ export class CityRenderer {
     const key = JSON.stringify(p.appearance) + p.age;
     if (!this.player || key !== this.playerKey) {
       this.player?.dispose();
-      this.player = createCharacter({ appearance: p.appearance, gender: p.gender, heightM: playerHeightM(p) });
+      this.player = createCharacter({ appearance: visibleAppearance(p.appearance, p.age), gender: p.gender, heightM: playerHeightM(p) });
       this.scene.add(this.player.root);
       this.playerKey = key;
     }

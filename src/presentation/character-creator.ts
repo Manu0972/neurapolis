@@ -6,7 +6,7 @@
  * - Apparence : Peau, Cheveux (couleur/coupe), Tenue (style/couleur)
  * - Aperçu en direct et validation conditionnelle.
  */
-import { adultHeightOf, heightAtAge } from '../core/human_variety';
+import { adultHeightOf, heightAtAge, visibleAppearance } from '../core/human_variety';
 import {
   type Characteristics,
   type PlayerAppearance,
@@ -378,6 +378,25 @@ export function mountCharacterCreation(
     avatarBox.style.cssText = 'margin:0 auto 0.75rem auto;max-width:240px;';
   }
   previewCard.appendChild(avatarBox);
+  // Aperçu à 12 ans (le départ) ou adulte (taille visée et silhouette réglées).
+  let previewAdult = false;
+  const ageToggle = document.createElement('div');
+  ageToggle.className = 'creator-age-toggle';
+  const ageBtns: HTMLButtonElement[] = [];
+  for (const [adult, label] of [[false, '12 ans'], [true, 'Adulte']] as const) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `creator-small-btn${adult === previewAdult ? ' on' : ''}`;
+    b.textContent = `👁 ${label}`;
+    b.addEventListener('click', () => {
+      previewAdult = adult;
+      ageBtns.forEach((x, i) => x.classList.toggle('on', (i === 1) === adult));
+      updatePreview();
+    });
+    ageBtns.push(b);
+    ageToggle.appendChild(b);
+  }
+  if (preview3d) previewCard.appendChild(ageToggle);
 
   // Nom complet & Genre
   const previewName = document.createElement('h3');
@@ -520,7 +539,8 @@ export function mountCharacterCreation(
     }
 
     // Rendu dynamique du sprite pixel-art sur le mini Canvas
-    preview3d?.setAppearance(appearance, gender, heightAtAge(12, adultHeightOf(appearance, gender), gender));
+    const shownAge = previewAdult ? 18 : 12;
+    preview3d?.setAppearance(visibleAppearance(appearance, shownAge), gender, heightAtAge(shownAge, adultHeightOf(appearance, gender), gender));
     const avatarBoxEl = document.getElementById('preview-avatar');
     if (avatarBoxEl) {
       avatarBoxEl.style.borderColor = OUTFIT_COLOR_INFO[appearance.outfitColor].hex;
@@ -660,6 +680,8 @@ function ensureCreatorStyles(): void {
         grid-template-columns: 1fr;
       }
     }
+    .creator-age-toggle { display: flex; gap: 6px; justify-content: center; margin: -0.25rem 0 0.75rem; }
+    .creator-age-toggle .creator-small-btn.on { background: #3c2a20; color: #fbf8f2; opacity: 1; }
     .creator-preview-col {
       position: sticky;
       top: 1rem;
