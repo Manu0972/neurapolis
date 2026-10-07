@@ -405,3 +405,55 @@ describe('clients présents en boutique', () => {
     expect(customersInStore(w, b)).toBe(0);
   });
 });
+
+describe('propriété des murs (save v15)', () => {
+  it('réservée aux adultes ; acheter les murs supprime le loyer de son commerce', async () => {
+    const { buyProperty, propertyPrice } = await import('../src/simulation/economy');
+    const kid = createWorld();
+    kid.player.money = 1_000_000;
+    const unit = listUnits(kid).find((l) => l.status === 'libre' && l.unit.id.startsWith('local_'))!.unit;
+    expect(buyProperty(kid, unit.id).ok).toBe(false);
+
+    const w = createWorld({ sandbox: true });
+    w.player.money = 1_000_000;
+    signLease(w, unit.id);
+    openBusiness(w, unit.id, 't_epicerie_quartier', 'Chez moi');
+    const price = propertyPrice(w, unit);
+    expect(price).toBeGreaterThan(0);
+    const before = w.player.money;
+    const deposit = w.economy!.leases[unit.id]!.deposit;
+    expect(buyProperty(w, unit.id).ok).toBe(true);
+    expect(w.economy!.leases[unit.id]!.rentPerDay).toBe(0);
+    expect(w.player.money).toBeCloseTo(before - price + deposit, 2); // le dépôt de garantie est rendu
+    const biz = Object.keys(w.economy!.businesses)[0]!;
+    transferCash(w, biz, 100);
+    const cash = w.economy!.businesses[biz]!.cash;
+    economyDay(w, 0);
+    expect(w.economy!.businesses[biz]!.cash).toBe(cash); // plus de loyer prélevé
+  });
+
+  it('louer des murs vides rapporte un loyer chaque nuit ; on peut les revendre', async () => {
+    const { buyProperty, rentOutProperty, sellProperty } = await import('../src/simulation/economy');
+    const w = createWorld({ sandbox: true });
+    w.player.money = 1_000_000;
+    const unit = listUnits(w).find((l) => l.status === 'libre' && l.unit.id.startsWith('local_'))!.unit;
+    buyProperty(w, unit.id);
+    expect(rentOutProperty(w, unit.id).ok).toBe(true);
+    expect(listUnits(w).find((l) => l.unit.id === unit.id)!.status).toBe('occupe');
+    const m = w.player.money;
+    economyDay(w, 0);
+    expect(w.player.money).toBeGreaterThan(m);
+    // Un locataire occupe les murs : on ne peut ni les louer soi-même ni les revendre… sauf qu'on peut vendre avec locataire.
+    expect(leaseEligibility(w, unit.id).allowed).toBe(false);
+    expect(sellProperty(w, unit.id).ok).toBe(true);
+    expect(w.economy!.owned![unit.id]).toBeUndefined();
+  });
+
+  it('une sauvegarde v14 reçoit une liste de propriétés vide', () => {
+    const w = createWorld();
+    const raw = JSON.parse(exportSave(w)) as { version: number; economy: Record<string, unknown> };
+    raw.version = 14;
+    delete raw.economy.owned;
+    expect(migrateSave(raw).economy!.owned).toEqual({});
+  });
+});

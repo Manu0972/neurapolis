@@ -13,6 +13,7 @@ import {
   equipmentCapacity, fire, freeSpaceFor, hire, leaseEligibility, listUnits, loanOffer, openBusiness, orderStock,
   priceIndex, priceOf, readiness, refreshJobMarket, repayLoan, runMarketing, sellFurniture, setHours, setOpen,
   setPrice, setWage, signLease, stockUnits, storageCapacity, takeLoan, transferCash, usedFloor, FLOOR_USE, nearbyCompetitors,
+  buyProperty, propertyPrice, rentOutProperty, sellProperty,
   type EconomyResult,
 } from '../simulation/economy';
 import { el } from './ui';
@@ -128,6 +129,26 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'commerces', focus?
         actions.appendChild(button(`Gérer ${e().businesses[l.businessId]?.name ?? ''}`, () => { selectedBiz = l.businessId; current = 'commerces'; render(); }, 'ph-btn primary'));
       } else {
         for (const node of createBusinessForm(l.unit.id)) actions.appendChild(node);
+      }
+      // Propriété des murs (adulte ou bac à sable).
+      const owned = w.economy?.owned?.[l.unit.id];
+      const isStall = l.unit.buildingId.startsWith('etal_');
+      if (owned) {
+        card.appendChild(el('p', 'ph-note', `🏛️ Tu possèdes ces murs (achetés ${owned.price.toLocaleString('fr-FR')} €)${owned.tenant ? ` · loué à ${owned.tenant.name} : ${owned.tenant.rentPerDay.toFixed(2)} €/jour` : ''}.`));
+        if (!owned.tenant && l.status !== 'loue_joueur') actions.appendChild(button('Mettre en location', () => act(rentOutProperty(w, l.unit.id))));
+        if (l.status !== 'loue_joueur') {
+          actions.appendChild(button('Vendre les murs', () => {
+            if (window.confirm('Vendre ces murs ? 7 % de frais de vente.')) act(sellProperty(w, l.unit.id));
+          }, 'ph-btn danger'));
+        }
+      } else if (!isStall && l.status !== 'occupe') {
+        const adult = w.economy?.sandbox || w.player.age >= 18;
+        const buy = button(`Acheter les murs (${propertyPrice(w, l.unit).toLocaleString('fr-FR')} €)`, () => {
+          if (window.confirm('Acheter les murs de ce local ?')) act(buyProperty(w, l.unit.id));
+        });
+        buy.disabled = !adult;
+        buy.title = adult ? '' : 'Réservé aux 18 ans et plus (ou au mode bac à sable).';
+        actions.appendChild(buy);
       }
       if (l.status === 'loue_joueur') {
         actions.appendChild(button('Rendre le local', () => {

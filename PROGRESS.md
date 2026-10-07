@@ -45,6 +45,6 @@
 - [x] **Expansion, première tranche** (2026-10-07 ; quartier de la Gare et du laminoir à l'est, locaux `gare_*` ; chronologie 2020-2045 branchée : actualités + demande ; fermeture du laminoir en 2032) : préparer un deuxième quartier (gare, laminoir) et la fermeture du laminoir en 2032 comme événement jouable.
 - [ ] **Voyages** : depuis la gare, partir (âge adulte ou vacances) vers Néo-Baie ou Plateau Blanc (fiches de `2.pdf`, `docs/VISION.md` §3.6) ; d'abord un écran de voyage et une carte régionale, puis une deuxième ville jouable.
 - [ ] **Reprise du laminoir en coopérative (2032)** : choix jouable proposé par Karim et TaretCoop après la fermeture (rachat, reprise ouvrière, reconversion), avec effets sur le quartier de la Gare.
-- [ ] **Achat de murs** : acheter un local ou un immeuble (plus de loyer, valeur patrimoniale, loyers perçus), réservé à l'âge adulte ou au bac à sable.
+- [x] **Achat de murs** (2026-10-07 ; rendement 8 %, loyer supprimé pour son commerce, mise en location, revente à −7 % ; save v15) : acheter un local ou un immeuble (plus de loyer, valeur patrimoniale, loyers perçus), réservé à l'âge adulte ou au bac à sable.
 - [x] **Clients et employés à l'intérieur** (2026-10-07 ; `customersInStore`, employés nommés à la caisse et aux rayons) : voir ses employés derrière la caisse et des clients faire leurs courses dans les commerces du joueur, en nombre tiré des ventes réelles de l'heure.
 

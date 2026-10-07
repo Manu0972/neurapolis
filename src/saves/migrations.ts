@@ -330,6 +330,13 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
     s.version = 14;
     return s;
   },
+  // 14 → 15 : propriété des murs (achat de locaux, locataires) — vide par défaut.
+  14: (s) => {
+    const eco = s.economy as AnySave | undefined;
+    if (eco && (typeof eco.owned !== 'object' || eco.owned === null)) eco.owned = {};
+    s.version = 15;
+    return s;
+  },
 };
 
 export const CURRENT_SAVE_VERSION = SAVE_VERSION;

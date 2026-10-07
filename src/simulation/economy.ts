@@ -118,8 +118,10 @@ export function listUnits(w: WorldState): UnitListing[] {
     const rent = lease ? lease.rentPerDay : marketRent(w, u);
     const biz = Object.values(e.businesses).find((b) => b.unitId === u.id);
     const comp = COMPETITOR_BY_UNIT[u.id];
-    const status: UnitStatus = lease ? 'loue_joueur' : comp ? 'occupe' : 'libre';
-    return { unit: u, status, rentPerDay: rent, deposit: round2(rent * DEPOSIT_DAYS), businessId: biz?.id, competitor: comp ? `${comp.shopName} (${comp.owner})` : undefined };
+    const tenant = e.owned?.[u.id]?.tenant;
+    const status: UnitStatus = lease ? 'loue_joueur' : comp || tenant ? 'occupe' : 'libre';
+    const competitor = comp ? `${comp.shopName} (${comp.owner})` : tenant ? `${tenant.name} (ton locataire)` : undefined;
+    return { unit: u, status, rentPerDay: rent, deposit: round2(rent * DEPOSIT_DAYS), businessId: biz?.id, competitor };
   });
 }
 
@@ -141,6 +143,8 @@ export function leaseEligibility(w: WorldState, unitId: string): Eligibility {
   if (e.leases[unitId]) return { allowed: false, coSigner: null, reason: 'Tu loues déjà ce local.' };
   const comp = COMPETITOR_BY_UNIT[unitId];
   if (comp) return { allowed: false, coSigner: null, reason: `Ce local est occupé par ${comp.shopName}, tenu par ${comp.owner}.` };
+  const tenant = e.owned?.[unitId]?.tenant;
+  if (tenant) return { allowed: false, coSigner: null, reason: `Ton locataire ${tenant.name} occupe ces murs.` };
   if (e.sandbox || w.player.age >= ADULT_AGE) return { allowed: true, coSigner: null, reason: 'Tu peux signer seul.' };
   const stall = u.buildingId.startsWith('etal_');
   if (stall) return { allowed: true, coSigner: 'parent', reason: 'Tes parents acceptent de signer pour un étal du marché.' };
@@ -163,7 +167,9 @@ export function signLease(w: WorldState, unitId: string): EconomyResult {
   if (!u) return ko('Local inconnu.');
   const el = leaseEligibility(w, unitId);
   if (!el.allowed) return ko(el.reason);
-  const rent = marketRent(w, u);
+  // Murs possédés : pas de loyer ni de dépôt pour son propre commerce.
+  const own = !!e.owned?.[unitId];
+  const rent = own ? 0 : marketRent(w, u);
   const deposit = round2(rent * DEPOSIT_DAYS);
   if (w.player.money < deposit) return ko(`Il faut ${deposit.toFixed(2)} € de dépôt de garantie (${DEPOSIT_DAYS} jours de loyer). Tu as ${w.player.money.toFixed(2)} €.`);
   w.player.money = round2(w.player.money - deposit);
@@ -203,6 +209,80 @@ export function endLease(w: WorldState, unitId: string, reason: 'volontaire' | '
   return ok(reason === 'expulsion'
     ? `Expulsion : loyers impayés. Le local ${UNIT_BY_ID[unitId]?.address ?? ''} est repris.`
     : `Local rendu. Tu récupères ${refund.toFixed(2)} €.`);
+}
+
+// ---------- Propriété des murs ----------
+
+/** Rendement locatif brut d'un local commercial (environ 8 % par an). */
+export const PROPERTY_YIELD = 0.08;
+
+/** Prix des murs : loyer annuel de marché capitalisé au rendement. */
+export function propertyPrice(w: WorldState, u: CommercialUnitDef): number {
+  return Math.round((marketRent(w, u) * 365) / PROPERTY_YIELD / 100) * 100;
+}
+
+export function ownsUnit(w: WorldState, unitId: string): boolean {
+  return !!w.economy?.owned?.[unitId];
+}
+
+export function buyProperty(w: WorldState, unitId: string): EconomyResult {
+  const e = ensureEconomy(w);
+  const u = UNIT_BY_ID[unitId];
+  if (!u) return ko('Local inconnu.');
+  if (u.buildingId.startsWith('etal_')) return ko('Les étals appartiennent à la commune.');
+  if (!e.sandbox && w.player.age < ADULT_AGE) return ko(`Acheter des murs demande d’avoir ${ADULT_AGE} ans (ou le mode bac à sable).`);
+  if (COMPETITOR_BY_UNIT[unitId]) return ko('Ce local appartient à son commerçant et n’est pas à vendre.');
+  if (e.owned?.[unitId]) return ko('Tu possèdes déjà ces murs.');
+  const price = propertyPrice(w, u);
+  if (w.player.money < price) return ko(`Il faut ${price.toLocaleString('fr-FR')} € (tu as ${w.player.money.toFixed(2)} €). La banque peut t’aider.`);
+  w.player.money = round2(w.player.money - price);
+  e.owned = { ...(e.owned ?? {}), [unitId]: { unitId, price, boughtDay: today(w), tenant: null } };
+  // Plus de loyer à payer pour son propre commerce : le bail est soldé et le dépôt rendu.
+  const lease = e.leases[unitId];
+  if (lease) {
+    w.player.money = round2(w.player.money + lease.deposit);
+    lease.rentPerDay = 0;
+    lease.deposit = 0;
+  }
+  pushEvent(w, {
+    type: 'opportunite',
+    title: `Propriétaire : ${u.address}`,
+    text: `Tu achètes les murs pour ${price.toLocaleString('fr-FR')} €. ${lease ? 'Ton commerce ne paie plus de loyer.' : 'Tu peux y ouvrir un commerce ou le louer.'}`,
+    causes: [
+      { facteur: 'loyer annuel de marché capitalisé', seuil: `${(PROPERTY_YIELD * 100).toFixed(0)} % de rendement`, poids: 2 },
+      { facteur: 'trafic devant la vitrine', seuil: `${u.footTraffic} passants/h`, poids: 1 },
+    ],
+  });
+  return ok(`Murs achetés : ${u.address} (${price.toLocaleString('fr-FR')} €).`);
+}
+
+/** Loue des murs vides à un commerçant : un loyer est perçu chaque nuit. */
+export function rentOutProperty(w: WorldState, unitId: string): EconomyResult {
+  const e = ensureEconomy(w);
+  const p = e.owned?.[unitId];
+  const u = UNIT_BY_ID[unitId];
+  if (!p || !u) return ko('Tu ne possèdes pas ces murs.');
+  if (e.leases[unitId]) return ko('Ton propre commerce occupe ce local.');
+  if (p.tenant) return ko(`Déjà loué à ${p.tenant.name}.`);
+  const names = ['Atelier Lumière', 'Le Comptoir du Taret', 'Mode & Retouches', 'Pizzeria du Canal', 'Cycles Express', 'La Bonne Graine'];
+  const name = names[Math.floor(econRand(w, 'locataire', unitId, today(w)) * names.length)]!;
+  p.tenant = { name, rentPerDay: round2(marketRent(w, u) * 0.95) };
+  return ok(`${name} s’installe : ${p.tenant.rentPerDay.toFixed(2)} € de loyer par jour.`);
+}
+
+export function sellProperty(w: WorldState, unitId: string): EconomyResult {
+  const e = ensureEconomy(w);
+  const p = e.owned?.[unitId];
+  const u = UNIT_BY_ID[unitId];
+  if (!p || !u) return ko('Tu ne possèdes pas ces murs.');
+  if (e.leases[unitId]) return ko('Rends d’abord le local de ton commerce.');
+  // Frais de vente (notaire, agence) : 7 %.
+  const value = Math.round(propertyPrice(w, u) * 0.93);
+  w.player.money = round2(w.player.money + value);
+  const next = { ...(e.owned ?? {}) };
+  delete next[unitId];
+  e.owned = next;
+  return ok(`Murs vendus ${value.toLocaleString('fr-FR')} € (frais de vente de 7 % déduits).`);
 }
 
 // ---------- Commerces ----------
@@ -1036,6 +1116,12 @@ export function economyDay(w: WorldState, closedDay: number): Notification[] {
       e.loans = e.loans.filter((x) => x !== l);
       out.push(notify('info', 'Prêt entièrement remboursé.'));
     }
+  }
+  // Loyers perçus des locataires.
+  for (const p of Object.values(e.owned ?? {})) {
+    if (!p.tenant) continue;
+    w.player.money = round2(w.player.money + p.tenant.rentPerDay);
+    w.flags['loyersPercus'] = round2((w.flags['loyersPercus'] ?? 0) + p.tenant.rentPerDay);
   }
   refreshJobMarket(w);
   return out;

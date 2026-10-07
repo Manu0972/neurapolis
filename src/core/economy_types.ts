@@ -266,6 +266,16 @@ export interface EconomyState {
   carryCapacity: number;
   /** Compteur monotone pour fabriquer des identifiants stables. */
   nextId: number;
+  /** Locaux dont le joueur possède les murs (save v15). */
+  owned?: Record<string, OwnedProperty>;
+}
+
+export interface OwnedProperty {
+  unitId: string;
+  price: number;
+  boughtDay: number;
+  /** Locataire installé par le joueur (commerçant), loyer journalier perçu. */
+  tenant: { name: string; rentPerDay: number } | null;
 }
 
 /** État économique vide (nouvelle partie ou migration). `sandbox` débloque tout dès le départ. */
@@ -281,5 +291,6 @@ export function createEconomyState(sandbox = false): EconomyState {
     carried: [],
     carryCapacity: 40,
     nextId: 1,
+    owned: {},
   };
 }
