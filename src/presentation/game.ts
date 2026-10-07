@@ -67,6 +67,7 @@ import { openPhone, type PhoneApp } from './phone';
 import { BUSINESS_TYPE_BY_ID, WHOLESALER_BY_ID } from '../data/economy';
 import { UNIT_BY_ID, ensureEconomy, pickUpOrder, pickupPoint, unloadAt, businessDoor } from '../simulation/economy';
 import { streetNameAt, unitAt } from '../data/map';
+import { COMPETITOR_BY_UNIT } from '../data/city/competitors';
 import { drawMinimap, renderCityMap } from './minimap';
 import { businessInteriorSpec, placeHasInterior, placeInteriorSpec } from './city3d/interior3d';
 import { useFurniture } from '../simulation/interior_actions';
@@ -247,6 +248,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       pickup: (id: string) => pickupPoint(id),
       eco: economyApi,
       enterBusiness: (id: string) => enterBusiness(id),
+      sync: () => { syncSigns(); syncWaypoints(); syncStallCrowds(); },
     },
   };
 
@@ -305,6 +307,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       if (!unitId) continue;
       const u = UNIT_BY_ID[unitId]!;
       const biz = Object.values(e.businesses).find((b) => b.unitId === unitId);
+      const comp = COMPETITOR_BY_UNIT[unitId];
+      if (comp) {
+        return { label: `E — Entrer chez ${comp.shopName}`, run: () => toast(`« ${comp.greeting} » — ${comp.owner}, ${comp.shopName}`, true) };
+      }
       if (biz) {
         if (renderer3D && use3D && !u.buildingId.startsWith('etal_')) {
           return { label: `E — Entrer dans ${biz.name}`, run: () => enterBusiness(biz.id) };
@@ -328,12 +334,32 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     for (const u of Object.values(UNIT_BY_ID)) {
       if (u.buildingId.startsWith('etal_')) continue;
       const biz = Object.values(e.businesses).find((b) => b.unitId === u.id);
-      if (biz) renderer3D.setUnitSign(u.id, `${BUSINESS_TYPE_BY_ID[biz.typeId]?.icon ?? ''} ${biz.name}`, biz.open ? '#2f5d3a' : '#5b4a3a');
+      const comp = COMPETITOR_BY_UNIT[u.id];
+      if (comp) renderer3D.setUnitSign(u.id, comp.shopName, '#2c3f5e');
+      else if (biz) renderer3D.setUnitSign(u.id, `${BUSINESS_TYPE_BY_ID[biz.typeId]?.icon ?? ''} ${biz.name}`, biz.open ? '#2f5d3a' : '#5b4a3a');
       else if (e.leases[u.id]) renderer3D.setUnitSign(u.id, 'BIENTÔT OUVERT', '#6b4a1f');
       else renderer3D.setUnitSign(u.id, 'À LOUER', '#5b5249');
     }
   }
   syncSigns();
+
+  /** Clients devant les étals ouverts : seulement quand quelqu'un sert (le joueur ou un employé). */
+  function syncStallCrowds(): void {
+    const e = world.economy;
+    if (!e || !renderer3D) return;
+    const hour = Math.floor(minutesOfDay(world.time.tick) / 60);
+    const stalls: { x: number; y: number; count: number }[] = [];
+    for (const b of Object.values(e.businesses)) {
+      const u = UNIT_BY_ID[b.unitId];
+      if (!u?.buildingId.startsWith('etal_')) continue;
+      const openNow = b.open && hour >= b.hours[0] && hour < b.hours[1];
+      const served = economyApi.staffCapacity(world, b).staff > 0;
+      const stock = economyApi.stockUnits(b) > 0;
+      const count = openNow && served && stock ? Math.max(1, Math.min(5, Math.round(appeal(b) * 2.2 * (world.district.meteo === 'pluie' ? 0.5 : 1)))) : 0;
+      stalls.push({ ...u.door, count });
+    }
+    renderer3D.setStallCustomers(stalls);
+  }
 
   /** Repères 3D : cartons à retirer (jaune), puis boutique où les décharger (vert). */
   function syncWaypoints(): void {
@@ -2375,6 +2401,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       syncSigns();
       syncWaypoints();
       syncTips();
+      syncStallCrowds();
     }
     if (hudFrame % 2 === 0 && ui.minimapCtx) {
       const pose = playerPose();

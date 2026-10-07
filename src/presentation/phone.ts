@@ -12,7 +12,7 @@ import {
   MARKETING_CHANNELS, UNIT_BY_ID, appeal, buyFurniture, businessTypeAllowed, carriedUnits, endLease, ensureEconomy,
   equipmentCapacity, fire, freeSpaceFor, hire, leaseEligibility, listUnits, loanOffer, openBusiness, orderStock,
   priceIndex, priceOf, readiness, refreshJobMarket, repayLoan, runMarketing, sellFurniture, setHours, setOpen,
-  setPrice, setWage, signLease, stockUnits, storageCapacity, takeLoan, transferCash, usedFloor, FLOOR_USE,
+  setPrice, setWage, signLease, stockUnits, storageCapacity, takeLoan, transferCash, usedFloor, FLOOR_USE, nearbyCompetitors,
   type EconomyResult,
 } from '../simulation/economy';
 import { el } from './ui';
@@ -115,7 +115,9 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'commerces', focus?
       row.appendChild(stat('Dépôt', eur(l.deposit)));
       card.appendChild(row);
       const actions = el('div', 'ph-actions');
-      if (l.status === 'libre') {
+      if (l.status === 'occupe') {
+        card.appendChild(el('p', 'ph-note', `🔒 Occupé : ${l.competitor ?? 'un autre commerce'}.`));
+      } else if (l.status === 'libre') {
         const elig = leaseEligibility(w, l.unit.id);
         const btn = button('Signer le bail', () => act(signLease(w, l.unit.id)), 'ph-btn primary');
         btn.disabled = !elig.allowed;
@@ -200,6 +202,8 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'commerces', focus?
     actions.appendChild(button('− 1 h fermeture', () => act(setHours(w, b.id, b.hours[0], b.hours[1] - 1))));
     top.appendChild(actions);
     if (!ready.ready) top.appendChild(el('p', 'ph-warn', `Pour ouvrir, il manque : ${ready.missing.join(', ')}.`));
+    const rivals = nearbyCompetitors(b);
+    if (rivals.length) top.appendChild(el('p', 'ph-note', `⚔️ Concurrence à proximité : ${rivals.join(', ')}. Des prix sous le marché atténuent leur attrait.`));
     if (stall) top.appendChild(el('p', 'ph-note', 'Sur un étal, tu vends toi-même : reste derrière l’étal pendant les heures d’ouverture (ou embauche quelqu’un).'));
     else if (b.employeeIds.length === 0) top.appendChild(el('p', 'ph-note', 'Sans employé, la boutique ne vend que quand tu es sur place.'));
     screen.appendChild(top);

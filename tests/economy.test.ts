@@ -51,7 +51,7 @@ describe('immobilier commercial', () => {
     const units = listUnits(w);
     expect(units.length).toBeGreaterThan(20);
     for (const l of units) {
-      expect(l.status).toBe('libre');
+      expect(['libre', 'occupe']).toContain(l.status);
       expect(l.deposit).toBeCloseTo(l.rentPerDay * 7, 1);
     }
   });
@@ -300,5 +300,46 @@ describe('sauvegarde de l’économie (v13)', () => {
     delete raw.economy;
     const migrated = migrateSave(raw);
     expect(migrated.economy).toMatchObject({ sandbox: false, leases: {}, businesses: {}, carryCapacity: 40 });
+  });
+});
+
+describe('concurrents en ville', () => {
+  it('des commerçants du lore occupent environ un local sur deux, jamais un étal', async () => {
+    const { COMPETITORS } = await import('../src/data/city/competitors');
+    const closed = listUnits(createWorld()).filter((l) => !l.unit.buildingId.startsWith('etal_'));
+    expect(COMPETITORS.length).toBeGreaterThanOrEqual(8);
+    expect(COMPETITORS.length).toBeLessThanOrEqual(Math.ceil(closed.length / 2));
+    expect(new Set(COMPETITORS.map((c) => c.unitId)).size).toBe(COMPETITORS.length);
+    for (const c of COMPETITORS) expect(c.unitId.startsWith('etal_')).toBe(false);
+  });
+
+  it('un local occupé ne se loue pas, même en bac à sable', async () => {
+    const { COMPETITORS } = await import('../src/data/city/competitors');
+    const w = createWorld({ sandbox: true });
+    w.player.money = 5000;
+    const el = leaseEligibility(w, COMPETITORS[0]!.unitId);
+    expect(el.allowed).toBe(false);
+    expect(el.reason).toMatch(/occupé/);
+    expect(signLease(w, COMPETITORS[0]!.unitId).ok).toBe(false);
+  });
+
+  it('un concurrent proche dans les mêmes catégories réduit la clientèle ; des prix bas atténuent l’effet', async () => {
+    const { COMPETITORS } = await import('../src/data/city/competitors');
+    const { competitionFactor, UNIT_BY_ID: U } = await import('../src/simulation/economy');
+    const w = createWorld({ sandbox: true });
+    w.player.money = 9000;
+    // Un local libre proche d'une boulangerie ou d'un snack concurrent.
+    const rival = COMPETITORS.find((c) => c.categories.includes('snack'))!;
+    const ru = U[rival.unitId]!;
+    const free = listUnits(w).filter((l) => l.status === 'libre' && !l.unit.buildingId.startsWith('etal_'))
+      .sort((a, b) => Math.hypot(a.unit.door.x - ru.door.x, a.unit.door.y - ru.door.y) - Math.hypot(b.unit.door.x - ru.door.x, b.unit.door.y - ru.door.y))[0]!;
+    signLease(w, free.unit.id);
+    openBusiness(w, free.unit.id, 't_comptoir_gouter', 'Goûters');
+    const b = Object.values(w.economy!.businesses)[0]!;
+    b.stock = { p_crepe: [{ qty: 50, receivedDay: 0, unitCost: 0.3 }] };
+    const normal = competitionFactor(b);
+    expect(normal).toBeLessThan(1);
+    b.prices['p_crepe'] = 0.9; // sous le prix de référence (1,20 €)
+    expect(competitionFactor(b)).toBeGreaterThan(normal);
   });
 });

@@ -280,6 +280,42 @@ export class CityRenderer {
     }
   }
 
+  // ---------- Files de clients devant les étals ouverts du joueur ----------
+  private stallCrowds = new Map<string, Character3D[]>();
+
+  /** Nombre de clients à afficher devant chaque étal (clé : tuile de l'étal). */
+  setStallCustomers(stalls: { x: number; y: number; count: number }[]): void {
+    const wanted = new Map(stalls.map((s) => [`${s.x},${s.y}`, s]));
+    for (const [key, chars] of this.stallCrowds) {
+      const want = wanted.get(key)?.count ?? 0;
+      while (chars.length > want) chars.pop()!.dispose();
+      if (chars.length === 0) this.stallCrowds.delete(key);
+    }
+    for (const [key, s] of wanted) {
+      const chars = this.stallCrowds.get(key) ?? [];
+      while (chars.length < Math.min(5, s.count)) {
+        const i = chars.length;
+        const ch = createCharacter({
+          appearance: npcAppearance(`etal${key}_${i}`),
+          heightM: i % 3 === 0 ? 1.4 : 1.6 + (i % 2) * 0.12,
+          bodyColor: ['#5a6b7a', '#7a5a4a', '#3f4f3f', '#a0522d', '#6b4e71'][i % 5],
+        });
+        // En file devant l'étal (côté sud), légèrement décalés.
+        const x = s.x + 0.5 + (i % 2 === 0 ? -0.5 : 0.5) * (1 + Math.floor(i / 2) * 0.3);
+        const z = s.y + 1.6 + Math.floor(i / 2) * 0.9;
+        ch.root.position.set(x, groundHeightAt(x, z), z);
+        ch.setHeading(Math.atan2(-(s.x + 0.5 - x), -(s.y + 0.5 - z)));
+        this.scene.add(ch.root);
+        chars.push(ch);
+      }
+      this.stallCrowds.set(key, chars);
+    }
+  }
+
+  private animateCrowds(dt: number): void {
+    for (const chars of this.stallCrowds.values()) for (const c of chars) c.update(dt, 0);
+  }
+
   private animateWaypoints(): void {
     const t = performance.now() / 1000;
     for (const g of this.waypointGroup.children) {
@@ -338,6 +374,7 @@ export class CityRenderer {
 
     this.ambient?.update(dt, { x: this.body.x, z: this.body.z }, s.night);
     this.animateWaypoints();
+    this.animateCrowds(dt);
     if (this.rain) {
       this.rain.visible = rainy;
       if (rainy) {

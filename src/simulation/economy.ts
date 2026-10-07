@@ -19,6 +19,7 @@ import {
 import { notify, pushEvent } from './events';
 import { createEconomyState } from '../core/economy_types';
 import { bertinLoyaltyDiscount } from './jobs';
+import { COMPETITORS, COMPETITOR_BY_UNIT } from '../data/city/competitors';
 
 export interface EconomyResult {
   ok: boolean;
@@ -90,7 +91,7 @@ function emptyStats(day: number): DayStats {
 
 // ---------- Immobilier ----------
 
-export type UnitStatus = 'libre' | 'loue_joueur';
+export type UnitStatus = 'libre' | 'loue_joueur' | 'occupe';
 
 export interface UnitListing {
   unit: CommercialUnitDef;
@@ -98,6 +99,8 @@ export interface UnitListing {
   rentPerDay: number;
   deposit: number;
   businessId?: string;
+  /** Commerce concurrent installé dans ce local (non louable). */
+  competitor?: string;
 }
 
 /** Loyer de marché : le loyer de référence, légèrement plus cher quand le quartier va bien. */
@@ -113,7 +116,9 @@ export function listUnits(w: WorldState): UnitListing[] {
     const lease = e.leases[u.id];
     const rent = lease ? lease.rentPerDay : marketRent(w, u);
     const biz = Object.values(e.businesses).find((b) => b.unitId === u.id);
-    return { unit: u, status: lease ? 'loue_joueur' : 'libre', rentPerDay: rent, deposit: round2(rent * DEPOSIT_DAYS), businessId: biz?.id };
+    const comp = COMPETITOR_BY_UNIT[u.id];
+    const status: UnitStatus = lease ? 'loue_joueur' : comp ? 'occupe' : 'libre';
+    return { unit: u, status, rentPerDay: rent, deposit: round2(rent * DEPOSIT_DAYS), businessId: biz?.id, competitor: comp ? `${comp.shopName} (${comp.owner})` : undefined };
   });
 }
 
@@ -133,6 +138,8 @@ export function leaseEligibility(w: WorldState, unitId: string): Eligibility {
   const u = UNIT_BY_ID[unitId];
   if (!u) return { allowed: false, coSigner: null, reason: 'Local inconnu.' };
   if (e.leases[unitId]) return { allowed: false, coSigner: null, reason: 'Tu loues déjà ce local.' };
+  const comp = COMPETITOR_BY_UNIT[unitId];
+  if (comp) return { allowed: false, coSigner: null, reason: `Ce local est occupé par ${comp.shopName}, tenu par ${comp.owner}.` };
   if (e.sandbox || w.player.age >= ADULT_AGE) return { allowed: true, coSigner: null, reason: 'Tu peux signer seul.' };
   const stall = u.buildingId.startsWith('etal_');
   if (stall) return { allowed: true, coSigner: 'parent', reason: 'Tes parents acceptent de signer pour un étal du marché.' };
@@ -696,6 +703,37 @@ export function priceIndex(b: BusinessState): number {
   return ids.reduce((s, id) => s + priceOf(b, id) / (PRODUCT_BY_ID[id]?.retailRef ?? 1), 0) / ids.length;
 }
 
+/**
+ * Concurrence de proximité : chaque commerce concurrent à moins de 80 m qui vend au moins une
+ * catégorie commune prend une part des clients (selon sa force). Des prix plus bas que le
+ * marché (indice < 0,95) atténuent cette pression.
+ */
+export function competitionFactor(b: BusinessState): number {
+  const t = BUSINESS_TYPE_BY_ID[b.typeId];
+  const u = UNIT_BY_ID[b.unitId];
+  if (!t || !u) return 1;
+  let f = 1;
+  for (const c of COMPETITORS) {
+    const cu = UNIT_BY_ID[c.unitId];
+    if (!cu || !c.categories.some((cat) => t.productCategories.includes(cat))) continue;
+    if (Math.hypot(cu.door.x - u.door.x, cu.door.y - u.door.y) > 80) continue;
+    f *= 1 - 0.12 * c.strength;
+  }
+  if (priceIndex(b) < 0.95) f = Math.sqrt(f);
+  return clamp(f, 0.45, 1);
+}
+
+/** Commerces concurrents qui pèsent sur un commerce du joueur (pour l'interface). */
+export function nearbyCompetitors(b: BusinessState): string[] {
+  const t = BUSINESS_TYPE_BY_ID[b.typeId];
+  const u = UNIT_BY_ID[b.unitId];
+  if (!t || !u) return [];
+  return COMPETITORS.filter((c) => {
+    const cu = UNIT_BY_ID[c.unitId];
+    return !!cu && c.categories.some((cat) => t.productCategories.includes(cat)) && Math.hypot(cu.door.x - u.door.x, cu.door.y - u.door.y) <= 80;
+  }).map((c) => c.shopName);
+}
+
 interface HourOutcome { passersby: number; visitors: number; customers: number; lost: number; units: number; revenue: number; cogs: number }
 
 /** Une heure d'ouverture : passants → visiteurs → clients servis → paniers. */
@@ -717,7 +755,7 @@ export function simulateHour(w: WorldState, b: BusinessState, hour: number): Hou
   const rival = w.rivals?.drive_hyper;
   const rivalPressure = rival && (t.productCategories.includes('epicerie') || t.productCategories.includes('boisson'))
     ? clamp(1 - (rival.marketShare - 50) / 200, 0.7, 1.1) : 1;
-  const visitors = Math.round(passersby * t.baseConversion * appeal(b) * priceFactor * variety * rivalPressure);
+  const visitors = Math.round(passersby * t.baseConversion * appeal(b) * priceFactor * variety * rivalPressure * competitionFactor(b));
   const staff = staffCapacity(w, b);
   const capacity = Math.floor(Math.min(staff.perHour, equipmentCapacity(b)));
   const served = Math.min(visitors, capacity);

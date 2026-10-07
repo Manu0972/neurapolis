@@ -499,6 +499,9 @@ function buildProps(group: THREE.Group, disposables: { dispose(): void }[], nigh
   const stalls: THREE.Matrix4[] = [];
   const stallRoofs: THREE.Matrix4[] = [];
   const stallColors: THREE.Color[] = [];
+  const stallPoles: THREE.Matrix4[] = [];
+  const stallGoods: THREE.Matrix4[] = [];
+  const stallGoodsColors: THREE.Color[] = [];
   const special: THREE.Object3D[] = [];
   const seenFountain = new Set<string>();
 
@@ -530,6 +533,12 @@ function buildProps(group: THREE.Group, disposables: { dispose(): void }[], nigh
         stalls.push(M(cx, gy, cz));
         stallRoofs.push(M(cx, gy + 2.3, cz));
         stallColors.push(new THREE.Color(AWNINGS[Math.floor(rnd() * AWNINGS.length)]!));
+        // Quatre montants qui portent la bâche, et des cagettes colorées sur le comptoir.
+        for (const [dx, dz] of [[-1.2, -0.6], [1.2, -0.6], [-1.2, 0.6], [1.2, 0.6]] as const) stallPoles.push(M(cx + dx, gy, cz + dz));
+        for (let k = 0; k < 5; k++) {
+          stallGoods.push(M(cx - 1.0 + k * 0.5, gy + 0.98, cz + 0.2));
+          stallGoodsColors.push(new THREE.Color(['#c25a40', '#e0b04a', '#4f7a3a', '#d98a3a', '#7a3f6a'][k]!));
+        }
         break;
       case 'fontaine': {
         // La fontaine occupe 2 × 2 tuiles : un seul objet, posé au coin commun des quatre tuiles.
@@ -565,6 +574,8 @@ function buildProps(group: THREE.Group, disposables: { dispose(): void }[], nigh
   const benchGeo = benchGeometry();
   const stallGeo = new THREE.BoxGeometry(2.6, 0.9, 1.3).translate(0, 0.45, 0);
   const stallRoofGeo = new THREE.ConeGeometry(2.1, 0.8, 4, 1).rotateY(Math.PI / 4).scale(1, 1, 0.55).translate(0, 0.4, 0);
+  const stallPoleGeo = new THREE.CylinderGeometry(0.04, 0.04, 2.35, 6).translate(0, 1.17, 0);
+  const stallGoodsGeo = new THREE.BoxGeometry(0.42, 0.16, 0.32).translate(0, 0.08, 0);
   const barkMat = new THREE.MeshStandardMaterial({ color: '#5b4231', roughness: 1 });
   const leafMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9, flatShading: true });
   const metalMat = new THREE.MeshStandardMaterial({ color: '#2f3a36', roughness: 0.5, metalness: 0.6 });
@@ -581,8 +592,11 @@ function buildProps(group: THREE.Group, disposables: { dispose(): void }[], nigh
     instanced(benchGeo, woodMat, benches),
     instanced(stallGeo, woodMat, stalls),
     instanced(stallRoofGeo, canvasMat, stallRoofs, stallColors),
+    instanced(stallPoleGeo, metalMat, stallPoles),
+    instanced(stallGoodsGeo, canvasMat, stallGoods, stallGoodsColors),
   ]) if (im) group.add(im);
   for (const o of special) group.add(o);
+  disposables.push(stallPoleGeo, stallGoodsGeo);
   disposables.push(trunkGeo, crownGeo, poleGeo, headGeo, benchGeo, stallGeo, stallRoofGeo, barkMat, leafMat, metalMat, bulbMat, woodMat, canvasMat);
 
   // Halos des lampadaires (visibles la nuit).
