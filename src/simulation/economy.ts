@@ -27,6 +27,7 @@ import { COMPETITORS, COMPETITOR_BY_UNIT } from '../data/city/competitors';
 import { areaAt } from '../data/city/layout';
 import { areaUnlocked } from './areas';
 import { econAge } from './proxy';
+import { multiSupplierDelta, peerCompetitionFactor, peerShopAt } from './multiplayer';
 
 export interface EconomyResult {
   ok: boolean;
@@ -125,8 +126,9 @@ export function listUnits(w: WorldState): UnitListing[] {
     const biz = Object.values(e.businesses).find((b) => b.unitId === u.id);
     const comp = COMPETITOR_BY_UNIT[u.id];
     const tenant = e.owned?.[u.id]?.tenant;
-    const status: UnitStatus = lease ? 'loue_joueur' : comp || tenant ? 'occupe' : 'libre';
-    const competitor = comp ? `${comp.shopName} (${comp.owner})` : tenant ? `${tenant.name} (ton locataire)` : undefined;
+    const peer = lease ? undefined : peerShopAt(w, u.id);
+    const status: UnitStatus = lease ? 'loue_joueur' : comp || tenant || peer ? 'occupe' : 'libre';
+    const competitor = comp ? `${comp.shopName} (${comp.owner})` : tenant ? `${tenant.name} (ton locataire)` : peer ? `${peer.shop.name} (${peer.peer.name}, joueur)` : undefined;
     return { unit: u, status, rentPerDay: rent, deposit: round2(rent * DEPOSIT_DAYS), businessId: biz?.id, competitor };
   });
 }
@@ -151,6 +153,8 @@ export function leaseEligibility(w: WorldState, unitId: string): Eligibility {
   if (!areaUnlocked(w, area)) return { allowed: false, coSigner: null, reason: `${area.name} n’est pas encore ouvert : ${area.lock} (palier ${area.tier} de l’Ascension).` };
   const comp = COMPETITOR_BY_UNIT[unitId];
   if (comp) return { allowed: false, coSigner: null, reason: `Ce local est occupé par ${comp.shopName}, tenu par ${comp.owner}.` };
+  const peer = peerShopAt(w, unitId);
+  if (peer) return { allowed: false, coSigner: null, reason: `${peer.peer.name} a déjà loué ce local (${peer.shop.name}). Premier arrivé, premier servi.` };
   const tenant = e.owned?.[unitId]?.tenant;
   if (tenant) return { allowed: false, coSigner: null, reason: `Ton locataire ${tenant.name} occupe ces murs.` };
   if (econAge(w) >= ADULT_AGE) return { allowed: true, coSigner: null, reason: w.player.age >= ADULT_AGE || e.sandbox ? 'Tu peux signer seul.' : 'Ton prête-nom signe pour toi.' };
@@ -572,7 +576,7 @@ export function orderStock(w: WorldState, bizId: string, wholesalerId: string, l
     if (!t.productCategories.includes(p.category)) return ko(`${p.name} ne se vend pas dans un commerce de ce type.`);
   }
   // Mme Bertin consent un prix plus doux au jeune qui l'a aidée à l'épicerie (src/simulation/jobs.ts).
-  const mult = (g.id === 'g_bertin_depannage' ? g.priceMult - bertinLoyaltyDiscount(w) : g.priceMult) - travelSupplierDiscount(w);
+  const mult = (g.id === 'g_bertin_depannage' ? g.priceMult - bertinLoyaltyDiscount(w) : g.priceMult) - travelSupplierDiscount(w) + multiSupplierDelta(w);
   const priced = clean.map((l) => ({ ...l, unitCost: round2(PRODUCT_BY_ID[l.productId]!.wholesaleBase * mult) }));
   const goods = round2(priced.reduce((s, l) => s + l.unitCost * l.qty, 0));
   if (goods < g.minOrder) return ko(`Commande minimale chez ${g.name} : ${g.minOrder} € (ta commande : ${goods.toFixed(2)} €).`);
@@ -875,7 +879,7 @@ export function priceIndex(b: BusinessState): number {
  * catégorie commune prend une part des clients (selon sa force). Des prix plus bas que le
  * marché (indice < 0,95) atténuent cette pression.
  */
-export function competitionFactor(b: BusinessState): number {
+export function competitionFactor(b: BusinessState, w?: WorldState): number {
   const t = BUSINESS_TYPE_BY_ID[b.typeId];
   const u = UNIT_BY_ID[b.unitId];
   if (!t || !u) return 1;
@@ -886,6 +890,8 @@ export function competitionFactor(b: BusinessState): number {
     if (Math.hypot(cu.door.x - u.door.x, cu.door.y - u.door.y) > 80) continue;
     f *= 1 - 0.12 * c.strength;
   }
+  // Multijoueur : les commerces des autres joueurs pèsent comme ceux de la ville.
+  if (w?.multiplayer) f *= peerCompetitionFactor(w, b.unitId, t.productCategories);
   if (priceIndex(b) < 0.95) f = Math.sqrt(f);
   return clamp(f, 0.45, 1);
 }
@@ -958,7 +964,7 @@ export function simulateHour(w: WorldState, b: BusinessState, hour: number): Hou
   // Conjoncture : la chronologie du monde (src/simulation/world_timeline.ts) module la demande.
   const conj = t.productCategories.reduce((s, c) => s + timelineDemand(w, c), 0) / Math.max(1, t.productCategories.length);
   const regularVisits = regularVisitsAt(w, b, hour);
-  const visitors = Math.round(passersby * t.baseConversion * appeal(b) * priceFactor * variety * rivalPressure * competitionFactor(b) * conj * laminoirDemand(w, b.unitId) * sectorDemand(w, sectorOfBusinessType(t), b.id)) + regularVisits;
+  const visitors = Math.round(passersby * t.baseConversion * appeal(b) * priceFactor * variety * rivalPressure * competitionFactor(b, w) * conj * laminoirDemand(w, b.unitId) * sectorDemand(w, sectorOfBusinessType(t), b.id)) + regularVisits;
   const staff = staffCapacity(w, b);
   const capacity = Math.floor(Math.min(staff.perHour, equipmentCapacity(b)));
   const served = Math.min(visitors, capacity);

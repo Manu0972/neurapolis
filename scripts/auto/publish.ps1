@@ -22,7 +22,7 @@ foreach ($d in 'src', 'tests', 'docs', 'archive', 'tools', 'scripts') {
 if (Test-Path '.zcode\coordination') { Remove-Item -Recurse -Force '.zcode\coordination' }
 New-Item -ItemType Directory -Force '.zcode' | Out-Null
 Copy-Item -Recurse (Join-Path $Root '.zcode\coordination') '.zcode\coordination'
-foreach ($f in 'AGENTS.md', 'PROGRESS.md', '.gitignore', 'index.html', 'vite.config.ts', 'package.json', 'package-lock.json') { Copy-Item (Join-Path $Root $f) . -Force }
+foreach ($f in 'AGENTS.md', 'PROGRESS.md', '.gitignore', 'index.html', 'vite.config.ts', 'package.json', 'package-lock.json', 'jouer-en-lan.bat') { if (Test-Path (Join-Path $Root $f)) { Copy-Item (Join-Path $Root $f) . -Force } }
 # Avec -File, "a,b" arrive en une seule chaîne : on découpe.
 $Exclude = @($Exclude | ForEach-Object { $_ -split "," } | Where-Object { $_ })
 foreach ($x in $Exclude) { if (Test-Path $x) { Remove-Item -Recurse -Force $x } }
@@ -37,7 +37,7 @@ node node_modules/vite/bin/vite.js build | Out-Null
 if ($LASTEXITCODE -ne 0) { Pop-Location; Write-Output 'Build en échec : publication annulée'; exit 1 }
 Remove-Item -Recurse -Force dist -ErrorAction SilentlyContinue
 
-git add -A -- src tests docs archive tools scripts .zcode/coordination AGENTS.md PROGRESS.md .gitignore index.html vite.config.ts package.json package-lock.json
+git add -A -- src tests docs archive tools scripts .zcode/coordination AGENTS.md PROGRESS.md .gitignore index.html vite.config.ts package.json package-lock.json jouer-en-lan.bat
 git commit -q -m "$Message" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 git push -q origin refonte-3d
 git log --oneline -1

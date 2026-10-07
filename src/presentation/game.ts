@@ -70,7 +70,7 @@ import { BUSINESS_TYPE_BY_ID, WHOLESALER_BY_ID } from '../data/economy';
 import { UNIT_BY_ID, ensureEconomy, pickUpOrder, pickupPoint, unloadAt, businessDoor } from '../simulation/economy';
 import { streetNameAt, unitAt } from '../data/map';
 import { COMPETITOR_BY_UNIT } from '../data/city/competitors';
-import { drawMinimap, renderCityMap } from './minimap';
+import { drawMinimap, renderCityMap, setPlayerMarkers } from './minimap';
 import { PENDING_LOAD_KEY, deleteSlot, exportSave, importSave, saveToSlot, slotSummary } from '../saves/persist';
 import { businessInteriorSpec, destinationSpec, landmarkSpec, placeHasInterior, placeInteriorSpec } from './city3d/interior3d';
 import { activityBlocker, doLandmarkActivity, landmarkAdjacent } from '../simulation/landmarks';
@@ -121,6 +121,7 @@ import { askActiveGhostAdvice, checkAndUnlockThinkers, getGhostCompanionThought,
 import { INITIAL_TUTORIALS } from '../data/tutorials';
 import { PACE_BY_ID, TASK_MINUTES, TASK_SPEED, loadPacePrefs, savePacePrefs, subMinutes, taskTicks } from './time-pace';
 import { setClockSubMinutes } from './ui';
+import { MultiplayerSession, openMultiplayerPanel } from './multiplayer';
 import { SKIP_LABELS, beginSkip, skipBlocker, skipReport, skipTarget, stepSkip, type SkipKind } from '../simulation/timeskip';
 
 /**
@@ -228,6 +229,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   // Rythme du temps (préférence du joueur) et ellipse des actions en cours.
   const pacePrefs = loadPacePrefs();
   let pendingTaskTicks = 0;
+  /** Multijoueur : le joueur est occupé par une action jusqu'à ce tick. */
+  let busyUntilTick = 0;
+  // eslint-disable-next-line prefer-const
+  let mp: MultiplayerSession | undefined;
   // File des fenêtres automatiques (voir la boucle).
   let lastAutoModalTick = -1e9;
   let autoModalWasOpen = false;
@@ -236,6 +241,13 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   /** Une action vient d'être faite : l'horloge avance de sa durée (si l'option est active). */
   function spendTaskTime(minutes: number, label: string): void {
     if (!pacePrefs.tasksTakeTime) return;
+    if (mp?.connected) {
+      // Multijoueur : le temps est partagé ; l'action t'occupe le temps qu'elle dure.
+      busyUntilTick = Math.max(busyUntilTick, world.time.tick) + taskTicks(minutes);
+      ui.taskChip.textContent = `⏳ ${label} · occupé·e jusqu’à ${hhmmOfTick(busyUntilTick)}`;
+      ui.taskChip.classList.remove('hidden');
+      return;
+    }
     pendingTaskTicks += taskTicks(minutes);
     taskLabel = label;
     ui.taskChip.textContent = `⏩ ${label} · +${pendingTaskTicks * 10} min`;
@@ -366,7 +378,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   // Rythme du temps : allure (pause → ×20, temps réel compris) et actions qui prennent du temps.
   const syncPaceUi = (): void => {
-    for (const b of root.querySelectorAll<HTMLButtonElement>('.speed-btn')) b.classList.toggle('active', b.dataset.pace === pacePrefs.pace);
+    const shown = mp?.followsHost ? mp.hostPace : pacePrefs.pace;
+    for (const b of root.querySelectorAll<HTMLButtonElement>('.speed-btn')) b.classList.toggle('active', b.dataset.pace === shown);
     ui.taskToggle.classList.toggle('on', pacePrefs.tasksTakeTime);
     ui.taskToggle.textContent = pacePrefs.tasksTakeTime ? '⏱ Les actions prennent du temps' : '⏱ Actions instantanées';
     ui.taskToggle.setAttribute('aria-pressed', String(pacePrefs.tasksTakeTime));
@@ -377,6 +390,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     btn.addEventListener('click', () => {
       const id = btn.dataset.pace as keyof typeof PACE_BY_ID;
       if (!PACE_BY_ID[id]) return;
+      if (mp?.followsHost) {
+        mp.requestPace(id);
+        toast('Demande envoyée à l’hôte : c’est son horloge qui fait foi.', true);
+        return;
+      }
       pacePrefs.pace = id;
       savePacePrefs(pacePrefs);
       syncPaceUi();
@@ -393,6 +411,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   let skipping = false;
   function openSkipMenu(): void {
     if (skipping) return;
+    if (mp?.connected && !mp.isHost) { toast('En multijoueur, c’est l’hôte qui fait passer le temps : vous sautez ensemble.', false); return; }
     const body = el('div', 'panel-body');
     body.appendChild(el('p', 'panel-desc', 'Le temps passe vraiment : tu vas en cours quand il y en a, tu manges et tu dors à la maison, tes commerces et tes entreprises tournent, le monde bouge. Un bilan t’attend à l’arrivée.'));
     const list = el('div', 'ph-list');
@@ -416,6 +435,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   function runSkip(kind: SkipKind): void {
     const s = beginSkip(world, kind);
     if ('error' in s) { toast(s.error, false); return; }
+    if (mp?.isHost) mp.broadcastSkip(kind, s.target);
     skipping = true;
     const total = Math.max(1, s.target - world.time.tick);
     const start = world.time.tick;
@@ -447,10 +467,42 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   }
   ui.skipBtn.addEventListener('click', openSkipMenu);
 
+  // ---------- Multijoueur en LAN ----------
+  mp = new MultiplayerSession(world, {
+    notify: (list) => {
+      for (const n of list) {
+        if (n.kind === 'fantome' && n.ghost) ghostBar.push({ ghost: n.ghost, text: n.text, pop: true, mood: 'calme' });
+        else toast(n.text, n.kind !== 'alerte');
+      }
+      updateHud(ui, world, promptText());
+    },
+    skip: (kind) => { if (!skipping) runSkip(kind); },
+    paceRequest: (pace) => {
+      if (!(pace in PACE_BY_ID)) return;
+      pacePrefs.pace = pace as keyof typeof PACE_BY_ID;
+      syncPaceUi();
+      toast(`📡 Allure changée à la demande d’un joueur : ${PACE_BY_ID[pacePrefs.pace].title}`, true);
+    },
+    changed: () => {
+      const n = mp?.playerCount ?? 0;
+      const offers = mp?.pendingOffers() ?? 0;
+      ui.mpBtn.textContent = mp?.connected ? `📡 ${n} joueur${n > 1 ? 's' : ''}${mp.isHost ? ' · hôte' : ''}${offers ? ` · 📨 ${offers}` : ''}` : mp?.status === 'connexion' ? '📡 Connexion…' : '📡 Multijoueur';
+      ui.mpBtn.classList.toggle('on', !!mp?.connected);
+      syncPaceUi();
+    },
+    me: () => ({ appearance: world.player.appearance, gender: world.player.gender, heightM: heightForAge(world.player.age) }),
+  });
+  ui.mpBtn.addEventListener('click', () => {
+    if (modalOpen || !mp) return;
+    openMultiplayerPanel({ session: mp, world, showModal, closeModal, toast, notify: (list) => { for (const n of list) if (n.kind === 'fantome' && n.ghost) ghostBar.push({ ghost: n.ghost, text: n.text, pop: true, mood: 'calme' }); } });
+  });
+
   // Outil d'inspection (Bible Partie XII) : l'état du monde reste lisible depuis la console
   // et depuis les tests E2E. Lecture/écriture directe = leviers de QA, jamais du gameplay.
   (window as unknown as { __NEURAPOLIS__: unknown }).__NEURAPOLIS__ = {
     world,
+    /** Session multijoueur (QA). */
+    get mp() { return mp; },
     /** Capture du rendu 3D (QA) : fonctionne même fenêtre masquée. */
     snapshot: (opts?: { frames?: number; yaw?: number; pitch?: number; dist?: number; move?: { x: number; y: number }; running?: boolean }) =>
       renderer3D?.snapshot(world, ui.cw || 1280, ui.ch || 720, opts),
@@ -2931,14 +2983,16 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     // File des fenêtres : une fenêtre automatique non urgente au plus par heure de jeu.
     if (modalOpen && !autoModalWasOpen) autoModalWasOpen = true;
     if (!modalOpen && autoModalWasOpen) { autoModalWasOpen = false; lastAutoModalTick = world.time.tick; }
-    const quietOk = world.time.tick - lastAutoModalTick >= 6;
+    // Multijoueur : un invité qui rattrape l'horloge de l'hôte n'est pas interrompu en route.
+    const catchingUp = !!mp?.followsHost && (mp.hostTick ?? 0) - world.time.tick > 6;
+    const quietOk = world.time.tick - lastAutoModalTick >= 6 && !catchingUp;
     if (!modalOpen) {
       // Épilogue prêt : ouverture de l'écran de conclusion de la campagne
       if (world.campaign.completedChapters.includes(5) && !world.seen['epilogue_modal_shown']) {
         world.seen['epilogue_modal_shown'] = true;
         audio.playChapterComplete();
         openEpilogueModal();
-      } else if (world.council.pendingFusion) {
+      } else if (world.council.pendingFusion && !catchingUp) {
         // Fusion prête : la scène attend le joueur (M6).
         audio.playGhostDebate();
         openFusionScene();
@@ -2961,11 +3015,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         } else if (quietOk && pendingSchoolEvent(world) && !isInClass(world) && !world.player.asleep) {
           // Sortie de cours : la vie du collège s'invite.
           openSchoolEventModal({ world, showModal, closeModal, toast }, (ghost, text) => ghostBar.push({ ghost, text, pop: true, mood: 'calme' }));
-        } else if (pendingDinner(world) && world.family?.pendingDinner !== dinnerShownId && isHome(world) && !world.player.asleep) {
+        } else if (!catchingUp && pendingDinner(world) && world.family?.pendingDinner !== dinnerShownId && isHome(world) && !world.player.asleep) {
           // Le dîner : Nora et Thierry attendent une réponse.
           dinnerShownId = world.family?.pendingDinner ?? '';
           openDinnerModal({ world, showModal, closeModal, toast });
-        } else if (world.family?.convocation && convocationShownDay !== dayIndexOf(world.time.tick) && !isInClass(world) && !world.player.asleep && minutesOfDay(world.time.tick) >= 16 * 60 + 30) {
+        } else if (!catchingUp && world.family?.convocation && convocationShownDay !== dayIndexOf(world.time.tick) && !isInClass(world) && !world.player.asleep && minutesOfDay(world.time.tick) >= 16 * 60 + 30) {
           // La principale convoque : un rendez-vous par jour tant que rien n'est réglé.
           convocationShownDay = dayIndexOf(world.time.tick);
           openConvocationModal({ world, showModal, closeModal, toast });
@@ -2984,8 +3038,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           const paceScale = PACE_BY_ID[pacePrefs.pace].scale;
           const ellipse = isTraveling(world) || isOnBus(world) || isInClass(world) || world.player.asleep || inShift(world);
           const taskRunning = pendingTaskTicks > 0 && !ellipse;
-          const speed = skipping || (isOnSite(world) && !world.player.asleep) ? 0 : isTraveling(world) ? TRAVEL_SPEED : isOnBus(world) ? BUS_SPEED : isInClass(world) ? CLASS_SPEED : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : taskRunning ? TASK_SPEED : paceScale;
-          if (!taskRunning && pendingTaskTicks <= 0) ui.taskChip.classList.add('hidden');
+          // Multijoueur : un invité suit l'horloge de l'hôte (rattrapage rapide, jamais d'avance).
+          const follow = mp?.followsHost ? mp.hostTick : null;
+          const speed = follow !== null && follow !== undefined ? (skipping || world.time.tick >= follow ? 0 : follow - world.time.tick > 6 ? 900 : 90) : skipping || (isOnSite(world) && !world.player.asleep) ? 0 : isTraveling(world) ? TRAVEL_SPEED : isOnBus(world) ? BUS_SPEED : isInClass(world) ? CLASS_SPEED : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : taskRunning ? TASK_SPEED : paceScale;
+          if (busyUntilTick && world.time.tick >= busyUntilTick) busyUntilTick = 0;
+          if (!taskRunning && pendingTaskTicks <= 0 && !busyUntilTick) ui.taskChip.classList.add('hidden');
           if (speed !== 0) {
             const tickMs = TICK_MS / speed;
             // Changement d'allure (ou d'ellipse) : la fraction de tick entamée est conservée,
@@ -2996,6 +3053,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
             // Horloge à la minute entre deux ticks (temps réel, allure lente).
             setClockSubMinutes(ellipse || taskRunning ? 0 : subMinutes(acc, tickMs));
             while (acc >= tickMs) {
+              if (follow !== null && follow !== undefined && world.time.tick >= follow) { acc = 0; break; }
               acc -= tickMs;
               if (taskRunning && pendingTaskTicks > 0) {
                 pendingTaskTicks -= 1;
@@ -3084,8 +3142,18 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       renderer3D.frame(world, dt / 1000, {
         move: input.vector(),
         running: input.running(),
-        canMove: !modalOpen && !world.player.asleep && !inShift(world) && !layoutEdit && !travelFastForward() && !isOnBus(world) && !isInClass(world),
+        canMove: !modalOpen && !world.player.asleep && !inShift(world) && !layoutEdit && !travelFastForward() && !isOnBus(world) && !isInClass(world) && !busyUntilTick,
       }, ui.cw, ui.ch);
+      // Multijoueur : on envoie sa position, on affiche les autres.
+      if (mp?.connected) {
+        mp.update(now, renderer3D.playerPose, renderer3D.inInterior, pacePrefs.pace);
+        const others = mp.visibleRemotes(now);
+        renderer3D.remotePlayers = others.map((r) => ({ id: r.id, name: r.name, appearance: r.appearance, gender: r.gender, heightM: r.heightM, x: r.x, z: r.z, h: r.h, s: r.s }));
+        setPlayerMarkers(others.map((r) => ({ x: r.x - 0.5, y: r.z - 0.5, label: r.name })));
+      } else if (renderer3D.remotePlayers.length) {
+        renderer3D.remotePlayers = [];
+        setPlayerMarkers([]);
+      }
     } else {
       const rawD = input.dir();
       const isPlayerMoving = !world.player.asleep && (rawD.x !== 0 || rawD.y !== 0);

@@ -14,6 +14,7 @@
 import type { Notification, WorldState } from '../core/types';
 import { dayIndexOf } from '../core/clock';
 import { notify } from './events';
+import { peerGuarantee } from './multiplayer';
 
 export interface MandateDef {
   id: string;
@@ -77,7 +78,7 @@ export function mandateActive(w: WorldState): boolean {
  * lèvent les limites d'âge des affaires (pas celles de la vie : école, voyages, sommeil).
  */
 export function econAge(w: WorldState): number {
-  if (w.economy?.sandbox || mandateActive(w)) return Math.max(18, w.player.age);
+  if (w.economy?.sandbox || mandateActive(w) || peerGuarantee(w)) return Math.max(18, w.player.age);
   return w.player.age;
 }
 

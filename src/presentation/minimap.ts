@@ -82,10 +82,16 @@ function shadeLocked(ctx: CanvasRenderingContext2D, w: WorldState, ox: number, o
   ctx.restore();
 }
 
+/** Autres joueurs (multijoueur), posés par la boucle de jeu. */
+let extraMarkers: { x: number; y: number; label: string }[] = [];
+export function setPlayerMarkers(list: { x: number; y: number; label: string }[]): void {
+  extraMarkers = list;
+}
+
 interface Marker { x: number; y: number; color: string; label?: string; ring?: boolean }
 
 function markers(w: WorldState): Marker[] {
-  const out: Marker[] = [];
+  const out: Marker[] = extraMarkers.map((m) => ({ x: m.x, y: m.y, color: '#ffb347', label: `🎮 ${m.label}`, ring: true }));
   for (const [id, a] of Object.entries(PLACE_ANCHORS)) {
     out.push({ x: a.x, y: a.y, color: '#ffd98a', label: PLACE_BY_ID[id as keyof typeof PLACE_ANCHORS]?.name ?? id });
   }

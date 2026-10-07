@@ -69,6 +69,8 @@ export interface UiRefs {
   taskChip: HTMLElement;
   /** « 📅 Passer le temps » : journée, semaine, mois, vacances. */
   skipBtn: HTMLButtonElement;
+  /** « 📡 Multijoueur » : connexion, joueurs, alliances et sabotages. */
+  mpBtn: HTMLButtonElement;
   lastIso: string;       // dernière date affichée (détection du changement de jour)
   saveTimer: number | undefined;
 }
@@ -137,6 +139,10 @@ export function buildUi(root: HTMLElement): UiRefs {
   skipBtn.type = 'button';
   skipBtn.title = 'Finir la journée, passer la semaine ou le mois : tout est simulé, tu vas en cours, tes affaires tournent, puis un bilan.';
   status.appendChild(skipBtn);
+  const mpBtn = el('button', 'task-toggle mp-btn-hud', '📡 Multijoueur');
+  mpBtn.type = 'button';
+  mpBtn.title = 'Jouer à plusieurs en LAN (NordVPN Meshnet) : s’associer ou se saboter.';
+  status.appendChild(mpBtn);
   const taskChip = el('div', 'task-chip hidden', '');
   status.appendChild(taskChip);
   hud.appendChild(status);
@@ -285,7 +291,7 @@ export function buildUi(root: HTMLElement): UiRefs {
     barEls, promptEl, modalEl, joyZone, actionBtn, navEl, bannerEl,
     saveEl, cameraToolbarEl, btnRotLeft, btnRotRight, btnCamView, btnToggle3D,
     btnZoomIn, btnZoomOut, btnMuteAudio, weatherEl, bizEl, phoneBtn, mapBtn, menuBtn, menuDrawer,
-    minimapCanvas, minimapCtx, streetEl, taskToggle, taskChip, skipBtn, lastIso: '', saveTimer: undefined,
+    minimapCanvas, minimapCtx, streetEl, taskToggle, taskChip, skipBtn, mpBtn, lastIso: '', saveTimer: undefined,
   };
   resizeCanvas(ui, root);
   return ui;

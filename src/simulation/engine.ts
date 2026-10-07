@@ -24,6 +24,7 @@ import { jobTick } from './jobs';
 import { travelTick } from './travel';
 import { ascensionDay, provenProfit } from './ascension';
 import { mandateDay } from './proxy';
+import { multiplayerDay } from './multiplayer';
 import { happeningsTick } from './happenings';
 import { rewindDay } from './rewind';
 import { familyTick } from './family';
@@ -79,6 +80,7 @@ export function tickWorld(w: WorldState): TickOutput {
     out.push(...multiVenturesDayTick(w));
     out.push(...ascensionDay(w, prevDay));
     out.push(...mandateDay(w, provenProfit(w)));
+    if (w.multiplayer) out.push(...multiplayerDay(w, provenProfit(w)));
     out.push(...rewindDay(w));
     out.push(...roomDay(w));
     out.push(...storyDay(w));

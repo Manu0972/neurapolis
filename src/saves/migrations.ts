@@ -2,6 +2,7 @@
  * Chaîne de migrations de sauvegardes — non destructive, versionnée, testée.
  * Règle : chaque changement de schéma => version +1 et un migrateur ici.
  */
+import { createMultiplayerState } from '../core/multiplayer_types';
 import {
   DEFAULT_PLAYER_APPEARANCE, MAX_PENDING_DELIVERIES, VALID_GENDERS, VALID_HAIR_COLORS, VALID_HAIR_STYLES,
   VALID_OUTFIT_COLORS, VALID_OUTFIT_STYLES, VALID_SKIN_TONES, type WorldState,
@@ -399,6 +400,19 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
       for (const [k, v] of Object.entries(DEFAULT_PLAYER_APPEARANCE)) if (a[k] === undefined) a[k] = v;
     }
     s.version = 23;
+    return s;
+  },
+  // 23 → 24 : multijoueur en LAN. Une partie solo n'a pas encore d'état multijoueur ; un état
+  // partiel (version de développement) est complété champ par champ.
+  23: (s) => {
+    const m = s.multiplayer as AnySave | undefined;
+    if (m && typeof m === 'object') {
+      const base = createMultiplayerState(typeof m.selfId === 'string' ? m.selfId : '') as unknown as AnySave;
+      for (const [k, v] of Object.entries(base)) if (m[k] === undefined) m[k] = v;
+    } else {
+      delete s.multiplayer;
+    }
+    s.version = 24;
     return s;
   },
 };

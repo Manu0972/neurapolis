@@ -926,3 +926,24 @@ canvas.map-canvas-3d { image-rendering: auto; touch-action: none; }
 .quiz-choice.wrong { background: var(--rouge); color: #fff; }
 .quiz-feedback { min-height: 1.4em; line-height: 1.5; }
 .quiz-score { font-size: 40px; font-weight: 800; text-align: center; margin: 4px 0; color: var(--or); }
+
+/* ---------- Multijoueur (panneau 📡) ---------- */
+.hud2 .mp-btn-hud.on { opacity: 1; border-color: #ffb347; color: #ffd9a0; }
+.mp-panel .mp-help { margin: 4px 0 10px 18px; font-size: 13px; line-height: 1.45; opacity: 0.92; }
+.mp-panel .mp-label { display: block; margin: 10px 0 4px; font-size: 12px; font-weight: 700; opacity: 0.85; }
+.mp-panel .mp-input {
+  width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 8px; border: 1px solid rgba(255, 217, 138, 0.3);
+  background: rgba(0, 0, 0, 0.28); color: var(--ink); font-size: 13px;
+}
+.mp-panel .mp-input.small { width: auto; min-width: 70px; margin-left: 4px; }
+.mp-panel .mp-mode { cursor: pointer; }
+.mp-panel .mp-mode.active { outline: 2px solid var(--or); }
+.mp-panel .mp-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.mp-panel .mp-kind { width: 100%; font-size: 12px; font-weight: 800; opacity: 0.85; }
+.mp-panel .mp-sabotage .mp-kind { color: #ff9b85; }
+.mp-panel .mp-zone_grise .mp-kind { color: #d9c27a; }
+.mp-panel .mp-btn { font-size: 12px; }
+.mp-panel .mp-chat { max-height: 140px; overflow-y: auto; font-size: 13px; padding: 6px 8px; border-radius: 8px; background: rgba(0, 0, 0, 0.22); margin-bottom: 6px; }
+.mp-panel .mp-line.mine { color: #ffd9a0; }
+.mp-panel .mp-log.bien { color: #9be3a5; }
+.mp-panel .mp-log.mal { color: #ff9b85; }
