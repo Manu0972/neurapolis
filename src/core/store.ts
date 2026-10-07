@@ -21,7 +21,7 @@ import { createRoomState } from './room_types';
 import { createStoryState } from './story_types';
 import { createEconomyState } from './economy_types';
 
-export const SAVE_VERSION = 22;
+export const SAVE_VERSION = 23;
 
 const SKILL_IDS: SkillId[] = ['negociation', 'comptabilite', 'communication', 'organisation', 'technique', 'recherche'];
 

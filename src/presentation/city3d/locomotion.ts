@@ -67,13 +67,27 @@ export function stepBody(
 ): BodyState {
   const dir = cameraRelative(input.x, input.y, camYaw);
   const mag = Math.hypot(dir.x, dir.z);
-  const targetSpeed = mag > 0.05 ? (running ? RUN_SPEED : WALK_SPEED) * speedScale * Math.min(1, mag) : 0;
-  const accel = targetSpeed > body.speed ? 10 : 14;
-  const speed = body.speed + Math.sign(targetSpeed - body.speed) * Math.min(Math.abs(targetSpeed - body.speed), accel * dt);
   let { x, z, heading } = body;
-  if (mag > 0.05) heading = headingOf(dir.x, dir.z);
-  const vx = mag > 0.05 ? (dir.x / mag) * speed : -Math.sin(heading) * speed;
-  const vz = mag > 0.05 ? (dir.z / mag) * speed : -Math.cos(heading) * speed;
+  // Virage en arc : le cap tourne vers la direction voulue à vitesse angulaire bornée
+  // (presque instantané à l'arrêt, plus large en pleine course).
+  let turnGap = 0;
+  if (mag > 0.05) {
+    const want = headingOf(dir.x, dir.z);
+    let d = want - heading;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    turnGap = Math.abs(d);
+    const turnRate = body.speed < 0.6 ? 22 : running ? 9 : 12;
+    heading += Math.sign(d) * Math.min(Math.abs(d), turnRate * dt);
+  }
+  // On ralentit dans les virages serrés, puis on accélère et on freine en douceur (exponentiel).
+  const cornering = turnGap > 1.2 ? 0.55 : turnGap > 0.6 ? 0.8 : 1;
+  const targetSpeed = mag > 0.05 ? (running ? RUN_SPEED : WALK_SPEED) * speedScale * Math.min(1, mag) * cornering : 0;
+  const rate = targetSpeed > body.speed ? 6.5 : 9;
+  let speed = body.speed + (targetSpeed - body.speed) * (1 - Math.exp(-rate * dt));
+  if (targetSpeed === 0 && speed < 0.05) speed = 0;
+  const vx = -Math.sin(heading) * speed;
+  const vz = -Math.cos(heading) * speed;
   const nx = x + vx * dt;
   if (fits(nx, z, walkable, BODY_RADIUS, cell)) x = nx;
   const nz = z + vz * dt;

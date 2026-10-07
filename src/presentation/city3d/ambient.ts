@@ -160,7 +160,7 @@ export function createAmbient(opts: { cars?: number; pedestrians?: number } = {}
       outfitColor: VALID_OUTFIT_COLORS[Math.floor(r() * VALID_OUTFIT_COLORS.length)]!,
     };
     const coatColors = ['#5a6b7a', '#7a5a4a', '#3f4f3f', '#8a7a6a', '#4a4a5a', '#a0522d', '#6b4e71', '#2e4a62'];
-    const ch = createCharacter({ appearance, heightM: 1.55 + r() * 0.35, bodyColor: coatColors[Math.floor(r() * coatColors.length)] });
+    const ch = createCharacter({ appearance, heightM: 1.55 + r() * 0.35, bodyColor: coatColors[Math.floor(r() * coatColors.length)], detail: 'low' });
     group.add(ch.root);
     walkers.push({ ch, loop, seg: Math.floor(r() * 4), t: r(), speed: 1.1 + r() * 0.45, pos: new THREE.Vector3() });
   }

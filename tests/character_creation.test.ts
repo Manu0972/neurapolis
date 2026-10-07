@@ -86,13 +86,17 @@ describe('P-PERSO — 1. Validation de l’Identité du Joueur', () => {
 });
 
 describe('P-PERSO — 2. Validation & Tokens d’Apparence Esthétique', () => {
-  it('valide l’ensemble exhaustif des tokens d’apparence conformes à la spécification', () => {
+  it('valide l’ensemble des tokens d’apparence (personnalisation approfondie, save v23)', () => {
     expect(VALID_GENDERS).toEqual(['fille', 'garcon', 'non-binaire']);
-    expect(VALID_SKIN_TONES).toEqual(['claire', 'chaude', 'doree', 'ebene']);
-    expect(VALID_HAIR_COLORS).toEqual(['brun', 'chatain', 'blond', 'roux', 'noir']);
-    expect(VALID_HAIR_STYLES).toEqual(['court', 'mi-long', 'boucle', 'tresse', 'couettes']);
-    expect(VALID_OUTFIT_STYLES).toEqual(['ecolier', 'artisan', 'sportif', 'citoyen']);
-    expect(VALID_OUTFIT_COLORS).toEqual(['denim', 'coral', 'vert', 'ocre', 'indigo']);
+    // Les valeurs d'origine restent valides (anciennes sauvegardes) ; la palette s'élargit.
+    for (const v of ['claire', 'chaude', 'doree', 'ebene'] as const) expect(VALID_SKIN_TONES).toContain(v);
+    for (const v of ['brun', 'chatain', 'blond', 'roux', 'noir'] as const) expect(VALID_HAIR_COLORS).toContain(v);
+    for (const v of ['court', 'mi-long', 'boucle', 'tresse', 'couettes'] as const) expect(VALID_HAIR_STYLES).toContain(v);
+    for (const v of ['ecolier', 'artisan', 'sportif', 'citoyen'] as const) expect(VALID_OUTFIT_STYLES).toContain(v);
+    for (const v of ['denim', 'coral', 'vert', 'ocre', 'indigo'] as const) expect(VALID_OUTFIT_COLORS).toContain(v);
+    expect(VALID_SKIN_TONES.length).toBeGreaterThanOrEqual(10);
+    expect(VALID_HAIR_STYLES.length).toBeGreaterThanOrEqual(14);
+    expect(VALID_HAIR_COLORS.length).toBeGreaterThanOrEqual(10);
   });
 
   it('valide une apparence complètement personnalisée sans erreur', () => {
@@ -106,7 +110,8 @@ describe('P-PERSO — 2. Validation & Tokens d’Apparence Esthétique', () => {
     const res = validateAppearance(customApp);
     expect(res.valid).toBe(true);
     expect(res.errors).toHaveLength(0);
-    expect(res.appearance).toEqual(customApp);
+    // Les champs approfondis absents prennent leur valeur par défaut.
+    expect(res.appearance).toEqual({ ...DEFAULT_PLAYER_APPEARANCE, ...customApp });
   });
 
   it('détecte et remplace une teinte de peau invalide par le repli canonique claire', () => {
@@ -117,7 +122,7 @@ describe('P-PERSO — 2. Validation & Tokens d’Apparence Esthétique', () => {
   });
 
   it('détecte et remplace une couleur ou coupe de cheveux invalide par les replis canoniques', () => {
-    const res = validateAppearance({ hairColor: 'vert_fluo', hairStyle: 'crete' });
+    const res = validateAppearance({ hairColor: 'vert_fluo', hairStyle: 'mohican_violet' });
     expect(res.valid).toBe(false);
     expect(res.appearance.hairColor).toBe('chatain');
     expect(res.appearance.hairStyle).toBe('court');
@@ -236,7 +241,8 @@ describe('P-PERSO — 4. Création de Monde Personnalisé & Initialisation', () 
     expect(world.player.lastName).toBe('Belkacem');
     expect(world.player.name).toBe('Samia Belkacem');
     expect(world.player.gender).toBe('fille');
-    expect(world.player.appearance).toEqual(custom.appearance);
+    // Les champs approfondis (v23) non choisis prennent leur valeur par défaut.
+    expect(world.player.appearance).toEqual({ ...DEFAULT_PLAYER_APPEARANCE, ...custom.appearance });
     expect(world.player.characteristics).toEqual(custom.characteristics);
   });
 
@@ -356,7 +362,9 @@ describe('P-PERSO — 6. Migration de Sauvegarde v9 → v10 & Rétrocompatibilit
     expect(v10.player.firstName).toBe('Camille Ancien');
     expect(v10.player.lastName).toBe('');
     expect(v10.player.gender).toBe('non-binaire');
-    expect(v10.player.appearance).toEqual(DEFAULT_PLAYER_APPEARANCE);
+    // L'étape v9 → v10 crée l'apparence de l'époque (5 champs) ; v22 → v23 complétera le reste.
+    const { skinTone, hairColor, hairStyle, outfitStyle, outfitColor } = DEFAULT_PLAYER_APPEARANCE;
+    expect(v10.player.appearance).toEqual({ skinTone, hairColor, hairStyle, outfitStyle, outfitColor });
 
     // Vérifie que les données de rivaux introduites en v8/v9 sont intactes
     expect(v10.rivals.drive_hyper).toBeDefined();

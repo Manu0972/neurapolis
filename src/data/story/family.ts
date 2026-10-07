@@ -58,7 +58,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
       {
         label: 'Le commerce m’apprend plus sur l’économie que les manuels.',
         effect: { trust: -1, worry: 3, pride: 0 },
-        answer: 'Ne commence pas à faire ton grand. Sans diplôme, dans cette vallée, on finit brisé en trois-huit.',
+        answer: 'Ne commence pas à prendre de grands airs. Sans diplôme, dans cette vallée, on finit brisé en trois-huit.',
       },
     ],
   },
@@ -105,17 +105,17 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
     speaker: 'nora',
     when: 'diner',
     mood: 'tendre',
-    text: 'Je prends mon service de nuit aux urgences à 21h30. Tu me promets que tu seras couché à 22h et que tu n’auras pas ton nez collé sur ton calepin de commandes ?',
+    text: 'Je prends mon service de nuit aux urgences à 21h30. Tu me promets d’être au lit à 22h et que tu n’auras pas ton nez collé sur ton calepin de commandes ?',
     replies: [
       {
         label: 'Promis maman, je dors tôt pour être en forme au collège.',
         effect: { trust: 2, worry: -2, pride: 1 },
-        answer: 'Merci mon grand. Prends soin de ton père, il a le dos en compote après sa journée au chariot élévateur.',
+        answer: 'Merci mon enfant. Prends soin de ton père, il a le dos en compote après sa journée au chariot élévateur.',
       },
       {
         label: 'J’ai juste un bon de livraison à signer avant de dormir.',
         effect: { trust: -1, worry: 2, pride: 0 },
-        answer: 'Tu es têtu comme ton grand-père. À douze ans, on signe des devoirs, pas des bons de livraison !',
+        answer: 'Tu as la tête dure comme ton grand-père. À douze ans, on signe des devoirs, pas des bons de livraison !',
       },
     ],
   },
@@ -150,12 +150,12 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
       {
         label: 'J’ai dû réceptionner une livraison urgente chez Bertin avant qu’elle ne reparte.',
         effect: { trust: -2, worry: 3, pride: -1 },
-        answer: 'Tu as séché les maths pour des cartons de jus de pomme ?! Tu perds complètement la tête ! Tu es puni de sortie ce week-end !',
+        answer: 'Tu as séché les maths pour des cartons de jus de pomme ?! Tu perds complètement la tête ! Privation de sortie ce week-end !',
       },
       {
         label: 'J’étais avec Noah qui avait fait un malaise, on est allés à l’infirmerie.',
         effect: { trust: -3, worry: 2, pride: -2 },
-        answer: 'Menteur ! Mme Benali a vérifié le registre de l’infirmerie. Ne me mens plus jamais en face, {nom} !',
+        answer: 'C’est faux ! Mme Benali a vérifié le registre de l’infirmerie. Ne me mens plus jamais en face, {nom} !',
       },
       {
         label: 'Pardon maman... J’ai mal calculé mon temps. Je rattraperai les cours sur le cahier de Lina.',
@@ -228,7 +228,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
     speaker: 'nora',
     when: 'convocation',
     mood: 'inquiet',
-    text: 'Mme Benali m’a dit que tu étais intelligent mais que tu défiais l’autorité de l’établissement avec tes affaires de grand. Elle ne veut pas te sanctionner mais elle exige un engagement.',
+    text: 'Mme Benali m’a dit que tu montrais de vives capacités mais que tu défiais l’autorité de l’établissement avec des affaires d’adulte. Elle ne veut pas te sanctionner mais elle exige un engagement.',
     replies: [
       {
         label: 'Je déplacerai toutes mes activités hors du collège, sur la place des Roses.',
@@ -292,12 +292,12 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
       {
         label: 'Merci papa, merci maman. C’est pour vous que je réussis.',
         effect: { trust: 4, worry: -3, pride: 4 },
-        answer: 'Thierry sourit à pleines dents : « Ce soir, la fête est pour le futur patron de la maison ! »',
+        answer: 'Thierry sourit à pleines dents : « Ce soir, la fête est pour la tête pensante de la maison ! »',
       },
       {
         label: 'Ça prouve qu’on peut gérer ses affaires et être premier de la classe !',
         effect: { trust: 2, worry: 0, pride: 3 },
-        answer: 'Nora tempère en souriant : « Ne te repose pas sur tes lauriers, monsieur le jeune prodige ! »',
+        answer: 'Nora tempère en souriant : « Ne te repose pas sur tes lauriers, jeune prodige ! »',
       },
     ],
   },
@@ -308,7 +308,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
     speaker: 'nora',
     when: 'mauvaise_note',
     mood: 'fache',
-    text: 'Un 06/20 en anglais ! La prof a noté : "Élève endormi sur sa table, vocabulaire commercial inadapté au cours de grammaire" !',
+    text: 'Un 06/20 en anglais ! La prof a noté : "Sommeil sur sa table en classe, vocabulaire commercial inadapté au cours de grammaire" !',
     replies: [
       {
         label: 'J’ai confondu le vocabulaire du cours avec les termes de facturation...',
@@ -332,7 +332,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
       {
         label: 'J’avais passé la soirée à compter la caisse de la semaine et j’ai oublié l’heure.',
         effect: { trust: -2, worry: 3, pride: -1 },
-        answer: 'L’argent t’aveugle mon petit. Un devoir non rendu, c’est un manque de parole. Ne fais plus jamais ça.',
+        answer: 'L’argent t’aveugle, mon enfant. Un devoir non rendu, c’est un manque de parole. Ne fais plus jamais ça.',
       },
       {
         label: 'J’ai fait le devoir mais je l’ai laissé sur l’établi de Karim.',
@@ -367,7 +367,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
     speaker: 'les_deux',
     when: 'reussite_business',
     mood: 'espoir',
-    text: 'Nora tient le contrat de bail commercial avec la mairie de Val-Ferrand. Elle doit le cosigner parce que tu es encore mineur.',
+    text: 'Nora tient le contrat de bail commercial avec la mairie de Val-Ferrand. Elle doit le cosigner parce que l’âge de la majorité n’est pas encore atteint.',
     replies: [
       {
         label: 'Faites-moi confiance, les comptes prévisionnels sont validés par Mme Bertin.',
@@ -447,7 +447,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
     speaker: 'nora',
     when: 'fatigue',
     mood: 'inquiet',
-    text: 'Tu t’es endormi la tête sur ton bol de céréales ce matin. Ton front est chaud. Tu as besoin d’une vraie nuit de sommeil, pas de quatre heures entre deux calculs d’amortissement.',
+    text: 'Le sommeil t’a pris la tête sur ton bol de céréales ce matin. Ton front est chaud. Tu as besoin d’une vraie nuit de sommeil, pas de quatre heures entre deux calculs d’amortissement.',
     replies: [
       {
         label: 'Je vais dormir dix heures d’affilée ce soir, promis maman.',
@@ -476,7 +476,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
       {
         label: 'Je n’arrive pas à dormir, les voix des livres n’arrêtent pas de débattre dans ma tête...',
         effect: { trust: 1, worry: 3, pride: 0 },
-        answer: 'Thierry te regarde avec tendresse et inquiétude : « Tu lis trop, mon grand. Laisse reposer ton esprit. »',
+        answer: 'Thierry te regarde avec tendresse et inquiétude : « Tu lis trop, mon enfant. Laisse reposer ton esprit. »',
       },
     ],
   },
@@ -497,7 +497,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
       {
         label: 'Merci papa, merci maman. Je vous rembourserai le prix des pièces.',
         effect: { trust: 2, worry: 0, pride: 3 },
-        answer: 'Nora rit : « On ne rembourse pas un cadeau d’anniversaire, petit banquier ! Mange ton gâteau ! »',
+        answer: 'Nora rit : « On ne rembourse pas un cadeau d’anniversaire, petite tête pensante ! Mange ton gâteau ! »',
       },
     ],
   },
@@ -516,7 +516,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
       {
         label: 'Je promets de rouler calmement et de ne jamais transporter d’amis sans casque.',
         effect: { trust: 4, worry: -2, pride: 3 },
-        answer: 'C’est un contrat d’honneur entre nous. Tu deviens un homme digne de ce nom.',
+        answer: 'C’est un contrat d’honneur entre nous. Tu deviens une personne digne de ce nom.',
       },
     ],
   },
@@ -564,7 +564,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
     speaker: 'nora',
     when: 'diner',
     mood: 'tendre',
-    text: 'Encore trois admissions d’urgence ce matin à cause du froid dans les barres HLM. La précarité use les gens plus vite que l’âge. Ne crois pas que l’argent protège de tout, mon chéri.',
+    text: 'Encore trois admissions d’urgence ce matin à cause du froid dans les barres HLM. La précarité use les gens plus vite que l’âge. Ne crois pas que l’argent protège de tout, mon enfant.',
     replies: [
       {
         label: 'C’est pour ça qu’on doit créer des emplois stables dans la vallée.',
@@ -593,7 +593,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
       {
         label: 'Je ne fais pas de politique, je fais tourner des commerces.',
         effect: { trust: -1, worry: 2, pride: 0 },
-        answer: 'Tout est politique quand il s’agit de pain et de dignité ouvrière, petit.',
+        answer: 'Tout est politique quand il s’agit de pain et de dignité ouvrière, mon enfant.',
       },
     ],
   },
@@ -680,7 +680,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
     speaker: 'nora',
     when: 'absence',
     mood: 'inquiet',
-    text: 'La vie scolaire m’a envoyé un SMS pour une absence en première heure. Tu étais coincé par la grève des transports ou tu préparais des étalages ?',
+    text: 'La vie scolaire m’a envoyé un SMS pour une absence en première heure. Le blocage des transports t’a fait obstacle ou tu préparais des étalages ?',
     replies: [
       {
         label: 'La ligne 4 ne passait pas, j’ai fini le trajet à pied sous la pluie.',
@@ -841,7 +841,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
       {
         label: 'J’ai automatisé le tri par taille de colis pour optimiser les flux.',
         effect: { trust: 3, worry: -1, pride: 3 },
-        answer: 'Tu as la tête d’un vrai ingénieur métallurgiste. Les machines te comprennent.',
+        answer: 'Tu as l’esprit d’ingénierie dans le sang. Les machines te comprennent.',
       },
       {
         label: 'On pourrait construire la même chose à l’atelier de Karim pour les vélos.',
@@ -863,7 +863,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
         answer: 'Thierry lève son verre : « Les {nom} entrent au lycée par la grande porte ! »',
       },
       {
-        label: 'Merci pour votre soutien quand j’étais fatigué le soir.',
+        label: 'Merci pour votre soutien dans les moments de fatigue le soir.',
         effect: { trust: 4, worry: -2, pride: 3 },
         answer: 'Nora te serre dans ses bras : « On est une équipe tous les trois. »',
       },
@@ -874,7 +874,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
     speaker: 'nora',
     when: 'bonne_note',
     mood: 'fier',
-    text: 'Tu es passé de 06 à 14/20 en anglais ! La prof a souligné tes progrès spectaculaires à l’oral.',
+    text: 'Te voilà à 14/20 en anglais après un 06 ! La prof a souligné tes progrès spectaculaires à l’oral.',
     replies: [
       {
         label: 'Lina m’a fait réviser le vocabulaire commercial tous les mercredis.',
@@ -884,7 +884,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
       {
         label: 'I am ready for international trade now, mum !',
         effect: { trust: 2, worry: -1, pride: 3 },
-        answer: 'Nora éclate de rire : « Écoutez-le qui me parle déjà comme à la City de Londres ! »',
+        answer: 'Nora éclate de rire : « Regarde-moi ça qui me parle déjà comme à la City de Londres ! »',
       },
     ],
   },
@@ -895,7 +895,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
     speaker: 'thierry',
     when: 'mauvaise_note',
     mood: 'inquiet',
-    text: '08/20 au test de demi-fond en EPS. M. Sanchez note : "Élève essoufflé au deuxième tour, manque d’endurance évident". Tu ne fais pas assez de sport !',
+    text: '08/20 au test de demi-fond en EPS. M. Sanchez note : "Essoufflement marqué au deuxième tour, manque d’endurance évident". Tu ne fais pas assez de sport !',
     replies: [
       {
         label: 'Je cours déjà toute la journée pour livrer mes cartons !',
@@ -941,7 +941,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
         answer: 'On regardera ça avec le fer à souder samedi après-midi. La pratique éclaire la théorie.',
       },
       {
-        label: 'J’étais fatigué le jour de l’évaluation.',
+        label: 'La fatigue a pesé lourd le jour de l’évaluation.',
         effect: { trust: -1, worry: 2, pride: -1 },
         answer: 'La fatigue n’excuse pas l’approximation. Révise tes formules.',
       },
@@ -962,7 +962,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
       {
         label: 'L’espagnol ne me servira à rien à Val-Ferrand...',
         effect: { trust: -2, worry: 3, pride: -1 },
-        answer: 'Et si tu exportes plus tard en Amérique du Sud ? Ne sois pas borné !',
+        answer: 'Et si tu exportes plus tard en Amérique du Sud ? Garde l’esprit ouvert !',
       },
     ],
   },
@@ -1056,7 +1056,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
       {
         label: 'Ils vendent à perte pour nous étouffer, mais ils ne tiendront pas éternellement.',
         effect: { trust: 3, worry: 1, pride: 2 },
-        answer: 'C’est leur méthode habituelle de requin. Reste campé sur ta qualité artisanale.',
+        answer: 'C’est leur méthode habituelle de requin. Maintiens le cap sur ta qualité artisanale.',
       },
       {
         label: 'On va répliquer en proposant des services personnalisés qu’ils ne peuvent pas offrir.',
@@ -1089,7 +1089,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
     speaker: 'thierry',
     when: 'echec_business',
     mood: 'tendre',
-    text: 'Tu es rentré en poussant le scooter sous la neige, le moteur serré par le gel. Thierry sort sa caisse à outils.',
+    text: 'Te voilà de retour en poussant le scooter sous la neige, le moteur serré par le gel. Thierry sort sa caisse à outils.',
     replies: [
       {
         label: 'J’ai oublié de vérifier le niveau d’huile avant la tournée...',
@@ -1158,7 +1158,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
       {
         label: 'Ça me fait penser à tout ce que tu as porté pendant trente ans à l’usine.',
         effect: { trust: 4, worry: -2, pride: 3 },
-        answer: 'Thierry sourit avec émotion : « Tu me comprends mieux que quiconque, fiston. »',
+        answer: 'Thierry sourit avec émotion : « Tu me comprends mieux que quiconque, mon enfant. »',
       },
     ],
   },
@@ -1177,7 +1177,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
       {
         label: 'Tu es la meilleure infirmière de tout le département.',
         effect: { trust: 4, worry: -2, pride: 3 },
-        answer: 'Elle t’embrasse tendrement : « Dors bien mon grand. »',
+        answer: 'Elle t’embrasse tendrement : « Dors bien, mon cœur. »',
       },
     ],
   },
@@ -1207,7 +1207,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
     speaker: 'thierry',
     when: 'nuit_blanche',
     mood: 'inquiet',
-    text: 'Il est quatre heures du matin. Tu es assis par terre au milieu de trois classeurs de factures pour boucler l’inventaire de fin d’exercice.',
+    text: 'Il est quatre heures du matin. Te voilà par terre au milieu de trois classeurs de factures pour boucler l’inventaire de fin d’exercice.',
     replies: [
       {
         label: 'Je dois être rigoureux au centime près pour la clôture comptable.',
@@ -1226,7 +1226,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
     speaker: 'nora',
     when: 'nuit_blanche',
     mood: 'inquiet',
-    text: 'Nora rentre de sa garde d’hôpital à 6h30 et te trouve déjà habillé, en train de négocier au téléphone avec un maraîcher.',
+    text: 'Nora rentre de sa garde d’hôpital à 6h30 et te trouve déjà sur pied, en train de négocier au téléphone avec un maraîcher.',
     replies: [
       {
         label: 'Son camion est tombé en panne, je lui organise un déchargement de secours.',
@@ -1269,7 +1269,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
       {
         label: 'Regarde maman : tout est pensé pour relier les artisans de la friche à la gare.',
         effect: { trust: 4, worry: -1, pride: 4 },
-        answer: 'Nora regarde le plan avec admiration : « Tu as la vision d’un grand bâtisseur. »',
+        answer: 'Nora regarde le plan avec admiration : « Tu as une vision remarquable pour bâtir. »',
       },
       {
         label: 'Je voulais fixer mes idées avant qu’elles ne s’envolent.',
@@ -1290,7 +1290,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
       {
         label: 'Je promets de vous rendre fiers à chaque jour de cette nouvelle aventure.',
         effect: { trust: 4, worry: -2, pride: 4 },
-        answer: 'Thierry te sourit avec émotion : « Bonne rentrée mon grand. La vie t’appartient. »',
+        answer: 'Thierry te sourit avec émotion : « Bonne rentrée, mon enfant. La vie t’appartient. »',
       },
       {
         label: 'C’est aujourd’hui que tout commence !',
@@ -1364,7 +1364,7 @@ export const SCHOOL_CHARACTERS: readonly SchoolCharacter[] = [
     name: 'Mme Moreau',
     role: 'Professeur de mathématiques',
     traits: ['rigoureuse', 'passionnée d’algèbre', 'intransigeante sur la méthode'],
-    bio: 'Figure historique du collège, redoutée pour ses interrogations surprises sur les fractions et les pourcentages. Elle admire secrètement la vivacité de calcul du joueur mais refuse catégoriquement qu’il saute les étapes de démonstration géométrique.',
+    bio: 'Figure historique du collège, redoutée pour ses interrogations surprises sur les fractions et les pourcentages. Elle admire secrètement la vivacité de calcul de {prenom} mais refuse catégoriquement de voir sauter les étapes de démonstration géométrique.',
     dealPossible: 'Donne carte blanche pour utiliser des calculatrices programmables et sauter les exercices redondants si tu obtiens plus de 18/20 au devoir trimestriel.',
   },
   {
@@ -1380,7 +1380,7 @@ export const SCHOOL_CHARACTERS: readonly SchoolCharacter[] = [
     name: 'Mme Fontaine',
     role: 'Professeur de français et lettres',
     traits: ['sensible', 'exigeante sur la syntaxe', 'admiratrice d’Émile Zola'],
-    bio: 'Amoureuse de la littérature réaliste et engagée (Zola, Hugo, George Sand). Elle traque impitoyablement le jargon d’école de commerce et exige que le joueur sache exprimer ses idées avec élégance, clarté et vocabulaire riche.',
+    bio: 'Amoureuse de la littérature réaliste et engagée (Zola, Hugo, George Sand). Elle traque impitoyablement le jargon d’école de commerce et exige que {prenom} sache exprimer ses idées avec élégance, clarté et vocabulaire riche.',
     dealPossible: 'Pardonne un devoir maison rendu en retard si tu rédiges une critique littéraire argumentée pour le journal du collège.',
   },
   {
@@ -1404,7 +1404,7 @@ export const SCHOOL_CHARACTERS: readonly SchoolCharacter[] = [
     name: 'Mme Aubert',
     role: 'Documentaliste responsable du CDI',
     traits: ['calme', 'protectrice des livres', 'complice discrète'],
-    bio: 'Gardienne du temple du CDI. C’est elle qui a récupéré en cachette deux cartons de livres de sociologie avant la fermeture de la bibliothèque du CE en 2014. Elle laisse le joueur s’installer au fond de la travée d’économie pour étudier au calme.',
+    bio: 'Gardienne du temple du CDI. C’est elle qui a récupéré en cachette deux cartons de livres de sociologie avant la fermeture de la bibliothèque du CE en 2014. Elle laisse {prenom} s’installer au fond de la travée d’économie pour étudier au calme.',
     dealPossible: 'Garde les colis ou le stock sous clé dans la réserve du CDI pendant les heures de cours en échange de deux heures d’aide au classement par semaine.',
   },
   {
@@ -1412,7 +1412,7 @@ export const SCHOOL_CHARACTERS: readonly SchoolCharacter[] = [
     name: 'Alexis Rameau',
     role: 'Élève rival (fils du directeur de zone HyperVal)',
     traits: ['hautain', 'compétitif', 'arrogant', 'matérialiste'],
-    bio: 'Fils d’Hervé de Saint-Amand (directeur du Drive HyperVal). Il roule avec les derniers smartphones, méprise les quartiers populaires et tente régulièrement de dénigrer les activités du joueur auprès du principal ou sur les réseaux sociaux.',
+    bio: 'Fils d’Hervé de Saint-Amand (directeur du Drive HyperVal). Il roule avec les derniers smartphones, méprise les quartiers populaires et tente régulièrement de dénigrer les activités de {prenom} auprès du principal ou sur les réseaux sociaux.',
     dealPossible: 'Aucun arrangement direct : son arrogance ne se plie que face à une victoire commerciale éclatante ou une humiliation publique lors d’un débat économique.',
   },
   {

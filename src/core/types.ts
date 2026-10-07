@@ -41,31 +41,69 @@ export interface Skill { level: 0 | 1 | 2 | 3; xp: number }
 
 /** Apparence persistée du joueur, choisie à la création de partie. */
 export type PlayerGender = 'fille' | 'garcon' | 'non-binaire';
-export type PlayerSkinTone = 'claire' | 'chaude' | 'doree' | 'ebene';
-export type PlayerHairColor = 'brun' | 'chatain' | 'blond' | 'roux' | 'noir';
-export type PlayerHairStyle = 'court' | 'mi-long' | 'boucle' | 'tresse' | 'couettes';
-export type PlayerOutfitStyle = 'ecolier' | 'artisan' | 'sportif' | 'citoyen';
-export type PlayerOutfitColor = 'denim' | 'coral' | 'vert' | 'ocre' | 'indigo';
+export type PlayerSkinTone =
+  | 'porcelaine' | 'claire' | 'rosee' | 'doree' | 'olive' | 'chaude' | 'ambree' | 'cuivree' | 'brune' | 'ebene';
+export type PlayerHairColor =
+  | 'brun' | 'chatain' | 'blond' | 'roux' | 'noir' | 'platine' | 'gris' | 'bleu' | 'rose' | 'vert';
+export type PlayerHairStyle =
+  | 'court' | 'mi-long' | 'boucle' | 'tresse' | 'couettes' | 'rase' | 'degrade' | 'long' | 'afro' | 'locks'
+  | 'chignon' | 'queue' | 'frange' | 'crete';
+/** Tenues : les quatre de départ, puis celles qui se gagnent avec les paliers de l'Ascension. */
+export type PlayerOutfitStyle =
+  | 'ecolier' | 'artisan' | 'sportif' | 'citoyen' | 'streetwear' | 'entrepreneur' | 'dirigeant' | 'magnat';
+export type PlayerOutfitColor =
+  | 'denim' | 'coral' | 'vert' | 'ocre' | 'indigo' | 'noir' | 'blanc' | 'bordeaux' | 'moutarde' | 'ciel';
+export type PlayerBody = 'fine' | 'moyenne' | 'sportive' | 'ronde';
+export type PlayerEyes = 'ronds' | 'amande' | 'tombants' | 'rieurs';
+export type PlayerEyeColor = 'brun' | 'noisette' | 'vert' | 'bleu' | 'gris';
+export type PlayerGlasses = 'aucune' | 'rondes' | 'carrees' | 'ecaille' | 'fines' | 'soleil';
+export type PlayerBeard = 'aucune' | 'duvet' | 'moustache' | 'courte' | 'pleine';
+export type PlayerAccessory = 'aucun' | 'casquette' | 'bonnet' | 'ecouteurs' | 'montre' | 'echarpe' | 'sac_dos' | 'sacoche';
 export interface PlayerAppearance {
   skinTone: PlayerSkinTone;
   hairColor: PlayerHairColor;
   hairStyle: PlayerHairStyle;
   outfitStyle: PlayerOutfitStyle;
   outfitColor: PlayerOutfitColor;
+  /** Personnalisation approfondie (save v23) ; absentes = valeurs par défaut. */
+  body?: PlayerBody;
+  /** Taille relative, de −2 (plus petit) à +2 (plus grand). */
+  heightAdj?: number;
+  eyes?: PlayerEyes;
+  eyeColor?: PlayerEyeColor;
+  glasses?: PlayerGlasses;
+  freckles?: boolean;
+  /** Disponible à partir de 16 ans. */
+  beard?: PlayerBeard;
+  accessory?: PlayerAccessory;
 }
 /** Valeurs permises — source unique pour la création de personnage et les migrations. */
 export const VALID_GENDERS: readonly PlayerGender[] = ['fille', 'garcon', 'non-binaire'];
-export const VALID_SKIN_TONES: readonly PlayerSkinTone[] = ['claire', 'chaude', 'doree', 'ebene'];
-export const VALID_HAIR_COLORS: readonly PlayerHairColor[] = ['brun', 'chatain', 'blond', 'roux', 'noir'];
-export const VALID_HAIR_STYLES: readonly PlayerHairStyle[] = ['court', 'mi-long', 'boucle', 'tresse', 'couettes'];
-export const VALID_OUTFIT_STYLES: readonly PlayerOutfitStyle[] = ['ecolier', 'artisan', 'sportif', 'citoyen'];
-export const VALID_OUTFIT_COLORS: readonly PlayerOutfitColor[] = ['denim', 'coral', 'vert', 'ocre', 'indigo'];
+export const VALID_SKIN_TONES: readonly PlayerSkinTone[] = ['porcelaine', 'claire', 'rosee', 'doree', 'olive', 'chaude', 'ambree', 'cuivree', 'brune', 'ebene'];
+export const VALID_HAIR_COLORS: readonly PlayerHairColor[] = ['brun', 'chatain', 'blond', 'roux', 'noir', 'platine', 'gris', 'bleu', 'rose', 'vert'];
+export const VALID_HAIR_STYLES: readonly PlayerHairStyle[] = ['court', 'mi-long', 'boucle', 'tresse', 'couettes', 'rase', 'degrade', 'long', 'afro', 'locks', 'chignon', 'queue', 'frange', 'crete'];
+export const VALID_OUTFIT_STYLES: readonly PlayerOutfitStyle[] = ['ecolier', 'artisan', 'sportif', 'citoyen', 'streetwear', 'entrepreneur', 'dirigeant', 'magnat'];
+export const VALID_OUTFIT_COLORS: readonly PlayerOutfitColor[] = ['denim', 'coral', 'vert', 'ocre', 'indigo', 'noir', 'blanc', 'bordeaux', 'moutarde', 'ciel'];
+export const VALID_BODIES: readonly PlayerBody[] = ['fine', 'moyenne', 'sportive', 'ronde'];
+export const VALID_EYES: readonly PlayerEyes[] = ['ronds', 'amande', 'tombants', 'rieurs'];
+export const VALID_EYE_COLORS: readonly PlayerEyeColor[] = ['brun', 'noisette', 'vert', 'bleu', 'gris'];
+export const VALID_GLASSES: readonly PlayerGlasses[] = ['aucune', 'rondes', 'carrees', 'ecaille', 'fines', 'soleil'];
+export const VALID_BEARDS: readonly PlayerBeard[] = ['aucune', 'duvet', 'moustache', 'courte', 'pleine'];
+export const VALID_ACCESSORIES: readonly PlayerAccessory[] = ['aucun', 'casquette', 'bonnet', 'ecouteurs', 'montre', 'echarpe', 'sac_dos', 'sacoche'];
 export const DEFAULT_PLAYER_APPEARANCE: PlayerAppearance = {
   skinTone: 'claire',
   hairColor: 'chatain',
   hairStyle: 'court',
   outfitStyle: 'ecolier',
   outfitColor: 'coral',
+  body: 'moyenne',
+  heightAdj: 0,
+  eyes: 'ronds',
+  eyeColor: 'brun',
+  glasses: 'aucune',
+  freckles: false,
+  beard: 'aucune',
+  accessory: 'aucun',
 };
 
 /** Apprentissage en 4 étapes (Bible §5) : 1 découverte, 2 explication, 3 application, 4 maîtrise. */

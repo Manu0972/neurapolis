@@ -11,10 +11,22 @@ import {
   VALID_OUTFIT_COLORS,
   VALID_OUTFIT_STYLES,
   VALID_SKIN_TONES,
+  VALID_ACCESSORIES,
+  VALID_BEARDS,
+  VALID_BODIES,
+  VALID_EYE_COLORS,
+  VALID_EYES,
+  VALID_GLASSES,
   type Characteristics,
   type Player,
+  type PlayerAccessory,
   type PlayerAppearance,
+  type PlayerBeard,
+  type PlayerBody,
+  type PlayerEyeColor,
+  type PlayerEyes,
   type PlayerGender,
+  type PlayerGlasses,
   type PlayerHairColor,
   type PlayerHairStyle,
   type PlayerOutfitColor,
@@ -32,6 +44,12 @@ export {
   VALID_OUTFIT_COLORS,
   VALID_OUTFIT_STYLES,
   VALID_SKIN_TONES,
+  VALID_ACCESSORIES,
+  VALID_BEARDS,
+  VALID_BODIES,
+  VALID_EYE_COLORS,
+  VALID_EYES,
+  VALID_GLASSES,
   type Characteristics,
   type Player,
   type PlayerAppearance,
@@ -112,10 +130,16 @@ export const GENDER_INFO: Record<PlayerGender, { label: string; icon: string }> 
 };
 
 export const SKIN_TONE_INFO: Record<SkinTone, { label: string; hex: string }> = {
+  porcelaine: { label: 'Porcelaine', hex: '#ffe0cc' },
   claire: { label: 'Claire', hex: '#ffc496' },
-  chaude: { label: 'Chaude', hex: '#b47a56' },
+  rosee: { label: 'Rosée', hex: '#f2b39a' },
   doree: { label: 'Dorée', hex: '#e2ad7a' },
-  ebene: { label: 'Ébène', hex: '#724028' },
+  olive: { label: 'Olive', hex: '#c9a06c' },
+  chaude: { label: 'Chaude', hex: '#b47a56' },
+  ambree: { label: 'Ambrée', hex: '#a06a40' },
+  cuivree: { label: 'Cuivrée', hex: '#8c5634' },
+  brune: { label: 'Brune', hex: '#6e4128' },
+  ebene: { label: 'Ébène', hex: '#4a2a1a' },
 };
 
 export const HAIR_COLOR_INFO: Record<HairColor, { label: string; hex: string }> = {
@@ -124,6 +148,11 @@ export const HAIR_COLOR_INFO: Record<HairColor, { label: string; hex: string }> 
   blond: { label: 'Blond', hex: '#ffd98a' },
   roux: { label: 'Roux', hex: '#c15f4a' },
   noir: { label: 'Noir', hex: '#2c2230' },
+  platine: { label: 'Platine', hex: '#f3ead8' },
+  gris: { label: 'Gris argent', hex: '#a9a9b3' },
+  bleu: { label: 'Bleu électrique', hex: '#3d6fd8' },
+  rose: { label: 'Rose', hex: '#e86fa6' },
+  vert: { label: 'Vert menthe', hex: '#5cc8a0' },
 };
 
 export const HAIR_STYLE_INFO: Record<HairStyle, { label: string; icon: string }> = {
@@ -132,6 +161,15 @@ export const HAIR_STYLE_INFO: Record<HairStyle, { label: string; icon: string }>
   boucle: { label: 'Bouclé', icon: '🌀' },
   tresse: { label: 'Tressé', icon: '🪢' },
   couettes: { label: 'Couettes', icon: '🎀' },
+  rase: { label: 'Rasé', icon: '🪒' },
+  degrade: { label: 'Dégradé', icon: '💈' },
+  long: { label: 'Long lisse', icon: '🌊' },
+  afro: { label: 'Afro', icon: '☁️' },
+  locks: { label: 'Locks', icon: '🧶' },
+  chignon: { label: 'Chignon', icon: '🍙' },
+  queue: { label: 'Queue de cheval', icon: '🐎' },
+  frange: { label: 'Frange', icon: '🪮' },
+  crete: { label: 'Crête', icon: '🦔' },
 };
 
 export const OUTFIT_STYLE_INFO: Record<OutfitStyle, { label: string; icon: string }> = {
@@ -139,7 +177,20 @@ export const OUTFIT_STYLE_INFO: Record<OutfitStyle, { label: string; icon: strin
   artisan: { label: 'Artisan', icon: '🛠️' },
   sportif: { label: 'Sportif', icon: '👟' },
   citoyen: { label: 'Citoyen', icon: '🧣' },
+  streetwear: { label: 'Streetwear', icon: '🧢' },
+  entrepreneur: { label: 'Entrepreneur·e', icon: '🧥' },
+  dirigeant: { label: 'Dirigeant·e', icon: '👔' },
+  magnat: { label: 'Magnat·e', icon: '🎩' },
 };
+
+/** Palier de l'Ascension à atteindre pour porter une tenue (1 = dès le début). */
+export const OUTFIT_TIER: Record<OutfitStyle, number> = {
+  ecolier: 1, artisan: 1, sportif: 1, citoyen: 1, streetwear: 1, entrepreneur: 3, dirigeant: 4, magnat: 6,
+};
+
+export function outfitAllowed(style: OutfitStyle, tier: number): boolean {
+  return (OUTFIT_TIER[style] ?? 1) <= tier;
+}
 
 export const OUTFIT_COLOR_INFO: Record<OutfitColor, { label: string; hex: string }> = {
   denim: { label: 'Denim', hex: '#4a5a7a' },
@@ -147,6 +198,58 @@ export const OUTFIT_COLOR_INFO: Record<OutfitColor, { label: string; hex: string
   vert: { label: 'Vert', hex: '#38b764' },
   ocre: { label: 'Ocre', hex: '#8a5a3a' },
   indigo: { label: 'Indigo', hex: '#303e80' },
+  noir: { label: 'Noir', hex: '#24222a' },
+  blanc: { label: 'Blanc cassé', hex: '#ece6da' },
+  bordeaux: { label: 'Bordeaux', hex: '#7a2436' },
+  moutarde: { label: 'Moutarde', hex: '#d9a521' },
+  ciel: { label: 'Bleu ciel', hex: '#8cc4e8' },
+};
+
+export const BODY_INFO: Record<PlayerBody, { label: string; icon: string }> = {
+  fine: { label: 'Fine', icon: '🌿' },
+  moyenne: { label: 'Moyenne', icon: '🧍' },
+  sportive: { label: 'Sportive', icon: '💪' },
+  ronde: { label: 'Ronde', icon: '🫧' },
+};
+export const EYES_INFO: Record<PlayerEyes, { label: string; icon: string }> = {
+  ronds: { label: 'Ronds', icon: '👀' },
+  amande: { label: 'En amande', icon: '🌰' },
+  tombants: { label: 'Tombants', icon: '😌' },
+  rieurs: { label: 'Rieurs', icon: '😊' },
+};
+export const EYE_COLOR_INFO: Record<PlayerEyeColor, { label: string; hex: string }> = {
+  brun: { label: 'Brun', hex: '#4a2e1c' },
+  noisette: { label: 'Noisette', hex: '#8a6234' },
+  vert: { label: 'Vert', hex: '#4f7f4a' },
+  bleu: { label: 'Bleu', hex: '#4a78b0' },
+  gris: { label: 'Gris', hex: '#7d8590' },
+};
+export const GLASSES_INFO: Record<PlayerGlasses, { label: string; icon: string }> = {
+  aucune: { label: 'Sans', icon: '🚫' },
+  rondes: { label: 'Rondes', icon: '👓' },
+  carrees: { label: 'Carrées', icon: '🔲' },
+  ecaille: { label: 'Écaille', icon: '🐢' },
+  fines: { label: 'Fines', icon: '➖' },
+  soleil: { label: 'Soleil', icon: '🕶️' },
+};
+export const BEARD_INFO: Record<PlayerBeard, { label: string; icon: string }> = {
+  aucune: { label: 'Sans', icon: '🚫' },
+  duvet: { label: 'Duvet', icon: '🌱' },
+  moustache: { label: 'Moustache', icon: '〰️' },
+  courte: { label: 'Barbe courte', icon: '🧔' },
+  pleine: { label: 'Barbe pleine', icon: '🧙' },
+};
+/** Âge à partir duquel la barbe est proposée. */
+export const BEARD_MIN_AGE = 16;
+export const ACCESSORY_INFO: Record<PlayerAccessory, { label: string; icon: string }> = {
+  aucun: { label: 'Aucun', icon: '🚫' },
+  casquette: { label: 'Casquette', icon: '🧢' },
+  bonnet: { label: 'Bonnet', icon: '🧶' },
+  ecouteurs: { label: 'Écouteurs', icon: '🎧' },
+  montre: { label: 'Montre', icon: '⌚' },
+  echarpe: { label: 'Écharpe', icon: '🧣' },
+  sac_dos: { label: 'Sac à dos', icon: '🎒' },
+  sacoche: { label: 'Sacoche', icon: '💼' },
 };
 
 export const CHARACTERISTIC_LABELS: Record<
@@ -287,6 +390,32 @@ export function validateAppearance(raw: unknown): AppearanceValidationResult {
     errors.push(`Couleur de tenue invalide ou manquante : « ${String(obj.outfitColor)} ».`);
   }
 
+  // Personnalisation approfondie (v23) : absente = valeur par défaut ; présente mais invalide = erreur.
+  const pick = <T,>(key: keyof PlayerAppearance, list: readonly T[], label: string): T => {
+    const v = obj[key];
+    const fallback = DEFAULT_PLAYER_APPEARANCE[key] as T;
+    if (v === undefined) return fallback;
+    if (list.includes(v as T)) return v as T;
+    errors.push(`${label} invalide : « ${String(v)} ».`);
+    return fallback;
+  };
+  const body = pick<PlayerBody>('body', VALID_BODIES, 'Morphologie');
+  const eyes = pick<PlayerEyes>('eyes', VALID_EYES, 'Forme des yeux');
+  const eyeColor = pick<PlayerEyeColor>('eyeColor', VALID_EYE_COLORS, 'Couleur des yeux');
+  const glasses = pick<PlayerGlasses>('glasses', VALID_GLASSES, 'Lunettes');
+  const beard = pick<PlayerBeard>('beard', VALID_BEARDS, 'Barbe');
+  const accessory = pick<PlayerAccessory>('accessory', VALID_ACCESSORIES, 'Accessoire');
+  let heightAdj = 0;
+  if (obj.heightAdj !== undefined) {
+    if (typeof obj.heightAdj === 'number' && Number.isInteger(obj.heightAdj) && obj.heightAdj >= -2 && obj.heightAdj <= 2) heightAdj = obj.heightAdj;
+    else errors.push(`Taille invalide : « ${String(obj.heightAdj)} ».`);
+  }
+  let freckles = false;
+  if (obj.freckles !== undefined) {
+    if (typeof obj.freckles === 'boolean') freckles = obj.freckles;
+    else errors.push(`Taches de rousseur invalides : « ${String(obj.freckles)} ».`);
+  }
+
   return {
     valid: errors.length === 0,
     errors,
@@ -296,6 +425,7 @@ export function validateAppearance(raw: unknown): AppearanceValidationResult {
       hairStyle,
       outfitStyle,
       outfitColor,
+      body, heightAdj, eyes, eyeColor, glasses, freckles, beard, accessory,
     },
   };
 }

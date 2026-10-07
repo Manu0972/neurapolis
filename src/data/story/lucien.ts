@@ -33,10 +33,10 @@ export const ORIGIN_SCENE: StoryBeat = {
   pages: [
     'Le tonnerre grondait au-dessus de la vallée du Taret comme les anciens coups de pilon des forges. Dehors, la pluie d’août fouettait les baies vitrées de la Maison du Peuple. Le lendemain, c’était la rentrée en cinquième au collège Jean-Moulin, mais ce soir-là, il fallait vider les cartons.',
     'Depuis la mort de papy Lucien à l’automne 2019, la mairie avait décidé de liquider définitivement l’ancienne bibliothèque du comité d’entreprise de Taret-Acier. Six mille volumes accumulés depuis les années soixante : romans ouvriers, traités de métallurgie, fiches syndicales, et deux travées entières d’économie et de philosophie sociale dont Lucien avait été le gardien bénévole pendant quarante ans.',
-    'Soudain, un claquement sec déchira la pénombre : le disjoncteur général venait de sauter dans toute la rue des Rosiers. Plongé dans le noir absolu, éclairé par la seule lueur tremblotante d’une lampe de poche, le jeune garçon grimpait sur l’escabeau en chêne pour décrocher une dernière pile d’épais volumes reliés en percaline rouge.',
-    'Le bois vermoulu poussa un gémissement sourd. Sous le poids des décennies d’humidité, la crémaillère céda d’un coup net. L’étagère entière bascula dans un fracas de tonnerre. Des centaines de pages, de reliures et de fiches cartonnées s’abattirent sur lui comme une avalanche de suie, de cuir et d’encre séchée. Puis, le silence noir.',
-    'Quand il rouvrit les yeux, étourdi sur le lino froid, l’odeur de poussière et d’ozone emplissait la pièce. Autour de lui gisaient des dizaines d’ouvrages dont les marges étaient couvertes de l’écriture penchée de Lucien à l’encre bleue. Chose étrange : Lucien avait fait relier ensemble, sous une même couverture cousue de fil de fer, des livres aux thèses radicalement ennemies. Ford contre Ohno. Smith contre Marx. Keynes contre Hayek.',
-    'Alors qu’il serrait contre sa poitrine un volume abîmé de La Richesse des Nations, un murmure posé et poli, empreint d’une douce cadence écossaise du XVIIIe siècle, résonna distinctement à son oreille droite : « Mon garçon… ne t’effraie point. Ce n’est pas de la bienveillance du boucher que nous attendons notre dîner, mais de son intérêt propre. Relève-toi, regarde cette ville : tout ce qui vit ici n’est que travail, valeur et division du labeur. Je serai là pour te montrer les rouages. »',
+    'Soudain, un claquement sec déchira la pénombre : le disjoncteur général venait de sauter dans toute la rue des Rosiers. Dans le noir absolu, avec la seule lueur tremblotante d’une lampe de poche, {prenom} grimpait sur l’escabeau en chêne pour décrocher une dernière pile d’épais volumes reliés en percaline rouge.',
+    'Le bois vermoulu poussa un gémissement sourd. Sous le poids des décennies d’humidité, la crémaillère céda d’un coup net. L’étagère entière bascula dans un fracas de tonnerre. Des centaines de pages, de reliures et de fiches cartonnées s’abattirent dans une avalanche de suie, de cuir et d’encre séchée. Puis, le silence noir.',
+    'Au réveil sur le lino froid, l’odeur de poussière et d’ozone emplissait la pièce. Autour gisaient des dizaines d’ouvrages dont les marges étaient couvertes de l’écriture penchée de Lucien à l’encre bleue. Chose étrange : Lucien avait fait relier ensemble, sous une même couverture cousue de fil de fer, des livres aux thèses radicalement ennemies. Ford contre Ohno. Smith contre Marx. Keynes contre Hayek.',
+    'En serrant contre sa poitrine un volume abîmé de La Richesse des Nations, un murmure posé et poli, empreint d’une douce cadence écossaise du XVIIIe siècle, résonna distinctement à l’oreille : « Mon enfant… ne t’effraie point. Ce n’est pas de la bienveillance du boucher que nous attendons notre dîner, mais de son intérêt propre. Relève-toi, regarde cette ville : tout ce qui vit ici n’est que travail, valeur et division du labeur. Je serai là pour te montrer les rouages. »',
   ],
   note: 'Annotation de Lucien sur la première page de garde : « À mon petit-enfant. Si la fumée des usines s’éteint un jour, ne laisse personne te faire croire que l’économie est une météo venue du ciel qu’on doit subir en baissant la tête. C’est une machine construite par des hommes. Démonte-la pièce par pièce, comprends ses engrenages, et remonte-la pour ceux qui n’ont que leurs bras. »',
   ghost: 'smith',
@@ -54,7 +54,7 @@ export const LUCIEN_BEATS: readonly StoryBeat[] = [
     pages: [
       'Glissé dans la doublure d’un vieux classeur d’apprentissage, un petit carnet à spirale quadrillé porte la date de septembre 1958. Lucien y tenait la comptabilité de ses échanges dans la cour de récréation de l’école primaire des Rosiers.',
       'Il y notait la valeur relative des billes en terre cuite, des toupies en buis et des morceaux de craie. Une phrase soulignée au crayon rouge attire l’œil : « Une bille œil-de-chat vaut trois agates non parce qu’elle brille plus fort, mais parce qu’il a fallu trois heures de polissage à l’artisan pour arrondir le verre sans faire de bulle. »',
-      'Le jeune collégien comprend que sous le préau de 2020, avec les cartes à collectionner et les paquets de gâteaux, la règle n’a pas changé : derrière chaque objet désiré se cache la sueur de quelqu’un.',
+      '{prenom} comprend que sous le préau de 2020, avec les cartes à collectionner et les paquets de gâteaux, la règle n’a pas changé : derrière chaque objet désiré se cache la sueur de quelqu’un.',
     ],
     note: '« Karl avait raison là-dessus : ce que nous échangeons vraiment sous les préaux ou sur les marchés, ce n’est pas de la matière, c’est du temps de vie cristallisé. »',
     ghost: 'marx',
@@ -113,7 +113,7 @@ export const LUCIEN_BEATS: readonly StoryBeat[] = [
   // ---------- Palier 3 : La Ville ----------
   {
     id: 'beat_lucien_6_la_nuit_du_verre_casse_2014',
-    trigger: { tier: 3, flag: 'palier_ville' },
+    trigger: { tier: 3 },
     title: 'Cahier n°6 : Le 14 avril 2014, le jour où la flamme s’est éteinte',
     pages: [
       'Cette page est froissée, marquée de cernes de café noir. Lucien y retrace la nuit où la direction générale a annoncé depuis Londres la fermeture irrévocable des hauts-fourneaux de Val-Ferrand.',
@@ -207,7 +207,7 @@ export const LUCIEN_BEATS: readonly StoryBeat[] = [
     title: 'Cahier n°13 : Le trésor enfoui sous la dalle de coulée',
     pages: [
       'Ce texte n’était pas dans le carnet principal : il était dissimulé dans une enveloppe scellée à la cire rouge, cachée dans le double fond de la boîte à outils de Lucien.',
-      '« Si tu lis ces lignes, mon petit, c’est que tu as franchi toutes les étapes que j’avais esquissées dans mes rêves les plus fous. Tu as bâti ce que notre génération n’a jamais su concevoir : un géant qui a grandi sans écraser ses voisins, une force productive qui appartient aux siens. »',
+      '« Si tu lis ces lignes, mon enfant, c’est que tu as franchi toutes les étapes que j’avais esquissées dans mes rêves les plus fous. Tu as bâti ce que notre génération n’a jamais su concevoir : un géant qui a grandi sans écraser ses voisins, une force productive qui appartient aux siens. »',
       '« Va sous l’ancienne halle de coulée du haut-fourneau n°2, sous la quatrième traverse de rail. J’y ai enterré en 2014 le registre des fondateurs de 1952 et la clé en laiton de la caisse mutuelle. Ce n’est pas de l’or : c’est le symbole de notre pacte. »',
     ],
     note: '« Kate me disait souvent : la véritable richesse d’un arbre ne se mesure pas à la hauteur de son tronc, mais à la profondeur de ses racines et à l’ombre bienfaisante qu’il offre à ceux qui marchent sous le soleil. »',
@@ -223,7 +223,7 @@ export const LUCIEN_BEATS: readonly StoryBeat[] = [
       '« Tu es l’enfant de cette vallée. Tu portes en toi notre colère, notre savoir-faire et notre soif de justice. Maintenant que tu possèdes un empire, le plus dur commence : le transformer en bien commun. Choisis ton chemin, mon enfant. La vallée te regarde. »',
       'Dans le silence de la nuit, les vingt-deux voix des penseurs se taisent enfin un instant, unies dans un respect fraternel, attendant ta décision suprême.',
     ],
-    note: '« Adam et Karl sourient ensemble pour la première fois. Mon petit, la table est dressée. À toi d’écrire la suite de l’Histoire. »',
+    note: '« Adam et Karl sourient ensemble pour la première fois. Mon enfant, la table est dressée. À toi d’écrire la suite de l’Histoire. »',
     ghost: 'smith',
   },
 ];

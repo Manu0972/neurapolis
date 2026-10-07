@@ -152,6 +152,8 @@ export class CityRenderer {
   private rain?: THREE.LineSegments;
   private raycaster = new THREE.Raycaster();
   private camTarget = new THREE.Vector3();
+  private lookAhead = { x: 0, z: 0 };
+  private shownCamDist = 8;
   private frameCount = 0;
   // Caméra orbitale.
   private yaw = 0;
@@ -340,6 +342,7 @@ export class CityRenderer {
           appearance: npcAppearance(`etal${key}_${i}`),
           heightM: i % 3 === 0 ? 1.4 : 1.6 + (i % 2) * 0.12,
           bodyColor: ['#5a6b7a', '#7a5a4a', '#3f4f3f', '#a0522d', '#6b4e71'][i % 5],
+          detail: 'low',
         });
         // En file devant l'étal (côté sud), légèrement décalés.
         const x = s.x + 0.5 + (i % 2 === 0 ? -0.5 : 0.5) * (1 + Math.floor(i / 2) * 0.3);
@@ -622,14 +625,20 @@ export class CityRenderer {
   }
 
   private updateCamera(dt: number, cw: number, ch: number): void {
-    const k = Math.min(1, dt * 7);
+    // Lissage exponentiel indépendant de la cadence d'images.
+    const k = 1 - Math.exp(-7 * dt);
     this.yaw += (this.yawTarget - this.yaw) * k;
     this.pitch += (this.pitchTarget - this.pitch) * k;
     this.dist += (this.distTarget - this.dist) * k;
     const gy = groundHeightAt(this.body.x, this.body.z);
-    const target = new THREE.Vector3(this.body.x, gy + 1.35, this.body.z);
+    // Regard légèrement en avant dans le sens de la marche : on voit où l'on va.
+    const ahead = Math.min(1.6, this.body.speed * 0.28);
+    const la = 1 - Math.exp(-3 * dt);
+    this.lookAhead.x += (-Math.sin(this.body.heading) * ahead - this.lookAhead.x) * la;
+    this.lookAhead.z += (-Math.cos(this.body.heading) * ahead - this.lookAhead.z) * la;
+    const target = new THREE.Vector3(this.body.x + this.lookAhead.x, gy + 1.35, this.body.z + this.lookAhead.z);
     if (this.camTarget.lengthSq() === 0) this.camTarget.copy(target);
-    this.camTarget.lerp(target, Math.min(1, dt * 10));
+    this.camTarget.lerp(target, 1 - Math.exp(-9 * dt));
     const dir = new THREE.Vector3(
       Math.sin(this.yaw) * Math.cos(this.pitch),
       Math.sin(this.pitch),
@@ -643,7 +652,13 @@ export class CityRenderer {
       const hit = this.raycaster.intersectObjects(this.city.buildingMeshes, false)[0];
       this.lastCamClip = hit ? Math.max(1.2, hit.distance - 0.35) : this.dist;
     }
-    if (!this.topDown) d = Math.min(d, this.lastCamClip ?? d);
+    // Mur derrière : la caméra s'approche vite (pour ne jamais voir à travers), recule doucement.
+    if (!this.topDown) {
+      const want = Math.min(d, this.lastCamClip ?? d);
+      const r = want < this.shownCamDist ? 18 : 3;
+      this.shownCamDist += (want - this.shownCamDist) * (1 - Math.exp(-r * dt));
+      d = Math.min(d, this.shownCamDist);
+    }
     this.camera.position.copy(this.camTarget).addScaledVector(dir, d);
     this.camera.lookAt(this.camTarget);
     const w = Math.max(1, cw);
@@ -762,6 +777,7 @@ export class CityRenderer {
         appearance: npcAppearance(`client${i}`),
         heightM: 1.55 + r(1) * 0.3,
         bodyColor: ['#5a6b7a', '#7a5a4a', '#3f4f3f', '#a0522d', '#6b4e71'][i % 5],
+        detail: 'low',
       });
       const pts = [
         { x: spec.w / 2, z: spec.d - 1.2 },

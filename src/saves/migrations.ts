@@ -390,6 +390,17 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
     s.version = 22;
     return s;
   },
+  // 22 → 23 : personnalisation approfondie (morphologie, taille, yeux, lunettes, taches de
+  // rousseur, barbe, accessoire) — valeurs par défaut pour une apparence plus ancienne.
+  22: (s) => {
+    const player = s.player as AnySave | undefined;
+    if (player && typeof player.appearance === 'object' && player.appearance !== null) {
+      const a = player.appearance as AnySave;
+      for (const [k, v] of Object.entries(DEFAULT_PLAYER_APPEARANCE)) if (a[k] === undefined) a[k] = v;
+    }
+    s.version = 23;
+    return s;
+  },
 };
 
 export const CURRENT_SAVE_VERSION = SAVE_VERSION;
