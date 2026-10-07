@@ -12,6 +12,7 @@ import { createEconomyState } from '../core/economy_types';
 import { createAscensionState } from '../core/ascension_types';
 import { createHappeningsState } from '../core/happenings_types';
 import { createRewindState } from '../core/rewind_types';
+import { createFamilyState } from '../core/family_types';
 import { INITIAL_RIVALS } from '../data/rivals';
 import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
 import { COUNTER_STRATEGIES } from '../data/rivals';
@@ -366,6 +367,12 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
   18: (s) => {
     if (typeof s.rewind !== 'object' || s.rewind === null) s.rewind = createRewindState();
     s.version = 19;
+    return s;
+  },
+  // 19 → 20 : famille et collège (Nora, Thierry, cours, absences) — départ neutre.
+  19: (s) => {
+    if (typeof s.family !== 'object' || s.family === null) s.family = createFamilyState();
+    s.version = 20;
     return s;
   },
 };

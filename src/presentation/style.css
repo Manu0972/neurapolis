@@ -839,3 +839,19 @@ canvas.map-canvas-3d { image-rendering: auto; touch-action: none; }
 .rewind-ghost.chosen { border-color: var(--or); box-shadow: 0 0 0 3px rgba(255, 217, 138, 0.25); }
 .rewind-ghost:focus-visible { outline: 3px solid var(--or); }
 .rewind-ghost-name { font-size: 12px; font-weight: 700; }
+
+/* ---------- Famille & collège ---------- */
+.fam-parents { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 640px) { .fam-parents { grid-template-columns: 1fr; } }
+.fam-gauge { display: grid; grid-template-columns: 76px 1fr 28px; align-items: center; gap: 6px; font-size: 12px; }
+.fam-gauge-bar { height: 8px; border-radius: 999px; background: rgba(0, 0, 0, 0.3); overflow: hidden; }
+.fam-gauge-fill { height: 100%; border-radius: 999px; }
+.fam-gauge-fill.good { background: var(--vert); }
+.fam-gauge-fill.bad { background: var(--rouge); }
+.fam-gauge-value { text-align: right; font-variant-numeric: tabular-nums; }
+.fam-speaker { font-weight: 800; color: var(--or); }
+.fam-line { font-size: 15px; line-height: 1.5; margin: 6px 0 10px; }
+.fam-replies { display: flex; flex-direction: column; gap: 6px; }
+.fam-replies .ph-btn { text-align: left; }
+.fam-voices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+@media (max-width: 760px) { .fam-voices { grid-template-columns: 1fr; } }

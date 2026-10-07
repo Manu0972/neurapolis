@@ -86,11 +86,13 @@ import { BUS_STOPS, BUS_STOP_BY_ID } from '../data/city/transit';
 import { createGhostBar } from './ghost-bar';
 import { createNewsToaster, openSurpriseModal } from './news-ui';
 import { pendingSurprise } from '../simulation/happenings';
-import { lessonWarnings, rewindOffer, sacrificeCandidates } from '../simulation/rewind';
+import { isSilenced, lessonWarnings, rewindOffer, sacrificeCandidates } from '../simulation/rewind';
 import { recordDay } from '../saves/chronicle';
 import { openRewindModal } from './rewind-ui';
+import { openConvocationModal, openDinnerModal, openFamilyPanel } from './family-ui';
+import { attendClass, classWindow, ensureFamily, isHome, isInClass, pendingDinner } from '../simulation/family';
 import { mostUrgentTip } from '../simulation/ghost_tips';
-import { CITY } from '../data/map';
+import { CITY, PLACE_ANCHORS } from '../data/map';
 import * as economyApi from '../simulation/economy';
 import { openDetailedInteriorModal } from './interiors';
 import { tileAt } from '../data/map';
@@ -118,6 +120,8 @@ const BUS_SPEED = 25;
 const TRAVEL_SPEED = 200;
 /** Pendant un petit boulot, deux heures de service passent en ~15 s. */
 const SHIFT_SPEED = 50;
+/** En cours, une demi-journée de classe passe en une dizaine de secondes. */
+const CLASS_SPEED = 25;
 const MOVE_MS = 150;  // cadence d'un pas de tuile en maintenant une direction
 
 const REL_DIMS: ReadonlyArray<keyof Rel4> = ['amitie', 'confiance', 'respect', 'rivalite'];
@@ -135,6 +139,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   // Chronique : un instantané chaque matin pour un éventuel retour en arrière.
   try { recordDay(world); } catch { /* stockage indisponible */ }
   let rewindOfferKey = '';
+  let dinnerShownId = '';
+  let convocationShownDay = -1;
+  let classReminderKey = '';
   let modalOpen = false;
   const deferredArrivals = new Set<string>();
   let last = performance.now();
@@ -285,6 +292,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       sync: () => { syncSigns(); syncWaypoints(); syncStallCrowds(); },
       layout: (id: string) => startLayoutEdit(id),
       ride: (on: boolean) => renderer3D?.setRiding(on),
+      /** Place le joueur devant un lieu (QA uniquement). */
+      goto: (place: PlaceId) => { const a = PLACE_ANCHORS[place]; world.player.pos.x = a.x; world.player.pos.y = a.y; },
       /** Fait tourner la vraie boucle de jeu `n` images de `ms` (fenêtre masquée : rAF en pause). */
       step: (n: number, ms = 50) => { let t = last; for (let i = 0; i < n; i++) frame((t += ms)); },
     },
@@ -324,7 +333,18 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     Math.abs(world.player.pos.x - p.x) <= d && Math.abs(world.player.pos.y - p.y) <= d;
 
   /** Action économique possible ici (déchargement, retrait, porte de local), la plus prioritaire d'abord. */
+  /** Rejoindre sa classe : la séance passe en accéléré, avec un moment de classe. */
+  function goToClass(): void {
+    const r = attendClass(world);
+    toast(r.message, r.ok);
+    if (r.ok && renderer3D?.inInterior) exitInterior();
+  }
+
   function economyActionHere(): { label: string; run: () => void } | null {
+    const session = classWindow(world);
+    if (session && placeAtAdjacent(world) === 'college') {
+      return { label: `E — Aller en cours (${session === 'matin' ? '8 h 30 – 12 h' : '13 h 30 – 16 h 30'})`, run: goToClass };
+    }
     const e = ensureEconomy(world);
     for (const b of Object.values(e.businesses)) {
       const q = e.carried.filter((c) => c.businessId === b.id).reduce((s, c) => s + c.qty, 0);
@@ -783,6 +803,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   function interiorActionHere(): { label: string; run: () => void } | null {
     const spec = renderer3D?.interiorSpec;
     const h = renderer3D?.interiorHotspot;
+    if (spec?.placeId === 'college' && classWindow(world)) return { label: 'E — Rejoindre ta classe', run: goToClass };
     if (!spec || !h) return null;
     const label = `E — ${h.label}`;
     if (h.kind === 'sortie') return { label, run: exitInterior };
@@ -868,7 +889,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   function interact(): void {
     if (modalOpen) return;
-    if (world.player.asleep || inShift(world) || travelFastForward() || isOnBus(world)) return;
+    if (world.player.asleep || inShift(world) || travelFastForward() || isOnBus(world) || isInClass(world)) return;
     if (renderer3D?.inInterior) {
       const inside = interiorActionHere();
       if (inside) { inside.run(); return; }
@@ -1704,7 +1725,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     else if (nav === 'Entreprises & Rôles') b.addEventListener('click', openEntreprisesRoles);
     else if (nav === 'Marchands & Tiers') b.addEventListener('click', openMarchandsTiers);
     else if (nav === 'Actualités & Chocs') b.addEventListener('click', openActualitesChocs);
-    else if (nav === 'Études & Famille') b.addEventListener('click', openEtudesFamille);
+    else if (nav === 'Études & Famille') b.addEventListener('click', () => openFamilyPanel({ world, showModal, closeModal, toast }));
     else if (nav === 'Projet') b.addEventListener('click', openProjet);
     else if (nav === 'Concurrence') b.addEventListener('click', openConcurrence);
     else if (nav === 'Conseil') b.addEventListener('click', openConseil);
@@ -2659,6 +2680,14 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
             ghostBar.push({ ghost, text, pop: true, mood: failed ? 'alerte' : 'joie' });
             updateHud(ui, world, promptText());
           });
+        } else if (pendingDinner(world) && world.family?.pendingDinner !== dinnerShownId && isHome(world) && !world.player.asleep) {
+          // Le dîner : Nora et Thierry attendent une réponse.
+          dinnerShownId = world.family?.pendingDinner ?? '';
+          openDinnerModal({ world, showModal, closeModal, toast });
+        } else if (world.family?.convocation && convocationShownDay !== dayIndexOf(world.time.tick) && !isInClass(world) && !world.player.asleep && minutesOfDay(world.time.tick) >= 16 * 60 + 30) {
+          // La principale convoque : un rendez-vous par jour tant que rien n'est réglé.
+          convocationShownDay = dayIndexOf(world.time.tick);
+          openConvocationModal({ world, showModal, closeModal, toast });
         } else if (laminoirDecisionPending(world) && laminoirAskedDay !== dayIndexOf(world.time.tick) && !world.player.asleep && !isTraveling(world)) {
           // Karim revient chaque jour tant que le quartier n'a pas tranché.
           laminoirAskedDay = dayIndexOf(world.time.tick);
@@ -2667,7 +2696,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           // La nuit défile en accéléré (ellipse) : 9 heures de sommeil en quelques secondes,
           // tick par tick, sans jamais sauter la clôture économique ni les événements.
           // Sur place, le temps attend le joueur : seules les activités, le train et la nuit le font avancer.
-          const speed = world.time.speed === 0 || (isOnSite(world) && !world.player.asleep) ? 0 : isTraveling(world) ? TRAVEL_SPEED : isOnBus(world) ? BUS_SPEED : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : world.time.speed;
+          const speed = world.time.speed === 0 || (isOnSite(world) && !world.player.asleep) ? 0 : isTraveling(world) ? TRAVEL_SPEED : isOnBus(world) ? BUS_SPEED : isInClass(world) ? CLASS_SPEED : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : world.time.speed;
           if (speed !== 0) {
             acc += dt;
             const tickMs = TICK_MS / speed;
@@ -2754,7 +2783,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       renderer3D.frame(world, dt / 1000, {
         move: input.vector(),
         running: input.running(),
-        canMove: !modalOpen && !world.player.asleep && !inShift(world) && !layoutEdit && !travelFastForward() && !isOnBus(world),
+        canMove: !modalOpen && !world.player.asleep && !inShift(world) && !layoutEdit && !travelFastForward() && !isOnBus(world) && !isInClass(world),
       }, ui.cw, ui.ch);
     } else {
       const rawD = input.dir();
@@ -2768,11 +2797,14 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     syncDestinationScene();
     const away = travelFastForward();
     const riding = isOnBus(world);
-    sleepOverlay.classList.toggle('on', world.player.asleep || away || riding);
+    const inClass = isInClass(world);
+    sleepOverlay.classList.toggle('on', world.player.asleep || away || riding || inClass);
     const destName = currentDestination(world)?.name ?? '…';
     const homeward = (world.flags['voyageAvance'] ?? 0) >= (world.flags['voyageRetour'] ?? 0);
     const busStop = riding ? stopNear(world, 0) : undefined;
-    const sleepMsg = riding
+    const sleepMsg = inClass
+      ? `📚 ${world.family?.inClass?.moment ?? 'En cours'}`
+      : riding
       ? `🚌 Ligne 1 → ${busStop?.name ?? '…'}`
       : !away
       ? '😴 Tu dors… la nuit passe'
@@ -2796,6 +2828,15 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (++hudFrame % 30 === 0) {
       ghostBar.sync(world);
       newsToaster.check(world);
+      // Les cours ouvrent : une voix le rappelle si tu es loin du collège.
+      const session = classWindow(world);
+      const reminder = session ? `${dayIndexOf(world.time.tick)}:${session}` : '';
+      if (session && reminder !== classReminderKey && !world.player.asleep) {
+        classReminderKey = reminder;
+        const far = placeAtAdjacent(world) !== 'college';
+        const voice = ghostBar.roster().find((g) => !isSilenced(world, g));
+        if (far && voice) ghostBar.push({ ghost: voice, pop: session === 'matin', mood: 'calme', text: `Les cours ${session === 'matin' ? 'du matin commencent à 8 h 30' : 'de l’après-midi commencent à 13 h 30'}. Va au collège, ou assume l’absence : ${ensureFamily(world).arrangement ? 'ta convention en couvre deux par semaine.' : 'tes parents seront prévenus.'}` });
+      }
       // Très grosse erreur : une voix propose de se sacrifier pour remonter le temps.
       const cat = rewindOffer(world);
       const key = cat ? `${cat.day}|${cat.text}` : '';

@@ -7,6 +7,7 @@
 import type { WorldState } from '../core/types';
 import { adviceFor } from '../simulation/ghost_tips';
 import { isSilenced } from '../simulation/rewind';
+import { dayIndexOf } from '../core/clock';
 import { ghostAvatar, thinkerMeta, type GhostMood } from './ghost-avatar';
 import { el } from './ui';
 
@@ -46,6 +47,7 @@ export function createGhostBar(host: HTMLElement, getWorld: () => WorldState, is
   const inbox = new Map<string, Whisper[]>();
   const heads = new Map<string, HTMLButtonElement>();
   let order: string[] = [];
+  let orderKey = '';
   let popTimer: number | undefined;
   let lastPop = 0;
   const popQueue: Whisper[] = [];
@@ -58,8 +60,8 @@ export function createGhostBar(host: HTMLElement, getWorld: () => WorldState, is
     const met = Object.keys(world.ascension?.trust ?? {});
     // La première voix (celle de la nuit de la médiathèque) est là dès le début.
     const first = world.ghostCompanion?.unlockedThinkers ?? ['smith'];
-    // Les voix sacrifiées pour un retour en arrière se taisent un temps.
-    return [...new Set([...council, ...first, ...met])].filter((g) => !isSilenced(world, g)).slice(0, MAX_HEADS);
+    // Les voix sacrifiées pour un retour en arrière restent visibles, endormies et muettes.
+    return [...new Set([...council, ...first, ...met])].slice(0, MAX_HEADS);
   }
 
   function badge(id: string): void {
@@ -74,7 +76,10 @@ export function createGhostBar(host: HTMLElement, getWorld: () => WorldState, is
   function sync(world: WorldState): void {
     const next = present(world);
     const asleep = new Set(Object.values(world.council.ghosts).filter((g) => g.status === 'endormi').map((g) => g.id));
-    if (next.join() !== order.join()) {
+    for (const id of next) if (isSilenced(world, id)) asleep.add(id);
+    const key = `${next.join()}|${[...asleep].sort().join()}`;
+    if (key !== orderKey) {
+      orderKey = key;
       order = next;
       root.replaceChildren();
       heads.clear();
@@ -147,6 +152,7 @@ export function createGhostBar(host: HTMLElement, getWorld: () => WorldState, is
   function openPanel(id: string): void {
     const world = getWorld();
     const m = thinkerMeta(id);
+    const silence = (world.rewind?.sacrifices ?? []).find((x) => x.ghost === id && !x.returned && isSilenced(world, id));
     panel.replaceChildren();
     panel.style.setProperty('--gc', m.color);
     const head = el('div', 'ghost-panel-head');
@@ -172,6 +178,11 @@ export function createGhostBar(host: HTMLElement, getWorld: () => WorldState, is
     }
     inbox.set(id, []);
     badge(id);
+    if (silence) {
+      panel.appendChild(el('p', 'ghost-pop-text', `Sa voix s’est éteinte pour te ramener en arrière. Elle reviendra dans ${silence.untilDay - dayIndexOf(world.time.tick)} jours.`));
+      panel.classList.remove('hidden');
+      return;
+    }
     const ask = el('button', 'ph-btn', '💬 Que penses-tu de ma situation ?');
     ask.type = 'button';
     const answer = el('p', 'ghost-pop-text ghost-answer', '');

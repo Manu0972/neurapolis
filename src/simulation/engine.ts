@@ -25,6 +25,7 @@ import { travelTick } from './travel';
 import { ascensionDay } from './ascension';
 import { happeningsTick } from './happenings';
 import { rewindDay } from './rewind';
+import { familyTick } from './family';
 import { worldTimelineDay } from './world_timeline';
 import { saveToSlot } from '../saves/persist';
 
@@ -60,6 +61,7 @@ export function tickWorld(w: WorldState): TickOutput {
   out.push(...jobTick(w));
   out.push(...travelTick(w));
   out.push(...happeningsTick(w, prevTick));
+  familyTick(w, prevTick);
 
   if (day !== prevDay) {
     out.push(...rivalDay(w));

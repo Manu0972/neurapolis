@@ -149,6 +149,10 @@ export function leaseEligibility(w: WorldState, unitId: string): Eligibility {
   const tenant = e.owned?.[unitId]?.tenant;
   if (tenant) return { allowed: false, coSigner: null, reason: `Ton locataire ${tenant.name} occupe ces murs.` };
   if (e.sandbox || w.player.age >= ADULT_AGE) return { allowed: true, coSigner: null, reason: 'Tu peux signer seul.' };
+  // Sans leur confiance, Nora et Thierry ne signent plus rien (src/simulation/family.ts, seuil 35).
+  const fam = w.family?.parents;
+  const trust = fam ? (fam.nora.trust + fam.thierry.trust) / 2 : 100;
+  if (trust < 35) return { allowed: false, coSigner: null, reason: `Tes parents refusent de se porter garants : leur confiance est trop basse (${Math.round(trust)}/100). Regagne-la : cours, vérité, dîners.` };
   const stall = u.buildingId.startsWith('etal_');
   if (stall) return { allowed: true, coSigner: 'parent', reason: 'Tes parents acceptent de signer pour un étal du marché.' };
   const sales = (w.flags['ventes'] ?? 0) + (w.flags['ventesEtal'] ?? 0);

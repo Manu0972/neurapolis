@@ -624,6 +624,7 @@ import type { EconomyState } from './economy_types';
 import type { AscensionState } from './ascension_types';
 import type { HappeningsState } from './happenings_types';
 import type { RewindState } from './rewind_types';
+import type { FamilyState } from './family_types';
 
 export interface WorldState {
   version: number;
@@ -654,6 +655,8 @@ export interface WorldState {
   happenings?: HappeningsState;
   /** Retours en arrière : leçons, sacrifices, dernière très grosse erreur (save v19). */
   rewind?: RewindState;
+  /** Parents, cours, absences, convocations, dîners (save v20). */
+  family?: FamilyState;
   events: GameEvent[];        // journal des événements (cap 250)
   lifeJournal: LifeJournalEntry[];
   flags: Record<string, number>; // compteurs libres (ventes, conflits, prévisions ratées…)
