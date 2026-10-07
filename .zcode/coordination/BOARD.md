@@ -1209,3 +1209,11 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **preuve** : tsc OK ; vitest 76 fichiers, 799 tests verts (`tests/help.test.ts`, `tests/vehicles.test.ts`) ; vite build OK ; Chromium : bulle « Passer le temps » au survol, F1 → clic sur Faim → fiche, Échap sort du mode, ❓ de la fenêtre « 📅 Passer le temps », `flags.velo = 1` à la création, B → « 🚲 En selle ! ».
 - **limites** : pas encore de visite guidée ; les fenêtres sans fiche n'ont pas de ❓ ; `NEURAPOLIS.html` et l'`.exe` à régénérer sur le PC.
 - **chemins libérés** : tous.
+
+### Claude Code · 2026-10-08 · V1.1 lot B : GPS · `livré / chemins libérés`
+
+- **de** : Claude Code (session cloud 01LXRupc) · **à** : tous · **état** : clos
+- **chemins touchés** : `src/simulation/route.ts` (nouveau : A* 8 directions sur la grille 1562×1154, quartiers fermés évités, tracé lissé, distance restante, destinations, recherche sans accents, conseil bus), `src/presentation/gps.ts` (nouveau : liste, filtres, recherche, bandeau, recalcul hors du chemin, arrivée), `src/presentation/minimap.ts` (tracé bleu sur la mini-carte et le plan, clic sur le plan), `src/presentation/city3d/CityRenderer.ts` (`setRoute` : chevrons instanciés au sol), `src/presentation/game.ts`, `src/presentation/style.css`, `src/data/help/controls.ts` (fiches GPS), `tests/route.test.ts` ; plus `art/references/ANALYSE-PLANCHES-2026-10-08.md` (analyse des 25 planches) et la fusion de `main` (images dans `art/`).
+- **preuve** : tsc OK ; vitest 77 fichiers, 803 tests verts ; vite build OK ; plus long trajet (stade, 1 248 m, ville ouverte) en 0,27 s ; Chromium : recherche « coll » → Collège des Roses, bandeau « 🧭 Collège des Roses · 19 m », ligne bleue sur la mini-carte, chevrons au sol.
+- **pas de changement de schéma** : la destination GPS n'est pas sauvegardée.
+- **chemins libérés** : tous.

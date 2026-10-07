@@ -88,6 +88,39 @@ export function setPlayerMarkers(list: { x: number; y: number; label: string }[]
   extraMarkers = list;
 }
 
+/** Itinéraire du GPS, posé par le jeu (null : pas de destination). */
+let gpsRoute: { points: { x: number; y: number }[]; dest: { x: number; y: number } } | null = null;
+export function setGpsRoute(r: typeof gpsRoute): void {
+  gpsRoute = r;
+}
+
+/** Trace l'itinéraire (ligne bleue avec liseré) et l'épingle d'arrivée. */
+function drawRoute(ctx: CanvasRenderingContext2D, ox: number, oy: number, scale: number, width: number): void {
+  if (!gpsRoute) return;
+  const pts = gpsRoute.points;
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  for (const [color, wd] of [['rgba(10,40,60,0.85)', width + 3], ['#4fd1ff', width]] as const) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = wd;
+    ctx.beginPath();
+    pts.forEach((p, i) => (i === 0 ? ctx.moveTo(ox + p.x * scale, oy + p.y * scale) : ctx.lineTo(ox + p.x * scale, oy + p.y * scale)));
+    ctx.stroke();
+  }
+  const dx = ox + (gpsRoute.dest.x + 0.5) * scale, dy = oy + (gpsRoute.dest.y + 0.5) * scale;
+  ctx.fillStyle = '#4fd1ff';
+  ctx.strokeStyle = '#0a283c';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(dx, dy - 9, 6, Math.PI, 0);
+  ctx.lineTo(dx, dy);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
 interface Marker { x: number; y: number; color: string; label?: string; ring?: boolean }
 
 function markers(w: WorldState): Marker[] {
@@ -128,6 +161,7 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, size: number, w: Worl
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(img, half - pos.x * scale, half - pos.z * scale, MAP_W * scale, MAP_H * scale);
   shadeLocked(ctx, w, half - pos.x * scale, half - pos.z * scale, scale);
+  drawRoute(ctx, half - pos.x * scale, half - pos.z * scale, scale, 3);
   // Cône de vision de la caméra.
   ctx.fillStyle = 'rgba(255, 240, 200, 0.16)';
   ctx.beginPath();
@@ -182,7 +216,7 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, size: number, w: Worl
 }
 
 /** Grand plan de la ville avec légende des repères (touche M). */
-export function renderCityMap(w: WorldState, pos: { x: number; z: number }): HTMLElement {
+export function renderCityMap(w: WorldState, pos: { x: number; z: number }, onPick?: (x: number, y: number) => void): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'city-map';
   const c = document.createElement('canvas');
@@ -241,6 +275,7 @@ export function renderCityMap(w: WorldState, pos: { x: number; z: number }): HTM
       ctx.fillText(m.label, (m.x + 0.5) * scale, (m.y - 2.5) * scale);
     }
   }
+  drawRoute(ctx, 0, 0, scale, 4);
   ctx.fillStyle = '#ffffff';
   ctx.strokeStyle = '#c25a40';
   ctx.lineWidth = 3;
@@ -248,10 +283,17 @@ export function renderCityMap(w: WorldState, pos: { x: number; z: number }): HTM
   ctx.arc(pos.x * scale, pos.z * scale, 7, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+  if (onPick) {
+    c.style.cursor = 'crosshair';
+    c.addEventListener('click', (e) => {
+      const r = c.getBoundingClientRect();
+      onPick(((e.clientX - r.left) / r.width) * c.width / scale, ((e.clientY - r.top) / r.height) * c.height / scale);
+    });
+  }
   wrap.appendChild(c);
   const legend = document.createElement('p');
   legend.className = 'panel-note';
-  legend.textContent = '● jaune : lieux · ● vert : tes commerces ouverts (orange : fermés) · ● jaune vif : cartons à retirer · cercle blanc : toi';
+  legend.textContent = '● jaune : lieux · ● vert : tes commerces ouverts (orange : fermés) · ● jaune vif : cartons à retirer · cercle blanc : toi · ligne bleue : ton itinéraire GPS';
   wrap.appendChild(legend);
   return wrap;
 }

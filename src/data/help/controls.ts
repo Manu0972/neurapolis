@@ -35,7 +35,8 @@ export const CONTROL_HELP: Readonly<Record<string, HelpEntry>> = {
   money: { title: 'Ton argent', body: 'L’argent que tu as sur toi. Il sert à acheter, investir et rembourser. S’il tombe à zéro, tes parents peuvent t’aider (Famille & collège).' },
   biz: { title: 'Tes affaires', body: 'Le résumé de tes commerces et projets en cours : ce qu’ils rapportent aujourd’hui.' },
   phone: { title: 'Téléphone', body: 'Messages, banque, contacts, achats (dont le vélo), applis du jeu. Le centre de ta vie de tous les jours.', key: 'P' },
-  map: { title: 'Plan de la ville', body: 'Le grand plan de Val-Ferrand : les quartiers, les lieux importants, les arrêts de bus et où tu te trouves.', key: 'M' },
+  map: { title: 'Plan et GPS', body: 'Le grand plan de Val-Ferrand. Choisis une destination dans la liste, tape son nom, ou clique près d’un lieu sur le plan : le GPS trace ton chemin.', key: 'M' },
+  gps: { title: 'GPS', body: 'Ton itinéraire en cours et la distance qui reste. Suis les chevrons bleus au sol et la ligne bleue de la mini-carte ; si tu t’écartes, le chemin se recalcule. ✕ arrête le guidage.' },
   menu: { title: 'Tous les panneaux', body: 'Ouvre le tiroir avec tous les panneaux du jeu (sauvegardes, personnage, relations, entreprises…), la caméra et le son.' },
   'ghost-companion': { title: 'Les fantômes', body: 'Les penseurs qui t’accompagnent. Quand l’un d’eux a quelque chose à dire, sa bulle apparaît : clique pour l’écouter.' },
   'help-btn': { title: 'Aide : qu’est-ce que c’est ?', body: 'Active le mode aide, puis clique sur n’importe quel bouton ou jauge pour savoir à quoi il sert. Échap pour sortir. Au survol, une bulle d’aide apparaît aussi toute seule.', key: 'F1' },
@@ -76,7 +77,7 @@ export const CONTROL_HELP: Readonly<Record<string, HelpEntry>> = {
 /** Fiches « ❓ » des fenêtres, par titre exact de la fenêtre. */
 export const SCREEN_HELP: Readonly<Record<string, HelpEntry>> = {
   '📱 Téléphone': { title: 'Le téléphone', body: 'Chaque appli est une partie de ta vie : messages de tes proches, banque (argent, achats comme le vélo), contacts, actualités. Touche P pour l’ouvrir, Échap pour le fermer.' },
-  '🗺️ Plan de Val-Ferrand': { title: 'Le plan', body: 'Toute la ville. Les quartiers grisés ne sont pas encore ouverts. Repère les lieux, les arrêts de bus et ta position. Touche M.' },
+  '🗺️ Plan de Val-Ferrand': { title: 'Le plan et le GPS', body: 'Toute la ville. Les quartiers grisés ne sont pas encore ouverts. Pour être guidé·e : tape un nom dans la recherche, choisis dans la liste, ou clique près d’un lieu sur le plan. Le chemin s’affiche en bleu sur la mini-carte et au sol. Touche M.' },
   '📅 Passer le temps': { title: 'Passer le temps', body: 'Choisis une durée : le jeu simule réellement chaque jour (cours, repas, sommeil, tes affaires). Si quelque chose d’important arrive, le saut s’arrête pour te laisser décider. Un bilan résume ce qui s’est passé.' },
   '📡 Multijoueur': { title: 'Jouer à plusieurs', body: 'L’hôte lance le serveur (bouton « Héberger » ou jouer-en-lan.bat), les autres entrent son adresse puis « Se connecter ». Chacun garde sa partie ; vous voyez vos avatars et pouvez vous proposer prêts, alliances ou coups bas.' },
   '💾 Sauvegardes': { title: 'Les sauvegardes', body: 'Plusieurs emplacements, plus la sauvegarde automatique de fin de journée. Exporte ta partie en fichier avant de changer d’ordinateur ou de navigateur.' },

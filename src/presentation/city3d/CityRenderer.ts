@@ -400,6 +400,54 @@ export class CityRenderer {
     for (const chars of this.stallCrowds.values()) for (const c of chars) c.update(dt, 0);
   }
 
+  // ---------- GPS : chevrons au sol le long de l'itinéraire ----------
+  private routeMesh: THREE.InstancedMesh | null = null;
+  private routeKey = '';
+
+  /** Trace l'itinéraire du GPS au sol (chevrons tous les 2,5 m) ; null l'efface. */
+  setRoute(points: { x: number; y: number }[] | null): void {
+    const key = points ? JSON.stringify(points) : '';
+    if (key === this.routeKey) return;
+    this.routeKey = key;
+    if (this.routeMesh) {
+      this.routeMesh.removeFromParent();
+      this.routeMesh.geometry.dispose();
+      (this.routeMesh.material as THREE.Material).dispose();
+      this.routeMesh = null;
+    }
+    if (!points || points.length < 2) return;
+    const spots: { x: number; z: number; yaw: number }[] = [];
+    let carry = 1.2;
+    for (let i = 0; i + 1 < points.length; i++) {
+      const a = points[i]!, b = points[i + 1]!;
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      const yaw = Math.atan2(b.x - a.x, b.y - a.y);
+      for (let d = carry; d < len; d += 2.5) spots.push({ x: a.x + ((b.x - a.x) * d) / len, z: a.y + ((b.y - a.y) * d) / len, yaw });
+      carry = ((carry - len) % 2.5 + 2.5) % 2.5;
+    }
+    if (!spots.length) return;
+    // Chevron plat « > » pointé vers l'avant (+z local).
+    const shape = new THREE.Shape();
+    shape.moveTo(-0.42, -0.2); shape.lineTo(0, 0.22); shape.lineTo(0.42, -0.2);
+    shape.lineTo(0.42, -0.02); shape.lineTo(0, 0.4); shape.lineTo(-0.42, -0.02); shape.closePath();
+    const geo = new THREE.ShapeGeometry(shape).rotateX(Math.PI / 2);
+    const mat = new THREE.MeshBasicMaterial({ color: '#4fd1ff', transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide });
+    const mesh = new THREE.InstancedMesh(geo, mat, spots.length);
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const up = new THREE.Vector3(0, 1, 0);
+    const one = new THREE.Vector3(1, 1, 1);
+    spots.forEach((p, i) => {
+      q.setFromAxisAngle(up, p.yaw);
+      m.compose(new THREE.Vector3(p.x, groundHeightAt(p.x, p.z) + 0.07, p.z), q, one);
+      mesh.setMatrixAt(i, m);
+    });
+    mesh.renderOrder = 2;
+    mesh.frustumCulled = false;
+    this.routeMesh = mesh;
+    this.scene.add(mesh);
+  }
+
   private animateWaypoints(): void {
     const t = performance.now() / 1000;
     for (const g of this.waypointGroup.children) {
@@ -991,6 +1039,7 @@ export class CityRenderer {
   }
 
   dispose(): void {
+    this.setRoute(null);
     this.ambient?.dispose();
     this.market?.dispose();
     this.city?.dispose();

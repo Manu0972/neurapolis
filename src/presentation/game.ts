@@ -123,6 +123,7 @@ import { PACE_BY_ID, TASK_MINUTES, TASK_SPEED, loadPacePrefs, savePacePrefs, sub
 import { setClockSubMinutes } from './ui';
 import { MultiplayerSession, OPEN_MULTI_KEY, openMultiplayerPanel } from './multiplayer';
 import { installHelp, setHelp, type HelpController } from './help';
+import { GpsController } from './gps';
 import { residentNear, residentsPresent, talkToResident } from '../simulation/residents';
 import { EMERGENCY_BELOW, emergencyHelpStatus } from '../simulation/family';
 import { randomAppearance } from './appearance-editor';
@@ -274,6 +275,14 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   // Initialisation du rendu 3D WebGL / fallback 2D
   let use3D = true;
   let renderer3D: CityRenderer | null = null;
+  // GPS : itinéraire choisi sur le plan, tracé sur la mini-carte et au sol.
+  const gps = new GpsController({
+    world,
+    pose: () => playerPose(),
+    setRoute3D: (pts) => renderer3D?.setRoute(pts),
+    toast: (text, ok) => toast(text, ok),
+  });
+  ui.phoneBtn.parentElement?.parentElement?.appendChild(gps.chip);
   try {
     renderer3D = new CityRenderer(ui.canvas3d);
     renderer3D.onPlayerTile = (x, y) => {
@@ -720,6 +729,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         if (p && !pts.some((q) => q.x === p.x && q.y === p.y)) pts.push({ ...p, color: '#ffd84a' });
       }
     }
+    const target = gps.target;
+    if (target) pts.push({ ...target, color: '#4fd1ff' });
     renderer3D.setWaypoints(pts);
   }
 
@@ -974,7 +985,14 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     return renderer3D && use3D ? renderer3D.playerPose : { x: world.player.pos.x + 0.5, z: world.player.pos.y + 0.5, heading: 0 };
   }
   function openCityMap(): void {
-    showModal('🗺️ Plan de Val-Ferrand', 'Centre-ville · 1 case = 1 mètre', renderCityMap(world, playerPose()), true);
+    const body = el('div', 'panel-body');
+    body.appendChild(gps.panel(() => { closeModal(); syncWaypoints(); }));
+    body.appendChild(renderCityMap(world, playerPose(), (x, y) => {
+      const d = gps.pickNear(x, y);
+      if (!d) { toast('Clique plus près d’un lieu, d’un arrêt ou d’un commerce.', false); return; }
+      if (gps.go(d)) { closeModal(); syncWaypoints(); }
+    }));
+    showModal('🗺️ Plan de Val-Ferrand', 'Clique un lieu ou cherche-le pour être guidé·e · 1 case = 1 mètre', body, true);
   }
   ui.phoneBtn.addEventListener('click', () => { if (!modalOpen) openPhoneUi(); });
   ui.mapBtn.addEventListener('click', () => { if (!modalOpen) openCityMap(); });
@@ -3298,6 +3316,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       syncTips();
       syncStallCrowds();
     }
+    gps.tick(performance.now());
     if (hudFrame % 2 === 0 && ui.minimapCtx) {
       const pose = playerPose();
       drawMinimap(ui.minimapCtx, 360, world, pose, pose.heading, renderer3D?.cameraYaw ?? 0);
