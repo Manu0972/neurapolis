@@ -21,4 +21,29 @@ embarqué dans le jeu.
   `PORTRAIT=1` pour les visages). `blender -b --python render_test.py -- sortie.png`.
 - `mh_packs.sh` : télécharge des packs d'assets MakeHuman (CC0).
 
+## Usine hybride « dessinée » (en service)
+
+Corps MakeHuman affirmés + tête anime VRoid (CC0) greffée + coiffures procédurales, rendu en
+aplats avec trait (Eevee). Têtes VRoid à mettre dans `public/_vroid_tmp/` (ignoré par git ; ou
+variable `VROID_DIR`) ; extension VRM pour Blender (MIT/GPL, outil seulement) installée et activée.
+
+- `toonlib.py` : `person(...)` fabrique un personnage (macros MakeHuman, réglages fins, vêtements,
+  couleurs, tête VRoid, iris, pose) ; `toon`, `outline`, `soften_normals`, `setup_scene`.
+- `graft.py` : greffe de la tête (géométrie figée, échelle sur la vraie hauteur de tête, crâne coupé
+  à sa base, iris recolorés).
+- `hair.py` : `locks`, `locks(butterfly=True)`, `box_braids`, `cornrows`, `afro`, sur l'ellipsoïde
+  de la tête (`Head`).
+- `planche.py` : planche de validation (10 adultes, face, dos, gros plans).
+  `xvfb-run -a -s "-screen 0 1280x1024x24" blender -b --python planche.py -- planche.png`
+
+Pièges rencontrés (ne pas les réintroduire) :
+- mesurer la tête MakeHuman avec les morphs (shape keys), sinon échelle négative et tête renversée ;
+- figer la tête VRoid telle qu'affichée (`new_from_object` sur l'objet évalué) au lieu de retirer
+  le modificateur d'armature ;
+- déplacer le rig, pas le corps (MPFB parente le corps au rig) ; traiter `rig.children_recursive` ;
+- soleil sans ombres portées : la coque du trait projette sinon des zébrures sur la peau ;
+- masquer la peau sous les vêtements (`ClothesService.update_delete_group`) ;
+- réactiver MPFB et VRM en tête de script (`addon_utils.enable`) ; matériau du trait créé à la
+  demande (MPFB purge les matériaux orphelins).
+
 Rendus de validation : `art/rendus/`.

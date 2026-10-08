@@ -76,8 +76,19 @@ la session cloud. Script prêt : `tools/characters/ai_pipeline.py` (variable `HF
 - **Très nombreuses couleurs de peau et teintes** (sous-tons chauds, froids, olivâtres ; du très clair au très foncé), **très nombreuses coiffures** (y compris locks, locks papillon, tresses, afro, buzz cut, dégradés).
 - **Style** : un peu dessin, un peu 3D. Plus jamais le rendu réaliste brut.
 - **MakeHuman refusé** comme base visuelle (« pas aussi poussé que les planches ») ; les modèles VRoid jugés « un peu plus potables ». Viser le niveau des planches Pinterest.
+- **« Harmonieux », c'est le mot à suivre avant tout** (2026-10-08). Concrètement : tête et corps semblent sortir du même dessin (rapport tête/corps constant, cou à la largeur de la mâchoire, jointure invisible) ; une seule épaisseur de trait pour peau, vêtements et cheveux ; ombres en aplats propres partout (pas de stries de muscles ni de plis, pas d'ombres portées en zébrures) ; palette coordonnée (tons de vêtements accordés, ombres chaudes de la peau, iris accordés à la peau et aux cheveux) ; tailles réalistes (1,58 à 1,90 m).
 
 ## 5. Recette retenue pour NEURAPOLIS
+
+**Recette en service (2026-10-08) : personnage hybride**, outils dans `tools/characters/` (`toonlib.py`, `graft.py`, `hair.py`, `planche.py`) :
+
+- corps MakeHuman (MPFB) aux traits affirmés, squelette « game_engine » (noms des os de nos animations), pose détendue ;
+- tête anime VRoid (CC0) **greffée** sur le cou : géométrie figée telle qu'affichée, échelle calée sur la vraie hauteur de tête (morphs compris), crâne coupé à sa base ; cou affiné ; trait aminci vers la jointure ;
+- peau, vêtements, cheveux : 3 tons en aplats (lumière, demi-teinte, ombre chaude), **normales prises sur une copie lissée** (technique Guilty Gear Xrd), soleil sans ombre portée ; visage presque plat ; iris recolorés en gardant leur dessin ;
+- vêtements du quotidien (assets MakeHuman CC0), peau masquée sous le tissu, tissu décollé de 3 mm ;
+- coiffures procédurales absentes des ressources libres : locks, locks papillon, tresses, nattes collées, afro (`hair.py`), sur la calotte des têtes VRoid « Base » (qui sert aussi de buzz cut).
+
+Piste précédente, gardée pour mémoire :
 
 1. **Tête et cheveux anime** : partir des têtes VRoid (yeux dessinés, expressions par formes du visage), recolorées et variées (forme des yeux, iris, sourcils, bouche, peau).
 2. **Corps** : anatomie juste et variée issue de MakeHuman, transférée sur le corps VRoid sous forme de **formes réglables** (morph targets) : taille, poids, musculature, épaules, poitrine, taille, hanches, fessier, ventre, cuisses, âge. Les moins de 18 ans ne reçoivent que les formes de leur âge.
