@@ -1,0 +1,86 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    }
+  },
+  "2": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "stylized 3D anime character, cel shading, flat color shadows with crisp edges, warm colored shadows, clean dark brown outline, harmonious proportions, realistic anatomy slightly simplified, an adult woman with box braids, ebony skin, hoodie and cargo pants, everyday casual streetwear, full body, front view, relaxed natural pose, soft warm lighting, plain light beige background",
+      "clip": [
+        "1",
+        1
+      ]
+    }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "photorealistic, realistic skin texture, pores, school uniform, sailor uniform, fantasy armor, chibi, gray shadows, pure black outline, noisy shading, gradient shading, nsfw, nude, lingerie, suggestive pose, text, watermark, logo, signature, frame, border, blurry, jpeg artifacts, extra fingers, missing fingers, deformed hands, duplicate, cropped",
+      "clip": [
+        "1",
+        1
+      ]
+    }
+  },
+  "4": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 832,
+      "height": 1216,
+      "batch_size": 3
+    }
+  },
+  "5": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "2",
+        0
+      ],
+      "negative": [
+        "3",
+        0
+      ],
+      "latent_image": [
+        "4",
+        0
+      ],
+      "seed": 1306659061,
+      "steps": 30,
+      "cfg": 6.5,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1
+    }
+  },
+  "6": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "5",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    }
+  },
+  "7": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "6",
+        0
+      ],
+      "filename_prefix": "neurapolis/personnages/an-adult-woman-with-box-braids-ebony-ski-1306659061"
+    }
+  }
+}

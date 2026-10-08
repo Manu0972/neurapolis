@@ -1,0 +1,49 @@
+{
+  "categorie": "interface",
+  "version": 1,
+  "date": "2026-10-08",
+  "statut": "verrouillé",
+  "couvre": [
+    "menus",
+    "boutons",
+    "icônes",
+    "écran de création de personnage",
+    "barres et fenêtres"
+  ],
+  "style": {
+    "nom": "mélange moderne + cozy",
+    "structure": "façon Big Ambitions : personnage en grand, catégories en icônes, grandes vignettes, nuancier, zoom/rotation/aléatoire",
+    "matieres": "crème, bois, brun chaud, biseau léger",
+    "interdits": [
+      "néons",
+      "pastilles noires",
+      "noir pur"
+    ]
+  },
+  "palette": {
+    "fond": "#f9ecd0",
+    "panneau": "#efd9ac",
+    "bois": "#bc7e4d",
+    "texte": "#2a1a14",
+    "accent": "#f48c5d"
+  },
+  "references": [
+    "art/references/chat/03-big-ambitions-creation-visage.webp",
+    "art/references/chat/04-big-ambitions-garde-robe.webp",
+    "art/claude-assets-v1/GUIDE-DA.md"
+  ],
+  "generation": {
+    "largeur": 1024,
+    "hauteur": 1024,
+    "pas": 25,
+    "cfg": 6.0,
+    "sampler": "dpmpp_2m",
+    "scheduler": "karras",
+    "positif": "game UI icon, {sujet}, simple flat illustration, clean dark brown outline, warm cream and wood palette, centered, plain cream background",
+    "negatif": "neon, dark theme, photorealistic, 3d render, gradient mesh, text, watermark, logo, signature, frame, border, blurry, jpeg artifacts, extra fingers, missing fingers, deformed hands, duplicate, cropped"
+  },
+  "regles": [
+    "lisible à 32 px",
+    "une idée par icône"
+  ]
+}

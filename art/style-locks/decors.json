@@ -1,0 +1,68 @@
+{
+  "categorie": "decors",
+  "version": 1,
+  "date": "2026-10-08",
+  "statut": "verrouillé",
+  "couvre": [
+    "bâtiments",
+    "rues",
+    "parc et squares",
+    "collège",
+    "intérieurs",
+    "objets et mobilier (props)"
+  ],
+  "style": {
+    "nom": "3D dessin assortie aux personnages",
+    "mots_cles": [
+      "formes simples et arrondies",
+      "mêmes aplats 3 tons que les personnages",
+      "même trait brun foncé",
+      "couleurs chaudes",
+      "vie partout (enseignes, linge, plantes, chats)"
+    ],
+    "interdits": [
+      "isométrique fixe",
+      "réalisme photo",
+      "textures bruitées",
+      "noir pur"
+    ]
+  },
+  "ambiance": {
+    "melange": [
+      "cozy chaud",
+      "coloré vif",
+      "pastel doux"
+    ],
+    "selon_les_lieux_proposition": {
+      "quartiers résidentiels et intérieurs": "cozy chaud",
+      "centre, commerces, marché": "coloré vif",
+      "parcs, collège, matins": "pastel doux"
+    },
+    "plus_tard": "un quartier ou une ville plus sombre / réaliste (tons froids, contrastes durs)",
+    "lumiere": "lumière chaude directionnelle, ombres qui virent au froid ; soir ambre, nuit bleue trouée de fenêtres chaudes"
+  },
+  "camera": "perspective libre (THREE.PerspectiveCamera), pas d'isométrique",
+  "rendu": {
+    "ombrage": "3 tons en paliers nets",
+    "trait": "#2a1a14, plus fin que sur les personnages à distance égale",
+    "ombres_portees": "douces au sol, teintées froides"
+  },
+  "references": [
+    "art/5f78d123e30df1758e5ebf15399d96e5.jpg",
+    "art/1d9eb06a6aa85082f672b0a1da12de55.jpg"
+  ],
+  "generation": {
+    "largeur": 1216,
+    "hauteur": 832,
+    "pas": 30,
+    "cfg": 6.5,
+    "sampler": "dpmpp_2m",
+    "scheduler": "karras",
+    "positif": "stylized 3D game environment, {sujet}, simple rounded shapes, cel shading, flat color shadows, clean dark brown outlines, warm cozy lighting, cool tinted shadows, lively details, perspective view, harmonious palette",
+    "negatif": "isometric, photorealistic, noisy textures, gritty, pure black, text, watermark, logo, signature, frame, border, blurry, jpeg artifacts, extra fingers, missing fingers, deformed hands, duplicate, cropped"
+  },
+  "regles": [
+    "mêmes paliers d'ombre et même trait que les personnages",
+    "un bâtiment se lit en une image : toit, enseigne, auvent, vitrine"
+  ]
+}

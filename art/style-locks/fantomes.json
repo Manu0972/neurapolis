@@ -1,0 +1,87 @@
+{
+  "categorie": "fantomes",
+  "version": 1,
+  "date": "2026-10-08",
+  "statut": "verrouillé",
+  "couvre": [
+    "pop-up des fantômes : penseurs historiques (Adam Smith, Karl Marx, Elinor Ostrom, Thomas Hobbes, Frederick W. Taylor…)"
+  ],
+  "style": {
+    "nom": "pixel art 2D",
+    "mots_cles": [
+      "pixel art net, sans anticrénelage",
+      "contour brun foncé",
+      "3 tons par matière (ombre froide, base, lumière chaude)",
+      "personnage reconnaissable à ses attributs historiques"
+    ],
+    "interdits": [
+      "3D",
+      "flou",
+      "dégradés lisses",
+      "anticrénelage",
+      "caricature méchante"
+    ]
+  },
+  "formats": {
+    "sprite_anime": {
+      "taille_px": 48,
+      "animations": [
+        "apparition",
+        "parler",
+        "réagir",
+        "clignement",
+        "disparition"
+      ],
+      "directions": "face (+ 3/4 si besoin)"
+    },
+    "portrait_buste": {
+      "taille_px": 128,
+      "expressions": [
+        "neutre",
+        "content",
+        "inquiet",
+        "agacé",
+        "malicieux"
+      ]
+    }
+  },
+  "fond": "transparent (génération sur fond uni à retirer)",
+  "palette": {
+    "contour": "#2a1a14",
+    "max_couleurs": 32
+  },
+  "references": [
+    "art/2226958d8807db1596b62c2980e41b02.jpg",
+    "art/3ff2cb7e0c798f0993d59dc5455b6f3c.jpg"
+  ],
+  "note_references": "le vert est le fond de la planche « Remain on Earth », pas la couleur des fantômes",
+  "personnages": {
+    "adam_smith": "perruque poudrée blanche, redingote, jabot",
+    "karl_marx": "grande barbe, crinière de cheveux, redingote sombre",
+    "elinor_ostrom": "cheveux courts blancs, sourire, veste",
+    "thomas_hobbes": "longs cheveux blancs, moustache et petite barbe, col blanc du XVIIe siècle",
+    "frederick_taylor": "moustache, costume trois-pièces, chronomètre à la main"
+  },
+  "generation": {
+    "largeur": 1024,
+    "hauteur": 1024,
+    "pas": 28,
+    "cfg": 7.0,
+    "sampler": "euler_ancestral",
+    "scheduler": "normal",
+    "positif": "pixel art, 16-bit retro game sprite, cute ghost of {sujet}, slightly translucent pale glow, full body, front view, clean dark brown outline, limited palette, crisp pixels, plain flat magenta background",
+    "negatif": "3d render, realistic, photo, smooth gradient, blur, anti-aliasing, green background, text, watermark, logo, signature, frame, border, blurry, jpeg artifacts, extra fingers, missing fingers, deformed hands, duplicate, cropped",
+    "post": {
+      "retirer_fond": "#ff00ff",
+      "tailles_px": [
+        48,
+        128
+      ],
+      "quantifier_couleurs": 32
+    }
+  },
+  "regles": [
+    "fond transparent",
+    "pixels entiers, agrandissement par facteur entier seulement"
+  ]
+}
