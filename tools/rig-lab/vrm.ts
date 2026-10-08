@@ -15,7 +15,7 @@ renderer.setSize(W, H);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#efe9df');
+scene.background = new THREE.Color(params.get('bg') ?? '#efe9df');
 const camera = new THREE.PerspectiveCamera(params.get('zoom') ? 14 : 24, W / H, 0.1, 50);
 const light = new THREE.DirectionalLight('#ffffff', Math.PI);
 light.position.set(1, 1.5, 2);
@@ -40,7 +40,8 @@ for (const [i, f] of files.entries()) {
   vrms.push(vrm);
 }
 const span = Math.max(1.2, files.length * gap);
-if (params.get('zoom')) { camera.position.set(0, 1.42, span * 2.6); camera.lookAt(0, 1.42, 0); }
+if (params.get('single')) { camera.fov = 30; camera.updateProjectionMatrix(); camera.position.set(0, 0.82, 3.6); camera.lookAt(0, 0.8, 0); }
+else if (params.get('zoom')) { camera.position.set(0, 1.42, span * 2.6); camera.lookAt(0, 1.42, 0); }
 else { camera.position.set(0, 0.9, span * 1.75); camera.lookAt(0, 0.82, 0); }
 for (const v of vrms) v.update(0.016);
 renderer.render(scene, camera);
