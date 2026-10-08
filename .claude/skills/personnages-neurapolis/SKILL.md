@@ -17,7 +17,8 @@ description: Fabriquer, varier et valider les personnages 3D de NEURAPOLIS dans 
 5. Toute ressource externe : licence vérifiée (CC0, CC-BY avec crédit, MIT), notée dans `art/sources/LICENCES.md`.
 
 ## Outils
-- **Blender 4.2 + MPFB (MakeHuman)** : anatomie variée, vêtements et coiffures CC0. Installation et scripts : `tools/characters/README.md`.
+- **Chaîne IA libre** (meilleure piste pour le niveau des planches) : `tools/characters/ai_pipeline.py` — FLUX.1-schnell dessine, StdGEN fabrique le personnage 3D décomposé (corps, vêtements, cheveux). Clé Hugging Face en variable `HF_TOKEN`. Licences : §3 bis de l'étude (écarter AGPL et Hunyuan3D, interdit dans l'UE).
+- **Blender 4.2 + MPFB (MakeHuman)** : refusé comme rendu final ; utile seulement comme référence d'anatomie, de mensurations et de vêtements. Installation et scripts : `tools/characters/README.md`.
 - **Modèles VRoid CC0** (visages et cheveux anime, MToon) : https://opengameart.org/content/vroid-studio-cc0-models. À télécharger dans `public/_vroid_tmp/` (ignoré par git) pour les essais.
 - **Labo de rendu** (navigateur, `npx vite` puis) :
   - `/tools/rig-lab/vrm.html?files=a.vrm,b.vrm` (`&zoom=1` pour les visages) : modèles VRM avec MToon ;

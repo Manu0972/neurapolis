@@ -53,6 +53,21 @@
 | Universal Animation Library 1 et 2 (Quaternius) | 35 animations retenues sur un squelette humain standard | CC0 |
 | three-vrm (Pixiv) | Affichage VRM et MToon dans Three.js | MIT |
 
+## 3 bis. Générateurs IA libres (recherche du 2026-10-08, après refus de MakeHuman)
+
+| Outil | Rôle | Licence | Démo en ligne (2026-10-08) |
+|---|---|---|---|
+| [StdGEN](https://stdgen.github.io/) (Tencent AI Lab + Tsinghua, CVPR 2025) | image anime → personnage 3D **décomposé** (corps, vêtements, cheveux séparés) en ~3 min | Apache 2.0 ([LICENSE](https://raw.githubusercontent.com/hyz317/StdGEN/main/LICENSE)) | copie `fabioma/StdGEN` en marche (officielle en panne) |
+| [TRELLIS / TRELLIS.2](https://huggingface.co/spaces/microsoft/TRELLIS.2) (Microsoft) | image → 3D texturée de haute qualité | MIT | en marche |
+| FLUX.1-schnell (Black Forest Labs) | dessiner le personnage de départ | Apache 2.0 | en marche |
+| UniRig (VAST, SIGGRAPH 2025) | pose automatique d'un squelette | MIT | — |
+| [Blender MCP](https://github.com/ahujasid/blender-mcp) | piloter Blender depuis Claude (bureau) | MIT | — |
+| CharacterGen (VAST) | image → personnage A-pose | **AGPL : écarté** | — |
+| Hunyuan3D 2 / 2.1 (Tencent) | image → 3D | **licence interdite dans l'UE : écarté** | — |
+
+Les démos utilisent les GPU gratuits de Hugging Face ; sans clé personnelle, le quota est nul depuis
+la session cloud. Script prêt : `tools/characters/ai_pipeline.py` (variable `HF_TOKEN`).
+
 ## 4. Exigences de l'utilisateur (2026-10-08) — elles priment sur l'étude
 
 - **Toutes les références comptent au même titre** : la femme low-poly en chemise blanche, les planches d'anatomie (Elle, homme en triangle inversé, les douze corps « zodiaque », les silhouettes en courbes, le torse en topologie), la fiche de Nate (vues, 12 expressions, poses, mains), le Convenience Kid, Big Ambitions, les planches streetwear, les sprites pixel des fantômes. Genshin et VRoid ne sont qu'**une** source technique, pas le modèle à copier.
@@ -60,6 +75,7 @@
 - **Corps plus affirmés** : silhouettes franches et lisibles (épaules, taille, hanches, fessier, poitrine, ventre, musculature nettement marqués selon la personne), pas de corps anime filiformes tous pareils.
 - **Très nombreuses couleurs de peau et teintes** (sous-tons chauds, froids, olivâtres ; du très clair au très foncé), **très nombreuses coiffures** (y compris locks, locks papillon, tresses, afro, buzz cut, dégradés).
 - **Style** : un peu dessin, un peu 3D. Plus jamais le rendu réaliste brut.
+- **MakeHuman refusé** comme base visuelle (« pas aussi poussé que les planches ») ; les modèles VRoid jugés « un peu plus potables ». Viser le niveau des planches Pinterest.
 
 ## 5. Recette retenue pour NEURAPOLIS
 
