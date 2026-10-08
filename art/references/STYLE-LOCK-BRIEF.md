@@ -102,3 +102,14 @@ Demande de l'utilisateur : « des corps plus affirmés », « pas de censure, ê
 PNJ : la planche `6-hybride-harmonieux.jpg` est la cible, **avec beaucoup plus de coiffures** et des visages variés selon les origines.
 
 Rappels : le joueur n'est **pas** un héros fixe — tout se personnalise (prénom, genre, peau, coiffure, taille adulte visée, silhouette) ; « Camille » n'est que le prénom par défaut du code. Il a 12 ans au départ et grandit ; la silhouette adulte n'apparaît qu'à 18 ans.
+
+## 8. Ajouts du 2026-10-08 (préférences de l'utilisateur)
+
+- **Harmonie = flux organique continu** : hanches qui s'élargissent progressivement, taille qui s'affine sans casser la ligne, cuisses pleines qui se fondent vers les genoux ; aucune partie du corps traitée comme un bloc isolé. Les « douze corps zodiaque » servent pour la variété, pas pour leurs exagérations sans transition.
+- **Tenues selon le moment de la journée** : matin à la maison (pyjama, robe de chambre), travail/école, journée, soir (détente), nuit ; `outfitSets` par personnage ; le joueur achète et débloque des tenues.
+- **Teintes par curseurs** dans la création de personnage (les palettes sont des points de départ).
+- **Fantômes** : visage reconnaissable et couleur signature (Smith or, Marx rouge sombre, Ostrom sauge, Hobbes bleu nuit, Taylor gris acier) ; plusieurs pop-up peuvent apparaître ensemble.
+- **Interface** : faite par Claude, validée par l'utilisateur.
+- **Volume** : des centaines de variations. En jeu, elles se composent en temps réel (formes réglables + coiffures + tenues + teintes) : on ne génère pas une image par habitant. La génération d'images sert aux concepts ; mode rapide `--turbo` (SDXL-Lightning, 4 pas) dans `tools/style/generate.mjs`.
+- **Matériel** : Google Colab Pro+ (L4 / A100) disponible pour la génération et les modèles 3D.
+- **Copie** : inspiration libre ; pas de reprise de personnages protégés existants (jeu distribué) ; personnages historiques réels OK.

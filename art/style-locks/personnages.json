@@ -23,6 +23,9 @@
       "vêtements du quotidien"
     ],
     "harmonie": [
+      "harmonie = flux organique continu : aucune partie du corps traitée comme un bloc isolé",
+      "silhouette organique : hanches qui s'élargissent progressivement, taille qui s'affine sans casser la ligne, cuisses pleines qui se fondent vers les genoux, galbe continu",
+      "à éviter : corps-caricatures avec une partie exagérée posée sans transition",
       "tête et corps du même dessin (rapport tête/corps constant, cou à la largeur de la mâchoire, jointure invisible)",
       "une seule épaisseur de trait pour peau, vêtements, cheveux",
       "aplats propres : normales lissées, aucune ombre portée sur soi",
@@ -415,7 +418,7 @@
     "cfg": 6.5,
     "sampler": "dpmpp_2m",
     "scheduler": "karras",
-    "positif": "stylized 3D anime character, cel shading, flat color shadows with crisp edges, warm colored shadows, clean dark brown outline, harmonious proportions, realistic anatomy slightly simplified, {sujet}, everyday casual streetwear, full body, front view, relaxed natural pose, soft warm lighting, plain light beige background",
+    "positif": "stylized 3D anime character, cel shading, flat color shadows with crisp edges, warm colored shadows, clean dark brown outline, harmonious proportions, organic continuous body lines, smooth transitions between shoulders, waist, hips and legs, realistic anatomy slightly simplified, {sujet}, everyday casual streetwear, full body, front view, relaxed natural pose, soft warm lighting, plain light beige background",
     "negatif": "photorealistic, realistic skin texture, pores, school uniform, sailor uniform, fantasy armor, chibi, gray shadows, pure black outline, noisy shading, gradient shading, nsfw, nude, lingerie, suggestive pose, text, watermark, logo, signature, frame, border, blurry, jpeg artifacts, extra fingers, missing fingers, deformed hands, duplicate, cropped",
     "mineurs": {
       "age_max": 17,
@@ -442,5 +445,21 @@
     "famille du joueur cohérente, sans handicap",
     "licence vérifiée et notée dans art/sources/LICENCES.md",
     "planche de validation (face, profil, dos, visage) avant toute intégration"
-  ]
+  ],
+  "references_notes": {
+    "art/references/chat/13-douze-corps-zodiaque.webp": "pour la VARIÉTÉ des corps seulement ; pas pour leurs exagérations sans transition"
+  },
+  "tenues_journee": {
+    "moments": {
+      "matin_maison": "pyjama, robe de chambre, t-shirt décontracté",
+      "travail_ecole": "tenue de travail ou d'école (vêtements du quotidien)",
+      "jour": "tenue quotidienne",
+      "soir": "tenue détente",
+      "nuit": "tenue de sommeil"
+    },
+    "structure": "outfitSets: { matin, travail, jour, soir, nuit } par personnage",
+    "joueur": "achète et débloque de nouvelles tenues (garde-robe, collections)"
+  },
+  "curseurs": "teintes de peau, cheveux, yeux et vêtements réglables par curseur dans la création de personnage ; les palettes sont des points de départ",
+  "copie": "inspiration libre ; pas de reprise d'un personnage protégé existant (jeu distribué) ; personnages historiques réels OK"
 }

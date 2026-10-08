@@ -83,5 +83,14 @@
   "regles": [
     "fond transparent",
     "pixels entiers, agrandissement par facteur entier seulement"
-  ]
+  ],
+  "couleur_signature": {
+    "adam_smith": "or",
+    "karl_marx": "rouge sombre",
+    "elinor_ostrom": "sauge",
+    "thomas_hobbes": "bleu nuit",
+    "frederick_taylor": "gris acier"
+  },
+  "distinction": "chaque fantôme se reconnaît à son visage et à sa couleur signature (halo, liseré du portrait)",
+  "pop_up": "plusieurs fantômes peuvent apparaître ensemble (empilés ou côte à côte) : sprites lisibles même groupés"
 }
