@@ -295,5 +295,143 @@
     "famille du joueur cohérente, sans handicap",
     "licence vérifiée et notée dans art/sources/LICENCES.md",
     "planche de validation (face, profil, dos, visage) avant toute intégration"
-  ]
+  ],
+  "formes_genereuses": {
+    "esprit": "corps affirmés, courbes assumées, poses naturelles ; « pas de censure, être généreux » (utilisateur)",
+    "traits_reglables": [
+      "épaules",
+      "poitrine/pectoraux",
+      "tour de taille",
+      "hanches",
+      "fessier",
+      "ventre",
+      "musculature",
+      "cuisses"
+    ],
+    "plage": [
+      -1,
+      1
+    ],
+    "morphotypes": [
+      "sablier marqué",
+      "poire",
+      "ronde / grande taille",
+      "athlétique musclée",
+      "triangle inversé",
+      "costaud",
+      "mince",
+      "ventre rond"
+    ],
+    "reglages_makehuman_depart": {
+      "femme_courbes": {
+        "hip-scale-horiz-incr": [
+          0.6,
+          0.8
+        ],
+        "buttocks-volume-incr": [
+          0.7,
+          1.0
+        ],
+        "measure-waist-circ-decr": [
+          0.8,
+          0.9
+        ],
+        "measure-hips-circ-incr": 0.8,
+        "measure-thigh-circ-incr": [
+          0.6,
+          0.8
+        ],
+        "cupsize": [
+          0.4,
+          0.8
+        ]
+      },
+      "homme_triangle": {
+        "torso-muscle-pectoral-incr": [
+          0.6,
+          1.0
+        ],
+        "torso-muscle-dorsi-incr": [
+          0.6,
+          0.9
+        ],
+        "measure-shoulder-dist-incr": [
+          0.5,
+          0.9
+        ],
+        "upperarm-muscle-incr": [
+          0.6,
+          0.9
+        ]
+      },
+      "rond": {
+        "stomach-pregnant-incr": [
+          0.4,
+          0.5
+        ],
+        "upperarm-fat-incr": 0.7
+      }
+    },
+    "vetements": "ajustés (jean slim, débardeur, crop top) et amples (hoodie, cargo) ; silhouette lisible sous le tissu",
+    "limites": "adultes seulement ; habillés ; poses du quotidien, pas de poses sexualisées"
+  },
+  "technique": {
+    "fabrication": {
+      "outils": [
+        "Blender 4.2 LTS",
+        "MPFB 2.0.17 (sorties CC0)",
+        "têtes VRoid CC0",
+        "coiffures procédurales hair.py"
+      ],
+      "scripts": "tools/characters/"
+    },
+    "squelette": {
+      "nom": "game_engine (MPFB, noms Unreal)",
+      "animations": "public/assets/anim/neurapolis_anims.glb (35, Quaternius UAL, CC0)"
+    },
+    "formes_reglables": {
+      "morph_targets": [
+        "8 traits",
+        "taille",
+        "corpulence",
+        "âge"
+      ],
+      "expressions": "57 shape keys VRoid : 12 expressions + clignement"
+    },
+    "format": {
+      "modele": [
+        "glb (glTF 2.0)",
+        "VRM 1.0"
+      ],
+      "compression": [
+        "meshopt",
+        "Draco"
+      ],
+      "textures": "KTX2"
+    },
+    "shader": {
+      "moteur": "Three.js r186",
+      "options": [
+        "MToon (three-vrm 3.5.5)",
+        "ShaderMaterial rampe constante 3 tons"
+      ],
+      "normales": "lissées, précalculées et exportées",
+      "ombre_sur_soi": false,
+      "ombre_sol": "simple"
+    },
+    "trait": {
+      "methode": "coque inversée, épaisseur constante à l'écran",
+      "couleur": "#2a1a14"
+    },
+    "lod": {
+      "methode": "décimation (contours et UV préservés)",
+      "lod3": "doigts fusionnés, foule instanciée",
+      "materiaux_max": 4
+    },
+    "jeu": {
+      "generation_pnj": "PRNG du projet (generateLook), jamais Math.random",
+      "sauvegarde": "WorldState v25 (adultHeightCm, physique) ; changement de schéma = version + migrateur + test aller-retour"
+    },
+    "pieges": "tools/characters/README.md"
+  }
 }

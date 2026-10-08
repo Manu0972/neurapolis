@@ -54,7 +54,29 @@ Contrainte technique : jeu web/Electron (Three.js), ville pleine de PNJ simultan
 LOD0 ~50 k (écran de création, gros plans, cinématiques), LOD1 ~18 k (joueur en jeu),
 LOD2 ~8 k (PNJ proches), LOD3 ~2,5 k (PNJ lointains, foule). Même dessin à tous les niveaux.
 
-## 4. Règles fixes quel que soit le choix
+## 4. Formes généreuses (adultes de 18 ans et plus)
+
+Demande de l'utilisateur : « des corps plus affirmés », « pas de censure, être généreux », « fessier plus rond, plus musclé… ». Courbes **assumées**, poses **naturelles**.
+
+- **8 traits réglables** (déjà dans le jeu, `BODY_SHAPE_KEYS`, de −1 à +1) : épaules (étroites → larges), poitrine/pectoraux (plate → volumineuse), tour de taille (marqué → droit), hanches (étroites → larges), fessier (plat → rond), ventre (plat → rond), musculature (menue → très musclée), cuisses (fines → fortes).
+- **Morphotypes visés** (planches anatomiques, « zodiaque », Elle, triangle inversé) : sablier marqué (taille fine, hanches et fessier ronds, cuisses fortes), poire, ronde / grande taille (ventre, bras, cuisses), athlétique musclée, triangle inversé (épaules larges, pectoraux et dorsaux, taille fine), costaud, mince, ventre rond.
+- **Réglages de départ (MakeHuman)** : femmes — hanches +0,6 à +0,8, fessier +0,7 à +1,0, taille −0,8 à −0,9, tour de hanches +0,8, cuisses +0,6 à +0,8, poitrine 0,4 à 0,8 ; hommes — pectoraux +0,6 à +1,0, dorsaux +0,6 à +0,9, carrure +0,5 à +0,9, biceps +0,6 à +0,9 ; ronds — ventre +0,4 à +0,5, bras +0,7.
+- **Vêtements** : ajustés qui épousent les formes (jean slim, débardeur, crop top) **et** amples (hoodie, cargo) ; la silhouette reste lisible sous le tissu.
+- **Limites** : uniquement les adultes ; personnages habillés, poses du quotidien (pas de poses sexualisées).
+
+## 5. Technique
+
+- **Fabrication** : Blender 4.2 LTS + MPFB 2.0.17 (corps MakeHuman, sorties CC0) + têtes anime VRoid (CC0) greffées + coiffures procédurales ; scripts `tools/characters/` (`toonlib.py`, `graft.py`, `hair.py`, `planche.py`).
+- **Squelette** : « game_engine » de MPFB (noms des os à la Unreal), identique à celui de la Universal Animation Library de Quaternius (CC0) → 35 animations déjà prêtes (`public/assets/anim/neurapolis_anims.glb`).
+- **Formes réglables** : morph targets glTF pour les 8 traits + taille, corpulence, âge ; expressions par les 57 shape keys des visages VRoid (12 expressions + clignement).
+- **Format** : glTF 2.0 binaire (`.glb`) ou VRM 1.0 ; compression meshopt/Draco ; textures KTX2.
+- **Shader (Three.js r186)** : MToon (three-vrm 3.5.5) ou ShaderMaterial à rampe constante 3 tons (corps et vêtements : paliers 0,18 / 0,42 ; visage : 0,04 / 0,10) ; **normales lissées précalculées** et exportées dans le maillage ; pas d'ombre propre sur soi ; ombre au sol simple.
+- **Trait** : coque inversée (faces arrière, épaisseur constante à l'écran), couleur `#2a1a14`, une seule épaisseur pour tout, amincie à la jointure du cou.
+- **Niveaux de détail** : LOD0 ~50 k → LOD3 ~2,5 k triangles par décimation (contours et UV préservés), doigts fusionnés au LOD3, foule instanciée ; au plus 4 matériaux par personnage (peau, tissus, cheveux, visage/yeux).
+- **Jeu** : PNJ générés par le PRNG du projet (`generateLook`, jamais `Math.random`) ; apparence sauvegardée dans `WorldState` (v25 : `adultHeightCm`, `physique`) ; tout changement de schéma = version + migrateur + test aller-retour.
+- **Pièges connus** : `tools/characters/README.md`.
+
+## 6. Règles fixes
 
 - Mineurs : corps de leur âge, toujours habillés, aucun trait adulte avant 18 ans.
 - Famille du joueur cohérente avec lui, sans handicap.
