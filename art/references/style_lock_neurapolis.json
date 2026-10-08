@@ -1,0 +1,299 @@
+{
+  "version": 1,
+  "date": "2026-10-08",
+  "statut": "verrouillé par l'utilisateur",
+  "brief": "art/references/STYLE-LOCK-BRIEF.md",
+  "style": {
+    "nom": "3D dessin/anime harmonieuse",
+    "mots_cles": [
+      "un peu dessin, un peu 3D",
+      "harmonieux",
+      "anatomie réelle légèrement simplifiée",
+      "cel-shading",
+      "aplats nets",
+      "trait de contour",
+      "têtes et yeux anime",
+      "corps affirmés et variés",
+      "vêtements du quotidien"
+    ],
+    "harmonie": [
+      "tête et corps du même dessin (rapport tête/corps constant, cou à la largeur de la mâchoire, jointure invisible)",
+      "une seule épaisseur de trait pour peau, vêtements, cheveux",
+      "aplats propres : normales lissées, aucune ombre portée sur soi",
+      "palette coordonnée par personnage (≈5 couleurs)",
+      "tailles réalistes"
+    ],
+    "interdits": [
+      "rendu réaliste brut (MakeHuman tel quel)",
+      "uniformes d'école anime",
+      "fantasy",
+      "noir pur",
+      "ombres grises",
+      "corps anime filiformes tous pareils",
+      "traits adultes chez les moins de 18 ans",
+      "personnages, logos ou dessins existants copiés"
+    ]
+  },
+  "ambiance": {
+    "melange": [
+      "cozy chaud",
+      "coloré vif",
+      "pastel doux"
+    ],
+    "selon_les_lieux_proposition": {
+      "quartiers résidentiels et intérieurs": "cozy chaud",
+      "centre, commerces, marché": "coloré vif",
+      "parcs, collège, matins": "pastel doux"
+    },
+    "plus_tard": "un quartier ou une ville plus sombre / réaliste (tons froids, contrastes durs)",
+    "lumiere": "lumière chaude directionnelle, ombres qui virent au froid ; soir ambre, nuit bleue trouée de fenêtres chaudes"
+  },
+  "qualite": {
+    "decision": "fusion PC indé + AAA stylisé : un modèle source, chaîne de niveaux de détail, même dessin à tous les niveaux",
+    "lod_triangles": {
+      "LOD0_gros_plan_creation": 50000,
+      "LOD1_joueur": 18000,
+      "LOD2_pnj_proche": 8000,
+      "LOD3_foule": 2500
+    },
+    "textures": {
+      "LOD0": 2048,
+      "LOD1": 1024,
+      "LOD2": 512,
+      "LOD3": 256
+    },
+    "moteur": "Three.js (web / Electron)"
+  },
+  "rendu": {
+    "ombrage": "3 tons en paliers nets (ombre chaude colorée / demi-teinte / lumière)",
+    "paliers_corps_vetements": {
+      "demi_teinte": 0.18,
+      "lumiere": 0.42
+    },
+    "paliers_visage": {
+      "demi_teinte": 0.04,
+      "lumiere": 0.1,
+      "note": "visage presque plat, comme un dessin"
+    },
+    "normales": "copie lissée du maillage (technique Guilty Gear Xrd) ; 18 passes corps, 10 vêtements",
+    "trait": {
+      "couleur": "#2a1a14",
+      "methode": "coque inversée",
+      "largeur_relative": {
+        "corps": 1.0,
+        "vetements": 0.9,
+        "tete_cheveux": 0.9,
+        "meches_fines": 0.45
+      },
+      "aminci": "vers la jointure du cou"
+    },
+    "ombres_portees_sur_soi": false,
+    "reference_three_js": "MToon (three-vrm 3.5.5) ou ShaderMaterial à rampe constante"
+  },
+  "palettes": {
+    "peaux": {
+      "porcelaine": {
+        "lumiere": "#fdece2",
+        "demi_teinte": "#f5d9d0",
+        "ombre": "#edc4bc"
+      },
+      "rosee": {
+        "lumiere": "#f9dfd4",
+        "demi_teinte": "#efcbc2",
+        "ombre": "#e5b3ad"
+      },
+      "doree": {
+        "lumiere": "#efd1b5",
+        "demi_teinte": "#e2bda2",
+        "ombre": "#d4a68b"
+      },
+      "olive": {
+        "lumiere": "#e5c8aa",
+        "demi_teinte": "#d5b595",
+        "ombre": "#c49e7c"
+      },
+      "brune": {
+        "lumiere": "#b59073",
+        "demi_teinte": "#a47d63",
+        "ombre": "#906550"
+      },
+      "ebene": {
+        "lumiere": "#957359",
+        "demi_teinte": "#84614d",
+        "ombre": "#6f4b3f"
+      }
+    },
+    "vetements": {
+      "brique": {
+        "lumiere": "#da9b89",
+        "demi_teinte": "#c8897c",
+        "ombre": "#b3736c"
+      },
+      "sauge": {
+        "lumiere": "#cbd7c5",
+        "demi_teinte": "#b8c5b6",
+        "ombre": "#a2b1a6"
+      },
+      "creme": {
+        "lumiere": "#f7f1e5",
+        "demi_teinte": "#e9e1d5",
+        "ombre": "#dacec4"
+      },
+      "marine": {
+        "lumiere": "#7c8baa",
+        "demi_teinte": "#6c7997",
+        "ombre": "#596181"
+      },
+      "moutarde": {
+        "lumiere": "#efd490",
+        "demi_teinte": "#dec081",
+        "ombre": "#cbaa6f"
+      },
+      "prune": {
+        "lumiere": "#b38baa",
+        "demi_teinte": "#a17a9a",
+        "ombre": "#8b6589"
+      },
+      "gris": {
+        "lumiere": "#ceced1",
+        "demi_teinte": "#bcbcc2",
+        "ombre": "#a6a6b1"
+      },
+      "jean": {
+        "lumiere": "#95adce",
+        "demi_teinte": "#8299bc",
+        "ombre": "#6c81a6"
+      },
+      "jean_clair": {
+        "lumiere": "#bfd1e7",
+        "demi_teinte": "#acbfd8",
+        "ombre": "#95aac8"
+      },
+      "noir": {
+        "lumiere": "#65656c",
+        "demi_teinte": "#55555f",
+        "ombre": "#3f3f50"
+      },
+      "blanc": {
+        "lumiere": "#f9f8f6",
+        "demi_teinte": "#e9e8ec",
+        "ombre": "#d7d7e1"
+      },
+      "kaki": {
+        "lumiere": "#b3b699",
+        "demi_teinte": "#a0a488",
+        "ombre": "#898e73"
+      }
+    },
+    "cheveux": {
+      "noir": {
+        "lumiere": "#554b4b",
+        "demi_teinte": "#453c3c",
+        "ombre": "#302727"
+      },
+      "brun": {
+        "lumiere": "#7c6150",
+        "demi_teinte": "#695144",
+        "ombre": "#503c35"
+      },
+      "chatain": {
+        "lumiere": "#a28165",
+        "demi_teinte": "#8e6f57",
+        "ombre": "#765945"
+      },
+      "cuivre": {
+        "lumiere": "#bc8661",
+        "demi_teinte": "#a57352",
+        "ombre": "#89593f"
+      },
+      "roux": {
+        "lumiere": "#ce8e65",
+        "demi_teinte": "#ba7c59",
+        "ombre": "#a2654b"
+      },
+      "blond": {
+        "lumiere": "#edd7ad",
+        "demi_teinte": "#dcc299",
+        "ombre": "#c8aa81"
+      }
+    },
+    "iris": {
+      "brun": "#7c5d45",
+      "noisette": "#a28659",
+      "bleu": "#90aac4",
+      "vert": "#89ad95"
+    },
+    "regles": "peaux du très clair au très foncé, sous-tons chauds, froids, olivâtres ; ombres de peau chaudes et saturées, jamais grises"
+  },
+  "personnages": {
+    "proportions_adulte": "≈7 têtes, tailles 1,55–1,95 m",
+    "enfant_12_ans": "proportions « Convenience Kid » (grosse tête ronde, corps simple), habillé, aucun réglage adulte",
+    "coiffures_minimum": [
+      "buzz cut",
+      "dégradé",
+      "afro",
+      "twists",
+      "locks",
+      "locks papillon",
+      "box braids",
+      "nattes collées",
+      "queue de cheval",
+      "carré",
+      "cheveux longs",
+      "frange"
+    ],
+    "garde_robe": [
+      "t-shirt",
+      "polo",
+      "chemise",
+      "sweat / hoodie",
+      "débardeur",
+      "jean",
+      "cargo",
+      "short",
+      "jupe en jean",
+      "baskets",
+      "bottines",
+      "ballerines",
+      "sandales"
+    ],
+    "visage": "12 expressions de la fiche eda022ce (neutre, content, sourire, rire, colère, triste, pleurs, choc, gêne, détermination, confusion, sourire en coin) + clignement"
+  },
+  "references": {
+    "images": [
+      "art/02e96ecf9acd2645d3cd056f35fa1e79.jpg",
+      "art/eda022ced8f3ebdecd6ec644e10f0987.jpg",
+      "art/5f78d123e30df1758e5ebf15399d96e5.jpg",
+      "art/d60a30da01d9b9ead9a3cd8fb1b3040e.jpg",
+      "art/téléchargé.png",
+      "art/rendus/2026-10-08/6-hybride-harmonieux.jpg"
+    ],
+    "jeux": [
+      "Big Ambitions (création de personnage, vie en ville)"
+    ],
+    "techniques": [
+      "Guilty Gear Xrd (GDC 2015)",
+      "Genshin Impact (cel-shading, analyses publiques)",
+      "MToon / VRM"
+    ]
+  },
+  "generation_images": {
+    "positif": "stylized 3D anime character, cel shading, flat color shadows with crisp edges, warm colored shadows, clean dark brown outline, harmonious proportions, realistic anatomy slightly simplified, everyday casual streetwear, diverse body type, full body, neutral pose, soft warm lighting, plain light beige background",
+    "negatif": "photorealistic, realistic skin texture, pores, school uniform, fantasy armor, chibi, gray shadows, pure black outline, noisy shading, gradient shading, nsfw, child with adult features, text, watermark, logo",
+    "outils_autorises": [
+      "FLUX.1-schnell (Apache 2.0)",
+      "StdGEN (Apache 2.0)",
+      "TRELLIS.2 (MIT)",
+      "UniRig (MIT)"
+    ],
+    "outils_exclus": [
+      "Hunyuan3D (licence exclut l'UE)"
+    ]
+  },
+  "regles_fixes": [
+    "moins de 18 ans : corps de leur âge, toujours habillés",
+    "famille du joueur cohérente, sans handicap",
+    "licence vérifiée et notée dans art/sources/LICENCES.md",
+    "planche de validation (face, profil, dos, visage) avant toute intégration"
+  ]
+}
