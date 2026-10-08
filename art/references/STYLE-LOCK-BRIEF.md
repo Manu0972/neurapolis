@@ -29,6 +29,13 @@ Le jeu actuel est en 3D (Three.js, `src/presentation/city3d/`). Le kit pixel 2D 
 5. `art/d60a30da01d9b9ead9a3cd8fb1b3040e.jpg` + `art/téléchargé.png` — planches streetwear : la **garde-robe**.
 6. Dernier essai validable : `art/rendus/2026-10-08/6-hybride-harmonieux.jpg` (cel-shading, têtes anime, coiffures variées).
 
+**Images envoyées dans la conversation** (`art/references/chat/`, index dans son `README.md`) — toutes comptent au même titre :
+- précision minimale : `06-lowpoly-femme-chemise-blanche.jpg`, `08-torse-topologie.jpg` ;
+- formes généreuses et anatomie : `07-courbes-construction-corps.jpg`, `09-homme-muscle-3-vues.jpg`, `11-elle-fiche-anatomie.jpg`, `13-douze-corps-zodiaque.webp`, `14-croquis-silhouettes-courbes.png`, `15-anatomie-masculine-triangle-inverse.webp` ;
+- style dessin et visage : `10-illustration-femme-fiche.jpg` ;
+- interface : `01` à `04` (Big Ambitions) ;
+- **à ne pas suivre pour les vêtements** : `12-uniformes-anime-NE-PAS-SUIVRE-vetements.webp`.
+
 Jeux cités par l'utilisateur : **Big Ambitions** (interface de création de personnage, vie quotidienne en ville). Études DA : Minami Lane, Eastward, Spiritfarer (chaleur, vie partout).
 
 ## 2. Le style en mots (paroles de l'utilisateur)

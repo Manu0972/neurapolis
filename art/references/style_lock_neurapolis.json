@@ -275,7 +275,33 @@
       "Guilty Gear Xrd (GDC 2015)",
       "Genshin Impact (cel-shading, analyses publiques)",
       "MToon / VRM"
-    ]
+    ],
+    "images_conversation": {
+      "precision_minimale": [
+        "art/references/chat/06-lowpoly-femme-chemise-blanche.jpg",
+        "art/references/chat/08-torse-topologie.jpg"
+      ],
+      "formes_genereuses_anatomie": [
+        "art/references/chat/07-courbes-construction-corps.jpg",
+        "art/references/chat/09-homme-muscle-3-vues.jpg",
+        "art/references/chat/11-elle-fiche-anatomie.jpg",
+        "art/references/chat/13-douze-corps-zodiaque.webp",
+        "art/references/chat/14-croquis-silhouettes-courbes.png",
+        "art/references/chat/15-anatomie-masculine-triangle-inverse.webp"
+      ],
+      "style_dessin_visage": [
+        "art/references/chat/10-illustration-femme-fiche.jpg"
+      ],
+      "interface_big_ambitions": [
+        "art/references/chat/01-big-ambitions-menu.webp",
+        "art/references/chat/03-big-ambitions-creation-visage.webp",
+        "art/references/chat/04-big-ambitions-garde-robe.webp"
+      ],
+      "a_ne_pas_suivre_vetements": [
+        "art/references/chat/12-uniformes-anime-NE-PAS-SUIVRE-vetements.webp"
+      ],
+      "index": "art/references/chat/README.md"
+    }
   },
   "generation_images": {
     "positif": "stylized 3D anime character, cel shading, flat color shadows with crisp edges, warm colored shadows, clean dark brown outline, harmonious proportions, realistic anatomy slightly simplified, everyday casual streetwear, diverse body type, full body, neutral pose, soft warm lighting, plain light beige background",
