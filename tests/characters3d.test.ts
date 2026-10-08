@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { createCharacter, type CharacterSpec } from '../src/presentation/city3d/characters';
 
+/**
+ * Tests unitaires Vitest pour le moteur de personnages 3D (headless / sans WebGL)
+ */
 describe('Character3D Engine', () => {
   it('crée un personnage avec la hiérarchie Three.js attendue et les pieds à y = 0', () => {
     const spec: CharacterSpec = { heightM: 1.55 };

@@ -3,7 +3,7 @@ import type { PlayerAppearance, PlayerGender } from '../../core/types';
 import { HAIR_COLOR_INFO, OUTFIT_COLOR_INFO, SKIN_TONE_INFO } from '../../core/player_customization';
 
 export interface CharacterSpec {
-  appearance?: PlayerAppearance | any;
+  appearance?: PlayerAppearance;
   gender?: PlayerGender;
   heightM?: number;               // 1.55 par défaut pour un ado de 12 ans, 1.75 pour un adulte
   bodyColor?: string;             // pour les PNJ sans apparence complète
@@ -97,16 +97,16 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   const baseHeight = 1.55; // Hauteur de référence exacte de la hiérarchie
   const scale = targetHeight / baseHeight;
 
-  const app = spec.appearance || {};
-  const skinHex = parseColorHex(app.skinTone, SKIN_TONE_PALETTE, '#ffc496');
-  const hairHex = parseColorHex(app.hairColor, HAIR_COLOR_PALETTE, '#6b4a2f');
+  const app = spec.appearance;
+  const skinHex = parseColorHex(app?.skinTone, SKIN_TONE_PALETTE, '#ffc496');
+  const hairHex = parseColorHex(app?.hairColor, HAIR_COLOR_PALETTE, '#6b4a2f');
 
-  let topHex = parseColorHex(app.outfitColor, OUTFIT_COLOR_PALETTE, '#f48c5d');
+  let topHex = parseColorHex(app?.outfitColor, OUTFIT_COLOR_PALETTE, '#f48c5d');
   if (spec.bodyColor) {
     topHex = parseColorHex(spec.bodyColor, {}, '#3a6ca8');
   }
 
-  let bottomHex = parseColorHex(app.outfitStyle === 'sportif' ? 'indigo' : 'denim', OUTFIT_COLOR_PALETTE, '#4a5a7a');
+  let bottomHex = parseColorHex(app?.outfitStyle === 'sportif' ? 'indigo' : 'denim', OUTFIT_COLOR_PALETTE, '#4a5a7a');
   if (spec.legColor) {
     bottomHex = parseColorHex(spec.legColor, {}, '#2a3a5a');
   }
@@ -195,7 +195,7 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   torsoGroup.add(torso);
 
   // Accessoires d'outfitStyle
-  const outfitStyle = app.outfitStyle;
+  const outfitStyle = app?.outfitStyle;
   if (outfitStyle === 'ecolier') {
     const backpack = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.32, 0.12), getSharedMaterial(0x8a5a3a));
     backpack.position.set(0, 0.24, 0.16);
@@ -261,7 +261,7 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   hairGroup.name = 'hair';
   hairGroup.position.set(0, 0.24, 0);
 
-  const style = app.hairStyle || 'court';
+  const style = app?.hairStyle || 'court';
   if (style === 'mi-long') {
     const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.09, 0.24), matHair);
     topCap.position.y = 0.045; // couvre de 0 à 0.09 -> y_abs = 1.42 à 1.51
