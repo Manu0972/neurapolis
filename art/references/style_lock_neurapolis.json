@@ -459,5 +459,75 @@
       "sauvegarde": "WorldState v25 (adultHeightCm, physique) ; changement de schéma = version + migrateur + test aller-retour"
     },
     "pieges": "tools/characters/README.md"
+  },
+  "categories": {
+    "personnages_3d": {
+      "style": "ce verrou (3D dessin/anime)",
+      "inclut": [
+        "joueur (personnalisé, 12 ans → adulte)",
+        "PNJ (adultes et ados du collège)",
+        "foule = même style, LOD3 ~2 500 triangles"
+      ],
+      "planche_cible": "art/rendus/2026-10-08/6-hybride-harmonieux.jpg",
+      "a_ameliorer": [
+        "beaucoup plus de coiffures",
+        "visages variés selon les origines",
+        "mains"
+      ]
+    },
+    "fantomes": {
+      "style": "pixel art 2D",
+      "qui": [
+        "Adam Smith",
+        "Karl Marx",
+        "Elinor Ostrom",
+        "Thomas Hobbes",
+        "Frederick W. Taylor",
+        "autres penseurs du registre src/data/ghosts"
+      ],
+      "formats": {
+        "sprite_anime_px": 48,
+        "portrait_buste_px": 128
+      },
+      "animations": [
+        "apparition",
+        "parler",
+        "réagir",
+        "clignement",
+        "disparition"
+      ],
+      "fond": "transparent",
+      "references": [
+        "art/2226958d8807db1596b62c2980e41b02.jpg",
+        "art/3ff2cb7e0c798f0993d59dc5455b6f3c.jpg"
+      ],
+      "note": "le vert est le fond de la planche de référence, pas la couleur des fantômes"
+    },
+    "decors_objets": {
+      "style": "3D dessin assortie aux personnages (mêmes aplats, même trait, formes simples arrondies)",
+      "reference": "art/5f78d123e30df1758e5ebf15399d96e5.jpg",
+      "camera": "perspective libre actuelle (THREE.PerspectiveCamera), pas d'isométrique"
+    },
+    "interface": {
+      "style": "mélange : structure moderne façon Big Ambitions + matières cozy (crème, bois, brun chaud)",
+      "references": [
+        "art/references/chat/03-big-ambitions-creation-visage.webp",
+        "art/references/chat/04-big-ambitions-garde-robe.webp",
+        "art/claude-assets-v1/GUIDE-DA.md"
+      ]
+    }
+  },
+  "joueur": {
+    "personnalisation": [
+      "prénom",
+      "genre",
+      "peau",
+      "coiffure",
+      "couleur des cheveux",
+      "taille adulte visée",
+      "silhouette (8 traits, visible à 18 ans)"
+    ],
+    "prenom_par_defaut_du_code": "Camille (simple valeur par défaut, pas un héros fixe)",
+    "age_depart": 12
   }
 }

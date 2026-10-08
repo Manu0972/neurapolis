@@ -89,3 +89,16 @@ Demande de l'utilisateur : « des corps plus affirmés », « pas de censure, ê
 - Famille du joueur cohérente avec lui, sans handicap.
 - Ressources externes : licence vérifiée (CC0, CC-BY, MIT, Apache 2.0) ; Hunyuan3D exclu (UE).
 - Planche de validation (face, profil, dos, visage) **avant** toute intégration.
+
+## 7. Catégories d'assets — un verrou par catégorie (décidé le 2026-10-08)
+
+| Catégorie | Style | Détail |
+|---|---|---|
+| **Personnages 3D** : joueur, PNJ, foule | 3D dessin/anime harmonieuse (ce verrou) | Un seul style ; la foule = même style en niveau de détail léger (~2,5 k triangles) ; le joueur et les ados ont des corps de leur âge |
+| **Fantômes** (Adam Smith, Marx, Ostrom, Hobbes, Taylor…) | Pixel art 2D | Petit personnage entier animé ~48 px (apparition, parler, réagir, clignement, disparition) + portrait en buste ~128 px ; fond transparent ; référence « Remain on Earth » (`art/2226958d…`, `art/3ff2cb7e…`) — le vert est le fond de la planche, pas la couleur des fantômes |
+| **Décors et objets** | 3D dessin assortie aux personnages | Formes simples et arrondies (square `art/5f78d123…`), mêmes aplats, même trait ; caméra 3D libre actuelle (pas d'isométrique) |
+| **Interface** | Mélange | Structure moderne façon Big Ambitions (grandes vignettes, nuancier, icônes simples) + matières cozy (crème, bois, brun chaud) |
+
+PNJ : la planche `6-hybride-harmonieux.jpg` est la cible, **avec beaucoup plus de coiffures** et des visages variés selon les origines.
+
+Rappels : le joueur n'est **pas** un héros fixe — tout se personnalise (prénom, genre, peau, coiffure, taille adulte visée, silhouette) ; « Camille » n'est que le prénom par défaut du code. Il a 12 ans au départ et grandit ; la silhouette adulte n'apparaît qu'à 18 ans.
