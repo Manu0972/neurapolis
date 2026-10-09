@@ -8,6 +8,7 @@ export interface CharacterSpec {
   heightM?: number;               // 1.55 par défaut pour un ado de 12 ans, 1.75 pour un adulte
   bodyColor?: string;             // pour les PNJ sans apparence complète
   legColor?: string;              // optionnel pour PNJ
+  detail?: 'full' | 'low';
 }
 
 export interface Character3D {
@@ -44,7 +45,7 @@ const sharedGeometries = new Map<string, THREE.BufferGeometry>();
 const sharedMaterials = new Map<number, THREE.Material>();
 
 function getSharedBoxGeometry(w: number, h: number, d: number): THREE.BoxGeometry {
-  const key = `box_${w}_${h}_${d}`;
+  const key = `box_${w.toFixed(3)}_${h.toFixed(3)}_${d.toFixed(3)}`;
   let geo = sharedGeometries.get(key) as THREE.BoxGeometry;
   if (!geo) {
     geo = new THREE.BoxGeometry(w, h, d);
@@ -54,7 +55,7 @@ function getSharedBoxGeometry(w: number, h: number, d: number): THREE.BoxGeometr
 }
 
 function getSharedCylinderGeometry(rt: number, rb: number, h: number, segs = 8): THREE.CylinderGeometry {
-  const key = `cyl_${rt}_${rb}_${h}_${segs}`;
+  const key = `cyl_${rt.toFixed(3)}_${rb.toFixed(3)}_${h.toFixed(3)}_${segs}`;
   let geo = sharedGeometries.get(key) as THREE.CylinderGeometry;
   if (!geo) {
     geo = new THREE.CylinderGeometry(rt, rb, h, segs);
@@ -64,7 +65,7 @@ function getSharedCylinderGeometry(rt: number, rb: number, h: number, segs = 8):
 }
 
 function getSharedSphereGeometry(r: number, segs = 8): THREE.SphereGeometry {
-  const key = `sph_${r}_${segs}`;
+  const key = `sph_${r.toFixed(3)}_${segs}`;
   let geo = sharedGeometries.get(key) as THREE.SphereGeometry;
   if (!geo) {
     geo = new THREE.SphereGeometry(r, segs, segs);
@@ -93,11 +94,30 @@ function hashSpec(spec: CharacterSpec): number {
 }
 
 export function createCharacter(spec: CharacterSpec): Character3D {
-  const targetHeight = spec.heightM ?? 1.55;
+  const app = spec.appearance || {};
+
+  // Hauteur ajustée selon heightM et heightAdj
+  let targetHeight = spec.heightM ?? 1.55;
+  if (typeof app.heightAdj === 'number') {
+    targetHeight += app.heightAdj * 0.04;
+  }
   const baseHeight = 1.55; // Hauteur de référence exacte de la hiérarchie
   const scale = targetHeight / baseHeight;
 
-  const app = spec.appearance || {};
+  // Ajustement morphologique (body)
+  let widthFactor = 1.0;
+  let depthFactor = 1.0;
+  if (app.body === 'fine') {
+    widthFactor = 0.88;
+    depthFactor = 0.88;
+  } else if (app.body === 'sportive') {
+    widthFactor = 1.08;
+    depthFactor = 1.04;
+  } else if (app.body === 'ronde') {
+    widthFactor = 1.18;
+    depthFactor = 1.18;
+  }
+
   const skinHex = parseColorHex(app.skinTone, SKIN_TONE_PALETTE, '#ffc496');
   const hairHex = parseColorHex(app.hairColor, HAIR_COLOR_PALETTE, '#6b4a2f');
 
@@ -116,13 +136,15 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   const matTop = getSharedMaterial(topHex);
   const matBottom = getSharedMaterial(bottomHex);
   const matShoe = getSharedMaterial(0x222222);
+  const matGlasses = getSharedMaterial(0x1a1a1a);
+  const matDarkAcc = getSharedMaterial(0x333333);
 
   const root = new THREE.Group();
   root.name = 'character_root';
 
   const modelGroup = new THREE.Group();
   modelGroup.name = 'model_group';
-  modelGroup.scale.set(scale, scale, scale);
+  modelGroup.scale.set(scale * widthFactor, scale, scale * depthFactor);
   root.add(modelGroup);
 
   // --- REPERE REEL POUR baseHeight = 1.55m ---
@@ -256,6 +278,27 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   headMesh.position.y = 0.12; // centre à 0.12 -> couvre de 0 à 0.24 dans headGroup (y_abs = 1.18 à 1.42)
   headGroup.add(headMesh);
 
+  // Barbe (si présente)
+  if (app.beard && app.beard !== 'aucune') {
+    if (app.beard === 'moustache') {
+      const stache = new THREE.Mesh(getSharedBoxGeometry(0.12, 0.03, 0.04), matHair);
+      stache.position.set(0, 0.07, -0.12);
+      headGroup.add(stache);
+    } else if (app.beard === 'courte' || app.beard === 'pleine') {
+      const height = app.beard === 'pleine' ? 0.10 : 0.06;
+      const beard = new THREE.Mesh(getSharedBoxGeometry(0.25, height, 0.14), matHair);
+      beard.position.set(0, 0.03, -0.06);
+      headGroup.add(beard);
+    }
+  }
+
+  // Lunettes (si présentes)
+  if (app.glasses && app.glasses !== 'aucune') {
+    const glassesMesh = new THREE.Mesh(getSharedBoxGeometry(0.22, 0.05, 0.03), matGlasses);
+    glassesMesh.position.set(0, 0.14, -0.12);
+    headGroup.add(glassesMesh);
+  }
+
   // Coiffures selon hairStyle (posées à y = 0.24 dans headGroup, haut à y = 0.37 -> y_abs = 1.55m)
   const hairGroup = new THREE.Group();
   hairGroup.name = 'hair';
@@ -297,6 +340,37 @@ export function createCharacter(spec: CharacterSpec): Character3D {
     pigtailR.position.set(-0.15, 0.02, 0);
     pigtailR.rotation.z = 0.6;
     hairGroup.add(topCap, pigtailL, pigtailR);
+  } else if (style === 'long') {
+    const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.09, 0.24), matHair);
+    topCap.position.y = 0.045;
+    const backHair = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.30, 0.05), matHair);
+    backHair.position.set(0, -0.15, 0.10);
+    hairGroup.add(topCap, backHair);
+  } else if (style === 'afro') {
+    const afroMesh = new THREE.Mesh(getSharedSphereGeometry(0.18), matHair);
+    afroMesh.position.set(0, 0.08, 0);
+    hairGroup.add(afroMesh);
+  } else if (style === 'chignon') {
+    const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.09, 0.24), matHair);
+    topCap.position.y = 0.045;
+    const bun = new THREE.Mesh(getSharedSphereGeometry(0.07), matHair);
+    bun.position.set(0, 0.12, 0.08);
+    hairGroup.add(topCap, bun);
+  } else if (style === 'queue') {
+    const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.09, 0.24), matHair);
+    topCap.position.y = 0.045;
+    const tail = new THREE.Mesh(getSharedCylinderGeometry(0.03, 0.015, 0.20), matHair);
+    tail.position.set(0, -0.05, 0.14);
+    tail.rotation.x = 0.5;
+    hairGroup.add(topCap, tail);
+  } else if (style === 'crete') {
+    const crest = new THREE.Mesh(getSharedBoxGeometry(0.06, 0.14, 0.24), matHair);
+    crest.position.set(0, 0.07, 0);
+    hairGroup.add(crest);
+  } else if (style === 'rase') {
+    const buzz = new THREE.Mesh(getSharedBoxGeometry(0.25, 0.03, 0.23), matHair);
+    buzz.position.y = 0.015;
+    hairGroup.add(buzz);
   } else {
     // 'court' (par défaut)
     const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.09, 0.24), matHair);
@@ -304,6 +378,19 @@ export function createCharacter(spec: CharacterSpec): Character3D {
     const fringe = new THREE.Mesh(getSharedBoxGeometry(0.24, 0.04, 0.05), matHair);
     fringe.position.set(0, 0.01, -0.11);
     hairGroup.add(topCap, fringe);
+  }
+
+  // Accessoire (si casquette/bonnet)
+  if (app.accessory === 'casquette') {
+    const cap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.06, 0.26), matDarkAcc);
+    cap.position.set(0, 0.26, 0);
+    const visor = new THREE.Mesh(getSharedBoxGeometry(0.24, 0.02, 0.10), matDarkAcc);
+    visor.position.set(0, 0.24, -0.16);
+    headGroup.add(cap, visor);
+  } else if (app.accessory === 'bonnet') {
+    const beanie = new THREE.Mesh(getSharedSphereGeometry(0.15), matDarkAcc);
+    beanie.position.set(0, 0.22, 0);
+    headGroup.add(beanie);
   }
 
   headGroup.add(hairGroup);
