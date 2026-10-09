@@ -5,8 +5,15 @@
 import { describe, expect, it } from 'vitest';
 import { createWorld } from '../src/core/store';
 import { adviceFor, mostUrgentTip } from '../src/simulation/ghost_tips';
+import { escapeHtml } from '../src/presentation/ui';
 
 describe('conseils de situation', () => {
+  it('échappe correctement les caractères spéciaux HTML (XSS prevention)', () => {
+    const malicious = '<script>alert("xss") & \'test\'</script>';
+    const escaped = escapeHtml(malicious);
+    expect(escaped).toBe('&lt;script&gt;alert(&quot;xss&quot;) &amp; &#39;test&#39;&lt;/script&gt;');
+  });
+
   it('Dejours voit la fatigue, et c’est urgent', () => {
     const w = createWorld();
     w.player.needs.stress = 80;
