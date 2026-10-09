@@ -1,0 +1,16 @@
+{
+  "name": "neurapolis",
+  "productName": "NEURAPOLIS",
+  "version": "0.2.0",
+  "description": "NEURAPOLIS — jeu éducatif d'économie en 3D (application de bureau).",
+  "author": "Manu0972",
+  "main": "main.cjs",
+  "build": {
+    "appId": "fr.neurapolis.jeu",
+    "productName": "NEURAPOLIS",
+    "directories": { "output": "release" },
+    "files": ["main.cjs", "preload.cjs", "net-relay.mjs", "icon.png", "icon.ico", "game/**"],
+    "win": { "target": [{ "target": "portable", "arch": ["x64"] }], "icon": "icon.ico" },
+    "portable": { "artifactName": "NEURAPOLIS.exe" }
+  }
+}

@@ -1,0 +1,30 @@
+﻿{
+  "version": 1,
+  "description": "Style locks — injectés en tête de prompt pour forcer un rendu cohérent. À éditer selon ton univers NEURAPOLIS.",
+  "locks": {
+    "npc_cozy_pixel": {
+      "style_lock": "masterpiece, highest quality, cozy 16-bit SNES pixel art portrait, warm hand-drawn aesthetic, crisp pixel-perfect edges, limited palette, subtle dithering, amber and cream color scheme, hand-crafted indie game art, Stardew Valley portrait style, chest-up bust framing, soft warm interior lighting",
+      "palette_hint": ["#2a1e2b", "#56252c", "#ac4e47", "#e2a35b", "#ecd290"],
+      "width": 768,
+      "height": 768,
+      "steps": 30,
+      "cfg": 7.0
+    },
+    "ghost_gen1_classical": {
+      "style_lock": "masterpiece, highest quality, ethereal philosopher ghost portrait, translucent sepia-toned classical oil painting aesthetic, ornate academic robes, faint candlelight glow, aged paper texture, chest-up framing, 19th century engraving technique, soft golden rim light, visible brushwork, museum quality",
+      "palette_hint": ["#8b7355", "#d4c4a0", "#3a2e1f", "#f5e9c8"],
+      "width": 768,
+      "height": 768,
+      "steps": 32,
+      "cfg": 7.5
+    },
+    "ghost_gen2_modern": {
+      "style_lock": "masterpiece, highest quality, modern theorist ghost portrait, translucent cool bluish digital aura, contemporary academic attire, faint pixel glitch artifacts, subtle CRT scanlines, chest-up framing, post-internet aesthetic, neon blue rim light, glitch art influence",
+      "palette_hint": ["#4a6b8a", "#a0b4c4", "#1f2e3a", "#e0f0ff"],
+      "width": 768,
+      "height": 768,
+      "steps": 32,
+      "cfg": 7.0
+    }
+  }
+}
