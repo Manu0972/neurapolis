@@ -30,11 +30,3 @@ desktop.ini
 
 # Environnement de vérification/publication local (node_modules sain, clone de publication)
 /.ci/
-
-.agents/
-.probe/
-*.zip
-neurapolis-antigravity/
-neurapolis-campaign-worktree/
-neurapolis/
-
