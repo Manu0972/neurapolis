@@ -13,6 +13,7 @@
     "build:single": "vite build --config tools/vite.single.config.ts"
   },
   "devDependencies": {
+    "@types/node": "^26.6.5",
     "typescript": "^5.6.0",
     "vite": "^6.0.0",
     "vitest": "^2.1.0"

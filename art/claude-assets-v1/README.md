@@ -1,7 +1,7 @@
 # art/claude-assets-v1 — kit graphique NEURAPOLIS
 
 Scène reconnaissable de **Val-Ferrand, Cité des Roses** (rue de l'épicerie) : décor en couches, façades 2.5D, pavés, enseigne, végétation, mobilier, éclairage chaud du soir + ombres froides, 3 personnages jouables/PNJ.
-Direction : `GUIDE-DA.md` (1 page). Aperçu : `preview/scene_soir_x2.png` (principal), `preview/styleboard.png` (tout le kit).
+Direction : `docs/art/GUIDE-DA.md` (1 page). Aperçu : `preview/scene_soir_x2.png` (principal), `preview/styleboard.png` (tout le kit).
 
 ## Contenu
 
@@ -40,4 +40,4 @@ Tout est **original**, produit par code pour NEURAPOLIS : aucun asset, personnag
 - `art/REFERENCES-BIG-AMBITIONS.md` (cité par le tableau de coordination) **n'est pas dans le checkout** `neurapolis/art/` ; des copies `REFERENCES-BIG-AMBITION(S).md` existent dans l'archive `.probe/v2-big/`. Elles n'ont **pas** été utilisées ici : seules les références présentes dans `neurapolis/` l'ont été.
 - Aucun fichier de `src/**` n'a été touché. L'intégration (renderer, sprite, caméra à échelle entière) revient à la tâche J1.
 - Rendu **non testé dans le jeu** : les aperçus viennent de `source/scene.py`, pas du renderer Canvas.
-- Largeurs de façades vs empreintes de la carte : voir `GUIDE-DA.md §5`.
+- Largeurs de façades vs empreintes de la carte : voir `docs/art/GUIDE-DA.md §5`.

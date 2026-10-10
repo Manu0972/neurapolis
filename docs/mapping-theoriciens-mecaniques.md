@@ -58,6 +58,6 @@ Contrat de référence : `PRODUCTION-PLAN.md` §4 et §6 · Fiches : `src/data/g
 
 ## Points en suspens (signalés à l'équipe)
 
-1. **Minsky et Foucault** apparaissent dans les composites G3 du §6 mais ne figurent pas aux rosters G1/G2 — décision à journaliser dans `docs/DECISIONS.md` avant toute fiche.
+1. **Minsky et Foucault** apparaissent dans les composites G3 du §6 mais ne figurent pas aux rosters G1/G2 — décision à journaliser dans `docs/suivi/DECISIONS.md` avant toute fiche.
 2. `registry.ts` : le commentaire de `GEN1_RESTANTS` dit « les 7 autres » mais liste 8 ids — coquille à corriger (ghostwriter/architecte).
 3. Les 8 entrées G1 et 9 entrées G2 en ancrage « §6 (proposition) » attendent : fiches complètes par le ghostwriter (voix, failles, arcs) et chiffrage des conséquences par le systémiste (règle « aucune statistique sans conséquence »).

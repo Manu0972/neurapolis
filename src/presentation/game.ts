@@ -130,7 +130,7 @@ import { SKIP_LABELS, beginSkip, skipBlocker, skipReport, skipTarget, stepSkip, 
 
 /**
  * Un tick simulé dure 10 minutes de jeu. À vitesse ×1, 1 minute de jeu = 1 seconde réelle
- * (docs/DECISIONS.md, 2026-10-07) : une journée éveillée dure environ 16 minutes réelles.
+ * (docs/suivi/DECISIONS.md, 2026-10-07) : une journée éveillée dure environ 16 minutes réelles.
  */
 const TICK_MS = 10_000;
 /** Multiplicateur de vitesse pendant le sommeil : une nuit de 9 h passe en ~5 s. */

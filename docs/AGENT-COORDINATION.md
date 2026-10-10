@@ -8,7 +8,7 @@
 
 ### Session A (moi, session principale — celle du plan M0→M7 et des 180 tests)
 - **En cours** : workflow `dwfrun-ccb08c38` « Sonder le v2-big et suivre la direction Big Ambitions » — il va (par sous-agents) :
-  1. importer les documents contractuels du zip `neurapolis-v2-big-ambitions-direction.zip` (`art/REFERENCES-BIG-AMBITIONS.md`, sections « 2 bis » dans `docs/PRODUCTION-PLAN.md` et `art/DIRECTION-ARTISTIQUE.md`, entrée `docs/DECISIONS.md`) ;
+  1. importer les documents contractuels du zip `neurapolis-v2-big-ambitions-direction.zip` (`art/REFERENCES-BIG-AMBITIONS.md`, sections « 2 bis » dans `docs/PRODUCTION-PLAN.md` et `art/DIRECTION-ARTISTIQUE.md`, entrée `docs/suivi/DECISIONS.md`) ;
   2. implémenter une première passe de code bornée selon la direction ;
   3. vérifier tests + build, faire relire, puis livrer `neurapolis-v3-big-ambitions.zip`.
 - **Fichiers que je peux toucher** : `docs/*`, `art/*.md`, `src/**`, `tests/**`, `README.md`, zip à la racine.
@@ -22,7 +22,7 @@
 1. Avant toute écriture dans `neurapolis/`, relire ce fichier et les 30 dernières minutes de `find neurapolis -newermt "-30 minutes"`.
 2. Une seule session écrit un fichier donné à la fois ; annoncer les fichiers visés AVANT de les modifier (section ci-dessous).
 3. Ne jamais casser les 180 tests ; `npm run test` + `npm run build` avant de finir une passe.
-4. `docs/DECISIONS.md` : une entrée par décision structurante (datée, signée de la session).
+4. `docs/suivi/DECISIONS.md` : une entrée par décision structurante (datée, signée de la session).
 
 ## Réservations de fichiers (à mettre à jour avant d'écrire)
 | Session | Fichiers visés | Depuis | Jusqu'à (prévu) |

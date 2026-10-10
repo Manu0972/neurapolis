@@ -19,7 +19,7 @@ Lis les règles et l’état courant, dans cet ordre :
 3. `docs/PRODUCTION-PLAN.md` — contrat du jeu, systèmes, roster, critères des jalons.
 4. `art/DIRECTION-ARTISTIQUE.md`, `art/DESIGN-PHILOSOPHY.md`, `docs/DIRECTIVE-VISUELLE-URGENTE.md` — qualité graphique attendue.
 5. `docs/COORDINATION-JULES-CLAUDE.md` — briefs d’assets et tâches séquencées déjà préparés.
-6. `docs/rival_economy_design.md`, `docs/DECISIONS.md`, `README.md` — conception de la concurrence, décisions et démarrage.
+6. `docs/rival_economy_design.md`, `docs/suivi/DECISIONS.md`, `README.md` — conception de la concurrence, décisions et démarrage.
 7. Le code et les tests réellement présents; les plans ne prouvent pas qu’une fonction existe.
 
 `docs/AGENT-COORDINATION.md` contient d’anciennes réservations et un ancien protocole. En cas de contradiction, vérifier les dates et les changements Git; le tableau `.zcode/coordination/BOARD.md` est le registre courant, et l’état du dépôt est la preuve finale. Le fichier `art/REFERENCES-BIG-AMBITION(S).md` est mentionné dans des échanges antérieurs, mais son existence doit être vérifiée dans ce checkout avant de s’y fier.

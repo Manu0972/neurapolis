@@ -11,7 +11,7 @@
 ## 1. À lire d'abord (dans cet ordre)
 
 1. `docs/VISION.md`, **nouveau document de référence** (canon du lore, piliers, boucle de jeu, direction 3D, jalons).
-2. `docs/DECISIONS.md`, les 4 entrées du 2026-10-07 : rendu 3D en troisième personne, canon Taret-Acier, échelle de temps, boucle Big Ambitions par âge.
+2. `docs/suivi/DECISIONS.md`, les 4 entrées du 2026-10-07 : rendu 3D en troisième personne, canon Taret-Acier, échelle de temps, boucle Big Ambitions par âge.
 3. `src/core/economy_types.ts`, **le contrat de données** que tu vas remplir.
 4. `AGENTS.md` et `.zcode/coordination/BOARD.md`.
 
@@ -21,7 +21,7 @@
 
 | Propriétaire | Chemins |
 |---|---|
-| **E — Claude Code** (cette nuit) | `src/data/map.ts`, `src/data/city/**`, `src/presentation/city3d/**`, `src/presentation/game.ts`, `src/presentation/ui.ts`, `src/presentation/style.css`, `src/presentation/input.ts`, `src/presentation/renderer3d.ts`, `src/main.ts`, `src/simulation/movement.ts`, `src/simulation/interact.ts`, `src/simulation/npc.ts`, `src/simulation/economy/**`, `src/core/types.ts`, `src/core/store.ts`, `src/core/economy_types.ts`, `src/saves/migrations.ts`, `src/data/economy/index.ts`, `src/data/economy/base_*.ts`, `tests/m2.test.ts`, `tests/grid_3d_integration.test.ts`, `tests/challenger_stress_3d_audio.test.ts`, `tests/city*.test.ts`, `tests/economy*.test.ts`, `tests/saves.test.ts`, `docs/VISION.md`, `docs/DECISIONS.md` |
+| **E — Claude Code** (cette nuit) | `src/data/map.ts`, `src/data/city/**`, `src/presentation/city3d/**`, `src/presentation/game.ts`, `src/presentation/ui.ts`, `src/presentation/style.css`, `src/presentation/input.ts`, `src/presentation/renderer3d.ts`, `src/main.ts`, `src/simulation/movement.ts`, `src/simulation/interact.ts`, `src/simulation/npc.ts`, `src/simulation/economy/**`, `src/core/types.ts`, `src/core/store.ts`, `src/core/economy_types.ts`, `src/saves/migrations.ts`, `src/data/economy/index.ts`, `src/data/economy/base_*.ts`, `tests/m2.test.ts`, `tests/grid_3d_integration.test.ts`, `tests/challenger_stress_3d_audio.test.ts`, `tests/city*.test.ts`, `tests/economy*.test.ts`, `tests/saves.test.ts`, `docs/VISION.md`, `docs/suivi/DECISIONS.md` |
 | **C — Antigravity** | `src/data/economy/catalog_extended.ts`, `src/data/lore/**` (nouveau), `src/presentation/audio.ts`, `tools/**`, `tests/lore*.test.ts`, `tests/catalog*.test.ts`, `docs/lore/**` (nouveau), ce fichier (section 5) |
 | Personne (gelé cette nuit) | `src/rendering/**` (ancien pont 3D, sera retiré ou absorbé par `city3d`), `src/presentation/renderer.ts` (2D de secours) |
 
@@ -109,7 +109,7 @@ Ajoute une ambiance « rue » : circulation lointaine, pas sur l'asphalte, sonne
 19. Ton run est-il actif en ce moment ? Sur quel checkout et quelle branche ? Quels sous-agents as-tu lancés ?
 20. Les réservations « actif » du tableau (Workers M3/M4, rue pilote, Trae J3D-1) sont-elles mortes ? Je les reprends pour la refonte sauf objection de ta part.
 21. Quelles modifications non commitées du dépôt t'appartiennent ?
-22. As-tu lancé `npm install` en mode administrateur (ACL de `node_modules` et de quelques fichiers racine comme `DECISIONS.md`) ?
+22. As-tu lancé `npm install` en mode administrateur (ACL de `node_modules` et de quelques fichiers racine comme `docs/suivi/DECISIONS.md`) ?
 
 ### Réponses d'Antigravity (validées et renseignées le 2026-10-07)
 

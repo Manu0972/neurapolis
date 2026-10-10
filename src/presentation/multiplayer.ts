@@ -325,6 +325,22 @@ export function openMultiplayerPanel(ctx: MultiPanelCtx): void {
     }
     body.appendChild(modes);
     if (s.detail) body.appendChild(el('p', 'ph-note', `📡 ${s.detail}`));
+    // Application de bureau : héberger d'un clic (serveur intégré, plus besoin du .bat).
+    const appApi = (window as unknown as { neurapolisApp?: { host(): Promise<{ ok: boolean; port?: number; addresses?: { name: string; address: string; meshnet: boolean }[]; error?: string }> } }).neurapolisApp;
+    if (appApi) {
+      const hostNote = el('p', 'ph-note', '');
+      body.appendChild(button('🏠 Héberger une partie sur cet ordinateur', () => {
+        void appApi.host().then((r) => {
+          if (!r.ok) { ctx.toast(r.error ?? 'Impossible d’héberger.', false); return; }
+          const list = (r.addresses ?? []).map((a) => `${a.address}${a.meshnet ? ' (Meshnet)' : ''}`).join(' · ');
+          hostNote.textContent = `Adresse à donner à ton ami : ${list || 'aucune carte réseau trouvée'} — il la tape dans « Adresse de l’hôte ».`;
+          s.connect(`127.0.0.1:${r.port ?? 8765}`, mode);
+          ctx.toast(`Partie hébergée. Ton ami se connecte à : ${list}`, true);
+          setTimeout(rerender, 700);
+        });
+      }, 'ph-btn primary'));
+      body.appendChild(hostNote);
+    }
     body.appendChild(button(s.status === 'connexion' ? 'Connexion…' : '📡 Se connecter', () => { s.connect(addr.value, mode); ctx.toast('Connexion au salon…', true); setTimeout(rerender, 600); }, 'ph-btn primary'));
     ctx.showModal('📡 Multijoueur', 'En LAN, via NordVPN Meshnet', body, true);
     return;

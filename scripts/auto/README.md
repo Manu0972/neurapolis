@@ -1,6 +1,6 @@
 # Reprise automatique de la refonte (Claude Code sans interface)
 
-La boucle `run_auto.ps1` enchaîne des sessions `claude -p`. Chacune lit `PROGRESS.md`, traite **une**
+La boucle `run_auto.ps1` enchaîne des sessions `claude -p`. Chacune lit `docs/suivi/PROGRESS.md`, traite **une**
 tâche, la vérifie, la publie sur la branche `refonte-3d` et la coche. Si une session échoue (limite
 d'usage de l'abonnement atteinte, coupure réseau), la boucle attend 30 minutes et réessaie, jusqu'à
 ce que toutes les tâches soient cochées.

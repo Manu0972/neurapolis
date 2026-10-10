@@ -1,5 +1,5 @@
 ﻿# Boucle de reprise automatique de la refonte NEURAPOLIS par Claude Code (mode sans interface).
-# Chaque passage lance une session « claude -p » qui traite UNE tâche de PROGRESS.md, la vérifie,
+# Chaque passage lance une session « claude -p » qui traite UNE tâche de docs/suivi/PROGRESS.md, la vérifie,
 # la publie sur refonte-3d et la coche. En cas d'erreur (limite d'usage atteinte, coupure),
 # la boucle attend puis réessaie, jusqu'à ce que toutes les tâches soient cochées.
 #
@@ -33,9 +33,9 @@ $Prompt = Get-Content (Join-Path $PSScriptRoot 'PROMPT.md') -Raw -Encoding UTF8
 
 try {
   for ($run = 1; $run -le $MaxRuns; $run++) {
-    $todo = Select-String -Path (Join-Path $Root 'PROGRESS.md') -Pattern '^- \[ \]' -SimpleMatch:$false
+    $todo = Select-String -Path (Join-Path $Root 'docs/suivi/PROGRESS.md') -Pattern '^- \[ \]' -SimpleMatch:$false
     if (-not $todo) {
-      Write-Output 'Toutes les tâches de PROGRESS.md sont cochées. Fin.'
+      Write-Output 'Toutes les tâches de docs/suivi/PROGRESS.md sont cochées. Fin.'
       break
     }
     $stamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'

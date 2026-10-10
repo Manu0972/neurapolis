@@ -2,7 +2,7 @@
 
 > **Statut : fait foi.** Rédigé le 2026-10-07 par la session E (Claude Code), sur instruction directe de l'utilisateur :
 > « un jeu explorable, avec autant de complexité que Big Ambitions, cadré de A à Z ; refaire graphismes et systèmes ; partir sur de nouvelles bases graphiques si besoin ».
-> Ce document remplace, là où ils se contredisent, `README.md`, `PROJECT_PLAN.md`, `GUIDE-DA.md`, `art/DIRECTION-ARTISTIQUE.md`, `docs/guide-style-da-2.5d.md` et `.zcode/coordination/CHATGPT-COOP/PROJECT-CONTEXT.md`.
+> Ce document remplace, là où ils se contredisent, `README.md`, `docs/suivi/PROJECT_PLAN.md`, `docs/art/GUIDE-DA.md`, `art/DIRECTION-ARTISTIQUE.md`, `docs/guide-style-da-2.5d.md` et `.zcode/coordination/CHATGPT-COOP/PROJECT-CONTEXT.md`.
 > Les sources de lore lues pour l'écrire : `1.pdf` (Bible de game design v0.2 → Document de conception v1.0), `2.pdf` (prototype « Édition Savoirs », chronologie 2025-2045, fiches de territoires, leçons), `neurapolis-feuille-de-route v.3.md`, `docs/*.md`, le code de `src/`.
 
 ---
@@ -126,7 +126,7 @@ Pour le **développement et les tests**, un mode « bac à sable » (option de c
 
 ## 5. Direction visuelle (nouvelle base)
 
-**La présentation 2.5D pixel art est abandonnée comme cible principale.** Décision de l'utilisateur le 2026-10-07 : « les graphismes sont nuls… faire comme si on était dans Big Ambitions ». Voir `docs/DECISIONS.md`.
+**La présentation 2.5D pixel art est abandonnée comme cible principale.** Décision de l'utilisateur le 2026-10-07 : « les graphismes sont nuls… faire comme si on était dans Big Ambitions ». Voir `docs/suivi/DECISIONS.md`.
 
 - **Rendu** : 3D temps réel (Three.js / WebGL2), **troisième personne**, caméra orbitale qui suit le joueur (molette = zoom, clic droit glissé = rotation), vue haute possible pour la gestion.
 - **Style** : « cosy réaliste » stylisé. Volumes propres, matériaux lisibles, **lumière chaude ~1800 K le soir**, ciel et brouillard atmosphériques, ombres douces. Lisible avant d'être chargé.
@@ -174,7 +174,7 @@ Réponses recueillies par Antigravity auprès de l'utilisateur (`docs/ANTIGRAVIT
 - **Ton** : social et engagé, mais chaleureux et accessible. Ni cynisme noir, ni jeu enfantin.
 - **HUD façon Big Ambitions** : bandeau d'état épuré, mini-carte, menus fenêtrés. *Implémenté*.
 - **Commerces au lancement** : 6 à 8 types (goûters/épicerie, boulangerie-snack, café, librairie-papeterie, friperie, atelier vélo avec Karim, fleuriste, kiosque presse). Base implémentée ; le catalogue étendu d'Antigravity arrive.
-- **Petits boulots** avant d'entreprendre : courses et livraisons pour Mme Bertin (dans `PROGRESS.md`).
+- **Petits boulots** avant d'entreprendre : courses et livraisons pour Mme Bertin (dans `docs/suivi/PROGRESS.md`).
 
 ## 10. Ce qui reste à confirmer par l'utilisateur
 

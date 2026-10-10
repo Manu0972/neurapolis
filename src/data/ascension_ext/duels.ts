@@ -1,7 +1,7 @@
 /**
  * Nouveaux doubles faces de l'Ascension (Workflow AG-2 Phase 2).
  * Conforme à docs/ASCENSION.md §2, .zcode/coordination/ANTIGRAVITY-WORKFLOW-AG2.md §2
- * et explorer_survey_1/handoff.md §4.3.
+ * et docs/suivi/explorer_survey_1/handoff.md §4.3.
  */
 import type { DuelFace, StrategyEffects } from '../ascension/duels';
 
