@@ -18,6 +18,8 @@ import { dayIndexOf } from '../core/clock';
 import { el } from './ui';
 import { duoAvatar } from './ghost-avatar';
 import { QUIZ_BY_CONCEPT, isMastered, masteredCount, quizBest, submitQuiz } from '../simulation/quiz';
+import { isStrategicMapUnlocked } from '../simulation/strategic_map';
+import { openStrategicMapModal } from './strategic-map-ui';
 
 export interface AscensionCtx {
   world: WorldState;
@@ -59,6 +61,7 @@ export function renderAscensionApp(ctx: AscensionCtx, screen: HTMLElement, reren
   row.appendChild(btn(`🤝 Connexions (${Object.keys(a.contacts).length}/${CONTACTS.length})`, () => openContacts(ctx, back)));
   const m = currentMandate(w);
   row.appendChild(btn(m ? `✍️ Prête-nom : ${m.name.split(' (')[0]}${mandateActive(w) ? '' : ' (suspendu)'}` : '✍️ Prête-nom', () => openMandates(ctx, back)));
+  if (isStrategicMapUnlocked(w)) row.appendChild(btn('🗺️ Carte stratégique', () => openStrategicMapModal(ctx, back), 'ph-btn primary'));
   if (a.pending) row.appendChild(btn('⚖️ Décision en attente', () => openDuelModal(ctx, back), 'ph-btn primary'));
   head.appendChild(row);
   screen.appendChild(head);
