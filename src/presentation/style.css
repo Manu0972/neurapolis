@@ -947,3 +947,70 @@ canvas.map-canvas-3d { image-rendering: auto; touch-action: none; }
 .mp-panel .mp-line.mine { color: #ffd9a0; }
 .mp-panel .mp-log.bien { color: #9be3a5; }
 .mp-panel .mp-log.mal { color: #ff9b85; }
+
+/* ---------- Carte stratégique 2D (Paliers 4 à 6) ---------- */
+.strat-map-body { display: flex; flex-direction: column; gap: 12px; max-width: 820px; }
+.strat-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.strat-tab {
+  padding: 6px 14px; border-radius: 20px; border: 1px solid rgba(255, 217, 138, 0.3);
+  background: rgba(0, 0, 0, 0.25); color: var(--ink); font-weight: 700; font-size: 13px; cursor: pointer;
+}
+.strat-tab.active { background: var(--or); color: #1a1622; border-color: var(--or); }
+.strat-tab.locked { opacity: 0.5; cursor: not-allowed; }
+
+.strat-header { border-left: 3px solid var(--or); padding-left: 10px; }
+.strat-title { font-size: 18px; margin: 0 0 2px; color: var(--or); }
+.strat-subtitle { font-size: 13px; font-weight: 700; margin: 0 0 4px; opacity: 0.9; }
+.strat-lore { font-size: 12px; margin: 0; line-height: 1.4; opacity: 0.8; }
+
+.strat-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; }
+.strat-legend-item { display: flex; align-items: center; gap: 6px; }
+.strat-legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+.strat-canvas {
+  position: relative; width: 100%; height: 320px; background: #15111d; border-radius: 12px;
+  border: 1px solid rgba(255, 217, 138, 0.25); overflow: hidden; box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+}
+.strat-regions-bg { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 6px; pointer-events: none; }
+.strat-region-box { border: 1px dashed; border-radius: 8px; position: relative; padding: 6px; }
+.strat-region-tag { font-size: 11px; font-weight: 800; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.05em; }
+
+.strat-connections-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+.strat-conn { stroke: var(--or); stroke-width: 2px; opacity: 0.5; }
+.strat-conn-ferroviaire { stroke-dasharray: 4 4; stroke: #ffb347; }
+.strat-conn-maritime { stroke: #5bc0de; stroke-width: 2.5px; }
+.strat-conn-fluvial { stroke: #5bc0de; stroke-dasharray: 2 2; }
+.strat-conn-routier { stroke: #a3b18a; }
+.strat-conn-aerien { stroke: #e0a96d; stroke-dasharray: 6 3; }
+
+.strat-node {
+  position: absolute; transform: translate(-50%, -50%); z-index: 2; display: flex; flex-direction: column;
+  align-items: center; cursor: pointer; transition: transform 0.2s ease, filter 0.2s ease;
+}
+.strat-node:hover { transform: translate(-50%, -50%) scale(1.15); z-index: 5; }
+.strat-node.selected { z-index: 6; }
+.strat-node.selected .strat-node-icon { outline: 3px solid var(--or); box-shadow: 0 0 12px var(--or); }
+
+.strat-node-icon {
+  width: 36px; height: 36px; border-radius: 50%; background: #2a2234; border: 2px solid rgba(255, 217, 138, 0.5);
+  display: flex; align-items: center; justify-content: center; font-size: 18px; position: relative;
+}
+.strat-node.active-venture .strat-node-icon { border-color: var(--vert); background: #1d3320; animation: pulse 2s infinite; }
+.strat-node.locked .strat-node-icon { opacity: 0.5; filter: grayscale(1); }
+
+.strat-node-badge {
+  position: absolute; top: -4px; right: -6px; background: var(--or); color: #1a1622; font-size: 10px;
+  font-weight: 800; padding: 1px 4px; border-radius: 8px; white-space: nowrap;
+}
+.strat-node-badge.lock { background: var(--rouge); color: #fff; }
+
+.strat-node-label {
+  font-size: 11px; font-weight: 700; color: #fff; text-shadow: 0 1px 3px #000, 0 0 6px #000;
+  text-align: center; white-space: nowrap; margin-top: 2px; max-width: 110px; overflow: hidden; text-overflow: ellipsis;
+}
+
+.strat-inspector { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.strat-sub-title { font-size: 13px; color: var(--or); display: block; margin-bottom: 4px; }
+.strat-ideas-list { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.4; }
+.strat-ventures-box { display: flex; flex-direction: column; gap: 6px; }
+.strat-venture-card { padding: 8px 12px; background: rgba(0,0,0,0.2); }
