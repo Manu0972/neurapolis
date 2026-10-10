@@ -1,0 +1,68 @@
+name: Audit des Commits (Invariants)
+
+on:
+  push:
+    branches:
+      - refonte-3d
+  pull_request:
+    branches:
+      - refonte-3d
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configuration de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Installation des dépendances
+        run: npm ci
+
+      - name: Exécution de l'audit des commits
+        id: run_audit
+        continue-on-error: true
+        run: |
+          npx vite-node tools/audit-commits/auditer.ts HEAD~1..HEAD --write || npx vite-node tools/audit-commits/auditer.ts HEAD --write
+
+      - name: Ajout du rapport au GitHub Summary
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ -f docs/audit/JOURNAL-COMMITS.md ]; then
+            cat docs/audit/JOURNAL-COMMITS.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Publier le commentaire sur le commit
+        if: always() && github.event_name == 'push'
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let bodyContent = 'Audit terminé.';
+            try {
+              if (fs.existsSync('docs/audit/JOURNAL-COMMITS.md')) {
+                bodyContent = fs.readFileSync('docs/audit/JOURNAL-COMMITS.md', 'utf8');
+              }
+            } catch (e) {
+              console.log('Erreur de lecture du journal d\'audit:', e.message);
+            }
+
+            try {
+              await github.rest.repos.createCommitComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: context.sha,
+                body: `### 🔍 Audit des Invariants NEURAPOLIS\n\n${bodyContent.slice(0, 4000)}`
+              });
+            } catch (err) {
+              console.log('Publication du commentaire de commit ignorée:', err.message);
+            }
