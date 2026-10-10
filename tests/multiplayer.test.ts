@@ -179,12 +179,12 @@ describe('multijoueur : la ville partagée', () => {
     expect(leaseEligibility(b, unit.id).allowed).toBe(false);
   });
 
-  it('sauvegarde v24 : l’état multijoueur fait l’aller-retour ; une v23 solo migre sans état', () => {
+  it('sauvegarde v25 : l’état multijoueur fait l’aller-retour ; une v23 solo migre sans état', () => {
     const [a, b] = pair();
     actOn(a, 'libre', 'pret', 'B', { amount: 100 });
     const back = importSave(exportSave(a));
     expect(back.version).toBe(CURRENT_SAVE_VERSION);
-    expect(CURRENT_SAVE_VERSION).toBe(24);
+    expect(CURRENT_SAVE_VERSION).toBe(25);
     expect(back.multiplayer!.outbox).toHaveLength(1);
     expect(back.multiplayer!.peers['B']!.name).toBe('Bilal');
     const old = JSON.parse(exportSave(b));

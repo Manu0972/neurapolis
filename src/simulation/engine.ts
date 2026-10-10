@@ -33,6 +33,7 @@ import { storyDay } from './story';
 import { unlocksDay } from './unlocks';
 import { secretsDay } from './secrets';
 import { worldTimelineDay } from './world_timeline';
+import { worldMacroDayTick } from './world/macro';
 import { saveToSlot } from '../saves/persist';
 
 // L'échec du stockage ne fait pas partie de WorldState : retenir l'alerte par monde évite le spam quotidien.
@@ -88,6 +89,7 @@ export function tickWorld(w: WorldState): TickOutput {
     out.push(...secretsDay(w));
     out.push(...schoolDayTick(w));
     out.push(...worldTimelineDay(w));
+    out.push(...worldMacroDayTick(w));
 
     // Hebdomadaire : argent de poche + répartition des gains du stand (M5) + atelier (J5)
     if (weekIndexOf(day) !== prevWeek) {
