@@ -1,0 +1,15 @@
+{
+  "version": 3,
+  "style": {
+    "nom": "3D cel-shaded anime",
+    "base_prompt": "3D anime character, cel shading, flat color shadows with crisp edges, clean outline, semi-realistic proportions, full body, standing neutral pose, white background"
+  },
+  "generation_images": {
+    "negatif": "photorealistic, realistic skin texture, pores, blurry, low quality, watermark, text, signature, same face, identical features, uniform look, all women, only female, chibi, deformed, extra fingers, cropped, child with adult features, nsfw, naked, nude, overly muscular bodybuilder, oversized breasts, unrealistically huge breasts"
+  },
+  "rules": {
+    "adult_forms": "adults 18+ can have any natural body type including soft athletic, hourglass, pear, curvy, full-figured, muscular, average, thin. Diversity is required.",
+    "minor_forms": "characters under 18 keep age-appropriate bodies, no adult traits",
+    "clothing": "always fully dressed, casual modern clothing"
+  }
+}
