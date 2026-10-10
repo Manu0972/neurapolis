@@ -17,12 +17,13 @@ export interface Character3D {
   dispose(): void;
 }
 
-// Palettes canoniques : source unique dans src/core/player_customization.ts (intégration E).
-const toHex = (info: Record<string, { hex: string }>): Record<string, string> =>
+// Palettes canoniques : source unique dans src/core/player_customization.ts
+const toHexMap = (info: Record<string, { hex: string }>): Record<string, string> =>
   Object.fromEntries(Object.entries(info).map(([k, v]) => [k, v.hex]));
-const SKIN_TONE_PALETTE: Record<string, string> = toHex(SKIN_TONE_INFO);
-const HAIR_COLOR_PALETTE: Record<string, string> = toHex(HAIR_COLOR_INFO);
-const OUTFIT_COLOR_PALETTE: Record<string, string> = toHex(OUTFIT_COLOR_INFO);
+
+const SKIN_TONE_PALETTE: Record<string, string> = toHexMap(SKIN_TONE_INFO);
+const HAIR_COLOR_PALETTE: Record<string, string> = toHexMap(HAIR_COLOR_INFO);
+const OUTFIT_COLOR_PALETTE: Record<string, string> = toHexMap(OUTFIT_COLOR_INFO);
 
 function parseColorHex(colorStr: string | undefined, palette: Record<string, string>, defaultHex: string): number {
   if (!colorStr) return parseInt(defaultHex.replace('#', ''), 16);
@@ -41,10 +42,10 @@ function parseColorHex(colorStr: string | undefined, palette: Record<string, str
 
 // Cache global partagé pour optimiser les performances (60 personnages à 60 fps)
 const sharedGeometries = new Map<string, THREE.BufferGeometry>();
-const sharedMaterials = new Map<number, THREE.Material>();
+const sharedMaterials = new Map<number, THREE.MeshLambertMaterial>();
 
 function getSharedBoxGeometry(w: number, h: number, d: number): THREE.BoxGeometry {
-  const key = `box_${w}_${h}_${d}`;
+  const key = `box_${w.toFixed(3)}_${h.toFixed(3)}_${d.toFixed(3)}`;
   let geo = sharedGeometries.get(key) as THREE.BoxGeometry;
   if (!geo) {
     geo = new THREE.BoxGeometry(w, h, d);
@@ -54,7 +55,7 @@ function getSharedBoxGeometry(w: number, h: number, d: number): THREE.BoxGeometr
 }
 
 function getSharedCylinderGeometry(rt: number, rb: number, h: number, segs = 8): THREE.CylinderGeometry {
-  const key = `cyl_${rt}_${rb}_${h}_${segs}`;
+  const key = `cyl_${rt.toFixed(3)}_${rb.toFixed(3)}_${h.toFixed(3)}_${segs}`;
   let geo = sharedGeometries.get(key) as THREE.CylinderGeometry;
   if (!geo) {
     geo = new THREE.CylinderGeometry(rt, rb, h, segs);
@@ -64,7 +65,7 @@ function getSharedCylinderGeometry(rt: number, rb: number, h: number, segs = 8):
 }
 
 function getSharedSphereGeometry(r: number, segs = 8): THREE.SphereGeometry {
-  const key = `sph_${r}_${segs}`;
+  const key = `sph_${r.toFixed(3)}_${segs}`;
   let geo = sharedGeometries.get(key) as THREE.SphereGeometry;
   if (!geo) {
     geo = new THREE.SphereGeometry(r, segs, segs);
@@ -74,7 +75,7 @@ function getSharedSphereGeometry(r: number, segs = 8): THREE.SphereGeometry {
 }
 
 function getSharedMaterial(hexColor: number): THREE.MeshLambertMaterial {
-  let mat = sharedMaterials.get(hexColor) as THREE.MeshLambertMaterial;
+  let mat = sharedMaterials.get(hexColor);
   if (!mat) {
     mat = new THREE.MeshLambertMaterial({ color: hexColor });
     sharedMaterials.set(hexColor, mat);
@@ -138,6 +139,7 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   legLGroup.position.set(0.12, 0.70, 0);
 
   const upperLegL = new THREE.Mesh(getSharedBoxGeometry(0.12, 0.35, 0.12), matBottom);
+  upperLegL.name = 'upperLegL';
   upperLegL.position.y = -0.175;
   legLGroup.add(upperLegL);
 
@@ -146,10 +148,12 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   lowerLegLGroup.position.set(0, -0.35, 0);
 
   const lowerLegL = new THREE.Mesh(getSharedBoxGeometry(0.10, 0.27, 0.10), matSkin);
+  lowerLegL.name = 'lowerLegL';
   lowerLegL.position.y = -0.135;
   lowerLegLGroup.add(lowerLegL);
 
   const shoeL = new THREE.Mesh(getSharedBoxGeometry(0.11, 0.08, 0.16), matShoe);
+  shoeL.name = 'shoeL';
   shoeL.position.set(0, -0.31, -0.02);
   lowerLegLGroup.add(shoeL);
 
@@ -161,6 +165,7 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   legRGroup.position.set(-0.12, 0.70, 0);
 
   const upperLegR = new THREE.Mesh(getSharedBoxGeometry(0.12, 0.35, 0.12), matBottom);
+  upperLegR.name = 'upperLegR';
   upperLegR.position.y = -0.175;
   legRGroup.add(upperLegR);
 
@@ -169,10 +174,12 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   lowerLegRGroup.position.set(0, -0.35, 0);
 
   const lowerLegR = new THREE.Mesh(getSharedBoxGeometry(0.10, 0.27, 0.10), matSkin);
+  lowerLegR.name = 'lowerLegR';
   lowerLegR.position.y = -0.135;
   lowerLegRGroup.add(lowerLegR);
 
   const shoeR = new THREE.Mesh(getSharedBoxGeometry(0.11, 0.08, 0.16), matShoe);
+  shoeR.name = 'shoeR';
   shoeR.position.set(0, -0.31, -0.02);
   lowerLegRGroup.add(shoeR);
 
@@ -198,14 +205,17 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   const outfitStyle = app.outfitStyle;
   if (outfitStyle === 'ecolier') {
     const backpack = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.32, 0.12), getSharedMaterial(0x8a5a3a));
+    backpack.name = 'backpack';
     backpack.position.set(0, 0.24, 0.16);
     torsoGroup.add(backpack);
   } else if (outfitStyle === 'artisan') {
     const apron = new THREE.Mesh(getSharedBoxGeometry(0.30, 0.40, 0.02), getSharedMaterial(0xd2b48c));
+    apron.name = 'apron';
     apron.position.set(0, 0.18, -0.12);
     torsoGroup.add(apron);
   } else if (outfitStyle === 'citoyen') {
     const scarf = new THREE.Mesh(getSharedBoxGeometry(0.28, 0.08, 0.24), getSharedMaterial(0xc15f4a));
+    scarf.name = 'scarf';
     scarf.position.set(0, 0.46, 0);
     torsoGroup.add(scarf);
   }
@@ -216,6 +226,7 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   armLGroup.position.set(0.23, 0.42, 0);
 
   const upperArmL = new THREE.Mesh(getSharedBoxGeometry(0.10, 0.22, 0.10), matTop);
+  upperArmL.name = 'upperArmL';
   upperArmL.position.y = -0.11;
   armLGroup.add(upperArmL);
 
@@ -224,6 +235,7 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   lowerArmLGroup.position.set(0, -0.22, 0);
 
   const lowerArmL = new THREE.Mesh(getSharedBoxGeometry(0.09, 0.20, 0.09), matSkin);
+  lowerArmL.name = 'lowerArmL';
   lowerArmL.position.y = -0.10;
   lowerArmLGroup.add(lowerArmL);
   armLGroup.add(lowerArmLGroup);
@@ -234,6 +246,7 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   armRGroup.position.set(-0.23, 0.42, 0);
 
   const upperArmR = new THREE.Mesh(getSharedBoxGeometry(0.10, 0.22, 0.10), matTop);
+  upperArmR.name = 'upperArmR';
   upperArmR.position.y = -0.11;
   armRGroup.add(upperArmR);
 
@@ -242,6 +255,7 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   lowerArmRGroup.position.set(0, -0.22, 0);
 
   const lowerArmR = new THREE.Mesh(getSharedBoxGeometry(0.09, 0.20, 0.09), matSkin);
+  lowerArmR.name = 'lowerArmR';
   lowerArmR.position.y = -0.10;
   lowerArmRGroup.add(lowerArmR);
   armRGroup.add(lowerArmRGroup);
@@ -253,6 +267,7 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   headGroup.position.set(0, 0.48, 0); // sommet du torso
 
   const headMesh = new THREE.Mesh(getSharedBoxGeometry(0.24, 0.24, 0.22), matSkin);
+  headMesh.name = 'headMesh';
   headMesh.position.y = 0.12; // centre à 0.12 -> couvre de 0 à 0.24 dans headGroup (y_abs = 1.18 à 1.42)
   headGroup.add(headMesh);
 
@@ -262,46 +277,137 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   hairGroup.position.set(0, 0.24, 0);
 
   const style = app.hairStyle || 'court';
-  if (style === 'mi-long') {
+
+  if (style === 'rase') {
+    const scalp = new THREE.Mesh(getSharedBoxGeometry(0.245, 0.02, 0.225), matHair);
+    scalp.name = 'hair_rase';
+    scalp.position.y = 0.01;
+    hairGroup.add(scalp);
+  } else if (style === 'degrade') {
+    const topCap = new THREE.Mesh(getSharedBoxGeometry(0.25, 0.08, 0.23), matHair);
+    topCap.name = 'hair_degrade_top';
+    topCap.position.y = 0.04;
+    const fadeSideL = new THREE.Mesh(getSharedBoxGeometry(0.02, 0.10, 0.20), matHair);
+    fadeSideL.name = 'hair_degrade_sideL';
+    fadeSideL.position.set(0.11, -0.03, 0);
+    const fadeSideR = new THREE.Mesh(getSharedBoxGeometry(0.02, 0.10, 0.20), matHair);
+    fadeSideR.name = 'hair_degrade_sideR';
+    fadeSideR.position.set(-0.11, -0.03, 0);
+    hairGroup.add(topCap, fadeSideL, fadeSideR);
+  } else if (style === 'mi-long') {
     const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.09, 0.24), matHair);
-    topCap.position.y = 0.045; // couvre de 0 à 0.09 -> y_abs = 1.42 à 1.51
+    topCap.name = 'hair_milong_top';
+    topCap.position.y = 0.045;
     const sideL = new THREE.Mesh(getSharedBoxGeometry(0.04, 0.22, 0.22), matHair);
+    sideL.name = 'hair_milong_sideL';
     sideL.position.set(0.12, -0.11, 0);
     const sideR = new THREE.Mesh(getSharedBoxGeometry(0.04, 0.22, 0.22), matHair);
+    sideR.name = 'hair_milong_sideR';
     sideR.position.set(-0.12, -0.11, 0);
     hairGroup.add(topCap, sideL, sideR);
+  } else if (style === 'long') {
+    const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.09, 0.24), matHair);
+    topCap.name = 'hair_long_top';
+    topCap.position.y = 0.045;
+    const sideL = new THREE.Mesh(getSharedBoxGeometry(0.04, 0.35, 0.22), matHair);
+    sideL.name = 'hair_long_sideL';
+    sideL.position.set(0.12, -0.17, 0);
+    const sideR = new THREE.Mesh(getSharedBoxGeometry(0.04, 0.35, 0.22), matHair);
+    sideR.name = 'hair_long_sideR';
+    sideR.position.set(-0.12, -0.17, 0);
+    const back = new THREE.Mesh(getSharedBoxGeometry(0.24, 0.35, 0.04), matHair);
+    back.name = 'hair_long_back';
+    back.position.set(0, -0.17, 0.10);
+    hairGroup.add(topCap, sideL, sideR, back);
   } else if (style === 'boucle') {
     const topCap = new THREE.Mesh(getSharedBoxGeometry(0.28, 0.09, 0.26), matHair);
+    topCap.name = 'hair_boucle_top';
     topCap.position.y = 0.045;
     const puff1 = new THREE.Mesh(getSharedSphereGeometry(0.045), matHair);
+    puff1.name = 'hair_boucle_puff1';
     puff1.position.set(0.11, 0.045, 0.05);
     const puff2 = new THREE.Mesh(getSharedSphereGeometry(0.045), matHair);
+    puff2.name = 'hair_boucle_puff2';
     puff2.position.set(-0.11, 0.045, 0.05);
     const puff3 = new THREE.Mesh(getSharedSphereGeometry(0.045), matHair);
+    puff3.name = 'hair_boucle_puff3';
     puff3.position.set(0, 0.045, -0.05);
     hairGroup.add(topCap, puff1, puff2, puff3);
+  } else if (style === 'afro') {
+    const puff = new THREE.Mesh(getSharedSphereGeometry(0.18, 10), matHair);
+    puff.name = 'hair_afro_puff';
+    puff.position.y = 0.08;
+    hairGroup.add(puff);
   } else if (style === 'tresse') {
     const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.09, 0.24), matHair);
+    topCap.name = 'hair_tresse_top';
     topCap.position.y = 0.045;
     const braid = new THREE.Mesh(getSharedCylinderGeometry(0.04, 0.02, 0.25), matHair);
+    braid.name = 'hair_tresse_braid';
     braid.position.set(0, -0.12, 0.13);
     braid.rotation.x = 0.2;
     hairGroup.add(topCap, braid);
+  } else if (style === 'locks') {
+    const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.08, 0.24), matHair);
+    topCap.name = 'hair_locks_top';
+    topCap.position.y = 0.04;
+    for (let i = 0; i < 5; i++) {
+      const lock = new THREE.Mesh(getSharedCylinderGeometry(0.015, 0.015, 0.22), matHair);
+      lock.name = `hair_lock_${i}`;
+      const angle = (i / 5) * Math.PI * 2;
+      lock.position.set(Math.cos(angle) * 0.11, -0.08, Math.sin(angle) * 0.11);
+      hairGroup.add(lock);
+    }
   } else if (style === 'couettes') {
     const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.09, 0.24), matHair);
+    topCap.name = 'hair_couettes_top';
     topCap.position.y = 0.045;
     const pigtailL = new THREE.Mesh(getSharedCylinderGeometry(0.03, 0.02, 0.18), matHair);
+    pigtailL.name = 'hair_pigtailL';
     pigtailL.position.set(0.15, 0.02, 0);
     pigtailL.rotation.z = -0.6;
     const pigtailR = new THREE.Mesh(getSharedCylinderGeometry(0.03, 0.02, 0.18), matHair);
+    pigtailR.name = 'hair_pigtailR';
     pigtailR.position.set(-0.15, 0.02, 0);
     pigtailR.rotation.z = 0.6;
     hairGroup.add(topCap, pigtailL, pigtailR);
+  } else if (style === 'chignon') {
+    const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.08, 0.24), matHair);
+    topCap.name = 'hair_chignon_top';
+    topCap.position.y = 0.04;
+    const bun = new THREE.Mesh(getSharedSphereGeometry(0.07), matHair);
+    bun.name = 'hair_bun';
+    bun.position.set(0, 0.12, 0.02);
+    hairGroup.add(topCap, bun);
+  } else if (style === 'queue') {
+    const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.08, 0.24), matHair);
+    topCap.name = 'hair_queue_top';
+    topCap.position.y = 0.04;
+    const ponytail = new THREE.Mesh(getSharedCylinderGeometry(0.035, 0.02, 0.22), matHair);
+    ponytail.name = 'hair_ponytail';
+    ponytail.position.set(0, 0.02, 0.14);
+    ponytail.rotation.x = 0.5;
+    hairGroup.add(topCap, ponytail);
+  } else if (style === 'frange') {
+    const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.09, 0.24), matHair);
+    topCap.name = 'hair_frange_top';
+    topCap.position.y = 0.045;
+    const frontFringe = new THREE.Mesh(getSharedBoxGeometry(0.24, 0.09, 0.04), matHair);
+    frontFringe.name = 'hair_front_fringe';
+    frontFringe.position.set(0, -0.02, -0.11);
+    hairGroup.add(topCap, frontFringe);
+  } else if (style === 'crete') {
+    const crest = new THREE.Mesh(getSharedBoxGeometry(0.06, 0.14, 0.24), matHair);
+    crest.name = 'hair_crest';
+    crest.position.y = 0.07;
+    hairGroup.add(crest);
   } else {
     // 'court' (par défaut)
     const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.09, 0.24), matHair);
+    topCap.name = 'hair_court_top';
     topCap.position.y = 0.045;
     const fringe = new THREE.Mesh(getSharedBoxGeometry(0.24, 0.04, 0.05), matHair);
+    fringe.name = 'hair_court_fringe';
     fringe.position.set(0, 0.01, -0.11);
     hairGroup.add(topCap, fringe);
   }
