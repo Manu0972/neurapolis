@@ -1,0 +1,10 @@
+{
+  "name": "neurapolis-desktop-toolchain",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Pinned build tools for the NEURAPOLIS Electron desktop package.",
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3"
+  }
+}

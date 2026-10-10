@@ -1,0 +1,30 @@
+{
+  "version": 7,
+  "game": "NEURAPOLIS",
+  "kind": "npc",
+  "negative": "same face, identical features, uniform look, generic anime girl, child with adult features, exaggerated unrealistic anatomy, deformed",
+  "characters": [
+    { "id": "noah_12m",     "seed": 101, "prompt": "1boy solo, 12 year old boy, slim child body, short messy brown hair, light freckles, round eyes, royal blue t-shirt, cargo shorts, sneakers, playful grin, full body standing" },
+    { "id": "lina_12f",     "seed": 102, "prompt": "1girl solo, 12 year old girl, slim child body, black ponytail, sharp narrow hazel eyes, red hoodie zipped, dark jeans, arms crossed, determined frown, full body standing" },
+    { "id": "yasmine_14f",  "seed": 103, "prompt": "1girl solo, 14 year old girl, athletic toned teen, small bust, toned abs, tight curly black hair, brown skin, olive sport jersey, black shorts, focused intense gaze, full body" },
+    { "id": "karim_16m",    "seed": 104, "prompt": "1boy solo, 16 year old boy, tall lanky slender teen, narrow shoulders, dark short curls, olive skin, gray oversized hoodie, black cargo pants, hands in pockets, protective stare, full body" },
+    { "id": "monique_78f",  "seed": 105, "prompt": "1girl solo, 78 year old elderly woman, soft rounded grandmotherly figure, slight belly, white silver hair in tight bun, wrinkles, thin round glasses, brown knitted cardigan, dark skirt, kind smile, full body standing" },
+    { "id": "samir_42m",    "seed": 106, "prompt": "1boy solo, 42 year old man, bear stocky build like zodiac Ox, thick neck, broad bulky shoulders, barrel chest, slight belly, huge arms, dark stubble beard, tan skin, brown leather work apron, strong calloused arms, tired kind eyes, full body standing" },
+    { "id": "bertin_55m",   "seed": 107, "prompt": "1boy solo, 55 year old man, dad bod with slight belly, balding with gray side hair, round wire glasses, green grocer apron, white shirt, warm smile, full body standing" },
+    { "id": "moreau_48f",   "seed": 108, "prompt": "1girl solo, 48 year old woman, soft athletic dancer build like the Elle reference, broader shoulders, full C-cup bust, defined narrow waist, moderate hips, fuller thighs, sharp black bob cut, thin metal glasses, cream blouse, black pencil skirt, strict expression, full body standing" },
+    { "id": "hugo_28m",     "seed": 109, "prompt": "1boy solo, 28 year old black man, athletic muscular V-taper build like BL triangle inverse, broad shoulders, wide defined pectorals, narrow waist, narrow hips, muscular arms, very dark skin, long dreadlocks, white and orange basketball jersey, wide smile, full body standing" },
+    { "id": "amelie_32f",   "seed": 110, "prompt": "1girl solo, 32 year old asian woman, voluptuous elegant hourglass, generous full bust, narrow defined waist, wide hips, thick thighs, jet black bob, narrow eyes, red silk blouse, slim dark jeans, full body standing" },
+    { "id": "marcel_70m",   "seed": 111, "prompt": "1boy solo, 70 year old man, elderly thin gaunt body like zodiac Dragon, bald head, white beard, walking cane, brown wool sweater, dark trousers, wise gentle eyes, full body standing" },
+    { "id": "zoe_19f",      "seed": 112, "prompt": "1girl solo, 19 year old mixed race young woman, curvy soft pear shape like zodiac Monkey, full bust, wide hips, thick thighs, big curly afro, brown skin, oversized yellow hoodie, cargo pants, full body standing" },
+    { "id": "theo_35m",     "seed": 113, "prompt": "1boy solo, 35 year old south asian man, muscular broad shoulders, wide chest, full thick beard, dark skin, chef white uniform with apron, tired proud smile, full body standing" },
+    { "id": "fatou_24f",    "seed": 114, "prompt": "1girl solo, 24 year old black african woman, dramatic hourglass like the colored diagram, large full bust, very narrow cinched waist, dramatically wide hips, very thick full thighs, round protruding buttocks, very dark skin, colorful orange headwrap, floral print dress, joyful laugh, full body standing" },
+    { "id": "sacha_8m",     "seed": 115, "prompt": "1boy solo, 8 year old boy, small child body, blond messy hair, red t-shirt, blue jeans, small backpack, excited wide eyes, full body standing" },
+    { "id": "camille_16f",  "seed": 116, "prompt": "1girl solo, 16 year old latina girl, slim athletic teen, small bust, long wavy brown hair, tan skin, purple hoodie, headphones around neck, holding book, full body standing" },
+    { "id": "youssef_26m",  "seed": 117, "prompt": "1boy solo, 26 year old north african man, slim lean swimmer build like zodiac Snake, tall, narrow shoulders, long limbs, short black hair, olive skin, white fitted t-shirt, black skinny jeans, silver necklace, confident smirk, full body standing" },
+    { "id": "jules_19m",    "seed": 118, "prompt": "1boy solo, 19 year old white boy, slim slender twink body like zodiac Rat, very slim thin frame, narrow shoulders, pale skin, light brown wavy hair, oversized gray hoodie, skinny black pants, shy soft smile, full body standing" },
+    { "id": "kwame_45m",    "seed": 119, "prompt": "1boy solo, 45 year old black man, huge bodybuilder powerlifter like extreme zodiac Ox, massive traps, thick arms, thick neck, wide barrel chest, dark skin, bald head, white tank top stretched over pecs, sweatpants, stern eyes, full body standing" },
+    { "id": "mei_28f",      "seed": 120, "prompt": "1girl solo, 28 year old chinese woman, tall slim athletic figure, long straight black hair, sharp almond eyes, fitted navy blue top, black wide pants, elegant posture, full body standing" },
+    { "id": "ines_35f",     "seed": 121, "prompt": "1girl solo, 35 year old white woman, tall curvy figure like zodiac Horse, above average height, full bust, wide hips, thick thighs, wavy chestnut hair, warm smile, fitted green dress, full body standing" },
+    { "id": "sasha_28f",    "seed": 122, "prompt": "1girl solo, 28 year old eastern european woman, small petite athletic muscular build like zodiac Dog, defined abs, toned arms, small bust, short blonde hair, sport crop top, gym leggings, confident smirk, full body standing" }
+  ]
+}
