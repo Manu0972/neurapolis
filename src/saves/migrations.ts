@@ -16,6 +16,7 @@ import { createRewindState } from '../core/rewind_types';
 import { createFamilyState } from '../core/family_types';
 import { createRoomState } from '../core/room_types';
 import { createStoryState } from '../core/story_types';
+import { createMacroWorldState } from '../core/macro_world_types';
 import { INITIAL_RIVALS } from '../data/rivals';
 import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
 import { COUNTER_STRATEGIES } from '../data/rivals';
@@ -413,6 +414,14 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
       delete s.multiplayer;
     }
     s.version = 24;
+    return s;
+  },
+  // 24 → 25 : simulation macro 100 ans N0-N2 (macroWorld)
+  24: (s) => {
+    if (typeof s.macroWorld !== 'object' || s.macroWorld === null) {
+      s.macroWorld = createMacroWorldState();
+    }
+    s.version = 25;
     return s;
   },
 };
