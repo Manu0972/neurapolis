@@ -1,0 +1,187 @@
+{
+  "blueprint": {
+    "id": "char_aurelia_vance_1",
+    "bio": {
+      "name": "Aurelia Vance",
+      "alias": "Valkyrie Sovereign",
+      "age": 20,
+      "gender": "female",
+      "ethnicityOrOrigin": "Est-Asiatique (Corée / Japon / Chine)",
+      "ethnicityCategory": "east_asian",
+      "occupationOrRole": "Creative Director & Strategist",
+      "personalityKeywords": [
+        "calculateur",
+        "magnétique",
+        "impitoyable sous pression",
+        "résilient",
+        "visionnaire"
+      ],
+      "signatureColors": {
+        "primary": "#064E3B",
+        "secondary": "#1E293B",
+        "accent": "#F59E0B",
+        "skinHex": "#F5DEB3",
+        "hairHex": "#171717",
+        "eyeHex": "Obsidienne sombre avec iris dégradé"
+      },
+      "backstorySummary": "Évoluant dans un univers urbain contemporain aux tensions aiguës, Aurelia Vance combine une maîtrise corporelle d'exception avec un sens aigu de la stratégie. Sa silhouette impose le respect instantanément."
+    },
+    "archetype": "voluptuous_curvaceous",
+    "artStyle": "korean_webtoon_cinematic",
+    "facialCanons": {
+      "facialThirdsRatio": [
+        1,
+        1,
+        1
+      ],
+      "facialFifthsEyeRatio": 1,
+      "canthalTiltDegrees": 4,
+      "gonialAngleDegrees": 128,
+      "cheekboneToJawRatio": 1.35,
+      "bigonialWidthRatio": 0.74,
+      "philtrumToChinRatio": 0.5,
+      "nasolabialAngleDegrees": 100,
+      "cheekboneProminence": 0.72,
+      "eyeDetails": "Grands yeux en amande captivants, canthal tilt alerte (+4°), cils denses, iris lumineux avec dégradé chaud et reflets d'étoile doubles.",
+      "noseDetails": "Nez délicat à l'arête fine et élégante, pointe subtilement relevée avec angle nasolabial harmonieux de 100°.",
+      "lipDetails": "Lèvres pleines satinées avec arc de cupidon gracieux, lèvre inférieure pulpeuse et teinte rosée naturelle avec éclat brillant.",
+      "jawlineDescription": "Ligne de mâchoire en V élégante et fluide (angle gonial 128°), menton délicat et pommettes hautes saillantes sculptées (0.72)."
+    },
+    "morphometrics": {
+      "heightCm": 172,
+      "weightKg": 64,
+      "headHeightRatio": 8.2,
+      "waistToHipRatio": 0.67,
+      "shoulderToHipRatio": 1.08,
+      "chestToWaistRatio": 1.35,
+      "muscularityLevel": 0.35,
+      "bustVolume": 0.8,
+      "galbeCurvature": 0.82,
+      "bodyFatCategory": "athletic_toned",
+      "anatomicalFeatures": {
+        "bustChestDescription": "Poitrine très généreuse et pulpeuse, courbure affirmée et masse naturelle sans artifice. Pesanteur anatomique authentique : masse tombante en goutte d’eau avec pli sous-mammaire distinct et drapé sur l’abdomen. Décolleté profond naturel avec contact doux des tissus le long du sternum. Tissu naturel souple sans raideur artificielle.",
+        "waistAbdomenDescription": "Taille fine et marquée avec ratio taille/hanche WHR exceptionnel de 0.67. 4 à 6 plaquettes abdominales dessinées avec clarté sous la peau. Flancs lisses et cambrure lombaire sensuelle.",
+        "hipGluteDescription": "Bassin évasé féminin avec WHR 0.67. Étagère fessière spectaculaire type manhwa : projection arrière maximale et évasement latéral des hanches. Plateau fessier prononcé avec lordose esthétique plongeante et rebond volumineux. Évasement latéral profond (hip dip comblé) avec courbes amples drapant le vêtement.",
+        "legsCalvesDescription": "Jambes interminables aux proportions de 8,2 têtes, quadriceps élancés avec galbe subtil du vaste médial, mollets fuselés et chevilles fines.",
+        "backShouldersDescription": "Épaules délicates et clavicules apparentes bien soulignées (SHR 1.08), dos cambré souple avec sillon vertébral central gracieusement ombré.",
+        "handsFeetDescription": "Mains fines aux doigts effilés et ongles soignés à la coupe naturelle, poignets délicats, pieds cambrés élégants."
+      }
+    },
+    "wardrobe": [
+      {
+        "layerName": "base",
+        "description": "Débardeur col dégagé en soie mélangée ivoire avec finition bord-franc",
+        "fabricType": "Mousseline de soie et coton biologique",
+        "tensionFoldsAndDrapes": "Drapé doux épousant la ligne des clavicules et le haut du torse",
+        "colorHexOrTone": "#F9FAFB"
+      },
+      {
+        "layerName": "inner",
+        "description": "Veste Jeogori moderne croisée bleu nuit profond avec col Dongjeong blanc immaculé et nouage asymétrique",
+        "fabricType": "Lin Mosi fin doublé de soie",
+        "tensionFoldsAndDrapes": "Encolure en V nette avec rubans Otgoreum flottants le long du buste",
+        "colorHexOrTone": "#064E3B"
+      },
+      {
+        "layerName": "outer",
+        "description": "Manteau long Durumagi noir fluide sans col avec fentes latérales hautes pour faciliter la marche dynamique",
+        "fabricType": "Laine froide japonaise d’été avec tombé lourd",
+        "tensionFoldsAndDrapes": "Grands pans de tissu ondulant au vent lors des déplacements",
+        "colorHexOrTone": "#1E293B"
+      },
+      {
+        "layerName": "bottom",
+        "description": "Pantalon large plissé noir façon Hakama moderne avec plis marqués à la vapeur et ceinture large nouée",
+        "fabricType": "Sergé de viscose et laine infroissable",
+        "tensionFoldsAndDrapes": "Plis verticaux solennels s’évasant avec le mouvement des jambes",
+        "colorHexOrTone": "#111827"
+      },
+      {
+        "layerName": "footwear",
+        "description": "Chaussures basses d’inspiration traditionnelle avec bout relevé subtil et semelle cuvette moderne amortissante",
+        "fabricType": "Cuir mat noir doux avec passepoil en soie blanche",
+        "tensionFoldsAndDrapes": "Ligne fuselée élégante prolongeant la cheville",
+        "colorHexOrTone": "#0A0A0A"
+      },
+      {
+        "layerName": "accessories",
+        "description": "Ornement Norigae moderne en argent brossé avec pendentif en jade céladon et bague d’annulaire martelée",
+        "fabricType": "Argent sterling 925 et pierre de jade translucide",
+        "tensionFoldsAndDrapes": "Suspendu à la ceinture avec pompon soyeux tombant droit",
+        "colorHexOrTone": "#F59E0B"
+      }
+    ],
+    "clothingStyle": "modern_hanbok_kimono",
+    "lighting": {
+      "primaryLightSource": "Lumière clé directionnelle 45° douce (Studio Softbox 5600K)",
+      "rimLightingColor": "#F59E0B rasante froide (Edge Rim Light)",
+      "shadowQuality": "sharp_cel_shaded",
+      "colorGrading": "Contraste cinématographique manhwa, ombres bleu-nuit profondes, tons chair saturés à diffusion sous-cutanée",
+      "subsurfaceScattering": true,
+      "cameraFocalLength": "85mm f/1.4 portrait cinématographique",
+      "cameraAngles": [
+        "Frontal eye-level",
+        "Profil 90° gauche",
+        "Vue 3/4 plongeante héroïque",
+        "Contre-plongée dramatique dos"
+      ]
+    },
+    "expressionsList": [
+      "Neutre souverain au regard perçant",
+      "Sourire en coin narquois (subtle smirk)",
+      "Regard de combat foudroyant avec pupilles dilatées",
+      "Surprise et dilatation des iris",
+      "Gêne feutrée avec rougeur subtile des pommettes",
+      "Rire éclatant découvrant des dents nettes",
+      "Regard déterminé sous sourcils froncés",
+      "Concentration froide et sourcils détendus",
+      "Mélancolie retenue avec regard dans le vide",
+      "Clin d’œil complice dynamique",
+      "Rictus d’effort intense avec veines temporales",
+      "Sérénité méditative les yeux mi-clos"
+    ],
+    "posesList": [
+      "Garde de combat neutre pieds ancrés et poings serrés",
+      "Marche urbaine dynamique en mouvement avec pardessus flottant",
+      "Assis sur un siège haut, une jambe croisée avec assurance",
+      "Bras croisés sur le torse valorisant les deltoïdes",
+      "Regard jeté par-dessus l’épaule en contre-plongée",
+      "Préparation de frappe avec torsion du buste et tension musculaire",
+      "Pose de repos décontractée, mains glissées dans les poches de cargo"
+    ],
+    "macroDetailsList": [
+      "Gros plan macro sur l’iris avec double reflet spéculaire et anneau limbique foncé",
+      "Détail anatomique de la main avec relief des veines céphaliques et articulations",
+      "Tombé de tissu avec plis de tension horizontaux sur la taille et le torse",
+      "Texture des chaussures avec semelle crantée et laçage précis",
+      "Boucles métalliques, fermetures et coutures de vêtement au millimètre"
+    ]
+  },
+  "promptMatrix": {
+    "characterId": "char_aurelia_vance_1",
+    "characterName": "Aurelia Vance",
+    "modelSheetTurnaroundPrompt": "master character model sheet, authentic Korean manhwa webtoon style, Solo Leveling and Redice aesthetic, crisp digital line art, vibrant cel shading with smooth gradient transitions, artstation trending, character: Aurelia Vance, 20 years old, Est-Asiatique (Corée / Japon / Chine), Creative Director & Strategist, five-view turnaround: front view, back view, left profile, right profile, 3/4 dynamic perspective, authentic natural female anatomy, bust volume 8.0/10 with realistic teardrop gravity drape, waist-to-hip ratio WHR 0.67, pronounced galbe shelf 8.2/10, athletic feminine curves without artificial censorship, 8.2 heads tall statuesque build, facial thirds 1:1:1, canthal tilt +4 degrees, gonial angle 128 degrees, bigonial width ratio 0.74, cheekbone prominence 7.2/10, Grands yeux en amande captivants, canthal tilt alerte (+4°), cils denses, iris lumineux avec dégradé chaud et reflets d'étoile doubles., Nez délicat à l'arête fine et élégante, pointe subtilement relevée avec angle nasolabial harmonieux de 100°., Lèvres pleines satinées avec arc de cupidon gracieux, lèvre inférieure pulpeuse et teinte rosée naturelle avec éclat brillant., Ligne de mâchoire en V élégante et fluide (angle gonial 128°), menton délicat et pommettes hautes saillantes sculptées (0.72)., outfit style: Modern Hanbok / Kimono Neo-Traditionnel, wearing base: Débardeur col dégagé en soie mélangée ivoire avec finition bord-franc (Mousseline de soie et coton biologique, Drapé doux épousant la ligne des clavicules et le haut du torse); inner: Veste Jeogori moderne croisée bleu nuit profond avec col Dongjeong blanc immaculé et nouage asymétrique (Lin Mosi fin doublé de soie, Encolure en V nette avec rubans Otgoreum flottants le long du buste); outer: Manteau long Durumagi noir fluide sans col avec fentes latérales hautes pour faciliter la marche dynamique (Laine froide japonaise d’été avec tombé lourd, Grands pans de tissu ondulant au vent lors des déplacements); bottom: Pantalon large plissé noir façon Hakama moderne avec plis marqués à la vapeur et ceinture large nouée (Sergé de viscose et laine infroissable, Plis verticaux solennels s’évasant avec le mouvement des jambes); footwear: Chaussures basses d’inspiration traditionnelle avec bout relevé subtil et semelle cuvette moderne amortissante (Cuir mat noir doux avec passepoil en soie blanche, Ligne fuselée élégante prolongeant la cheville); accessories: Ornement Norigae moderne en argent brossé avec pendentif en jade céladon et bague d’annulaire martelée (Argent sterling 925 et pierre de jade translucide, Suspendu à la ceinture avec pompon soyeux tombant droit), signature colors: primary #064E3B, secondary #1E293B, accent #F59E0B, lighting: Lumière clé directionnelle 45° douce (Studio Softbox 5600K), #F59E0B rasante froide (Edge Rim Light), subsurface scattering skin effect, clean reference sheet layout on neutral grey background, high resolution 8k, crisp orthographic character blueprint",
+    "expressionMatrixPrompt": "master character model sheet, authentic Korean manhwa webtoon style, Solo Leveling and Redice aesthetic, crisp digital line art, vibrant cel shading with smooth gradient transitions, artstation trending, expression grid of Aurelia Vance, 12 facial emotion studies arranged in clean 4x3 matrix, emotions: neutral confident, subtle smirk, intense combat glare, surprised shock, embarrassed blush, roaring laughter, deep sorrow, cold focus, mischievous wink, exasperated sigh, determined scowl, serene bliss, capturing precise micro-expressions, facial thirds balance, detailed iris reflections with sharp catchlights, authentic mouth and lip shapes, consistent character identity across all 12 frames, white studio background, high definition facial study",
+    "dynamicPoseSheetPrompt": "master character model sheet, authentic Korean manhwa webtoon style, Solo Leveling and Redice aesthetic, crisp digital line art, vibrant cel shading with smooth gradient transitions, artstation trending, dynamic action pose sheet for Aurelia Vance, seven distinct poses: neutral combat stance, high-speed sprint with trailing motion, seated on high stool with relaxed posture, dominant crossed arms, looking back over shoulder in dramatic low angle, preparing strike with torso twist and muscle tension, casual relaxed pose with hands in pockets, authentic natural female anatomy, bust volume 8.0/10 with realistic teardrop gravity drape, waist-to-hip ratio WHR 0.67, pronounced galbe shelf 8.2/10, athletic feminine curves without artificial censorship, 8.2 heads tall statuesque build, accurate biomechanical weight shift, dramatic foreshortening, clothing folds reacting to kinetic movement, character concept art, white background, masterpiece",
+    "macroDetailsPrompt": "master character model sheet, authentic Korean manhwa webtoon style, Solo Leveling and Redice aesthetic, crisp digital line art, vibrant cel shading with smooth gradient transitions, artstation trending, macro detail sheet for Aurelia Vance, close-up callouts: extreme close-up of eye showing iris limbal ring and reflections; hand anatomy showing defined knuckles and vascular lines; fabric tension folds across the torso; footwear tread and sole construction; metallic buckle and accessories with crisp specular highlights, artstation character design master sheet, forensic anatomical precision",
+    "singleHeroPortraitPrompt": "master character model sheet, authentic Korean manhwa webtoon style, Solo Leveling and Redice aesthetic, crisp digital line art, vibrant cel shading with smooth gradient transitions, artstation trending, heroic character portrait of Aurelia Vance, Creative Director & Strategist, bust and shoulder close-up shot, intense magnetic eye contact, facial thirds 1:1:1, canthal tilt +4 degrees, gonial angle 128 degrees, bigonial width ratio 0.74, cheekbone prominence 7.2/10, Grands yeux en amande captivants, canthal tilt alerte (+4°), cils denses, iris lumineux avec dégradé chaud et reflets d'étoile doubles., Nez délicat à l'arête fine et élégante, pointe subtilement relevée avec angle nasolabial harmonieux de 100°., Lèvres pleines satinées avec arc de cupidon gracieux, lèvre inférieure pulpeuse et teinte rosée naturelle avec éclat brillant., Ligne de mâchoire en V élégante et fluide (angle gonial 128°), menton délicat et pommettes hautes saillantes sculptées (0.72)., dramatic chiaroscuro lighting, strong #F59E0B rim light carving jawline and hair strands, glowing skin with realistic subsurface scattering, wearing Veste Jeogori moderne croisée bleu nuit profond avec col Dongjeong blanc immaculé et nouage asymétrique, subtle atmospheric dust particles, 85mm f/1.4 lens bokeh, ultra high definition masterpiece",
+    "fullBodyActionPrompt": "master character model sheet, authentic Korean manhwa webtoon style, Solo Leveling and Redice aesthetic, crisp digital line art, vibrant cel shading with smooth gradient transitions, artstation trending, full body cinematic action shot of Aurelia Vance unleashing power in modern urban environment, authentic natural female anatomy, bust volume 8.0/10 with realistic teardrop gravity drape, waist-to-hip ratio WHR 0.67, pronounced galbe shelf 8.2/10, athletic feminine curves without artificial censorship, 8.2 heads tall statuesque build, wearing Modern Hanbok / Kimono Neo-Traditionnel outfit with dramatic cloth flutter and wind physics, dramatic low-angle perspective, dynamic combat pose, #F59E0B rasante froide (Edge Rim Light), cinematic depth of field, blockbuster manhwa key visual",
+    "negativePrompts": {
+      "general": "blurry, low resolution, deformed anatomy, extra limbs, missing fingers, extra fingers, mutated hands, poorly drawn face, disfigured, bad eyes, fused fingers, watermark, signature, username, cropped, low quality",
+      "anatomicalCorrection": "plastic skin, barbie doll anatomy, artificial blur, disproportioned head, missing neck muscles, flat ribcage, impossible spine contortion, amputated limbs, asymmetrical pupils, crossed eyes",
+      "stylePreservation": "western comic book style, 3d clay render, chibi, rough sketch, scribbles, muddy colors, washed out contrast, monochrome, low poly artifacts"
+    },
+    "generatorSpecificPrompts": {
+      "midjourneyV6": "master character model sheet, authentic Korean manhwa webtoon style, Solo Leveling and Redice aesthetic, crisp digital line art, vibrant cel shading with smooth gradient transitions, artstation trending, character: Aurelia Vance, 20 years old, Est-Asiatique (Corée / Japon / Chine), Creative Director & Strategist, five-view turnaround: front view, back view, left profile, right profile, 3/4 dynamic perspective, authentic natural female anatomy, bust volume 8.0/10 with realistic teardrop gravity drape, waist-to-hip ratio WHR 0.67, pronounced galbe shelf 8.2/10, athletic feminine curves without artificial censorship, 8.2 heads tall statuesque build, facial thirds 1:1:1, canthal tilt +4 degrees, gonial angle 128 degrees, bigonial width ratio 0.74, cheekbone prominence 7.2/10, Grands yeux en amande captivants, canthal tilt alerte (+4°), cils denses, iris lumineux avec dégradé chaud et reflets d'étoile doubles., Nez délicat à l'arête fine et élégante, pointe subtilement relevée avec angle nasolabial harmonieux de 100°., Lèvres pleines satinées avec arc de cupidon gracieux, lèvre inférieure pulpeuse et teinte rosée naturelle avec éclat brillant., Ligne de mâchoire en V élégante et fluide (angle gonial 128°), menton délicat et pommettes hautes saillantes sculptées (0.72)., outfit style: Modern Hanbok / Kimono Neo-Traditionnel, wearing base: Débardeur col dégagé en soie mélangée ivoire avec finition bord-franc (Mousseline de soie et coton biologique, Drapé doux épousant la ligne des clavicules et le haut du torse); inner: Veste Jeogori moderne croisée bleu nuit profond avec col Dongjeong blanc immaculé et nouage asymétrique (Lin Mosi fin doublé de soie, Encolure en V nette avec rubans Otgoreum flottants le long du buste); outer: Manteau long Durumagi noir fluide sans col avec fentes latérales hautes pour faciliter la marche dynamique (Laine froide japonaise d’été avec tombé lourd, Grands pans de tissu ondulant au vent lors des déplacements); bottom: Pantalon large plissé noir façon Hakama moderne avec plis marqués à la vapeur et ceinture large nouée (Sergé de viscose et laine infroissable, Plis verticaux solennels s’évasant avec le mouvement des jambes); footwear: Chaussures basses d’inspiration traditionnelle avec bout relevé subtil et semelle cuvette moderne amortissante (Cuir mat noir doux avec passepoil en soie blanche, Ligne fuselée élégante prolongeant la cheville); accessories: Ornement Norigae moderne en argent brossé avec pendentif en jade céladon et bague d’annulaire martelée (Argent sterling 925 et pierre de jade translucide, Suspendu à la ceinture avec pompon soyeux tombant droit), signature colors: primary #064E3B, secondary #1E293B, accent #F59E0B, lighting: Lumière clé directionnelle 45° douce (Studio Softbox 5600K), #F59E0B rasante froide (Edge Rim Light), subsurface scattering skin effect, clean reference sheet layout on neutral grey background, high resolution 8k, crisp orthographic character blueprint --ar 16:9 --style raw --v 6.0",
+      "stableDiffusionXL": "masterpiece, best quality, highly detailed, master character model sheet, authentic Korean manhwa webtoon style, Solo Leveling and Redice aesthetic, crisp digital line art, vibrant cel shading with smooth gradient transitions, artstation trending, character: Aurelia Vance, 20 years old, Est-Asiatique (Corée / Japon / Chine), Creative Director & Strategist, five-view turnaround: front view, back view, left profile, right profile, 3/4 dynamic perspective, authentic natural female anatomy, bust volume 8.0/10 with realistic teardrop gravity drape, waist-to-hip ratio WHR 0.67, pronounced galbe shelf 8.2/10, athletic feminine curves without artificial censorship, 8.2 heads tall statuesque build, facial thirds 1:1:1, canthal tilt +4 degrees, gonial angle 128 degrees, bigonial width ratio 0.74, cheekbone prominence 7.2/10, Grands yeux en amande captivants, canthal tilt alerte (+4°), cils denses, iris lumineux avec dégradé chaud et reflets d'étoile doubles., Nez délicat à l'arête fine et élégante, pointe subtilement relevée avec angle nasolabial harmonieux de 100°., Lèvres pleines satinées avec arc de cupidon gracieux, lèvre inférieure pulpeuse et teinte rosée naturelle avec éclat brillant., Ligne de mâchoire en V élégante et fluide (angle gonial 128°), menton délicat et pommettes hautes saillantes sculptées (0.72)., outfit style: Modern Hanbok / Kimono Neo-Traditionnel, wearing base: Débardeur col dégagé en soie mélangée ivoire avec finition bord-franc (Mousseline de soie et coton biologique, Drapé doux épousant la ligne des clavicules et le haut du torse); inner: Veste Jeogori moderne croisée bleu nuit profond avec col Dongjeong blanc immaculé et nouage asymétrique (Lin Mosi fin doublé de soie, Encolure en V nette avec rubans Otgoreum flottants le long du buste); outer: Manteau long Durumagi noir fluide sans col avec fentes latérales hautes pour faciliter la marche dynamique (Laine froide japonaise d’été avec tombé lourd, Grands pans de tissu ondulant au vent lors des déplacements); bottom: Pantalon large plissé noir façon Hakama moderne avec plis marqués à la vapeur et ceinture large nouée (Sergé de viscose et laine infroissable, Plis verticaux solennels s’évasant avec le mouvement des jambes); footwear: Chaussures basses d’inspiration traditionnelle avec bout relevé subtil et semelle cuvette moderne amortissante (Cuir mat noir doux avec passepoil en soie blanche, Ligne fuselée élégante prolongeant la cheville); accessories: Ornement Norigae moderne en argent brossé avec pendentif en jade céladon et bague d’annulaire martelée (Argent sterling 925 et pierre de jade translucide, Suspendu à la ceinture avec pompon soyeux tombant droit), signature colors: primary #064E3B, secondary #1E293B, accent #F59E0B, lighting: Lumière clé directionnelle 45° douce (Studio Softbox 5600K), #F59E0B rasante froide (Edge Rim Light), subsurface scattering skin effect, clean reference sheet layout on neutral grey background, high resolution 8k, crisp orthographic character blueprint",
+      "flux1": "Professional character design model turnaround sheet. A striking female named Aurelia Vance, age 20, with Est-Asiatique (Corée / Japon / Chine) features. authentic natural female anatomy, bust volume 8.0/10 with realistic teardrop gravity drape, waist-to-hip ratio WHR 0.67, pronounced galbe shelf 8.2/10, athletic feminine curves without artificial censorship, 8.2 heads tall statuesque build. Wearing modern_hanbok_kimono fashion with Veste Jeogori moderne croisée bleu nuit profond avec col Dongjeong blanc immaculé et nouage asymétrique. 5 turnaround angles against a neutral background. Rendered in premium Korean webtoon digital art style with sharp cel-shading and vivid lighting.",
+      "geminiImagen3": "A comprehensive character model sheet of Aurelia Vance, an S-tier protagonist in a modern manhwa aesthetic. Full 5-angle turnaround including front, back, profile, and three-quarter views. The character features authentic natural female anatomy, bust volume 8.0/10 with realistic teardrop gravity drape, waist-to-hip ratio WHR 0.67, pronounced galbe shelf 8.2/10, athletic feminine curves without artificial censorship, 8.2 heads tall statuesque build, with #064E3B and #F59E0B color motifs. Studio lighting with prominent rim light emphasizing the silhouette. Neutral gray background, 8k resolution, razor-sharp digital illustration."
+    }
+  },
+  "metadata": {
+    "engine": "procedural_fallback",
+    "durationMs": 0,
+    "fallbackTriggered": false,
+    "timestamp": "2026-10-08T00:56:01.975Z"
+  }
+}
