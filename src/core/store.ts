@@ -20,8 +20,9 @@ import { createFamilyState } from './family_types';
 import { createRoomState } from './room_types';
 import { createStoryState } from './story_types';
 import { createEconomyState } from './economy_types';
+import { createInitialWorldCohortsState } from '../simulation/world/cohorts';
 
-export const SAVE_VERSION = 24;
+export const SAVE_VERSION = 25;
 
 const SKILL_IDS: SkillId[] = ['negociation', 'comptabilite', 'communication', 'organisation', 'technique', 'recherche'];
 
@@ -211,6 +212,7 @@ export function createWorld(opts: CreateWorldOptions = {}): WorldState {
       lastAdviceTick: 0,
       unlockedThinkers: ['smith'],
     },
+    worldCohorts: createInitialWorldCohortsState({ rng: seed }),
     events: [],
     lifeJournal: [
       {

@@ -3,6 +3,7 @@
  * Règle : chaque changement de schéma => version +1 et un migrateur ici.
  */
 import { createMultiplayerState } from '../core/multiplayer_types';
+import { createInitialWorldCohortsState } from '../simulation/world/cohorts';
 import {
   DEFAULT_PLAYER_APPEARANCE, MAX_PENDING_DELIVERIES, VALID_GENDERS, VALID_HAIR_COLORS, VALID_HAIR_STYLES,
   VALID_OUTFIT_COLORS, VALID_OUTFIT_STYLES, VALID_SKIN_TONES, type WorldState,
@@ -413,6 +414,15 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
       delete s.multiplayer;
     }
     s.version = 24;
+    return s;
+  },
+  // 24 → 25 : simulation mondiale des cohortes urbaines (Monde 4/6).
+  24: (s) => {
+    if (typeof s.worldCohorts !== 'object' || s.worldCohorts === null) {
+      const seed = typeof s.seed === 'number' ? s.seed : 20200901;
+      s.worldCohorts = createInitialWorldCohortsState({ rng: seed });
+    }
+    s.version = 25;
     return s;
   },
 };
