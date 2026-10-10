@@ -666,6 +666,7 @@ import type { FamilyState } from './family_types';
 import type { RoomState } from './room_types';
 import type { StoryState } from './story_types';
 import type { MultiplayerState } from './multiplayer_types';
+import type { WorldMacroState } from './world_macro_types';
 
 export interface WorldState {
   version: number;
@@ -704,6 +705,8 @@ export interface WorldState {
   story?: StoryState;
   /** Multijoueur en LAN : autres joueurs, alliances, sabotages, dettes (save v24). */
   multiplayer?: MultiplayerState;
+  /** Pays et flux mondiaux : démographie, commerce et migrations (save v25). */
+  worldMacro?: WorldMacroState;
   events: GameEvent[];        // journal des événements (cap 250)
   lifeJournal: LifeJournalEntry[];
   flags: Record<string, number>; // compteurs libres (ventes, conflits, prévisions ratées…)
