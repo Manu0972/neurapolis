@@ -16,6 +16,7 @@ import { createRewindState } from '../core/rewind_types';
 import { createFamilyState } from '../core/family_types';
 import { createRoomState } from '../core/room_types';
 import { createStoryState } from '../core/story_types';
+import { createInitialWorldMacroState } from '../simulation/world/macro';
 import { INITIAL_RIVALS } from '../data/rivals';
 import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
 import { COUNTER_STRATEGIES } from '../data/rivals';
@@ -413,6 +414,14 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
       delete s.multiplayer;
     }
     s.version = 24;
+    return s;
+  },
+  // 24 → 25 : Macro-monde (pays, démographie, commerce, migrations).
+  24: (s) => {
+    if (typeof s.worldMacro !== 'object' || s.worldMacro === null) {
+      s.worldMacro = createInitialWorldMacroState() as unknown as AnySave;
+    }
+    s.version = 25;
     return s;
   },
 };
