@@ -51,6 +51,8 @@ export function normalizeRelayUrl(input: string, room = 'neurapolis'): string {
   if (!/^[a-z]+:\/\//i.test(u)) u = `ws://${u}`;
   u = u.replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:');
   const url = new URL(u);
+  // Adresse tapée sans port (ex. « 100.64.12.34 ») : port du serveur LAN de NEURAPOLIS.
+  if (!url.port && !/:\d+/.test(raw.replace(/^[a-z]+:\/\//i, ''))) url.port = '8765';
   if (url.pathname === '/' || url.pathname === '') url.pathname = '/net';
   if (!url.searchParams.get('room')) url.searchParams.set('room', room);
   return url.toString();
