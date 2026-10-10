@@ -310,6 +310,17 @@ describe('sauvegarde — migration v7 → v9 (observations de marché)', () => {
     });
   });
 
+  it('migre v24 vers v25 en initialisant macroWorld sans perte', () => {
+    const raw = JSON.parse(exportSave(mondeVecu())) as Record<string, unknown>;
+    raw.version = 24;
+    delete raw.macroWorld;
+
+    const migrated = migrateSave(raw);
+    expect(migrated.version).toBe(25);
+    expect(migrated.macroWorld).toBeDefined();
+    expect(migrated.macroWorld?.startYear).toBe(2020);
+  });
+
   it('migre v9 vers v10 en ajoutant firstName, lastName, gender et appearance sans perte', () => {
     const raw = JSON.parse(exportSave(mondeVecu())) as unknown as {
       version: number;

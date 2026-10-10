@@ -4,23 +4,23 @@
  * Le code source reste organisé en modules : ce build n'est qu'un emballage.
  * Usage (là où se trouve node_modules) : vite build --config tools/vite.single.config.ts
  */
-import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import fs from 'node:fs';
+import path from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 
 const ROOT = process.cwd();
 
 /** Images du dossier public/assets en data URI (le rendu 2D de secours en a besoin). */
 function embeddedAssets(): Record<string, string> {
-  const dir = resolve(ROOT, 'public/assets');
+  const dir = path.resolve(ROOT, 'public/assets');
   const out: Record<string, string> = {};
   const walk = (d: string): void => {
     let names: string[] = [];
-    try { names = readdirSync(d); } catch { return; }
+    try { names = fs.readdirSync(d); } catch { return; }
     for (const n of names) {
-      const f = join(d, n);
-      if (statSync(f).isDirectory()) walk(f);
-      else if (n.endsWith('.png')) out[relative(dir, f).split('\\').join('/')] = `data:image/png;base64,${readFileSync(f).toString('base64')}`;
+      const f = path.join(d, n);
+      if (fs.statSync(f).isDirectory()) walk(f);
+      else if (n.endsWith('.png')) out[path.relative(dir, f).split('\\').join('/')] = `data:image/png;base64,${fs.readFileSync(f, 'base64')}`;
     }
   };
   walk(dir);
