@@ -21,6 +21,18 @@ export const MOOD_EMOTICONS: Record<string, string> = {
   malicieux: '😏',
 };
 
+/**
+ * Échappe les caractères spéciaux HTML pour éviter les vulnérabilités XSS (DOM Injection).
+ */
+export function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 export interface UiRefs {
   canvas: HTMLCanvasElement;
   canvas3d: HTMLCanvasElement;
@@ -304,23 +316,26 @@ export function showGhostAdvicePopup(
   emoticon = '💡',
 ): void {
   if (!ui.ghostAdviceBubbleEl) return;
+  const safeEmoticon = escapeHtml(emoticon);
+  const safeSpeaker = escapeHtml(speaker);
+  const safeText = escapeHtml(text);
   ui.ghostAdviceBubbleEl.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:5px;border-bottom:1px solid rgba(120,80,220,0.25);padding-bottom:3px;">
       <span style="font-weight:700;color:var(--violet);font-size:11px;display:flex;align-items:center;gap:4px;">
-        <span style="font-size:14px;display:inline-block;animation:ghostFloatLevitation 2s ease-in-out infinite;">${emoticon}</span> ${speaker}
+        <span style="font-size:14px;display:inline-block;animation:ghostFloatLevitation 2s ease-in-out infinite;">${safeEmoticon}</span> ${safeSpeaker}
       </span>
       <span style="font-size:9px;color:var(--ink-muted);font-style:italic;">Conseil en direct ✦</span>
     </div>
-    <div style="font-size:11px;color:var(--ink);line-height:1.4;">${text}</div>
+    <div style="font-size:11px;color:var(--ink);line-height:1.4;">${safeText}</div>
     <div style="margin-top:5px;text-align:right;font-size:9px;color:var(--ink-muted);">Clique pour ouvrir le Conseil</div>
   `;
   ui.ghostAdviceBubbleEl.classList.remove('hidden');
   if (ui.ghostAdviceTimer !== undefined) {
-    window.clearTimeout(ui.ghostAdviceTimer);
+    globalThis.clearTimeout(ui.ghostAdviceTimer);
   }
-  ui.ghostAdviceTimer = window.setTimeout(() => {
+  ui.ghostAdviceTimer = globalThis.setTimeout(() => {
     ui.ghostAdviceBubbleEl?.classList.add('hidden');
-  }, 6500);
+  }, 6500) as unknown as number;
 }
 
 export function resizeCanvas(ui: UiRefs, root: HTMLElement): void {
@@ -419,7 +434,10 @@ export function updateHud(ui: UiRefs, w: WorldState, prompt: string): void {
       const ghostId = w.ghostCompanion.activeGhostId;
       const def = ghostId ? GHOST_DEFS_BY_ID[ghostId] : undefined;
       const ghostName = def?.name ?? 'Conseiller';
-      ui.ghostCompanionWidgetEl.innerHTML = `<span style="font-size:13px;display:inline-block;animation:ghostFloatLevitation 2s ease-in-out infinite;">${emoticon}</span> <span>${ghostName}</span> <span style="opacity:0.85;font-size:10px;">« ${w.ghostCompanion.mood} »</span>`;
+      const safeEmoticon = escapeHtml(emoticon);
+      const safeGhostName = escapeHtml(ghostName);
+      const safeMood = escapeHtml(w.ghostCompanion.mood);
+      ui.ghostCompanionWidgetEl.innerHTML = `<span style="font-size:13px;display:inline-block;animation:ghostFloatLevitation 2s ease-in-out infinite;">${safeEmoticon}</span> <span>${safeGhostName}</span> <span style="opacity:0.85;font-size:10px;">« ${safeMood} »</span>`;
       ui.ghostCompanionWidgetEl.title = `${w.ghostCompanion.speechBubble ?? ''} (Clique pour un conseil)`;
     }
   }
