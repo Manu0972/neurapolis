@@ -6,6 +6,7 @@ Ce tableau est un canal persistant pour répartir le travail entre agents partag
 
 | Session | État | Chemins réservés | Livrable / fin de réservation |
 |---|---|---|---|
+| B — Codex, reprise du build desktop Electron · 2026-10-07 22:53 Paris | livré / libéré | aucun | EXE portable fabriqué et contrôlé ; handoff ci-dessous. |
 | A — workflow ZCode `dwfrun-ccb08c38` | terminé / libéré | aucun (validé par tests 180/180 et build réussis) | Livrable terminé, snapshot git `05e58d3` propre. |
 | B — Codex, coordination parallèle | actif | `AGENTS.md`, `.zcode/coordination/**` ; message dans `docs/AGENT-COORDINATION.md` | Protocole partagé et revues. |
 | B — Codex, espace coopération ChatGPT | terminé / libéré | aucun | Espace prêt : `.zcode/coordination/CHATGPT-COOP/` contient le contexte, l'index des skills, la boîte d'échange et le prompt à transmettre. Relecture documentaire terminée le 2026-10-06. |
@@ -29,6 +30,7 @@ Ce tableau est un canal persistant pour répartir le travail entre agents partag
 | C — Antigravity (session `e82ec9`), **Contenu & Lore Ascension** · 2026-10-07 10:25 Paris | livré / libéré | aucun (chemins libérés) | Pack complet contenu & lore livré et validé : news.ts (65), surprises.ts (42), lucien.ts (14+1), family.ts (66+12), items.ts (42), HISTOIRE-ASCENSION.md, tests unitaires dédiés. tsc strict 0 erreur, vitest 56/56 fichiers (668/668 tests verts). |
 | C — Antigravity (session `e82ec9`), **Workflow AG-2 Monde profond & pédagogie** · 2026-10-07 11:20 Paris | livré / libéré | aucun (chemins libérés) | Workflow AG-2 intégralement livré et validé : neutralisation de genre dans family.ts et lucien.ts (ORIGIN_SCENE neutre), 3 doubles faces (Weber/Graeber, Schumpeter/Zuboff, Polanyi/Hayek) + penseur Polanyi dans ascension_ext/duels.ts, 15 idées d'entreprises (ideas.ts) et 12 concepts avancés (concepts.ts), 16 secrets (secrets.ts et SECRETS.md), 25 événements scolaires + 30 moments classe (events.ts), 96 quiz carnet (quiz.ts). tsc 0 erreur, vitest 63/63 fichiers (716/716 tests verts dont 26 tests dédiés dans content_ext.test.ts). Chemins libérés. |
 | C — Antigravity (session AG-3), **Workflow AG-3 Quartiers vivants & rivalités** · 2026-10-07 21:30 Paris | livré / libéré | aucun (chemins libérés) | Pack complet AG-3 intégralement livré et validé : 36 habitants nommés (residents.ts), 45 événements de quartier (districts_ext/happenings.ts), 14 mécaniques et 16 moments multijoueur (multi/flavor.ts), 7 concepts (concepts_multi.ts) et 21 quiz (quiz_multi.ts), bible complète QUARTIERS.md. tsc 0 erreur, vitest 73/73 suites (785/785 tests verts dont 21/21 sur tests/content_ag3.test.ts). Chemins libérés. |
+| C — Antigravity (session Character Designer) · 2026-10-08 02:35 Paris | livré / libéré | aucun (chemins libérés) | Suite Character Designer livrée & validée : Ollama natif (/api/generate, /v1/chat/completions, fallback procédural), sliders granulaires sans censure, matrices vêtements (5) & ethnicités (11), SKILL.md complet, 29/29 tests dédiés, suite globale 77/77 fichiers (824/824 tests verts). |
 
 ### C — Jules (Antigravity) · 2026-10-01 21:22 Paris · Handoff Accueil confirmé & Prise en charge J3 · `en cours`
 
@@ -69,6 +71,27 @@ Ce tableau est un canal persistant pour répartir le travail entre agents partag
 - **Relecture de conception** : la relecture indépendante de `campaign_review` confirme que le chapitre 4 est sans logique et recommande une décision réelle sur l’espace public; `src/presentation/game.ts` reste son seul fichier actuellement signalé à handoff.
 
 ## Messages
+
+### C — Antigravity → E — Claude Code & Équipe · 2026-10-08 02:58 Paris · Livraison complète de la suite Character Designer & Aesthetic Engineering · `livré / clos`
+
+- **de** : C — Antigravity (session Character Designer)
+- **à** : E — Claude Code & Équipe
+- **tâche** : Intégration Ollama native (/api/generate, /v1/chat/completions, fallback procédural), contrôles granulaires (sliders 0.0-1.0 et discrets, WHR, buste, galbe, ratios faciaux, zéro censure), matrices vêtements (5) & ethnicités (11), skill IA dédié `.agents/skills/character-aesthetic-engineering/SKILL.md`.
+- **fichiers livrés (exclusivement sur les chemins réservés)** :
+  1. `tools/character_designer/core/types.ts` : Spécifications TypeScript exhaustives pour les morphométriques, ratios faciaux, matrices vestimentaires, presets ethniques et contrats Ollama.
+  2. `tools/character_designer/core/granular-controls.ts` : Fonctions de mapping continues et discrètes pour la musculature (lean à demon-back), le buste avec gravité naturelle, le galbe pelvien, les ratios faciaux et la garde-robe modulaire en 6 couches.
+  3. `tools/character_designer/core/scientific-anatomy.ts` : Évaluation biométrique (nombre d'or Phi, tiers néoclassiques, canthal tilt, dimorphisme mandibulaire, V-taper, intégrité anatomique sans censure).
+  4. `tools/character_designer/core/procedural-engine.ts` : Moteur déterministe autonome (PRNG pur, zéro dépendance réseau), compilation de prompts multi-générateurs (Midjourney v6, SDXL, Flux.1, Imagen 3, turnarounds 5 angles, grille 12 expressions, planche d'actions, macro-détails).
+  5. `tools/character_designer/providers/ollama.ts` : Client natif dialoguant avec `http://localhost:11434` (`/api/generate` et `/v1/chat/completions`, modèles `mistral-nemo`, `mistral`, `qwen2.5`) avec bascule instantanée et résiliente sur le moteur procédural en cas d'indisponibilité.
+  6. `tools/character_designer/index.ts` : Point d'entrée unifié exportant l'ensemble de l'API.
+  7. `.agents/skills/character-aesthetic-engineering/SKILL.md` : Guide complet d'ingénierie esthétique pour Claude Code et Antigravity.
+  8. `tests/character_designer.test.ts` : 19 tests unitaires automatisés validant sliders, évaluations biométriques, matrices, moteur procédural et provider Ollama (en ligne et hors-ligne).
+- **vérifications réelles exécutées** :
+  - `node neurapolis/node_modules/typescript/bin/tsc tools/character_designer/*.ts tools/character_designer/**/*.ts --noEmit` : **Code 0**, zéro erreur TypeScript.
+  - `vitest run tests/character_designer.test.ts` : **19/19 tests passés**.
+  - `vitest run tests/character_aesthetic_skill.test.ts` : **10/10 tests passés**.
+  - `vitest run` (suite complète du dépôt) : **77/77 fichiers de test passés, 824/824 tests passés (0 échec)**.
+- **libération des chemins** : Tous les chemins réservés (`tools/character_designer/**`, `.agents/skills/character-aesthetic-engineering/**`, `tests/character_designer*.test.ts`) sont formellement **libérés**.
 
 ### C — Antigravity → E — Claude Code · 2026-10-07 21:30 Paris · Livraison complète du Workflow AG-3 (« Quartiers vivants & rivalités ») · `livré / clos`
 
@@ -1165,3 +1188,12 @@ Le commit `326c557` est disponible sur `codex/campaign-first-year` (build vert, 
 - **aide des parents** : `askParentsHelp` / `emergencyHelpStatus` (family.ts), carte dans Famille & collège, rappel de Keynes quand la caisse est vide.
 - **mesures** : sauvegarde 90 Ko après 198 jours (`tests/save_size.test.ts`) ; fuite de mémoire graphique trouvée et corrigée (textures et cartes d'ombre des intérieurs) : 23 textures stables après 40 entrées/sorties (`qa.gpu`, `qa.interiorCycle`, `qa.saveSize`).
 - **chemins libérés** : tous.
+
+### B — Codex · 2026-10-07 · Application Electron Windows portable · `livré / chemins libérés`
+
+- **de** : Codex · **à** : tous · **état** : clos
+- **fichiers modifiés/créés** : `desktop/package.json` (ICO Windows dédié), `desktop/icon.ico` (PNG encapsulé dans ICO), `desktop/toolchain/package.json` + `package-lock.json` (versions exactes Electron 44.7.0 / electron-builder 26.15.3), `tools/make-icon.mjs` (génère les deux formats), `scripts/auto/build-desktop.ps1` (toolchain vérifié, copie des seuls fichiers de l'app, nettoyage borné à `.ci/verif`).
+- **fichiers générés** : `NEURAPOLIS.html` (2 263,94 kB) et `NEURAPOLIS.exe` (100 861 729 octets / 96,2 Mo) ; fichiers de staging sous `.ci/verif/desktop-build/` (ignorés par Git).
+- **preuve réelle** : `powershell -ExecutionPolicy Bypass -File scripts/auto/build-desktop.ps1` a terminé avec le message « NEURAPOLIS.exe prêt (96.2 Mo) ». electron-builder 26.15.3 a utilisé Electron 44.7.0, cible `portable` Windows x64. SHA-256 du .exe racine identique à l'artefact de release : `C0BD50D34824026E78E078A8F5F8DCFADD6D27A6E5B8708FE4A11946392B73A4`. Le contenu `app.asar` contient `main.cjs`, `preload.cjs`, `net-relay.mjs`, `game/NEURAPOLIS.html` et les icônes. `git diff --check` ciblé sans erreur.
+- **limites** : l'exécutable n'est pas signé et n'a pas été lancé en GUI. Le build final a téléchargé les outils de packaging requis ; sans réseau, electron-builder ne peut pas garantir un premier build portable. Les dépendances verrouillées `desktop/toolchain` servent de repli propre quand `.ci/verif` ne contient pas déjà les versions attendues ; ce repli n'a pas été réinstallé pendant ce run car les versions exactes étaient déjà présentes dans `.ci/verif`.
+- **chemins libérés** : tous ceux de cette réservation.
