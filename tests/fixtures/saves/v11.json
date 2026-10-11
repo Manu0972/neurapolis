@@ -1,0 +1,1077 @@
+{
+  "version": 11,
+  "seed": 42,
+  "rng": -1640531565,
+  "time": {
+    "tick": 43,
+    "speed": 1
+  },
+  "player": {
+    "name": "Camille",
+    "firstName": "Camille",
+    "lastName": "",
+    "gender": "non-binaire",
+    "appearance": {
+      "skinTone": "claire",
+      "hairColor": "chatain",
+      "hairStyle": "court",
+      "outfitStyle": "ecolier",
+      "outfitColor": "coral"
+    },
+    "age": 12,
+    "characteristics": {
+      "comprehension": 42,
+      "creativite": 65,
+      "influence": 35,
+      "discipline": 48,
+      "adaptabilite": 58,
+      "confiance": 44
+    },
+    "needs": {
+      "fatigue": 20,
+      "faim": 30,
+      "stress": 25,
+      "moral": 65
+    },
+    "skills": {
+      "negociation": {
+        "level": 0,
+        "xp": 0
+      },
+      "comptabilite": {
+        "level": 0,
+        "xp": 0
+      },
+      "communication": {
+        "level": 0,
+        "xp": 0
+      },
+      "organisation": {
+        "level": 0,
+        "xp": 0
+      },
+      "technique": {
+        "level": 0,
+        "xp": 0
+      },
+      "recherche": {
+        "level": 0,
+        "xp": 0
+      }
+    },
+    "notions": {},
+    "money": 15,
+    "reputation": 45,
+    "relations": {
+      "noah": {
+        "amitie": 78,
+        "confiance": 65,
+        "respect": 48,
+        "rivalite": 18
+      },
+      "lina": {
+        "amitie": 55,
+        "confiance": 50,
+        "respect": 50,
+        "rivalite": 10
+      },
+      "yasmine": {
+        "amitie": 45,
+        "confiance": 40,
+        "respect": 42,
+        "rivalite": 12
+      },
+      "karim": {
+        "amitie": 30,
+        "confiance": 25,
+        "respect": 35,
+        "rivalite": 5
+      },
+      "monique": {
+        "amitie": 40,
+        "confiance": 50,
+        "respect": 45,
+        "rivalite": 0
+      },
+      "samir": {
+        "amitie": 25,
+        "confiance": 30,
+        "respect": 40,
+        "rivalite": 0
+      },
+      "bertin": {
+        "amitie": 35,
+        "confiance": 40,
+        "respect": 45,
+        "rivalite": 0
+      },
+      "moreau": {
+        "amitie": 40,
+        "confiance": 45,
+        "respect": 55,
+        "rivalite": 5
+      }
+    },
+    "pos": {
+      "x": 23,
+      "y": 17
+    },
+    "asleep": false
+  },
+  "npcs": {
+    "noah": {
+      "id": "noah",
+      "place": "maison",
+      "activity": "dort",
+      "stress": 25,
+      "moral": 60,
+      "memory": [],
+      "opinion": 0
+    },
+    "lina": {
+      "id": "lina",
+      "place": "maison",
+      "activity": "dort",
+      "stress": 25,
+      "moral": 60,
+      "memory": [],
+      "opinion": 0
+    },
+    "yasmine": {
+      "id": "yasmine",
+      "place": "maison",
+      "activity": "dort",
+      "stress": 25,
+      "moral": 60,
+      "memory": [],
+      "opinion": 0
+    },
+    "karim": {
+      "id": "karim",
+      "place": "maison",
+      "activity": "dort",
+      "stress": 25,
+      "moral": 60,
+      "memory": [],
+      "opinion": 0
+    },
+    "monique": {
+      "id": "monique",
+      "place": "maison",
+      "activity": "dort",
+      "stress": 25,
+      "moral": 60,
+      "memory": [],
+      "opinion": 0
+    },
+    "samir": {
+      "id": "samir",
+      "place": "maison",
+      "activity": "dort",
+      "stress": 25,
+      "moral": 60,
+      "memory": [],
+      "opinion": 0
+    },
+    "bertin": {
+      "id": "bertin",
+      "place": "maison",
+      "activity": "dort",
+      "stress": 25,
+      "moral": 60,
+      "memory": [],
+      "opinion": 0
+    },
+    "moreau": {
+      "id": "moreau",
+      "place": "maison",
+      "activity": "dort",
+      "stress": 25,
+      "moral": 60,
+      "memory": [],
+      "opinion": 0
+    }
+  },
+  "council": {
+    "ghosts": {
+      "smith": {
+        "id": "smith",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "marx": {
+        "id": "marx",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "ostrom": {
+        "id": "ostrom",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "hobbes": {
+        "id": "hobbes",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "taylor": {
+        "id": "taylor",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "locke": {
+        "id": "locke",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "rousseau": {
+        "id": "rousseau",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "ricardo": {
+        "id": "ricardo",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "weber": {
+        "id": "weber",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "keynes": {
+        "id": "keynes",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "hayek": {
+        "id": "hayek",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "bourdieu": {
+        "id": "bourdieu",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "machiavel": {
+        "id": "machiavel",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "ohno": {
+        "id": "ohno",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "dejours": {
+        "id": "dejours",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "graeber": {
+        "id": "graeber",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "zuboff": {
+        "id": "zuboff",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "stiegler": {
+        "id": "stiegler",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "rosa": {
+        "id": "rosa",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "raworth": {
+        "id": "raworth",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "illich": {
+        "id": "illich",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "simon": {
+        "id": "simon",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      }
+    },
+    "decisions": {
+      "marche": 0,
+      "communs": 0,
+      "autorite": 0,
+      "solidarite": 0
+    },
+    "fusionProgress": {
+      "marche_des_communs": {
+        "marches": 0,
+        "communs": 0
+      }
+    },
+    "fusionsDone": [],
+    "affinities": {},
+    "contratSecurite": null,
+    "allianceDesOmbres": 0
+  },
+  "district": {
+    "vitaliteEpicerie": 45,
+    "confianceQuartier": 50,
+    "frequentationParc": 55,
+    "meteo": "soleil"
+  },
+  "rivals": {
+    "drive_hyper": {
+      "id": "drive_hyper",
+      "name": "Drive HyperVal",
+      "place": "place",
+      "marketShare": 65,
+      "price": 1.1,
+      "quality": 45,
+      "aggressiveness": 60,
+      "strategy": "prix_casse",
+      "activeCounterActions": [],
+      "reactionCooldown": 0,
+      "marketObservation": {
+        "day": 0,
+        "playerUnitsSold": 0,
+        "rivalUnitsServed": 0,
+        "sessions": 0,
+        "lastClosed": null
+      }
+    },
+    "distributeur_college": {
+      "id": "distributeur_college",
+      "name": "Distributeur Automatique Selecta Collège",
+      "place": "college",
+      "marketShare": 55,
+      "price": 1.5,
+      "quality": 35,
+      "aggressiveness": 30,
+      "strategy": "standard",
+      "activeCounterActions": [],
+      "reactionCooldown": 0,
+      "marketObservation": {
+        "day": 0,
+        "playerUnitsSold": 0,
+        "rivalUnitsServed": 0,
+        "sessions": 0,
+        "lastClosed": null
+      }
+    }
+  },
+  "campaign": {
+    "currentChapter": 1,
+    "stages": [
+      {
+        "id": "chapitre_1_stand",
+        "chapter": 1,
+        "title": "Les Goûters de Val-Ferrand (12 ans)",
+        "targetAge": 12,
+        "objective": "Ouvrir le Stand des Roses, constituer une équipe et réaliser vos premières ventes face au distributeur.",
+        "completed": false
+      },
+      {
+        "id": "chapitre_2_friche",
+        "chapter": 2,
+        "title": "L’Appel de la Friche Taret (13 ans)",
+        "targetAge": 13,
+        "objective": "À 13 ans, retrouver Samir à la Friche, écrire des règles avec l’équipe puis réussir une vente collective.",
+        "completed": false
+      },
+      {
+        "id": "chapitre_3_reseau",
+        "chapter": 3,
+        "title": "Le Réseau Solidaire (14 ans)",
+        "targetAge": 14,
+        "objective": "Aider l’épicerie de Mme Bertin avec cinq livraisons, puis lancer une nouvelle contre-offensive face au Drive.",
+        "completed": false
+      },
+      {
+        "id": "chapitre_4_conseil_urbain",
+        "chapter": 4,
+        "title": "La Voix du Quartier (15 ans)",
+        "targetAge": 15,
+        "objective": "Mobiliser les habitants et les fantômes conseillers lors du réaménagement de la place de Val-Ferrand.",
+        "completed": false
+      },
+      {
+        "id": "chapitre_5_conclusion",
+        "chapter": 5,
+        "title": "L’Héritage de Val-Ferrand (16 ans)",
+        "targetAge": 16,
+        "objective": "Fonder un modèle économique durable pour la ville et trancher la destinée finale de NEURAPOLIS.",
+        "completed": false
+      }
+    ],
+    "completedChapters": [],
+    "delayedConsequences": []
+  },
+  "vendors": {
+    "vendors": {
+      "bertin": {
+        "vendorId": "bertin",
+        "name": "Mme Bertin (Épicerie des Roses)",
+        "location": "epicerie",
+        "tier": 0,
+        "spentTotal": 0,
+        "tradeCount": 0,
+        "discountRate": 0,
+        "unlockedPerks": [
+          "Accès au rayon standard."
+        ],
+        "friendshipDialogueUnlocked": false,
+        "specialStockAvailable": false,
+        "creditLineLimit": 0,
+        "creditBalance": 0
+      },
+      "karim": {
+        "vendorId": "karim",
+        "name": "Karim (Récup & Atelier Friche)",
+        "location": "friche",
+        "tier": 0,
+        "spentTotal": 0,
+        "tradeCount": 0,
+        "discountRate": 0,
+        "unlockedPerks": [
+          "Pièces détachées au détail."
+        ],
+        "friendshipDialogueUnlocked": false,
+        "specialStockAvailable": false,
+        "creditLineLimit": 0,
+        "creditBalance": 0
+      },
+      "friche_scrap": {
+        "vendorId": "friche_scrap",
+        "name": "La Recyclerie Industrielle",
+        "location": "friche",
+        "tier": 0,
+        "spentTotal": 0,
+        "tradeCount": 0,
+        "discountRate": 0,
+        "unlockedPerks": [
+          "Achat de vrac."
+        ],
+        "friendshipDialogueUnlocked": false,
+        "specialStockAvailable": false,
+        "creditLineLimit": 0,
+        "creditBalance": 0
+      },
+      "docks_grossiste": {
+        "vendorId": "docks_grossiste",
+        "name": "Grossiste Fluvial des Docks",
+        "location": "docks",
+        "tier": 0,
+        "spentTotal": 0,
+        "tradeCount": 0,
+        "discountRate": 0,
+        "unlockedPerks": [
+          "Tarif de gros standard."
+        ],
+        "friendshipDialogueUnlocked": false,
+        "specialStockAvailable": false,
+        "creditLineLimit": 0,
+        "creditBalance": 0
+      },
+      "tramway_express": {
+        "vendorId": "tramway_express",
+        "name": "Comptoir Logistique Tramway",
+        "location": "tramway",
+        "tier": 0,
+        "spentTotal": 0,
+        "tradeCount": 0,
+        "discountRate": 0,
+        "unlockedPerks": [
+          "Transport ponctuel."
+        ],
+        "friendshipDialogueUnlocked": false,
+        "specialStockAvailable": false,
+        "creditLineLimit": 0,
+        "creditBalance": 0
+      }
+    }
+  },
+  "actionPlanning": {
+    "plans": {
+      "plan_approvisionnement_direct": {
+        "id": "plan_approvisionnement_direct",
+        "title": "Plan A : Circuit Court & Approvisionnement Direct",
+        "category": "approvisionnement",
+        "description": "Court-circuiter les marges de la grande distribution en scellant un pacte direct avec Mme Bertin et les producteurs locaux.",
+        "ghostAdvisorId": "smith",
+        "ghostInsight": "Adam Smith : « L’intérêt bien compris de l’épicier et le vôtre convergent. Achetez en volume régulier, fixez un prix transparent, et la main du commerce fera le reste. »",
+        "steps": [
+          {
+            "id": "step_bertin_tier1",
+            "label": "Atteindre le rang Habitué chez Mme Bertin (Tier 1)",
+            "completed": false
+          },
+          {
+            "id": "step_stock_reserve",
+            "label": "Constituer un stock tampon de 25 portions de goûters",
+            "completed": false
+          },
+          {
+            "id": "step_negocier_remise",
+            "label": "Obtenir une remise fournisseur garantie d’au moins 5%",
+            "completed": false
+          }
+        ],
+        "active": true,
+        "completed": false,
+        "unlockedDay": 0,
+        "rewardDescription": "Marge bénéficiaire sur les ventes augmentée de 20% et immunité aux petites ruptures de stock."
+      },
+      "plan_optimisation_logistique": {
+        "id": "plan_optimisation_logistique",
+        "title": "Plan B : Flotte Douce & Maillage Territorial",
+        "category": "optimisation_reseau",
+        "description": "Mettre en place un réseau de distribution à pied et triporteurs avec Noah et Karim pour couvrir tout le quartier sans retard.",
+        "ghostAdvisorId": "taylor",
+        "ghostInsight": "Taylor : « Chaque seconde perdue sur un trajet mal tracé est un gaspillage d’énergie. Standardisez les tournées, optimisez le portage. »",
+        "steps": [
+          {
+            "id": "step_recruter_logistique",
+            "label": "Assigner un responsable logistique (Noah ou Karim)",
+            "completed": false
+          },
+          {
+            "id": "step_commandes_douces",
+            "label": "Livrer 5 commandes en transport doux (pied / triporteur)",
+            "completed": false
+          },
+          {
+            "id": "step_relais_quartier",
+            "label": "Établir au moins 2 points de relais citoyens",
+            "completed": false
+          }
+        ],
+        "active": false,
+        "completed": false,
+        "unlockedDay": 2,
+        "rewardDescription": "Vitesse de livraison doublée et satisfaction client +15%."
+      },
+      "plan_diplomatie_college": {
+        "id": "plan_diplomatie_college",
+        "title": "Plan C : Accord Cadre & Emplacement Collège",
+        "category": "diplomatie_locale",
+        "description": "Négocier avec le professeur Moreau et les délégués pour obtenir un statut toléré et des créneaux de vente officiels.",
+        "ghostAdvisorId": "polanyi",
+        "ghostInsight": "Karl Polanyi : « Le marché ne flotte pas dans le vide : il doit être encastré dans les règles de la cité. Négociez avec les institutions. »",
+        "steps": [
+          {
+            "id": "step_accord_professeur",
+            "label": "Maintenir une moyenne scolaire ≥ 12/20",
+            "completed": false
+          },
+          {
+            "id": "step_negocier_autorisation",
+            "label": "Négocier un accord de tolérance avec M. Moreau ou les délégués",
+            "completed": false
+          },
+          {
+            "id": "step_zero_incident",
+            "label": "Enchaîner 3 jours sans aucun incident ni retard scolaire",
+            "completed": false
+          }
+        ],
+        "active": false,
+        "completed": false,
+        "unlockedDay": 3,
+        "rewardDescription": "Autorisation officielle d’activité aux abords du collège sans risque de confiscation."
+      },
+      "plan_expansion_tramway": {
+        "id": "plan_expansion_tramway",
+        "title": "Plan D : Percée Métropolitaine & Ligne de Tramway",
+        "category": "expansion_territoire",
+        "description": "Étendre nos activités au quartier de la Gare et du Tramway pour toucher les pendulaires et lycéens.",
+        "ghostAdvisorId": "schumpeter",
+        "ghostInsight": "Schumpeter : « L’innovateur ne s’arrête jamais à son pré carré. La destruction créatrice exige de conquérir de nouveaux espaces. »",
+        "steps": [
+          {
+            "id": "step_debloquer_tramway",
+            "label": "Débloquer le nœud territorial Tramway & Gare",
+            "completed": false
+          },
+          {
+            "id": "step_comptoir_tramway",
+            "label": "Atteindre le Tier 1 au Comptoir Logistique Tramway",
+            "completed": false
+          },
+          {
+            "id": "step_tresorerie_expansion",
+            "label": "Disposer d’une trésorerie d’au moins 80 €",
+            "completed": false
+          }
+        ],
+        "active": false,
+        "completed": false,
+        "unlockedDay": 5,
+        "rewardDescription": "Accès au marché de transit métropolitain (+50% de volume de vente potentiel)."
+      },
+      "plan_export_regional": {
+        "id": "plan_export_regional",
+        "title": "Plan E : Centrale Citoyenne Régionale & Fret Fluvial",
+        "category": "expansion_territoire",
+        "description": "Connecter les Docks pour exporter nos solutions artisanales et réparations vers les communes voisines.",
+        "ghostAdvisorId": "keynes",
+        "ghostInsight": "Keynes : « Quand la demande locale est saturée, il faut stimuler les flux macroéconomiques et investir dans les grandes infrastructures. »",
+        "steps": [
+          {
+            "id": "step_debloquer_docks",
+            "label": "Sécuriser un partenariat avec le Grossiste Fluvial des Docks",
+            "completed": false
+          },
+          {
+            "id": "step_concession_regionale",
+            "label": "Payer la concession régionale d’exploitation",
+            "completed": false
+          },
+          {
+            "id": "step_chiffre_affaires_cible",
+            "label": "Générer plus de 150 € de chiffre d’affaires cumulé",
+            "completed": false
+          }
+        ],
+        "active": false,
+        "completed": false,
+        "unlockedDay": 8,
+        "rewardDescription": "Camille devient un acteur économique régional reconnu. Débloque le palier Métropole Régionale."
+      }
+    },
+    "activePlanId": "plan_approvisionnement_direct",
+    "territory": {
+      "roses": {
+        "id": "roses",
+        "name": "Quartier des Roses (Base)",
+        "unlocked": true,
+        "marketPotential": 85,
+        "ourPresence": 60,
+        "competitorPresence": 40,
+        "activeArrangement": true,
+        "concessionCost": 0
+      },
+      "bassin": {
+        "id": "bassin",
+        "name": "Bassin des Mariniers",
+        "unlocked": true,
+        "marketPotential": 65,
+        "ourPresence": 25,
+        "competitorPresence": 50,
+        "activeArrangement": false,
+        "concessionCost": 15
+      },
+      "caves": {
+        "id": "caves",
+        "name": "Caves & Friche Artisanale",
+        "unlocked": true,
+        "marketPotential": 70,
+        "ourPresence": 35,
+        "competitorPresence": 30,
+        "activeArrangement": true,
+        "concessionCost": 10
+      },
+      "hauts": {
+        "id": "hauts",
+        "name": "Hauts de Val-Ferrand (Résidentiel)",
+        "unlocked": false,
+        "marketPotential": 80,
+        "ourPresence": 0,
+        "competitorPresence": 65,
+        "activeArrangement": false,
+        "concessionCost": 25
+      },
+      "tramway": {
+        "id": "tramway",
+        "name": "Gare & Ligne Tramway Centrale",
+        "unlocked": false,
+        "marketPotential": 90,
+        "ourPresence": 0,
+        "competitorPresence": 75,
+        "activeArrangement": false,
+        "concessionCost": 35
+      },
+      "docks": {
+        "id": "docks",
+        "name": "Docks Fluviaux & Entrepôts",
+        "unlocked": false,
+        "marketPotential": 95,
+        "ourPresence": 0,
+        "competitorPresence": 80,
+        "activeArrangement": false,
+        "concessionCost": 50
+      },
+      "ville_voisine": {
+        "id": "ville_voisine",
+        "name": "Saint-Ferrand (Ville Voisine)",
+        "unlocked": false,
+        "marketPotential": 90,
+        "ourPresence": 0,
+        "competitorPresence": 70,
+        "activeArrangement": false,
+        "concessionCost": 65
+      },
+      "metropole_regionale": {
+        "id": "metropole_regionale",
+        "name": "Grand Bassin Métropolitain",
+        "unlocked": false,
+        "marketPotential": 98,
+        "ourPresence": 0,
+        "competitorPresence": 85,
+        "activeArrangement": false,
+        "concessionCost": 100
+      },
+      "national": {
+        "id": "national",
+        "name": "Réseau Économique National",
+        "unlocked": false,
+        "marketPotential": 100,
+        "ourPresence": 0,
+        "competitorPresence": 90,
+        "activeArrangement": false,
+        "concessionCost": 200
+      }
+    },
+    "expansionLevel": "quartier"
+  },
+  "multiVentures": {
+    "ventures": {
+      "stand_roses": {
+        "id": "stand_roses",
+        "name": "Stand des Roses (Goûters & Boissons)",
+        "active": true,
+        "roles": {},
+        "dailyRevenue": 12,
+        "dailyExpenses": 5,
+        "level": 1
+      },
+      "atelier_friche": {
+        "id": "atelier_friche",
+        "name": "Atelier de la Friche (Réparation & Recyclage)",
+        "active": false,
+        "roles": {},
+        "dailyRevenue": 18,
+        "dailyExpenses": 7,
+        "level": 1
+      },
+      "coursiers_doux": {
+        "id": "coursiers_doux",
+        "name": "Les Coursiers des Roses (Logistique Douce)",
+        "active": false,
+        "roles": {},
+        "dailyRevenue": 22,
+        "dailyExpenses": 8,
+        "level": 1
+      },
+      "gazette_citoyenne": {
+        "id": "gazette_citoyenne",
+        "name": "Radio Val-Ferrand & La Gazette des Roses",
+        "active": false,
+        "roles": {},
+        "dailyRevenue": 15,
+        "dailyExpenses": 6,
+        "level": 1
+      },
+      "grossiste_regional": {
+        "id": "grossiste_regional",
+        "name": "Comptoir Régional des Communs (Centrale d’Achat)",
+        "active": false,
+        "roles": {},
+        "dailyRevenue": 45,
+        "dailyExpenses": 18,
+        "level": 1
+      }
+    },
+    "hazards": [
+      {
+        "id": "hazard_vol_recre",
+        "ventureId": "stand_roses",
+        "title": "Vol de goûters pendant la récréation",
+        "description": "Des paquets de biscuits ont disparu du stock temporaire près de la grille du collège.",
+        "type": "vol_gouters",
+        "severity": 1,
+        "resolved": false,
+        "costToResolve": 6,
+        "ghostAdvisorId": "hobbes",
+        "ghostAdviceText": "Thomas Hobbes : « L’absence de surveillance invite l’opportunisme. Verrouillez les malles ou signez un contrat clair avec les délégués. »"
+      },
+      {
+        "id": "hazard_erreur_caisse",
+        "ventureId": "stand_roses",
+        "title": "Erreur de calcul de marge sur les jus",
+        "description": "Le prix au verre a été mal calculé hier, créant un manque à gagner de 8 €.",
+        "type": "erreur_marge",
+        "severity": 1,
+        "resolved": false,
+        "costToResolve": 8,
+        "ghostAdvisorId": "taylor",
+        "ghostAdviceText": "Taylor : « Standardisez vos fiches de prix et confiez les calculs à un tableau de bord rigoureux. »"
+      },
+      {
+        "id": "hazard_guerre_prix",
+        "ventureId": "stand_roses",
+        "title": "Offensive agressive de la concurrence",
+        "description": "Le distributeur automatique et le Drive ont cassé leurs prix sur les sodas industriels.",
+        "type": "guerre_prix",
+        "severity": 2,
+        "resolved": false,
+        "costToResolve": 15,
+        "ghostAdvisorId": "polanyi",
+        "ghostAdviceText": "Polanyi : « Ne rivalisez pas sur le poison chimique. Mettez en avant le goût vrai, le lien humain et l’origine locale. »"
+      },
+      {
+        "id": "hazard_concession_emplacement",
+        "ventureId": "coursiers_doux",
+        "title": "Contrôle d’occupation de la voirie",
+        "description": "L’agent de quartier demande un justificatif pour le stationnement des triporteurs sur la place.",
+        "type": "controle_concession",
+        "severity": 2,
+        "resolved": false,
+        "costToResolve": 12,
+        "ghostAdvisorId": "commons",
+        "ghostAdviceText": "John R. Commons : « Le droit de travailler dans l’espace public s’obtient par des transactions institutionnelles négociées. Régularisez la convention. »"
+      }
+    ],
+    "synergiesActive": []
+  },
+  "macroNews": {
+    "currentTrend": "stabilite",
+    "costModifier": 0,
+    "demandModifier": 0.05,
+    "feed": [
+      {
+        "id": "news_init_0",
+        "day": 0,
+        "date": "2020-09-01",
+        "headline": "Stabilité économique et reprise de la consommation",
+        "summary": "Le climat des affaires reste serein à Val-Ferrand. Les échanges commerciaux suivent leur cours régulier.",
+        "trend": "stabilite",
+        "costModifier": 0,
+        "demandModifier": 0.05,
+        "activeUntilDay": 5
+      }
+    ]
+  },
+  "schoolLife": {
+    "attendanceRate": 92,
+    "consecutiveClassesAttended": 3,
+    "skippedClassesCount": 0,
+    "academicAverage": 14.5,
+    "parentSentiment": "satisfait",
+    "parentCongratulatedCount": 0,
+    "teacherWarningActive": false,
+    "negotiatedExemption": false,
+    "lastParentInteractionDay": 0,
+    "lastParentMessage": "Tes parents sont contents de tes débuts au collège : « Travaille bien et ne te disperse pas trop avec tes projets ! »"
+  },
+  "streetRecognition": {
+    "streetReputationLevel": 45,
+    "spontaneousEncounterPending": false,
+    "lastEncounterDay": 0,
+    "hiddenSynergiesUnlocked": []
+  },
+  "tutorials": {
+    "tutorials": {
+      "tuto_plan_action": {
+        "id": "tuto_plan_action",
+        "title": "🗺 Plans d’Action & Cartographie",
+        "body": "Quand une opportunité ou un conseil de fantôme se présente, consulte l’onglet Stratégie / Carte. Tu peux y formuler des plans en plusieurs étapes (approvisionnement, flotte logistique, diplomatie) pour franchir des caps majeurs et étendre ton influence.",
+        "unlocked": true,
+        "seen": false
+      },
+      "tuto_marchands_tiers": {
+        "id": "tuto_marchands_tiers",
+        "title": "🤝 Niveaux de Relation avec les Marchands",
+        "body": "Plus tu commerces avec Mme Bertin ou Karim, plus votre niveau de fidélité grimpe (Tier 1 Habitué → Tier 2 Partenaire → Tier 3 Allié). Chaque rang débloque des remises permanentes, des alertes de marché et du stock exclusif.",
+        "unlocked": true,
+        "seen": false
+      },
+      "tuto_multi_entreprises": {
+        "id": "tuto_multi_entreprises",
+        "title": "🏢 Multi-Activités & Attribution des Rôles",
+        "body": "Tu n’es pas limité à une seule activité ! Gère en parallèle ton Stand, l’Atelier de la Friche et les Coursiers doux. Assigne des rôles clés à tes camarades (Direction, Logistique, Négociation, Trésorerie, Qualité) pour débloquer de puissantes synergies.",
+        "unlocked": true,
+        "seen": false
+      },
+      "tuto_chocs_macro": {
+        "id": "tuto_chocs_macro",
+        "title": "📰 Actualités & Chocs Économiques",
+        "body": "L’économie bouge autour de toi : inflation, pénuries ou grèves de transport affectent les coûts et la demande. Consulte régulièrement le fil d’actualités pour adapter tes prix et saisir les meilleures opportunités.",
+        "unlocked": true,
+        "seen": false
+      },
+      "tuto_etudes_famille": {
+        "id": "tuto_etudes_famille",
+        "title": "🎓 Études, École & Équilibre de Vie",
+        "body": "Tu as 12 ans et tu vas au collège. Tu peux choisir d’assister consciencieusement aux cours pour rassurer tes parents et tes professeurs, ou sécher pour une grosse opportunité d’affaires — au risque de susciter de l’inquiétude ! Trouve le bon équilibre.",
+        "unlocked": true,
+        "seen": false
+      },
+      "tuto_compagnon_kawaii": {
+        "id": "tuto_compagnon_kawaii",
+        "title": "👻 Ton Compagnon Fantôme Interactif",
+        "body": "Le petit widget fantôme en haut à droite réagit à tes actions en direct. Clique dessus à tout moment pour lui demander un conseil tactique spontané sur ta situation !",
+        "unlocked": true,
+        "seen": false
+      },
+      "tuto_eco_bail": {
+        "id": "tuto_eco_bail",
+        "title": "🧺 Louer un étal ou un local",
+        "body": "Chaque porte « À LOUER » est un local : appuie sur E pour voir le loyer, la surface et les passants. À 12 ans, tes parents signent pour un étal du marché (quelques euros par jour). Pour une vraie boutique, il faudra faire tes preuves : tenir un étal, vendre et être apprécié du quartier.",
+        "unlocked": true,
+        "seen": false
+      },
+      "tuto_eco_commande": {
+        "id": "tuto_eco_commande",
+        "title": "📦 Approvisionner ton commerce",
+        "body": "Rien ne tombe du ciel : dans le téléphone (P), application Commandes, choisis un fournisseur. Chez Mme Bertin ou au Cash HyperVal, tu vas chercher les cartons toi-même ; les grossistes livrent en quelques jours. Verse d’abord de l’argent dans la caisse du commerce.",
+        "unlocked": true,
+        "seen": false
+      },
+      "tuto_eco_retrait": {
+        "id": "tuto_eco_retrait",
+        "title": "🚶 Aller chercher les cartons",
+        "body": "Une colonne jaune marque le fournisseur, et la mini-carte aussi. Va devant sa porte et appuie sur E pour charger ; tu portes 40 unités au plus. Une colonne verte marque ensuite ta boutique : appuie sur E devant pour décharger en rayon.",
+        "unlocked": true,
+        "seen": false
+      },
+      "tuto_eco_ouverture": {
+        "id": "tuto_eco_ouverture",
+        "title": "🔓 Ouvrir et vendre",
+        "body": "Ouvre ton commerce depuis le téléphone. Les passants entrent selon la rue, la météo, tes prix et ta réputation. Sur un étal, c’est toi qui sers : reste derrière pendant les heures d’ouverture, ou embauche quelqu’un. Le bilan du soir détaille les causes dans le journal.",
+        "unlocked": true,
+        "seen": false
+      },
+      "tuto_interieur": {
+        "id": "tuto_interieur",
+        "title": "🏠 Les intérieurs",
+        "body": "Tu peux marcher dans les lieux couverts. Les icônes flottantes signalent les objets utiles : approche-toi et appuie sur E. La porte (🚪) te ramène dans la rue.",
+        "unlocked": true,
+        "seen": false
+      },
+      "tuto_boulot": {
+        "id": "tuto_boulot",
+        "title": "🧺 Un petit boulot chez Mme Bertin",
+        "body": "Après les cours (16 h – 19 h) ou le samedi, propose ton aide à Mme Bertin : 4,50 € de l’heure, un peu de fatigue, et sa confiance. Au bout de trois services, elle te fera un prix sur sa marchandise.",
+        "unlocked": true,
+        "seen": false
+      }
+    }
+  },
+  "ghostCompanion": {
+    "activeGhostId": "smith",
+    "mood": "curieux",
+    "speechBubble": "Observe le marché et les besoins du quartier.",
+    "lastAdviceTick": 0,
+    "unlockedThinkers": [
+      "smith"
+    ]
+  },
+  "events": [],
+  "lifeJournal": [
+    {
+      "day": 0,
+      "date": "2020-09-01",
+      "title": "La rentrée",
+      "text": "Septembre 2020. Camille a douze ans. Nouveau collège, nouvelles têtes, et l’envie tranquille que quelque chose commence."
+    }
+  ],
+  "flags": {},
+  "seen": {}
+}

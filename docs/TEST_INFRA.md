@@ -119,3 +119,20 @@ Chaque test de la suite valide la conformité aux invariants stricts suivants :
 2. **Invariant de bornage des besoins** : Fatigue, faim, stress et moral restent toujours dans l'intervalle $[0, 100]$.
 3. **Invariant de part de marché** : La somme des parts de marché du joueur et du rival est égale à 100 % sur un secteur donné.
 4. **Invariant de sérialisation** : Tout état du monde sérialisé en JSON (`JSON.stringify`) puis rechargé (`JSON.parse`) restitue un état identique bit-à-bit sans perte de référence.
+
+---
+
+## 6. Gestion des Sauvegardes de Référence & Changements de Schéma
+
+Afin d'éviter toute régression sur la chaîne de migration des sauvegardes (`src/saves/migrations.ts`), le projet maintient un fichier de référence `vN.json` sous `tests/fixtures/saves/` pour chaque version historique $N$.
+
+### Procédure lors d'un changement de schéma (`SAVE_VERSION`) :
+1. **Incrémenter la version** : Dans `src/core/store.ts`, incrémenter `SAVE_VERSION` ($N \to N+1$).
+2. **Ajouter le migrateur** : Dans `src/saves/migrations.ts`, ajouter la fonction de migration pour la version précédente ($N \to N+1$).
+3. **Figer la sauvegarde de référence** : Exporter une sauvegarde valide représentant la version $N$ avant modification (ou générer un monde à la graine 42 avec les champs requis de la version $N$) et l'enregistrer dans `tests/fixtures/saves/vN.json` (quelques Ko max).
+4. **Valider la suite de tests** : Exécuter `npx vitest run tests/save_fixtures_chain.test.ts`. Le test vérifie automatiquement que :
+   - Le fichier `vN.json` existe (sinon le test échoue avec le message : `« ajoute la sauvegarde de référence de la version N »`).
+   - La migration vers `CURRENT_SAVE_VERSION` s'exécute sans erreur.
+   - Le monde migré est validé par `importSave`.
+   - L'aller-retour sérialisation/chargement conserve l'état exact.
+   - La simulation de 30 jours (4 320 ticks) s'exécute sans exception.
