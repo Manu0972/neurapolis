@@ -13,22 +13,29 @@ const toMin = (hhmm: string): number => {
   return (h ?? 0) * 60 + (m ?? 0);
 };
 
-function slotFor(def: NpcDef, minutes: number, schoolDay: boolean): RoutineSlot | undefined {
-  return def.routine.find(
-    (s) => toMin(s.from) <= minutes && minutes < toMin(s.to) && (schoolDay || s.weekends === true),
-  );
+function slotFor(def: NpcDef, minutes: number, schoolDay: boolean, wednesday: boolean): RoutineSlot | undefined {
+  return def.routine.find((s) => {
+    if (toMin(s.from) > minutes || minutes >= toMin(s.to)) return false;
+    if (s.place === 'college' && def.age < 18) {
+      if (!schoolDay) return false;
+      if (wednesday && minutes >= 13 * 60 + 30) return false;
+      return true;
+    }
+    return schoolDay || s.weekends === true;
+  });
 }
 
 export function npcTick(w: WorldState): void {
   const day = dayIndexOf(w.time.tick);
   const minutes = minutesOfDay(w.time.tick);
   const school = isSchoolDay(day);
+  const wednesday = dateOf(day).weekday === 3;
   const weekend = dateOf(day).weekday === 0 || dateOf(day).weekday === 6;
 
   for (const def of NPCS) {
     const st: NpcState | undefined = w.npcs[def.id];
     if (!st) continue;
-    const slot = slotFor(def, minutes, school);
+    const slot = slotFor(def, minutes, school, wednesday);
     if (slot) {
       st.place = slot.place;
       st.activity = slot.activity;
