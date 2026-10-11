@@ -1,0 +1,10 @@
+﻿.cache/
+output/portraits/
+output/**/*.png
+output/**/*.jpg
+output/**/*.glb
+output/**/*.fbx
+.env
+.env.local
+node_modules/
+*.log

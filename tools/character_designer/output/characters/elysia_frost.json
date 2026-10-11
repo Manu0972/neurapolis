@@ -1,0 +1,187 @@
+{
+  "blueprint": {
+    "id": "char_elysia_frost_1",
+    "bio": {
+      "name": "Elysia Frost",
+      "alias": "Cyber Duchess",
+      "age": 20,
+      "gender": "female",
+      "ethnicityOrOrigin": "Nordique / Scandinave",
+      "ethnicityCategory": "nordic",
+      "occupationOrRole": "Creative Director & Strategist",
+      "personalityKeywords": [
+        "calculateur",
+        "magnétique",
+        "impitoyable sous pression",
+        "résilient",
+        "visionnaire"
+      ],
+      "signatureColors": {
+        "primary": "#064E3B",
+        "secondary": "#1E293B",
+        "accent": "#F59E0B",
+        "skinHex": "#FFE0BD",
+        "hairHex": "#171717",
+        "eyeHex": "Bleu glacier perçant"
+      },
+      "backstorySummary": "Évoluant dans un univers urbain contemporain aux tensions aiguës, Elysia Frost combine une maîtrise corporelle d'exception avec un sens aigu de la stratégie. Sa silhouette impose le respect instantanément."
+    },
+    "archetype": "slender_elegant",
+    "artStyle": "anime_cel_shaded_premium",
+    "facialCanons": {
+      "facialThirdsRatio": [
+        1,
+        1,
+        1
+      ],
+      "facialFifthsEyeRatio": 1,
+      "canthalTiltDegrees": 4.5,
+      "gonialAngleDegrees": 128,
+      "cheekboneToJawRatio": 1.35,
+      "bigonialWidthRatio": 0.74,
+      "philtrumToChinRatio": 0.5,
+      "nasolabialAngleDegrees": 100,
+      "cheekboneProminence": 0.72,
+      "eyeDetails": "Grands yeux en amande captivants, canthal tilt alerte (+4.5°), cils denses, iris lumineux avec dégradé chaud et reflets d'étoile doubles.",
+      "noseDetails": "Nez délicat à l'arête fine et élégante, pointe subtilement relevée avec angle nasolabial harmonieux de 100°.",
+      "lipDetails": "Lèvres pleines satinées avec arc de cupidon gracieux, lèvre inférieure pulpeuse et teinte rosée naturelle avec éclat brillant.",
+      "jawlineDescription": "Ligne de mâchoire en V élégante et fluide (angle gonial 128°), menton délicat et pommettes hautes saillantes sculptées (0.72)."
+    },
+    "morphometrics": {
+      "heightCm": 172,
+      "weightKg": 62,
+      "headHeightRatio": 8.2,
+      "waistToHipRatio": 0.69,
+      "shoulderToHipRatio": 1.08,
+      "chestToWaistRatio": 1.35,
+      "muscularityLevel": 0.2,
+      "bustVolume": 0.5,
+      "galbeCurvature": 0.6,
+      "bodyFatCategory": "athletic_toned",
+      "anatomicalFeatures": {
+        "bustChestDescription": "Volume moyen classique voluptueux en goutte d’eau respectant la pesanteur naturelle. Drapé réaliste en larme descendant doucement vers le bas avec transition souple sur les côtes. Sillon central délicat créant une ombre subtile en lumière zénithale. Tissu naturel souple sans raideur artificielle.",
+        "waistAbdomenDescription": "Taille fine et marquée avec ratio taille/hanche WHR exceptionnel de 0.69. Paroi abdominale plate avec sillon médian subtil. Flancs lisses et cambrure lombaire sensuelle.",
+        "hipGluteDescription": "Bassin évasé féminin avec WHR 0.69. Galbe fessier plein, généreux et harmonieusement arrondi, silhouette sablier prononcée. Cambrure lombaire accentuée créant un décroché net au-dessus du sacrum. Transition pleine et sinueuse épousant la rondeur des hanches vers le haut des cuisses.",
+        "legsCalvesDescription": "Jambes interminables aux proportions de 8,2 têtes, quadriceps élancés avec galbe subtil du vaste médial, mollets fuselés et chevilles fines.",
+        "backShouldersDescription": "Épaules délicates et clavicules apparentes bien soulignées (SHR 1.08), dos cambré souple avec sillon vertébral central gracieusement ombré.",
+        "handsFeetDescription": "Mains fines aux doigts effilés et ongles soignés à la coupe naturelle, poignets délicats, pieds cambrés élégants."
+      }
+    },
+    "wardrobe": [
+      {
+        "layerName": "base",
+        "description": "Chemise ajustée blanc pur à col italien renforcé, poignets mousquetaires et plastron invisible",
+        "fabricType": "Popeline de coton d’Égypte 140 fils au cm",
+        "tensionFoldsAndDrapes": "Tombé sans faux pli, col montant net encadrant le cou avec autorité",
+        "colorHexOrTone": "#FFFFFF"
+      },
+      {
+        "layerName": "inner",
+        "description": "Gilet de costume croisé noir cintrable au dos avec boutons en corne véritable",
+        "fabricType": "Laine mérinos extra-fine filée serré",
+        "tensionFoldsAndDrapes": "Maintient la taille fermement en place et affine le profil",
+        "colorHexOrTone": "#064E3B"
+      },
+      {
+        "layerName": "outer",
+        "description": "Veste de costume sur-mesure noir onyx à revers châle en satin de soie et épaules nettes sans excès",
+        "fabricType": "Laine peignée italienne et revers en satin de soie royale",
+        "tensionFoldsAndDrapes": "Épaule parfaitement calée, taille cintrée dessinant un V-taper ou sablier flatteur",
+        "colorHexOrTone": "#1E293B"
+      },
+      {
+        "layerName": "bottom",
+        "description": "Pantalon de tailleur fuselé noir à bande de satin latérale discrète et pli central acéré",
+        "fabricType": "Laine Super 150s au tombé fluide",
+        "tensionFoldsAndDrapes": "Ligne droite ininterrompue descendant jusqu’au cou-de-pied avec une seule cassure",
+        "colorHexOrTone": "#0F172A"
+      },
+      {
+        "layerName": "footwear",
+        "description": "Souliers Richelieu à bout droit perforé en cuir noir glacé au miroir, semelle cuir cousue Blake",
+        "fabricType": "Cuir box-calf pleine fleur français",
+        "tensionFoldsAndDrapes": "Forme effilée soulignant la cambrure du pied avec patine brillante",
+        "colorHexOrTone": "#000000"
+      },
+      {
+        "layerName": "accessories",
+        "description": "Montre vintage extra-plate en or blanc, boutons de manchette argent et pochette de soie noire",
+        "fabricType": "Métaux précieux et soie Jacquard",
+        "tensionFoldsAndDrapes": "Finition joaillière impeccable, reflets spéculaires contrôlés",
+        "colorHexOrTone": "#F59E0B"
+      }
+    ],
+    "clothingStyle": "elegant",
+    "lighting": {
+      "primaryLightSource": "Lumière clé directionnelle 45° douce (Studio Softbox 5600K)",
+      "rimLightingColor": "#F59E0B rasante froide (Edge Rim Light)",
+      "shadowQuality": "sharp_cel_shaded",
+      "colorGrading": "Contraste cinématographique manhwa, ombres bleu-nuit profondes, tons chair saturés à diffusion sous-cutanée",
+      "subsurfaceScattering": true,
+      "cameraFocalLength": "85mm f/1.4 portrait cinématographique",
+      "cameraAngles": [
+        "Frontal eye-level",
+        "Profil 90° gauche",
+        "Vue 3/4 plongeante héroïque",
+        "Contre-plongée dramatique dos"
+      ]
+    },
+    "expressionsList": [
+      "Neutre souverain au regard perçant",
+      "Sourire en coin narquois (subtle smirk)",
+      "Regard de combat foudroyant avec pupilles dilatées",
+      "Surprise et dilatation des iris",
+      "Gêne feutrée avec rougeur subtile des pommettes",
+      "Rire éclatant découvrant des dents nettes",
+      "Regard déterminé sous sourcils froncés",
+      "Concentration froide et sourcils détendus",
+      "Mélancolie retenue avec regard dans le vide",
+      "Clin d’œil complice dynamique",
+      "Rictus d’effort intense avec veines temporales",
+      "Sérénité méditative les yeux mi-clos"
+    ],
+    "posesList": [
+      "Garde de combat neutre pieds ancrés et poings serrés",
+      "Marche urbaine dynamique en mouvement avec pardessus flottant",
+      "Assis sur un siège haut, une jambe croisée avec assurance",
+      "Bras croisés sur le torse valorisant les deltoïdes",
+      "Regard jeté par-dessus l’épaule en contre-plongée",
+      "Préparation de frappe avec torsion du buste et tension musculaire",
+      "Pose de repos décontractée, mains glissées dans les poches de cargo"
+    ],
+    "macroDetailsList": [
+      "Gros plan macro sur l’iris avec double reflet spéculaire et anneau limbique foncé",
+      "Détail anatomique de la main avec relief des veines céphaliques et articulations",
+      "Tombé de tissu avec plis de tension horizontaux sur la taille et le torse",
+      "Texture des chaussures avec semelle crantée et laçage précis",
+      "Boucles métalliques, fermetures et coutures de vêtement au millimètre"
+    ]
+  },
+  "promptMatrix": {
+    "characterId": "char_elysia_frost_1",
+    "characterName": "Elysia Frost",
+    "modelSheetTurnaroundPrompt": "premium anime character turnaround sheet, razor sharp ink lines, vivid cel shading, high production anime movie aesthetic, character: Elysia Frost, 20 years old, Nordique / Scandinave, Creative Director & Strategist, five-view turnaround: front view, back view, left profile, right profile, 3/4 dynamic perspective, authentic natural female anatomy, bust volume 5.0/10 with realistic teardrop gravity drape, waist-to-hip ratio WHR 0.69, pronounced galbe shelf 6.0/10, athletic feminine curves without artificial censorship, 8.2 heads tall statuesque build, facial thirds 1:1:1, canthal tilt +4.5 degrees, gonial angle 128 degrees, bigonial width ratio 0.74, cheekbone prominence 7.2/10, Grands yeux en amande captivants, canthal tilt alerte (+4.5°), cils denses, iris lumineux avec dégradé chaud et reflets d'étoile doubles., Nez délicat à l'arête fine et élégante, pointe subtilement relevée avec angle nasolabial harmonieux de 100°., Lèvres pleines satinées avec arc de cupidon gracieux, lèvre inférieure pulpeuse et teinte rosée naturelle avec éclat brillant., Ligne de mâchoire en V élégante et fluide (angle gonial 128°), menton délicat et pommettes hautes saillantes sculptées (0.72)., outfit style: Haute Couture Élégante & Tailoring Aristocratique, wearing base: Chemise ajustée blanc pur à col italien renforcé, poignets mousquetaires et plastron invisible (Popeline de coton d’Égypte 140 fils au cm, Tombé sans faux pli, col montant net encadrant le cou avec autorité); inner: Gilet de costume croisé noir cintrable au dos avec boutons en corne véritable (Laine mérinos extra-fine filée serré, Maintient la taille fermement en place et affine le profil); outer: Veste de costume sur-mesure noir onyx à revers châle en satin de soie et épaules nettes sans excès (Laine peignée italienne et revers en satin de soie royale, Épaule parfaitement calée, taille cintrée dessinant un V-taper ou sablier flatteur); bottom: Pantalon de tailleur fuselé noir à bande de satin latérale discrète et pli central acéré (Laine Super 150s au tombé fluide, Ligne droite ininterrompue descendant jusqu’au cou-de-pied avec une seule cassure); footwear: Souliers Richelieu à bout droit perforé en cuir noir glacé au miroir, semelle cuir cousue Blake (Cuir box-calf pleine fleur français, Forme effilée soulignant la cambrure du pied avec patine brillante); accessories: Montre vintage extra-plate en or blanc, boutons de manchette argent et pochette de soie noire (Métaux précieux et soie Jacquard, Finition joaillière impeccable, reflets spéculaires contrôlés), signature colors: primary #064E3B, secondary #1E293B, accent #F59E0B, lighting: Lumière clé directionnelle 45° douce (Studio Softbox 5600K), #F59E0B rasante froide (Edge Rim Light), subsurface scattering skin effect, clean reference sheet layout on neutral grey background, high resolution 8k, crisp orthographic character blueprint",
+    "expressionMatrixPrompt": "premium anime character turnaround sheet, razor sharp ink lines, vivid cel shading, high production anime movie aesthetic, expression grid of Elysia Frost, 12 facial emotion studies arranged in clean 4x3 matrix, emotions: neutral confident, subtle smirk, intense combat glare, surprised shock, embarrassed blush, roaring laughter, deep sorrow, cold focus, mischievous wink, exasperated sigh, determined scowl, serene bliss, capturing precise micro-expressions, facial thirds balance, detailed iris reflections with sharp catchlights, authentic mouth and lip shapes, consistent character identity across all 12 frames, white studio background, high definition facial study",
+    "dynamicPoseSheetPrompt": "premium anime character turnaround sheet, razor sharp ink lines, vivid cel shading, high production anime movie aesthetic, dynamic action pose sheet for Elysia Frost, seven distinct poses: neutral combat stance, high-speed sprint with trailing motion, seated on high stool with relaxed posture, dominant crossed arms, looking back over shoulder in dramatic low angle, preparing strike with torso twist and muscle tension, casual relaxed pose with hands in pockets, authentic natural female anatomy, bust volume 5.0/10 with realistic teardrop gravity drape, waist-to-hip ratio WHR 0.69, pronounced galbe shelf 6.0/10, athletic feminine curves without artificial censorship, 8.2 heads tall statuesque build, accurate biomechanical weight shift, dramatic foreshortening, clothing folds reacting to kinetic movement, character concept art, white background, masterpiece",
+    "macroDetailsPrompt": "premium anime character turnaround sheet, razor sharp ink lines, vivid cel shading, high production anime movie aesthetic, macro detail sheet for Elysia Frost, close-up callouts: extreme close-up of eye showing iris limbal ring and reflections; hand anatomy showing defined knuckles and vascular lines; fabric tension folds across the torso; footwear tread and sole construction; metallic buckle and accessories with crisp specular highlights, artstation character design master sheet, forensic anatomical precision",
+    "singleHeroPortraitPrompt": "premium anime character turnaround sheet, razor sharp ink lines, vivid cel shading, high production anime movie aesthetic, heroic character portrait of Elysia Frost, Creative Director & Strategist, bust and shoulder close-up shot, intense magnetic eye contact, facial thirds 1:1:1, canthal tilt +4.5 degrees, gonial angle 128 degrees, bigonial width ratio 0.74, cheekbone prominence 7.2/10, Grands yeux en amande captivants, canthal tilt alerte (+4.5°), cils denses, iris lumineux avec dégradé chaud et reflets d'étoile doubles., Nez délicat à l'arête fine et élégante, pointe subtilement relevée avec angle nasolabial harmonieux de 100°., Lèvres pleines satinées avec arc de cupidon gracieux, lèvre inférieure pulpeuse et teinte rosée naturelle avec éclat brillant., Ligne de mâchoire en V élégante et fluide (angle gonial 128°), menton délicat et pommettes hautes saillantes sculptées (0.72)., dramatic chiaroscuro lighting, strong #F59E0B rim light carving jawline and hair strands, glowing skin with realistic subsurface scattering, wearing Gilet de costume croisé noir cintrable au dos avec boutons en corne véritable, subtle atmospheric dust particles, 85mm f/1.4 lens bokeh, ultra high definition masterpiece",
+    "fullBodyActionPrompt": "premium anime character turnaround sheet, razor sharp ink lines, vivid cel shading, high production anime movie aesthetic, full body cinematic action shot of Elysia Frost unleashing power in modern urban environment, authentic natural female anatomy, bust volume 5.0/10 with realistic teardrop gravity drape, waist-to-hip ratio WHR 0.69, pronounced galbe shelf 6.0/10, athletic feminine curves without artificial censorship, 8.2 heads tall statuesque build, wearing Haute Couture Élégante & Tailoring Aristocratique outfit with dramatic cloth flutter and wind physics, dramatic low-angle perspective, dynamic combat pose, #F59E0B rasante froide (Edge Rim Light), cinematic depth of field, blockbuster manhwa key visual",
+    "negativePrompts": {
+      "general": "blurry, low resolution, deformed anatomy, extra limbs, missing fingers, extra fingers, mutated hands, poorly drawn face, disfigured, bad eyes, fused fingers, watermark, signature, username, cropped, low quality",
+      "anatomicalCorrection": "plastic skin, barbie doll anatomy, artificial blur, disproportioned head, missing neck muscles, flat ribcage, impossible spine contortion, amputated limbs, asymmetrical pupils, crossed eyes",
+      "stylePreservation": "western comic book style, 3d clay render, chibi, rough sketch, scribbles, muddy colors, washed out contrast, monochrome, low poly artifacts"
+    },
+    "generatorSpecificPrompts": {
+      "midjourneyV6": "premium anime character turnaround sheet, razor sharp ink lines, vivid cel shading, high production anime movie aesthetic, character: Elysia Frost, 20 years old, Nordique / Scandinave, Creative Director & Strategist, five-view turnaround: front view, back view, left profile, right profile, 3/4 dynamic perspective, authentic natural female anatomy, bust volume 5.0/10 with realistic teardrop gravity drape, waist-to-hip ratio WHR 0.69, pronounced galbe shelf 6.0/10, athletic feminine curves without artificial censorship, 8.2 heads tall statuesque build, facial thirds 1:1:1, canthal tilt +4.5 degrees, gonial angle 128 degrees, bigonial width ratio 0.74, cheekbone prominence 7.2/10, Grands yeux en amande captivants, canthal tilt alerte (+4.5°), cils denses, iris lumineux avec dégradé chaud et reflets d'étoile doubles., Nez délicat à l'arête fine et élégante, pointe subtilement relevée avec angle nasolabial harmonieux de 100°., Lèvres pleines satinées avec arc de cupidon gracieux, lèvre inférieure pulpeuse et teinte rosée naturelle avec éclat brillant., Ligne de mâchoire en V élégante et fluide (angle gonial 128°), menton délicat et pommettes hautes saillantes sculptées (0.72)., outfit style: Haute Couture Élégante & Tailoring Aristocratique, wearing base: Chemise ajustée blanc pur à col italien renforcé, poignets mousquetaires et plastron invisible (Popeline de coton d’Égypte 140 fils au cm, Tombé sans faux pli, col montant net encadrant le cou avec autorité); inner: Gilet de costume croisé noir cintrable au dos avec boutons en corne véritable (Laine mérinos extra-fine filée serré, Maintient la taille fermement en place et affine le profil); outer: Veste de costume sur-mesure noir onyx à revers châle en satin de soie et épaules nettes sans excès (Laine peignée italienne et revers en satin de soie royale, Épaule parfaitement calée, taille cintrée dessinant un V-taper ou sablier flatteur); bottom: Pantalon de tailleur fuselé noir à bande de satin latérale discrète et pli central acéré (Laine Super 150s au tombé fluide, Ligne droite ininterrompue descendant jusqu’au cou-de-pied avec une seule cassure); footwear: Souliers Richelieu à bout droit perforé en cuir noir glacé au miroir, semelle cuir cousue Blake (Cuir box-calf pleine fleur français, Forme effilée soulignant la cambrure du pied avec patine brillante); accessories: Montre vintage extra-plate en or blanc, boutons de manchette argent et pochette de soie noire (Métaux précieux et soie Jacquard, Finition joaillière impeccable, reflets spéculaires contrôlés), signature colors: primary #064E3B, secondary #1E293B, accent #F59E0B, lighting: Lumière clé directionnelle 45° douce (Studio Softbox 5600K), #F59E0B rasante froide (Edge Rim Light), subsurface scattering skin effect, clean reference sheet layout on neutral grey background, high resolution 8k, crisp orthographic character blueprint --ar 16:9 --style raw --v 6.0",
+      "stableDiffusionXL": "masterpiece, best quality, highly detailed, premium anime character turnaround sheet, razor sharp ink lines, vivid cel shading, high production anime movie aesthetic, character: Elysia Frost, 20 years old, Nordique / Scandinave, Creative Director & Strategist, five-view turnaround: front view, back view, left profile, right profile, 3/4 dynamic perspective, authentic natural female anatomy, bust volume 5.0/10 with realistic teardrop gravity drape, waist-to-hip ratio WHR 0.69, pronounced galbe shelf 6.0/10, athletic feminine curves without artificial censorship, 8.2 heads tall statuesque build, facial thirds 1:1:1, canthal tilt +4.5 degrees, gonial angle 128 degrees, bigonial width ratio 0.74, cheekbone prominence 7.2/10, Grands yeux en amande captivants, canthal tilt alerte (+4.5°), cils denses, iris lumineux avec dégradé chaud et reflets d'étoile doubles., Nez délicat à l'arête fine et élégante, pointe subtilement relevée avec angle nasolabial harmonieux de 100°., Lèvres pleines satinées avec arc de cupidon gracieux, lèvre inférieure pulpeuse et teinte rosée naturelle avec éclat brillant., Ligne de mâchoire en V élégante et fluide (angle gonial 128°), menton délicat et pommettes hautes saillantes sculptées (0.72)., outfit style: Haute Couture Élégante & Tailoring Aristocratique, wearing base: Chemise ajustée blanc pur à col italien renforcé, poignets mousquetaires et plastron invisible (Popeline de coton d’Égypte 140 fils au cm, Tombé sans faux pli, col montant net encadrant le cou avec autorité); inner: Gilet de costume croisé noir cintrable au dos avec boutons en corne véritable (Laine mérinos extra-fine filée serré, Maintient la taille fermement en place et affine le profil); outer: Veste de costume sur-mesure noir onyx à revers châle en satin de soie et épaules nettes sans excès (Laine peignée italienne et revers en satin de soie royale, Épaule parfaitement calée, taille cintrée dessinant un V-taper ou sablier flatteur); bottom: Pantalon de tailleur fuselé noir à bande de satin latérale discrète et pli central acéré (Laine Super 150s au tombé fluide, Ligne droite ininterrompue descendant jusqu’au cou-de-pied avec une seule cassure); footwear: Souliers Richelieu à bout droit perforé en cuir noir glacé au miroir, semelle cuir cousue Blake (Cuir box-calf pleine fleur français, Forme effilée soulignant la cambrure du pied avec patine brillante); accessories: Montre vintage extra-plate en or blanc, boutons de manchette argent et pochette de soie noire (Métaux précieux et soie Jacquard, Finition joaillière impeccable, reflets spéculaires contrôlés), signature colors: primary #064E3B, secondary #1E293B, accent #F59E0B, lighting: Lumière clé directionnelle 45° douce (Studio Softbox 5600K), #F59E0B rasante froide (Edge Rim Light), subsurface scattering skin effect, clean reference sheet layout on neutral grey background, high resolution 8k, crisp orthographic character blueprint",
+      "flux1": "Professional character design model turnaround sheet. A striking female named Elysia Frost, age 20, with Nordique / Scandinave features. authentic natural female anatomy, bust volume 5.0/10 with realistic teardrop gravity drape, waist-to-hip ratio WHR 0.69, pronounced galbe shelf 6.0/10, athletic feminine curves without artificial censorship, 8.2 heads tall statuesque build. Wearing elegant fashion with Gilet de costume croisé noir cintrable au dos avec boutons en corne véritable. 5 turnaround angles against a neutral background. Rendered in premium Korean webtoon digital art style with sharp cel-shading and vivid lighting.",
+      "geminiImagen3": "A comprehensive character model sheet of Elysia Frost, an S-tier protagonist in a modern manhwa aesthetic. Full 5-angle turnaround including front, back, profile, and three-quarter views. The character features authentic natural female anatomy, bust volume 5.0/10 with realistic teardrop gravity drape, waist-to-hip ratio WHR 0.69, pronounced galbe shelf 6.0/10, athletic feminine curves without artificial censorship, 8.2 heads tall statuesque build, with #064E3B and #F59E0B color motifs. Studio lighting with prominent rim light emphasizing the silhouette. Neutral gray background, 8k resolution, razor-sharp digital illustration."
+    }
+  },
+  "metadata": {
+    "engine": "procedural_fallback",
+    "durationMs": 0,
+    "fallbackTriggered": false,
+    "timestamp": "2026-10-08T00:56:01.984Z"
+  }
+}

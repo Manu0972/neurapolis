@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "game": "NEURAPOLIS",
+  "kind": "ghost",
+  "generations": {
+    "gen1": {
+      "style_base": "ethereal philosopher ghost portrait, translucent sepia-toned classical painting aesthetic, ornate academic robes, faint candlelight glow, aged paper texture, chest-up framing, 19th century engraving feel",
+      "palette_hint": ["#8b7355", "#d4c4a0", "#3a2e1f", "#f5e9c8"]
+    },
+    "gen2": {
+      "style_base": "modern theorist ghost portrait, translucent cool bluish digital aura, contemporary academic attire, faint pixel glitch artifacts, subtle CRT scanlines, chest-up framing, post-internet aesthetic",
+      "palette_hint": ["#4a6b8a", "#a0b4c4", "#1f2e3a", "#e0f0ff"]
+    }
+  },
+  "characters": [
+    { "id": "adam_smith",            "gen": 1, "seed": 1,  "prompt": "18th century Scottish philosopher, powdered white wig with side curls, small round spectacles, quill pen held thoughtfully, wise distant gaze, invisible hand motif faintly glowing" },
+    { "id": "karl_marx",             "gen": 1, "seed": 2,  "prompt": "19th century German philosopher, wild gray beard and hair, black Victorian frock coat, intense piercing stare, slight frown, heavy brow" },
+    { "id": "elinor_ostrom",         "gen": 1, "seed": 3,  "prompt": "American political economist, short cropped silver hair, warm wool shawl over plain blouse, thoughtful kind expression, small smile, commons governance aura" },
+    { "id": "thomas_hobbes",         "gen": 1, "seed": 4,  "prompt": "17th century English philosopher, long straight white hair, high white collar ruff, stern suspicious eyes, Leviathan shadow behind" },
+    { "id": "john_locke",            "gen": 1, "seed": 5,  "prompt": "17th century English philosopher, shoulder-length brown curly hair, plain dark coat, calm rational eyes, faint tabula rasa whiteboard glow" },
+    { "id": "jean_jacques_rousseau", "gen": 1, "seed": 6,  "prompt": "18th century Genevan philosopher, dark fur cap, embroidered vest, romantic dreamy gaze, forest silhouette behind, noble savage aura" },
+    { "id": "david_ricardo",         "gen": 1, "seed": 7,  "prompt": "19th century British economist, dark formal coat with high collar, receding hairline, calculating analytical eyes, faint trade route map behind" },
+    { "id": "max_weber",             "gen": 1, "seed": 8,  "prompt": "German sociologist, prominent handlebar mustache, formal black suit, thin round spectacles, serious scholarly expression, iron cage bars faintly visible" },
+    { "id": "keynes",                "gen": 1, "seed": 9,  "prompt": "British economist, slicked-back dark hair, formal suit with bowtie, confident knowing smile, cigarette holder, government intervention aura" },
+    { "id": "hayek",                 "gen": 1, "seed": 10, "prompt": "Austrian economist, round dark glasses, formal suit with bowtie, sharp analytical gaze, faint spontaneous order spider-web behind" },
+    { "id": "bourdieu",              "gen": 1, "seed": 11, "prompt": "French sociologist, silver hair, tweed jacket with elbow patches, thin glasses, contemplative expression, faint cultural capital symbols floating" },
+    { "id": "machiavel",             "gen": 1, "seed": 12, "prompt": "Renaissance Florentine diplomat, black velvet cap, deep red robe, calculating half-smile, sharp political eyes, fox and lion motifs faintly present" },
+    { "id": "taiichi_ohno",          "gen": 2, "seed": 13, "prompt": "Japanese industrial engineer, thick black-framed glasses, factory worker cap, kaizen notebook under arm, focused precise expression, faint kanban cards floating" },
+    { "id": "dejours",               "gen": 2, "seed": 14, "prompt": "French psychiatrist, short gray beard, casual open-collar shirt, empathetic intense eyes, psychodynamics aura, faint workplace silhouettes behind" },
+    { "id": "graeber",               "gen": 2, "seed": 15, "prompt": "American anthropologist, long messy dark hair, worn black leather jacket, punk academic vibe, wry half-smile, faint bureaucratic forms crumbling" },
+    { "id": "zuboff",                "gen": 2, "seed": 16, "prompt": "American professor, short silver bob, elegant navy blazer, sharp critical intelligent gaze, surveillance capitalism aura, faint data streams behind" },
+    { "id": "stiegler",              "gen": 2, "seed": 17, "prompt": "French philosopher, wild gray hair, black turtleneck, intense meditative look, deep dark eyes, faint technical objects floating" },
+    { "id": "rosa",                  "gen": 2, "seed": 18, "prompt": "German sociologist, short brown hair, modern rectangular glasses, thoughtful expression, acceleration motif, faint blurry motion trails behind" },
+    { "id": "raworth",               "gen": 2, "seed": 19, "prompt": "British economist, curly blonde hair, colorful woven scarf, hopeful warm smile, doughnut economics motif faintly glowing behind in rainbow gradient" },
+    { "id": "illich",                "gen": 2, "seed": 20, "prompt": "Austrian philosopher, balding with side hair, simple linen collar, gentle wise eyes, conviviality aura, faint handmade tools and bicycle parts floating" },
+    { "id": "herbert_simon",         "gen": 2, "seed": 21, "prompt": "American polymath, thick black glasses, formal brown suit, elderly wise face, thinking hand gesture, bounded rationality motif, faint decision tree behind" },
+    { "id": "marche_communs",        "gen": 2, "seed": 99, "prompt": "fusion ghost, two translucent figures overlapping: Adam Smith and Elinor Ostrom merged, shared halo, dual aura, one side warm sepia, other side cool blue, synthesis of market and commons, double exposure effect" }
+  ]
+}

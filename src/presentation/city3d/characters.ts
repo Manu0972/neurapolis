@@ -3,7 +3,7 @@ import type { PlayerAppearance, PlayerGender } from '../../core/types';
 import { HAIR_COLOR_INFO, OUTFIT_COLOR_INFO, SKIN_TONE_INFO } from '../../core/player_customization';
 
 export interface CharacterSpec {
-  appearance?: PlayerAppearance | any;
+  appearance?: PlayerAppearance;
   gender?: PlayerGender;
   heightM?: number;               // 1.55 par défaut pour un ado de 12 ans, 1.75 pour un adulte
   bodyColor?: string;             // pour les PNJ sans apparence complète
