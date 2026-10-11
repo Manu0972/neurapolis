@@ -1,0 +1,416 @@
+{
+  "version": 2,
+  "seed": 42,
+  "rng": -1640531565,
+  "time": {
+    "tick": 43,
+    "speed": 1
+  },
+  "player": {
+    "name": "Camille",
+    "age": 12,
+    "characteristics": {
+      "comprehension": 42,
+      "creativite": 65,
+      "influence": 35,
+      "discipline": 48,
+      "adaptabilite": 58,
+      "confiance": 44
+    },
+    "needs": {
+      "fatigue": 20,
+      "faim": 30,
+      "stress": 25,
+      "moral": 65
+    },
+    "skills": {
+      "negociation": {
+        "level": 0,
+        "xp": 0
+      },
+      "comptabilite": {
+        "level": 0,
+        "xp": 0
+      },
+      "communication": {
+        "level": 0,
+        "xp": 0
+      },
+      "organisation": {
+        "level": 0,
+        "xp": 0
+      },
+      "technique": {
+        "level": 0,
+        "xp": 0
+      },
+      "recherche": {
+        "level": 0,
+        "xp": 0
+      }
+    },
+    "notions": {},
+    "money": 15,
+    "reputation": 45,
+    "relations": {
+      "noah": {
+        "amitie": 78,
+        "confiance": 65,
+        "respect": 48,
+        "rivalite": 18
+      },
+      "lina": {
+        "amitie": 55,
+        "confiance": 50,
+        "respect": 50,
+        "rivalite": 10
+      },
+      "yasmine": {
+        "amitie": 45,
+        "confiance": 40,
+        "respect": 42,
+        "rivalite": 12
+      },
+      "karim": {
+        "amitie": 30,
+        "confiance": 25,
+        "respect": 35,
+        "rivalite": 5
+      },
+      "monique": {
+        "amitie": 40,
+        "confiance": 50,
+        "respect": 45,
+        "rivalite": 0
+      },
+      "samir": {
+        "amitie": 25,
+        "confiance": 30,
+        "respect": 40,
+        "rivalite": 0
+      },
+      "bertin": {
+        "amitie": 35,
+        "confiance": 40,
+        "respect": 45,
+        "rivalite": 0
+      },
+      "moreau": {
+        "amitie": 40,
+        "confiance": 45,
+        "respect": 55,
+        "rivalite": 5
+      }
+    },
+    "pos": {
+      "x": 23,
+      "y": 17
+    },
+    "asleep": false
+  },
+  "npcs": {
+    "noah": {
+      "id": "noah",
+      "place": "maison",
+      "activity": "dort",
+      "stress": 25,
+      "moral": 60,
+      "memory": [],
+      "opinion": 0
+    },
+    "lina": {
+      "id": "lina",
+      "place": "maison",
+      "activity": "dort",
+      "stress": 25,
+      "moral": 60,
+      "memory": [],
+      "opinion": 0
+    },
+    "yasmine": {
+      "id": "yasmine",
+      "place": "maison",
+      "activity": "dort",
+      "stress": 25,
+      "moral": 60,
+      "memory": [],
+      "opinion": 0
+    },
+    "karim": {
+      "id": "karim",
+      "place": "maison",
+      "activity": "dort",
+      "stress": 25,
+      "moral": 60,
+      "memory": [],
+      "opinion": 0
+    },
+    "monique": {
+      "id": "monique",
+      "place": "maison",
+      "activity": "dort",
+      "stress": 25,
+      "moral": 60,
+      "memory": [],
+      "opinion": 0
+    },
+    "samir": {
+      "id": "samir",
+      "place": "maison",
+      "activity": "dort",
+      "stress": 25,
+      "moral": 60,
+      "memory": [],
+      "opinion": 0
+    },
+    "bertin": {
+      "id": "bertin",
+      "place": "maison",
+      "activity": "dort",
+      "stress": 25,
+      "moral": 60,
+      "memory": [],
+      "opinion": 0
+    },
+    "moreau": {
+      "id": "moreau",
+      "place": "maison",
+      "activity": "dort",
+      "stress": 25,
+      "moral": 60,
+      "memory": [],
+      "opinion": 0
+    }
+  },
+  "council": {
+    "ghosts": {
+      "smith": {
+        "id": "smith",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "marx": {
+        "id": "marx",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "ostrom": {
+        "id": "ostrom",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "hobbes": {
+        "id": "hobbes",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "taylor": {
+        "id": "taylor",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "locke": {
+        "id": "locke",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "rousseau": {
+        "id": "rousseau",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "ricardo": {
+        "id": "ricardo",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "weber": {
+        "id": "weber",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "keynes": {
+        "id": "keynes",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "hayek": {
+        "id": "hayek",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "bourdieu": {
+        "id": "bourdieu",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "machiavel": {
+        "id": "machiavel",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "ohno": {
+        "id": "ohno",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "dejours": {
+        "id": "dejours",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "graeber": {
+        "id": "graeber",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "zuboff": {
+        "id": "zuboff",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "stiegler": {
+        "id": "stiegler",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "rosa": {
+        "id": "rosa",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "raworth": {
+        "id": "raworth",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "illich": {
+        "id": "illich",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      },
+      "simon": {
+        "id": "simon",
+        "status": "inconnu",
+        "loyalty": 50,
+        "fiabilite": 60,
+        "lastWords": "",
+        "history": [],
+        "loyaltyZeroDays": 0
+      }
+    },
+    "decisions": {
+      "marche": 0,
+      "communs": 0,
+      "autorite": 0,
+      "solidarite": 0
+    },
+    "fusionProgress": {
+      "smith+ostrom": 0
+    },
+    "fusionsDone": [],
+    "contratSecurite": null,
+    "allianceDesOmbres": 0
+  },
+  "district": {
+    "vitaliteEpicerie": 45,
+    "confianceQuartier": 50,
+    "frequentationParc": 55,
+    "meteo": "soleil"
+  },
+  "events": [],
+  "lifeJournal": [
+    {
+      "day": 0,
+      "date": "2020-09-01",
+      "title": "La rentrée",
+      "text": "Septembre 2020. Camille a douze ans. Nouveau collège, nouvelles têtes, et l’envie tranquille que quelque chose commence."
+    }
+  ],
+  "flags": {},
+  "seen": {}
+}
