@@ -1,0 +1,33 @@
+{
+  "name": "character-designer",
+  "version": "1.0.0",
+  "description": "Autonomous deterministic character design engine & multi-model prompt compiler with local Ollama integration",
+  "type": "module",
+  "main": "src/index.ts",
+  "bin": {
+    "character-designer": "./bin/cli.js"
+  },
+  "scripts": {
+    "start": "node bin/cli.js",
+    "generate": "node bin/cli.js generate",
+    "generate:demo": "node bin/cli.js demo",
+    "test": "node --test tests/*.test.js",
+    "test:ollama": "node bin/cli.js test-ollama",
+    "build": "node -e \"console.log('Ready: Pure zero-dependency engine with native Node 24 support')\""
+  },
+  "keywords": [
+    "character-design",
+    "webtoon",
+    "manhwa",
+    "prompt-engineering",
+    "midjourney",
+    "sdxl",
+    "flux",
+    "ollama",
+    "deterministic",
+    "anatomy",
+    "biometrics"
+  ],
+  "author": "GLM Character Aesthetic Suite",
+  "license": "MIT"
+}

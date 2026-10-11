@@ -1,0 +1,186 @@
+{
+  "blueprint": {
+    "id": "char_dante_silva_1",
+    "bio": {
+      "name": "Dante Silva",
+      "age": 20,
+      "gender": "male",
+      "ethnicityOrOrigin": "Est-Asiatique (Corée / Japon / Chine)",
+      "ethnicityCategory": "east_asian",
+      "occupationOrRole": "Creative Director & Strategist",
+      "personalityKeywords": [
+        "calculateur",
+        "magnétique",
+        "impitoyable sous pression",
+        "résilient",
+        "visionnaire"
+      ],
+      "signatureColors": {
+        "primary": "#064E3B",
+        "secondary": "#1E293B",
+        "accent": "#F59E0B",
+        "skinHex": "#F5DEB3",
+        "hairHex": "#171717",
+        "eyeHex": "Obsidienne sombre avec iris dégradé"
+      },
+      "backstorySummary": "Évoluant dans un univers urbain contemporain aux tensions aiguës, Dante Silva combine une maîtrise corporelle d'exception avec un sens aigu de la stratégie. Sa silhouette impose le respect instantanément."
+    },
+    "archetype": "lean_athletic",
+    "artStyle": "korean_webtoon_cinematic",
+    "facialCanons": {
+      "facialThirdsRatio": [
+        1,
+        1,
+        1
+      ],
+      "facialFifthsEyeRatio": 1,
+      "canthalTiltDegrees": 5,
+      "gonialAngleDegrees": 116,
+      "cheekboneToJawRatio": 1.16,
+      "bigonialWidthRatio": 0.86,
+      "philtrumToChinRatio": 0.5,
+      "nasolabialAngleDegrees": 92,
+      "cheekboneProminence": 0.72,
+      "eyeDetails": "Regard perçant intense avec double paupière marquée, canthal tilt positif (+5°), iris obsidienne avec anneau limbique foncé et micro-reflets spéculaires acérés.",
+      "noseDetails": "Arête nasale haute et droite, dos du nez rectiligne sans bosse, pointe ferme bien définie avec angle nasolabial de 92°.",
+      "lipDetails": "Lèvres sculptées aux contours nets, lèvre inférieure légèrement plus pleine, arc de cupidon défini avec philtrum à ratio 0.50.",
+      "jawlineDescription": "Mâchoire carrée athlétique, angle gonial net de 116°, largeur bigoniale robuste (0.86) et menton saillant avec fente centrale discrète."
+    },
+    "morphometrics": {
+      "heightCm": 186,
+      "weightKg": 99,
+      "headHeightRatio": 8.2,
+      "waistToHipRatio": 0.84,
+      "shoulderToHipRatio": 1.52,
+      "chestToWaistRatio": 1.42,
+      "muscularityLevel": 0.85,
+      "bustVolume": 0.4,
+      "galbeCurvature": 0.5,
+      "bodyFatCategory": "ultra_lean",
+      "anatomicalFeatures": {
+        "bustChestDescription": "Torse athlétique aux pectoraux carrés ciselés (projection 0.40), sillon sternal profond et insertion anatomique franche sur les clavicules.",
+        "waistAbdomenDescription": "Taille étroite gainée par un corset musculaire dense (WHR 0.84). Bloc abdominal massif et strié avec obliques externes hypertrophiés. Obliques externes puissants et sillon iliaque (ceinture d’Adonis) profondément creusé.",
+        "hipGluteDescription": "Bassin androïde étroit et compact. Fessiers athlétiques fermes et denses (galbe 5.0/10) formant une base de propulsion puissante.",
+        "legsCalvesDescription": "Cuisses d’athlète puissantes : séparation nette du vaste latéral et du vaste médial en goutte d’eau au-dessus de la rotule, mollets denses et tendons d’Achille acérés.",
+        "backShouldersDescription": "Carrure en V spectaculaire (SHR 1.52). Trois faisceaux deltoïdiens séparés par des sillons profonds. Dorsaux ultra-larges comprimant les aisselles en posture neutre. Arbre de Noël vertébral ciselé et trapèzes imposants.",
+        "handsFeetDescription": "Grandes mains de combattant aux articulations définies, paumes solides, veines céphaliques traçantes sur les métacarpes et prise ferme."
+      }
+    },
+    "wardrobe": [
+      {
+        "layerName": "base",
+        "description": "T-shirt blanc col rond en jersey de coton souple 220 GSM, coupe décontractée légèrement plus longue que la couche supérieure",
+        "fabricType": "Jersey de coton peigné respirant",
+        "tensionFoldsAndDrapes": "Plis naturels drapés sur le torse, ourlet visible sous le sweat",
+        "colorHexOrTone": "#F3F4F6"
+      },
+      {
+        "layerName": "inner",
+        "description": "Sweat à capuche oversize noir lavé à la pierre avec coutures d’épaules tombantes",
+        "fabricType": "Molleton de coton épais 450 GSM",
+        "tensionFoldsAndDrapes": "Poches kangourou avec plis de tension horizontaux, capuche retombant avec volume naturel",
+        "colorHexOrTone": "#064E3B"
+      },
+      {
+        "layerName": "outer",
+        "description": "Blouson bomber court satiné vert sauge foncé avec doublure orange thermique et poche manche zippée",
+        "fabricType": "Nylon satiné déperlant haute densité",
+        "tensionFoldsAndDrapes": "Fronces élastiquées le long des coutures de bras créant du volume",
+        "colorHexOrTone": "#1E293B"
+      },
+      {
+        "layerName": "bottom",
+        "description": "Pantalon cargo wide-leg gris anthracite avec poches à soufflet 3D sur les cuisses et cordons de serrage aux chevilles",
+        "fabricType": "Sergé de coton lourd pré-lavé",
+        "tensionFoldsAndDrapes": "Cassures amples et plis accordéon tombant sur le cou-de-pied de la basket",
+        "colorHexOrTone": "#374151"
+      },
+      {
+        "layerName": "footwear",
+        "description": "Baskets montantes rétro-bicolores blanc et noir à semelles crantées en gomme avec lacets plats en coton ciré",
+        "fabricType": "Cuir pleine fleur et semelle intermédiaire EVA",
+        "tensionFoldsAndDrapes": "Plis d’aisance sur l’empeigne avant, tige montante maintenant la cheville",
+        "colorHexOrTone": "#111827"
+      },
+      {
+        "layerName": "accessories",
+        "description": "Collier double chaîne argentée avec médaillon gravé, montre sport à lunette acier brossé et écouteurs sans fil autour du cou",
+        "fabricType": "Acier chirurgical 316L et polymère mat",
+        "tensionFoldsAndDrapes": "Rigide, reflets spéculaires francs",
+        "colorHexOrTone": "#F59E0B"
+      }
+    ],
+    "clothingStyle": "streetwear",
+    "lighting": {
+      "primaryLightSource": "Lumière clé directionnelle 45° douce (Studio Softbox 5600K)",
+      "rimLightingColor": "#F59E0B rasante froide (Edge Rim Light)",
+      "shadowQuality": "sharp_cel_shaded",
+      "colorGrading": "Contraste cinématographique manhwa, ombres bleu-nuit profondes, tons chair saturés à diffusion sous-cutanée",
+      "subsurfaceScattering": true,
+      "cameraFocalLength": "85mm f/1.4 portrait cinématographique",
+      "cameraAngles": [
+        "Frontal eye-level",
+        "Profil 90° gauche",
+        "Vue 3/4 plongeante héroïque",
+        "Contre-plongée dramatique dos"
+      ]
+    },
+    "expressionsList": [
+      "Neutre souverain au regard perçant",
+      "Sourire en coin narquois (subtle smirk)",
+      "Regard de combat foudroyant avec pupilles dilatées",
+      "Surprise et dilatation des iris",
+      "Gêne feutrée avec rougeur subtile des pommettes",
+      "Rire éclatant découvrant des dents nettes",
+      "Regard déterminé sous sourcils froncés",
+      "Concentration froide et sourcils détendus",
+      "Mélancolie retenue avec regard dans le vide",
+      "Clin d’œil complice dynamique",
+      "Rictus d’effort intense avec veines temporales",
+      "Sérénité méditative les yeux mi-clos"
+    ],
+    "posesList": [
+      "Garde de combat neutre pieds ancrés et poings serrés",
+      "Marche urbaine dynamique en mouvement avec pardessus flottant",
+      "Assis sur un siège haut, une jambe croisée avec assurance",
+      "Bras croisés sur le torse valorisant les deltoïdes",
+      "Regard jeté par-dessus l’épaule en contre-plongée",
+      "Préparation de frappe avec torsion du buste et tension musculaire",
+      "Pose de repos décontractée, mains glissées dans les poches de cargo"
+    ],
+    "macroDetailsList": [
+      "Gros plan macro sur l’iris avec double reflet spéculaire et anneau limbique foncé",
+      "Détail anatomique de la main avec relief des veines céphaliques et articulations",
+      "Tombé de tissu avec plis de tension horizontaux sur la taille et le torse",
+      "Texture des chaussures avec semelle crantée et laçage précis",
+      "Boucles métalliques, fermetures et coutures de vêtement au millimètre"
+    ]
+  },
+  "promptMatrix": {
+    "characterId": "char_dante_silva_1",
+    "characterName": "Dante Silva",
+    "modelSheetTurnaroundPrompt": "master character model sheet, authentic Korean manhwa webtoon style, Solo Leveling and Redice aesthetic, crisp digital line art, vibrant cel shading with smooth gradient transitions, artstation trending, character: Dante Silva, 20 years old, Est-Asiatique (Corée / Japon / Chine), Creative Director & Strategist, five-view turnaround: front view, back view, left profile, right profile, 3/4 dynamic perspective, imposing athletic male physique, muscularity 8.5/10, chiseled 8-pack abdominals, serratus anterior cuts, vascular forearms, wide V-taper latissimus dorsi with shoulder-to-hip ratio SHR 1.52, demon back muscularity, 8.2 heads tall heroic silhouette, facial thirds 1:1:1, canthal tilt +5 degrees, gonial angle 116 degrees, bigonial width ratio 0.86, cheekbone prominence 7.2/10, Regard perçant intense avec double paupière marquée, canthal tilt positif (+5°), iris obsidienne avec anneau limbique foncé et micro-reflets spéculaires acérés., Arête nasale haute et droite, dos du nez rectiligne sans bosse, pointe ferme bien définie avec angle nasolabial de 92°., Lèvres sculptées aux contours nets, lèvre inférieure légèrement plus pleine, arc de cupidon défini avec philtrum à ratio 0.50., Mâchoire carrée athlétique, angle gonial net de 116°, largeur bigoniale robuste (0.86) et menton saillant avec fente centrale discrète., outfit style: K-Streetwear Contemporain & Urban Manhwa, wearing base: T-shirt blanc col rond en jersey de coton souple 220 GSM, coupe décontractée légèrement plus longue que la couche supérieure (Jersey de coton peigné respirant, Plis naturels drapés sur le torse, ourlet visible sous le sweat); inner: Sweat à capuche oversize noir lavé à la pierre avec coutures d’épaules tombantes (Molleton de coton épais 450 GSM, Poches kangourou avec plis de tension horizontaux, capuche retombant avec volume naturel); outer: Blouson bomber court satiné vert sauge foncé avec doublure orange thermique et poche manche zippée (Nylon satiné déperlant haute densité, Fronces élastiquées le long des coutures de bras créant du volume); bottom: Pantalon cargo wide-leg gris anthracite avec poches à soufflet 3D sur les cuisses et cordons de serrage aux chevilles (Sergé de coton lourd pré-lavé, Cassures amples et plis accordéon tombant sur le cou-de-pied de la basket); footwear: Baskets montantes rétro-bicolores blanc et noir à semelles crantées en gomme avec lacets plats en coton ciré (Cuir pleine fleur et semelle intermédiaire EVA, Plis d’aisance sur l’empeigne avant, tige montante maintenant la cheville); accessories: Collier double chaîne argentée avec médaillon gravé, montre sport à lunette acier brossé et écouteurs sans fil autour du cou (Acier chirurgical 316L et polymère mat, Rigide, reflets spéculaires francs), signature colors: primary #064E3B, secondary #1E293B, accent #F59E0B, lighting: Lumière clé directionnelle 45° douce (Studio Softbox 5600K), #F59E0B rasante froide (Edge Rim Light), subsurface scattering skin effect, clean reference sheet layout on neutral grey background, high resolution 8k, crisp orthographic character blueprint",
+    "expressionMatrixPrompt": "master character model sheet, authentic Korean manhwa webtoon style, Solo Leveling and Redice aesthetic, crisp digital line art, vibrant cel shading with smooth gradient transitions, artstation trending, expression grid of Dante Silva, 12 facial emotion studies arranged in clean 4x3 matrix, emotions: neutral confident, subtle smirk, intense combat glare, surprised shock, embarrassed blush, roaring laughter, deep sorrow, cold focus, mischievous wink, exasperated sigh, determined scowl, serene bliss, capturing precise micro-expressions, facial thirds balance, detailed iris reflections with sharp catchlights, authentic mouth and lip shapes, consistent character identity across all 12 frames, white studio background, high definition facial study",
+    "dynamicPoseSheetPrompt": "master character model sheet, authentic Korean manhwa webtoon style, Solo Leveling and Redice aesthetic, crisp digital line art, vibrant cel shading with smooth gradient transitions, artstation trending, dynamic action pose sheet for Dante Silva, seven distinct poses: neutral combat stance, high-speed sprint with trailing motion, seated on high stool with relaxed posture, dominant crossed arms, looking back over shoulder in dramatic low angle, preparing strike with torso twist and muscle tension, casual relaxed pose with hands in pockets, imposing athletic male physique, muscularity 8.5/10, chiseled 8-pack abdominals, serratus anterior cuts, vascular forearms, wide V-taper latissimus dorsi with shoulder-to-hip ratio SHR 1.52, demon back muscularity, 8.2 heads tall heroic silhouette, accurate biomechanical weight shift, dramatic foreshortening, clothing folds reacting to kinetic movement, character concept art, white background, masterpiece",
+    "macroDetailsPrompt": "master character model sheet, authentic Korean manhwa webtoon style, Solo Leveling and Redice aesthetic, crisp digital line art, vibrant cel shading with smooth gradient transitions, artstation trending, macro detail sheet for Dante Silva, close-up callouts: extreme close-up of eye showing iris limbal ring and reflections; hand anatomy showing defined knuckles and vascular lines; fabric tension folds across the torso; footwear tread and sole construction; metallic buckle and accessories with crisp specular highlights, artstation character design master sheet, forensic anatomical precision",
+    "singleHeroPortraitPrompt": "master character model sheet, authentic Korean manhwa webtoon style, Solo Leveling and Redice aesthetic, crisp digital line art, vibrant cel shading with smooth gradient transitions, artstation trending, heroic character portrait of Dante Silva, Creative Director & Strategist, bust and shoulder close-up shot, intense magnetic eye contact, facial thirds 1:1:1, canthal tilt +5 degrees, gonial angle 116 degrees, bigonial width ratio 0.86, cheekbone prominence 7.2/10, Regard perçant intense avec double paupière marquée, canthal tilt positif (+5°), iris obsidienne avec anneau limbique foncé et micro-reflets spéculaires acérés., Arête nasale haute et droite, dos du nez rectiligne sans bosse, pointe ferme bien définie avec angle nasolabial de 92°., Lèvres sculptées aux contours nets, lèvre inférieure légèrement plus pleine, arc de cupidon défini avec philtrum à ratio 0.50., Mâchoire carrée athlétique, angle gonial net de 116°, largeur bigoniale robuste (0.86) et menton saillant avec fente centrale discrète., dramatic chiaroscuro lighting, strong #F59E0B rim light carving jawline and hair strands, glowing skin with realistic subsurface scattering, wearing Sweat à capuche oversize noir lavé à la pierre avec coutures d’épaules tombantes, subtle atmospheric dust particles, 85mm f/1.4 lens bokeh, ultra high definition masterpiece",
+    "fullBodyActionPrompt": "master character model sheet, authentic Korean manhwa webtoon style, Solo Leveling and Redice aesthetic, crisp digital line art, vibrant cel shading with smooth gradient transitions, artstation trending, full body cinematic action shot of Dante Silva unleashing power in modern urban environment, imposing athletic male physique, muscularity 8.5/10, chiseled 8-pack abdominals, serratus anterior cuts, vascular forearms, wide V-taper latissimus dorsi with shoulder-to-hip ratio SHR 1.52, demon back muscularity, 8.2 heads tall heroic silhouette, wearing K-Streetwear Contemporain & Urban Manhwa outfit with dramatic cloth flutter and wind physics, dramatic low-angle perspective, dynamic combat pose, #F59E0B rasante froide (Edge Rim Light), cinematic depth of field, blockbuster manhwa key visual",
+    "negativePrompts": {
+      "general": "blurry, low resolution, deformed anatomy, extra limbs, missing fingers, extra fingers, mutated hands, poorly drawn face, disfigured, bad eyes, fused fingers, watermark, signature, username, cropped, low quality",
+      "anatomicalCorrection": "plastic skin, barbie doll anatomy, artificial blur, disproportioned head, missing neck muscles, flat ribcage, impossible spine contortion, amputated limbs, asymmetrical pupils, crossed eyes",
+      "stylePreservation": "western comic book style, 3d clay render, chibi, rough sketch, scribbles, muddy colors, washed out contrast, monochrome, low poly artifacts"
+    },
+    "generatorSpecificPrompts": {
+      "midjourneyV6": "master character model sheet, authentic Korean manhwa webtoon style, Solo Leveling and Redice aesthetic, crisp digital line art, vibrant cel shading with smooth gradient transitions, artstation trending, character: Dante Silva, 20 years old, Est-Asiatique (Corée / Japon / Chine), Creative Director & Strategist, five-view turnaround: front view, back view, left profile, right profile, 3/4 dynamic perspective, imposing athletic male physique, muscularity 8.5/10, chiseled 8-pack abdominals, serratus anterior cuts, vascular forearms, wide V-taper latissimus dorsi with shoulder-to-hip ratio SHR 1.52, demon back muscularity, 8.2 heads tall heroic silhouette, facial thirds 1:1:1, canthal tilt +5 degrees, gonial angle 116 degrees, bigonial width ratio 0.86, cheekbone prominence 7.2/10, Regard perçant intense avec double paupière marquée, canthal tilt positif (+5°), iris obsidienne avec anneau limbique foncé et micro-reflets spéculaires acérés., Arête nasale haute et droite, dos du nez rectiligne sans bosse, pointe ferme bien définie avec angle nasolabial de 92°., Lèvres sculptées aux contours nets, lèvre inférieure légèrement plus pleine, arc de cupidon défini avec philtrum à ratio 0.50., Mâchoire carrée athlétique, angle gonial net de 116°, largeur bigoniale robuste (0.86) et menton saillant avec fente centrale discrète., outfit style: K-Streetwear Contemporain & Urban Manhwa, wearing base: T-shirt blanc col rond en jersey de coton souple 220 GSM, coupe décontractée légèrement plus longue que la couche supérieure (Jersey de coton peigné respirant, Plis naturels drapés sur le torse, ourlet visible sous le sweat); inner: Sweat à capuche oversize noir lavé à la pierre avec coutures d’épaules tombantes (Molleton de coton épais 450 GSM, Poches kangourou avec plis de tension horizontaux, capuche retombant avec volume naturel); outer: Blouson bomber court satiné vert sauge foncé avec doublure orange thermique et poche manche zippée (Nylon satiné déperlant haute densité, Fronces élastiquées le long des coutures de bras créant du volume); bottom: Pantalon cargo wide-leg gris anthracite avec poches à soufflet 3D sur les cuisses et cordons de serrage aux chevilles (Sergé de coton lourd pré-lavé, Cassures amples et plis accordéon tombant sur le cou-de-pied de la basket); footwear: Baskets montantes rétro-bicolores blanc et noir à semelles crantées en gomme avec lacets plats en coton ciré (Cuir pleine fleur et semelle intermédiaire EVA, Plis d’aisance sur l’empeigne avant, tige montante maintenant la cheville); accessories: Collier double chaîne argentée avec médaillon gravé, montre sport à lunette acier brossé et écouteurs sans fil autour du cou (Acier chirurgical 316L et polymère mat, Rigide, reflets spéculaires francs), signature colors: primary #064E3B, secondary #1E293B, accent #F59E0B, lighting: Lumière clé directionnelle 45° douce (Studio Softbox 5600K), #F59E0B rasante froide (Edge Rim Light), subsurface scattering skin effect, clean reference sheet layout on neutral grey background, high resolution 8k, crisp orthographic character blueprint --ar 16:9 --style raw --v 6.0",
+      "stableDiffusionXL": "masterpiece, best quality, highly detailed, master character model sheet, authentic Korean manhwa webtoon style, Solo Leveling and Redice aesthetic, crisp digital line art, vibrant cel shading with smooth gradient transitions, artstation trending, character: Dante Silva, 20 years old, Est-Asiatique (Corée / Japon / Chine), Creative Director & Strategist, five-view turnaround: front view, back view, left profile, right profile, 3/4 dynamic perspective, imposing athletic male physique, muscularity 8.5/10, chiseled 8-pack abdominals, serratus anterior cuts, vascular forearms, wide V-taper latissimus dorsi with shoulder-to-hip ratio SHR 1.52, demon back muscularity, 8.2 heads tall heroic silhouette, facial thirds 1:1:1, canthal tilt +5 degrees, gonial angle 116 degrees, bigonial width ratio 0.86, cheekbone prominence 7.2/10, Regard perçant intense avec double paupière marquée, canthal tilt positif (+5°), iris obsidienne avec anneau limbique foncé et micro-reflets spéculaires acérés., Arête nasale haute et droite, dos du nez rectiligne sans bosse, pointe ferme bien définie avec angle nasolabial de 92°., Lèvres sculptées aux contours nets, lèvre inférieure légèrement plus pleine, arc de cupidon défini avec philtrum à ratio 0.50., Mâchoire carrée athlétique, angle gonial net de 116°, largeur bigoniale robuste (0.86) et menton saillant avec fente centrale discrète., outfit style: K-Streetwear Contemporain & Urban Manhwa, wearing base: T-shirt blanc col rond en jersey de coton souple 220 GSM, coupe décontractée légèrement plus longue que la couche supérieure (Jersey de coton peigné respirant, Plis naturels drapés sur le torse, ourlet visible sous le sweat); inner: Sweat à capuche oversize noir lavé à la pierre avec coutures d’épaules tombantes (Molleton de coton épais 450 GSM, Poches kangourou avec plis de tension horizontaux, capuche retombant avec volume naturel); outer: Blouson bomber court satiné vert sauge foncé avec doublure orange thermique et poche manche zippée (Nylon satiné déperlant haute densité, Fronces élastiquées le long des coutures de bras créant du volume); bottom: Pantalon cargo wide-leg gris anthracite avec poches à soufflet 3D sur les cuisses et cordons de serrage aux chevilles (Sergé de coton lourd pré-lavé, Cassures amples et plis accordéon tombant sur le cou-de-pied de la basket); footwear: Baskets montantes rétro-bicolores blanc et noir à semelles crantées en gomme avec lacets plats en coton ciré (Cuir pleine fleur et semelle intermédiaire EVA, Plis d’aisance sur l’empeigne avant, tige montante maintenant la cheville); accessories: Collier double chaîne argentée avec médaillon gravé, montre sport à lunette acier brossé et écouteurs sans fil autour du cou (Acier chirurgical 316L et polymère mat, Rigide, reflets spéculaires francs), signature colors: primary #064E3B, secondary #1E293B, accent #F59E0B, lighting: Lumière clé directionnelle 45° douce (Studio Softbox 5600K), #F59E0B rasante froide (Edge Rim Light), subsurface scattering skin effect, clean reference sheet layout on neutral grey background, high resolution 8k, crisp orthographic character blueprint",
+      "flux1": "Professional character design model turnaround sheet. A striking male named Dante Silva, age 20, with Est-Asiatique (Corée / Japon / Chine) features. imposing athletic male physique, muscularity 8.5/10, chiseled 8-pack abdominals, serratus anterior cuts, vascular forearms, wide V-taper latissimus dorsi with shoulder-to-hip ratio SHR 1.52, demon back muscularity, 8.2 heads tall heroic silhouette. Wearing streetwear fashion with Sweat à capuche oversize noir lavé à la pierre avec coutures d’épaules tombantes. 5 turnaround angles against a neutral background. Rendered in premium Korean webtoon digital art style with sharp cel-shading and vivid lighting.",
+      "geminiImagen3": "A comprehensive character model sheet of Dante Silva, an S-tier protagonist in a modern manhwa aesthetic. Full 5-angle turnaround including front, back, profile, and three-quarter views. The character features imposing athletic male physique, muscularity 8.5/10, chiseled 8-pack abdominals, serratus anterior cuts, vascular forearms, wide V-taper latissimus dorsi with shoulder-to-hip ratio SHR 1.52, demon back muscularity, 8.2 heads tall heroic silhouette, with #064E3B and #F59E0B color motifs. Studio lighting with prominent rim light emphasizing the silhouette. Neutral gray background, 8k resolution, razor-sharp digital illustration."
+    }
+  },
+  "metadata": {
+    "engine": "procedural_fallback",
+    "durationMs": 2,
+    "fallbackTriggered": false,
+    "timestamp": "2026-10-08T01:01:24.830Z"
+  }
+}

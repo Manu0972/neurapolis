@@ -14,7 +14,7 @@ if (-not (Test-Path (Join-Path $Clone '.git'))) { & (Join-Path $PSScriptRoot 'se
 Push-Location $Clone
 git checkout -q refonte-3d
 git pull -q --ff-only origin refonte-3d
-foreach ($d in 'src', 'tests', 'docs', 'archive', 'tools', 'scripts') {
+foreach ($d in 'src', 'tests', 'docs', 'archive', 'tools', 'scripts', 'desktop') {
   if (Test-Path $d) { Remove-Item -Recurse -Force $d }
   $src = Join-Path $Root $d
   if (Test-Path $src) { Copy-Item -Recurse $src $d }
@@ -37,7 +37,7 @@ node node_modules/vite/bin/vite.js build | Out-Null
 if ($LASTEXITCODE -ne 0) { Pop-Location; Write-Output 'Build en échec : publication annulée'; exit 1 }
 Remove-Item -Recurse -Force dist -ErrorAction SilentlyContinue
 
-git add -A -- src tests docs archive tools scripts .zcode/coordination AGENTS.md PROGRESS.md .gitignore index.html vite.config.ts package.json package-lock.json jouer-en-lan.bat
+git add -A -- src tests docs archive tools scripts desktop .zcode/coordination AGENTS.md PROGRESS.md .gitignore index.html vite.config.ts package.json package-lock.json jouer-en-lan.bat
 git commit -q -m "$Message" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 git push -q origin refonte-3d
 git log --oneline -1

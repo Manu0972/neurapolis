@@ -1,0 +1,187 @@
+{
+  "blueprint": {
+    "id": "char_malik_thorne_1",
+    "bio": {
+      "name": "Malik Thorne",
+      "alias": "Iron Sentinel",
+      "age": 20,
+      "gender": "male",
+      "ethnicityOrOrigin": "Afro-descendant / Panafricain",
+      "ethnicityCategory": "african",
+      "occupationOrRole": "Creative Director & Strategist",
+      "personalityKeywords": [
+        "calculateur",
+        "magnétique",
+        "impitoyable sous pression",
+        "résilient",
+        "visionnaire"
+      ],
+      "signatureColors": {
+        "primary": "#064E3B",
+        "secondary": "#1E293B",
+        "accent": "#F59E0B",
+        "skinHex": "#5C3826",
+        "hairHex": "#171717",
+        "eyeHex": "Brun onyx profond intense"
+      },
+      "backstorySummary": "Évoluant dans un univers urbain contemporain aux tensions aiguës, Malik Thorne combine une maîtrise corporelle d'exception avec un sens aigu de la stratégie. Sa silhouette impose le respect instantanément."
+    },
+    "archetype": "stocky_powerhouse",
+    "artStyle": "tactical_semi_realistic",
+    "facialCanons": {
+      "facialThirdsRatio": [
+        1,
+        1,
+        1
+      ],
+      "facialFifthsEyeRatio": 1,
+      "canthalTiltDegrees": 3,
+      "gonialAngleDegrees": 112,
+      "cheekboneToJawRatio": 1.16,
+      "bigonialWidthRatio": 0.86,
+      "philtrumToChinRatio": 0.5,
+      "nasolabialAngleDegrees": 92,
+      "cheekboneProminence": 0.72,
+      "eyeDetails": "Regard perçant intense avec double paupière marquée, canthal tilt positif (+3°), iris obsidienne avec anneau limbique foncé et micro-reflets spéculaires acérés.",
+      "noseDetails": "Arête nasale haute et droite, dos du nez rectiligne sans bosse, pointe ferme bien définie avec angle nasolabial de 92°.",
+      "lipDetails": "Lèvres sculptées aux contours nets, lèvre inférieure légèrement plus pleine, arc de cupidon défini avec philtrum à ratio 0.50.",
+      "jawlineDescription": "Mâchoire carrée athlétique, angle gonial net de 112°, largeur bigoniale robuste (0.86) et menton saillant avec fente centrale discrète."
+    },
+    "morphometrics": {
+      "heightCm": 186,
+      "weightKg": 100,
+      "headHeightRatio": 8.2,
+      "waistToHipRatio": 0.88,
+      "shoulderToHipRatio": 1.52,
+      "chestToWaistRatio": 1.42,
+      "muscularityLevel": 0.92,
+      "bustVolume": 0.4,
+      "galbeCurvature": 0.4,
+      "bodyFatCategory": "ultra_lean",
+      "anatomicalFeatures": {
+        "bustChestDescription": "Torse athlétique aux pectoraux carrés ciselés (projection 0.40), sillon sternal profond et insertion anatomique franche sur les clavicules.",
+        "waistAbdomenDescription": "Taille étroite gainée par un corset musculaire dense (WHR 0.88). Gaufrier abdominal démesuré à 8 blocs striés parsemé de veines turgescentes. Obliques externes puissants et sillon iliaque (ceinture d’Adonis) profondément creusé.",
+        "hipGluteDescription": "Bassin androïde étroit et compact. Fessiers athlétiques fermes et denses (galbe 4.0/10) formant une base de propulsion puissante.",
+        "legsCalvesDescription": "Cuisses d’athlète puissantes : séparation nette du vaste latéral et du vaste médial en goutte d’eau au-dessus de la rotule, mollets denses et tendons d’Achille acérés.",
+        "backShouldersDescription": "Carrure en V spectaculaire (SHR 1.52). Deltoïdes massifs zébrés de striations fibreuses avec trapèzes montant jusqu’aux oreilles. Dorsaux titanesques débordant largement du tronc même de face. Arbre de Noël vertébral ciselé et trapèzes imposants.",
+        "handsFeetDescription": "Grandes mains de combattant aux articulations définies, paumes solides, veines céphaliques traçantes sur les métacarpes et prise ferme."
+      }
+    },
+    "wardrobe": [
+      {
+        "layerName": "base",
+        "description": "Sous-vêtement technique de compression noir à manches longues avec gestion thermique et zones de compression musculaire",
+        "fabricType": "Élasthanne et microfibre polyamide technique",
+        "tensionFoldsAndDrapes": "Moulant, épouse parfaitement la musculature du torse et les deltoïdes",
+        "colorHexOrTone": "#0F172A"
+      },
+      {
+        "layerName": "inner",
+        "description": "Gilet utilitaire tactique zippé avec système de fixation modulaire et poches zippées discrètes",
+        "fabricType": "Cordura 330D déperlant",
+        "tensionFoldsAndDrapes": "Ajusté au torse avec sangles latérales de réglage sous tension",
+        "colorHexOrTone": "#064E3B"
+      },
+      {
+        "layerName": "outer",
+        "description": "Veste technique hardshell noire à capuche tempête, rabat asymétrique et fermetures étanches Aquaguard thermocollées",
+        "fabricType": "Gore-Tex Pro 3 couches mat avec renforts ripstop",
+        "tensionFoldsAndDrapes": "Plis géométriques angulaires rigides, col cheminée rigide montant jusqu’au menton",
+        "colorHexOrTone": "#1E293B"
+      },
+      {
+        "layerName": "bottom",
+        "description": "Pantalon tactique articulé fuselé avec genoux préformés, poches cargo ergonomiques à accès latéral et zips d’aération",
+        "fabricType": "Schoeller Dryskin quadri-extensible avec renforts genoux Cordura",
+        "tensionFoldsAndDrapes": "Plis horizontaux articulés au-dessus du genou, serrage cheville ajusté",
+        "colorHexOrTone": "#111827"
+      },
+      {
+        "layerName": "footwear",
+        "description": "Bottes tactiques mi-montantes ultra-légères à semelle Vibram tout-terrain et système de serrage rapide à câble",
+        "fabricType": "Tige en cuir nubuck déperlant et polymère thermoplastique",
+        "tensionFoldsAndDrapes": "Semelle profilée avec crampons agressifs autonettoyants",
+        "colorHexOrTone": "#030712"
+      },
+      {
+        "layerName": "accessories",
+        "description": "Sangle de cuisse modulaire avec boucle magnétique Fidlock, mousqueton tactique noir et montre militaire altimètre",
+        "fabricType": "Sangle polyamide renforcée et alliage d’aluminium mat",
+        "tensionFoldsAndDrapes": "Sangle tendue sur la cuisse soulignant le galbe musculaire du quadriceps",
+        "colorHexOrTone": "#F59E0B"
+      }
+    ],
+    "clothingStyle": "techwear",
+    "lighting": {
+      "primaryLightSource": "Lumière clé directionnelle 45° douce (Studio Softbox 5600K)",
+      "rimLightingColor": "#F59E0B rasante froide (Edge Rim Light)",
+      "shadowQuality": "sharp_cel_shaded",
+      "colorGrading": "Contraste cinématographique manhwa, ombres bleu-nuit profondes, tons chair saturés à diffusion sous-cutanée",
+      "subsurfaceScattering": true,
+      "cameraFocalLength": "85mm f/1.4 portrait cinématographique",
+      "cameraAngles": [
+        "Frontal eye-level",
+        "Profil 90° gauche",
+        "Vue 3/4 plongeante héroïque",
+        "Contre-plongée dramatique dos"
+      ]
+    },
+    "expressionsList": [
+      "Neutre souverain au regard perçant",
+      "Sourire en coin narquois (subtle smirk)",
+      "Regard de combat foudroyant avec pupilles dilatées",
+      "Surprise et dilatation des iris",
+      "Gêne feutrée avec rougeur subtile des pommettes",
+      "Rire éclatant découvrant des dents nettes",
+      "Regard déterminé sous sourcils froncés",
+      "Concentration froide et sourcils détendus",
+      "Mélancolie retenue avec regard dans le vide",
+      "Clin d’œil complice dynamique",
+      "Rictus d’effort intense avec veines temporales",
+      "Sérénité méditative les yeux mi-clos"
+    ],
+    "posesList": [
+      "Garde de combat neutre pieds ancrés et poings serrés",
+      "Marche urbaine dynamique en mouvement avec pardessus flottant",
+      "Assis sur un siège haut, une jambe croisée avec assurance",
+      "Bras croisés sur le torse valorisant les deltoïdes",
+      "Regard jeté par-dessus l’épaule en contre-plongée",
+      "Préparation de frappe avec torsion du buste et tension musculaire",
+      "Pose de repos décontractée, mains glissées dans les poches de cargo"
+    ],
+    "macroDetailsList": [
+      "Gros plan macro sur l’iris avec double reflet spéculaire et anneau limbique foncé",
+      "Détail anatomique de la main avec relief des veines céphaliques et articulations",
+      "Tombé de tissu avec plis de tension horizontaux sur la taille et le torse",
+      "Texture des chaussures avec semelle crantée et laçage précis",
+      "Boucles métalliques, fermetures et coutures de vêtement au millimètre"
+    ]
+  },
+  "promptMatrix": {
+    "characterId": "char_malik_thorne_1",
+    "characterName": "Malik Thorne",
+    "modelSheetTurnaroundPrompt": "tactical semi-realistic character sheet, military concept art, matte textures, layered fabric tension, sharp rim lighting, character: Malik Thorne, 20 years old, Afro-descendant / Panafricain, Creative Director & Strategist, five-view turnaround: front view, back view, left profile, right profile, 3/4 dynamic perspective, imposing athletic male physique, muscularity 9.2/10, chiseled 8-pack abdominals, serratus anterior cuts, vascular forearms, wide V-taper latissimus dorsi with shoulder-to-hip ratio SHR 1.52, demon back muscularity, 8.2 heads tall heroic silhouette, facial thirds 1:1:1, canthal tilt +3 degrees, gonial angle 112 degrees, bigonial width ratio 0.86, cheekbone prominence 7.2/10, Regard perçant intense avec double paupière marquée, canthal tilt positif (+3°), iris obsidienne avec anneau limbique foncé et micro-reflets spéculaires acérés., Arête nasale haute et droite, dos du nez rectiligne sans bosse, pointe ferme bien définie avec angle nasolabial de 92°., Lèvres sculptées aux contours nets, lèvre inférieure légèrement plus pleine, arc de cupidon défini avec philtrum à ratio 0.50., Mâchoire carrée athlétique, angle gonial net de 112°, largeur bigoniale robuste (0.86) et menton saillant avec fente centrale discrète., outfit style: Cybernetic Techwear & Tactical Urban Utility, wearing base: Sous-vêtement technique de compression noir à manches longues avec gestion thermique et zones de compression musculaire (Élasthanne et microfibre polyamide technique, Moulant, épouse parfaitement la musculature du torse et les deltoïdes); inner: Gilet utilitaire tactique zippé avec système de fixation modulaire et poches zippées discrètes (Cordura 330D déperlant, Ajusté au torse avec sangles latérales de réglage sous tension); outer: Veste technique hardshell noire à capuche tempête, rabat asymétrique et fermetures étanches Aquaguard thermocollées (Gore-Tex Pro 3 couches mat avec renforts ripstop, Plis géométriques angulaires rigides, col cheminée rigide montant jusqu’au menton); bottom: Pantalon tactique articulé fuselé avec genoux préformés, poches cargo ergonomiques à accès latéral et zips d’aération (Schoeller Dryskin quadri-extensible avec renforts genoux Cordura, Plis horizontaux articulés au-dessus du genou, serrage cheville ajusté); footwear: Bottes tactiques mi-montantes ultra-légères à semelle Vibram tout-terrain et système de serrage rapide à câble (Tige en cuir nubuck déperlant et polymère thermoplastique, Semelle profilée avec crampons agressifs autonettoyants); accessories: Sangle de cuisse modulaire avec boucle magnétique Fidlock, mousqueton tactique noir et montre militaire altimètre (Sangle polyamide renforcée et alliage d’aluminium mat, Sangle tendue sur la cuisse soulignant le galbe musculaire du quadriceps), signature colors: primary #064E3B, secondary #1E293B, accent #F59E0B, lighting: Lumière clé directionnelle 45° douce (Studio Softbox 5600K), #F59E0B rasante froide (Edge Rim Light), subsurface scattering skin effect, clean reference sheet layout on neutral grey background, high resolution 8k, crisp orthographic character blueprint",
+    "expressionMatrixPrompt": "tactical semi-realistic character sheet, military concept art, matte textures, layered fabric tension, sharp rim lighting, expression grid of Malik Thorne, 12 facial emotion studies arranged in clean 4x3 matrix, emotions: neutral confident, subtle smirk, intense combat glare, surprised shock, embarrassed blush, roaring laughter, deep sorrow, cold focus, mischievous wink, exasperated sigh, determined scowl, serene bliss, capturing precise micro-expressions, facial thirds balance, detailed iris reflections with sharp catchlights, authentic mouth and lip shapes, consistent character identity across all 12 frames, white studio background, high definition facial study",
+    "dynamicPoseSheetPrompt": "tactical semi-realistic character sheet, military concept art, matte textures, layered fabric tension, sharp rim lighting, dynamic action pose sheet for Malik Thorne, seven distinct poses: neutral combat stance, high-speed sprint with trailing motion, seated on high stool with relaxed posture, dominant crossed arms, looking back over shoulder in dramatic low angle, preparing strike with torso twist and muscle tension, casual relaxed pose with hands in pockets, imposing athletic male physique, muscularity 9.2/10, chiseled 8-pack abdominals, serratus anterior cuts, vascular forearms, wide V-taper latissimus dorsi with shoulder-to-hip ratio SHR 1.52, demon back muscularity, 8.2 heads tall heroic silhouette, accurate biomechanical weight shift, dramatic foreshortening, clothing folds reacting to kinetic movement, character concept art, white background, masterpiece",
+    "macroDetailsPrompt": "tactical semi-realistic character sheet, military concept art, matte textures, layered fabric tension, sharp rim lighting, macro detail sheet for Malik Thorne, close-up callouts: extreme close-up of eye showing iris limbal ring and reflections; hand anatomy showing defined knuckles and vascular lines; fabric tension folds across the torso; footwear tread and sole construction; metallic buckle and accessories with crisp specular highlights, artstation character design master sheet, forensic anatomical precision",
+    "singleHeroPortraitPrompt": "tactical semi-realistic character sheet, military concept art, matte textures, layered fabric tension, sharp rim lighting, heroic character portrait of Malik Thorne, Creative Director & Strategist, bust and shoulder close-up shot, intense magnetic eye contact, facial thirds 1:1:1, canthal tilt +3 degrees, gonial angle 112 degrees, bigonial width ratio 0.86, cheekbone prominence 7.2/10, Regard perçant intense avec double paupière marquée, canthal tilt positif (+3°), iris obsidienne avec anneau limbique foncé et micro-reflets spéculaires acérés., Arête nasale haute et droite, dos du nez rectiligne sans bosse, pointe ferme bien définie avec angle nasolabial de 92°., Lèvres sculptées aux contours nets, lèvre inférieure légèrement plus pleine, arc de cupidon défini avec philtrum à ratio 0.50., Mâchoire carrée athlétique, angle gonial net de 112°, largeur bigoniale robuste (0.86) et menton saillant avec fente centrale discrète., dramatic chiaroscuro lighting, strong #F59E0B rim light carving jawline and hair strands, glowing skin with realistic subsurface scattering, wearing Gilet utilitaire tactique zippé avec système de fixation modulaire et poches zippées discrètes, subtle atmospheric dust particles, 85mm f/1.4 lens bokeh, ultra high definition masterpiece",
+    "fullBodyActionPrompt": "tactical semi-realistic character sheet, military concept art, matte textures, layered fabric tension, sharp rim lighting, full body cinematic action shot of Malik Thorne unleashing power in modern urban environment, imposing athletic male physique, muscularity 9.2/10, chiseled 8-pack abdominals, serratus anterior cuts, vascular forearms, wide V-taper latissimus dorsi with shoulder-to-hip ratio SHR 1.52, demon back muscularity, 8.2 heads tall heroic silhouette, wearing Cybernetic Techwear & Tactical Urban Utility outfit with dramatic cloth flutter and wind physics, dramatic low-angle perspective, dynamic combat pose, #F59E0B rasante froide (Edge Rim Light), cinematic depth of field, blockbuster manhwa key visual",
+    "negativePrompts": {
+      "general": "blurry, low resolution, deformed anatomy, extra limbs, missing fingers, extra fingers, mutated hands, poorly drawn face, disfigured, bad eyes, fused fingers, watermark, signature, username, cropped, low quality",
+      "anatomicalCorrection": "plastic skin, barbie doll anatomy, artificial blur, disproportioned head, missing neck muscles, flat ribcage, impossible spine contortion, amputated limbs, asymmetrical pupils, crossed eyes",
+      "stylePreservation": "western comic book style, 3d clay render, chibi, rough sketch, scribbles, muddy colors, washed out contrast, monochrome, low poly artifacts"
+    },
+    "generatorSpecificPrompts": {
+      "midjourneyV6": "tactical semi-realistic character sheet, military concept art, matte textures, layered fabric tension, sharp rim lighting, character: Malik Thorne, 20 years old, Afro-descendant / Panafricain, Creative Director & Strategist, five-view turnaround: front view, back view, left profile, right profile, 3/4 dynamic perspective, imposing athletic male physique, muscularity 9.2/10, chiseled 8-pack abdominals, serratus anterior cuts, vascular forearms, wide V-taper latissimus dorsi with shoulder-to-hip ratio SHR 1.52, demon back muscularity, 8.2 heads tall heroic silhouette, facial thirds 1:1:1, canthal tilt +3 degrees, gonial angle 112 degrees, bigonial width ratio 0.86, cheekbone prominence 7.2/10, Regard perçant intense avec double paupière marquée, canthal tilt positif (+3°), iris obsidienne avec anneau limbique foncé et micro-reflets spéculaires acérés., Arête nasale haute et droite, dos du nez rectiligne sans bosse, pointe ferme bien définie avec angle nasolabial de 92°., Lèvres sculptées aux contours nets, lèvre inférieure légèrement plus pleine, arc de cupidon défini avec philtrum à ratio 0.50., Mâchoire carrée athlétique, angle gonial net de 112°, largeur bigoniale robuste (0.86) et menton saillant avec fente centrale discrète., outfit style: Cybernetic Techwear & Tactical Urban Utility, wearing base: Sous-vêtement technique de compression noir à manches longues avec gestion thermique et zones de compression musculaire (Élasthanne et microfibre polyamide technique, Moulant, épouse parfaitement la musculature du torse et les deltoïdes); inner: Gilet utilitaire tactique zippé avec système de fixation modulaire et poches zippées discrètes (Cordura 330D déperlant, Ajusté au torse avec sangles latérales de réglage sous tension); outer: Veste technique hardshell noire à capuche tempête, rabat asymétrique et fermetures étanches Aquaguard thermocollées (Gore-Tex Pro 3 couches mat avec renforts ripstop, Plis géométriques angulaires rigides, col cheminée rigide montant jusqu’au menton); bottom: Pantalon tactique articulé fuselé avec genoux préformés, poches cargo ergonomiques à accès latéral et zips d’aération (Schoeller Dryskin quadri-extensible avec renforts genoux Cordura, Plis horizontaux articulés au-dessus du genou, serrage cheville ajusté); footwear: Bottes tactiques mi-montantes ultra-légères à semelle Vibram tout-terrain et système de serrage rapide à câble (Tige en cuir nubuck déperlant et polymère thermoplastique, Semelle profilée avec crampons agressifs autonettoyants); accessories: Sangle de cuisse modulaire avec boucle magnétique Fidlock, mousqueton tactique noir et montre militaire altimètre (Sangle polyamide renforcée et alliage d’aluminium mat, Sangle tendue sur la cuisse soulignant le galbe musculaire du quadriceps), signature colors: primary #064E3B, secondary #1E293B, accent #F59E0B, lighting: Lumière clé directionnelle 45° douce (Studio Softbox 5600K), #F59E0B rasante froide (Edge Rim Light), subsurface scattering skin effect, clean reference sheet layout on neutral grey background, high resolution 8k, crisp orthographic character blueprint --ar 16:9 --style raw --v 6.0",
+      "stableDiffusionXL": "masterpiece, best quality, highly detailed, tactical semi-realistic character sheet, military concept art, matte textures, layered fabric tension, sharp rim lighting, character: Malik Thorne, 20 years old, Afro-descendant / Panafricain, Creative Director & Strategist, five-view turnaround: front view, back view, left profile, right profile, 3/4 dynamic perspective, imposing athletic male physique, muscularity 9.2/10, chiseled 8-pack abdominals, serratus anterior cuts, vascular forearms, wide V-taper latissimus dorsi with shoulder-to-hip ratio SHR 1.52, demon back muscularity, 8.2 heads tall heroic silhouette, facial thirds 1:1:1, canthal tilt +3 degrees, gonial angle 112 degrees, bigonial width ratio 0.86, cheekbone prominence 7.2/10, Regard perçant intense avec double paupière marquée, canthal tilt positif (+3°), iris obsidienne avec anneau limbique foncé et micro-reflets spéculaires acérés., Arête nasale haute et droite, dos du nez rectiligne sans bosse, pointe ferme bien définie avec angle nasolabial de 92°., Lèvres sculptées aux contours nets, lèvre inférieure légèrement plus pleine, arc de cupidon défini avec philtrum à ratio 0.50., Mâchoire carrée athlétique, angle gonial net de 112°, largeur bigoniale robuste (0.86) et menton saillant avec fente centrale discrète., outfit style: Cybernetic Techwear & Tactical Urban Utility, wearing base: Sous-vêtement technique de compression noir à manches longues avec gestion thermique et zones de compression musculaire (Élasthanne et microfibre polyamide technique, Moulant, épouse parfaitement la musculature du torse et les deltoïdes); inner: Gilet utilitaire tactique zippé avec système de fixation modulaire et poches zippées discrètes (Cordura 330D déperlant, Ajusté au torse avec sangles latérales de réglage sous tension); outer: Veste technique hardshell noire à capuche tempête, rabat asymétrique et fermetures étanches Aquaguard thermocollées (Gore-Tex Pro 3 couches mat avec renforts ripstop, Plis géométriques angulaires rigides, col cheminée rigide montant jusqu’au menton); bottom: Pantalon tactique articulé fuselé avec genoux préformés, poches cargo ergonomiques à accès latéral et zips d’aération (Schoeller Dryskin quadri-extensible avec renforts genoux Cordura, Plis horizontaux articulés au-dessus du genou, serrage cheville ajusté); footwear: Bottes tactiques mi-montantes ultra-légères à semelle Vibram tout-terrain et système de serrage rapide à câble (Tige en cuir nubuck déperlant et polymère thermoplastique, Semelle profilée avec crampons agressifs autonettoyants); accessories: Sangle de cuisse modulaire avec boucle magnétique Fidlock, mousqueton tactique noir et montre militaire altimètre (Sangle polyamide renforcée et alliage d’aluminium mat, Sangle tendue sur la cuisse soulignant le galbe musculaire du quadriceps), signature colors: primary #064E3B, secondary #1E293B, accent #F59E0B, lighting: Lumière clé directionnelle 45° douce (Studio Softbox 5600K), #F59E0B rasante froide (Edge Rim Light), subsurface scattering skin effect, clean reference sheet layout on neutral grey background, high resolution 8k, crisp orthographic character blueprint",
+      "flux1": "Professional character design model turnaround sheet. A striking male named Malik Thorne, age 20, with Afro-descendant / Panafricain features. imposing athletic male physique, muscularity 9.2/10, chiseled 8-pack abdominals, serratus anterior cuts, vascular forearms, wide V-taper latissimus dorsi with shoulder-to-hip ratio SHR 1.52, demon back muscularity, 8.2 heads tall heroic silhouette. Wearing techwear fashion with Gilet utilitaire tactique zippé avec système de fixation modulaire et poches zippées discrètes. 5 turnaround angles against a neutral background. Rendered in premium Korean webtoon digital art style with sharp cel-shading and vivid lighting.",
+      "geminiImagen3": "A comprehensive character model sheet of Malik Thorne, an S-tier protagonist in a modern manhwa aesthetic. Full 5-angle turnaround including front, back, profile, and three-quarter views. The character features imposing athletic male physique, muscularity 9.2/10, chiseled 8-pack abdominals, serratus anterior cuts, vascular forearms, wide V-taper latissimus dorsi with shoulder-to-hip ratio SHR 1.52, demon back muscularity, 8.2 heads tall heroic silhouette, with #064E3B and #F59E0B color motifs. Studio lighting with prominent rim light emphasizing the silhouette. Neutral gray background, 8k resolution, razor-sharp digital illustration."
+    }
+  },
+  "metadata": {
+    "engine": "procedural_fallback",
+    "durationMs": 0,
+    "fallbackTriggered": false,
+    "timestamp": "2026-10-08T00:56:01.980Z"
+  }
+}
