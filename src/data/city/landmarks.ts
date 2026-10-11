@@ -66,7 +66,7 @@ export const LANDMARKS: readonly LandmarkDef[] = [
     activities: [
       {
         id: 'h_nora', icon: '🍲', title: 'Apporter un repas à Nora pendant sa garde', host: 'Nora', minutes: 40, hours: [H(18), H(21, 30)],
-        text: 'Nora sourit en voyant la boîte. « Tu n’étais pas obligé·e. » Elle mange debout entre deux bips, et te raconte la nuit d’avant sans les détails qui font peur.',
+        text: 'Nora sourit en voyant la boîte. « C’est gentiment pensé. » Elle mange debout entre deux bips, et te raconte la nuit d’avant sans les détails qui font peur.',
         effects: { money: -6, trust: 4, needs: { moral: 6 } },
       },
       {
