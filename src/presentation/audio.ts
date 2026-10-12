@@ -5,7 +5,27 @@
  * nappes d'ambiance selon le lieu, et jingles fantômes / chapitres.
  *
  * Résilient : no-op propre en environnement sans AudioContext (Node.js/Vitest).
+ *
+ * Musique adaptative (src/presentation/music/) : elle suit la situation du jeu (exploration,
+ * tension, climax, résonance), passe d'un état à l'autre en fondu, sur son propre bus de volume.
+ * Réglages séparés musique / effets et coupure, mémorisés ; démarrage après la première
+ * interaction (règles d'autoplay) ; tout se met en pause quand l'onglet est caché.
  */
+import type { WorldState } from '../core/types';
+import { MusicEngine, type MusicStats } from './music/engine';
+import { createDirector, stepDirector, type DirectorState } from './music/director';
+import { MOODS, type MusicMood } from './music/moods';
+import { readMusicSignals, type MusicScene } from './music/signals';
+import { DEFAULT_AUDIO_PREFS, loadAudioPrefs, saveAudioPrefs, type AudioPrefs } from './music/prefs';
+
+/** État musical affiché dans le panneau Son. */
+export interface MusicStatus {
+  mood: MusicMood;
+  label: string;
+  bpm: number;
+  reason: string;
+  running: boolean;
+}
 
 export type SurfaceType = 'pave' | 'herbe' | 'parquet' | 'terre' | 'sol' | 'asphalte';
 export type AmbientLocation = 'maison' | 'ville' | 'parc' | 'atelier' | 'college' | 'epicerie' | 'place' | 'silence';
@@ -45,6 +65,23 @@ export class SoundEngine {
   private ambientVolume = 0.4;
   private initialized = false;
 
+  // ---- Musique adaptative et réglages joueur ----
+  private musicGain: GainNode | null = null;
+  private music: MusicEngine | null = null;
+  private director: DirectorState = createDirector();
+  /** Réglage joueur : volume musique (0-1). */
+  private musicLevel = DEFAULT_AUDIO_PREFS.music;
+  /** Réglage joueur : volume des effets, bruitages et ambiances (0-1). */
+  private effectsLevel = DEFAULT_AUDIO_PREFS.effects;
+  /** La musique a été demandée (après une interaction du joueur). */
+  private musicWanted = false;
+  /** Onglet caché : tout est suspendu. */
+  private hidden = false;
+  private sceneTitle: string | null = null;
+  private listeners = new Set<() => void>();
+  /** Volume de base de la musique sous le maître (le réglage joueur s'y multiplie). */
+  private static readonly MUSIC_BASE = 0.55;
+
   public init(): boolean {
     if (typeof window === 'undefined') return false;
     const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -54,7 +91,7 @@ export class SoundEngine {
       if (!this.ctx) {
         this.ctx = new AudioCtx();
       }
-      if (this.ctx.state === 'suspended') {
+      if (this.ctx.state === 'suspended' && !this.hidden) {
         this.ctx.resume().catch(() => {});
       }
 
@@ -64,11 +101,11 @@ export class SoundEngine {
         this.masterGain.connect(this.ctx.destination);
 
         this.sfxGain = this.ctx.createGain();
-        this.sfxGain.gain.setValueAtTime(this.sfxVolume, this.ctx.currentTime);
+        this.sfxGain.gain.setValueAtTime(this.sfxVolume * this.effectsLevel, this.ctx.currentTime);
         this.sfxGain.connect(this.masterGain);
 
         this.ambientGain = this.ctx.createGain();
-        this.ambientGain.gain.setValueAtTime(this.ambientVolume, this.ctx.currentTime);
+        this.ambientGain.gain.setValueAtTime(this.ambientVolume * this.effectsLevel, this.ctx.currentTime);
         this.ambientGain.connect(this.masterGain);
       }
 
@@ -94,7 +131,7 @@ export class SoundEngine {
     if (!this.initialized || !this.ctx) {
       this.init();
     }
-    if (this.ctx && this.ctx.state === 'suspended') {
+    if (this.ctx && this.ctx.state === 'suspended' && !this.hidden) {
       this.ctx.resume().catch(() => {});
     }
     return this.ctx;
@@ -121,6 +158,9 @@ export class SoundEngine {
     if (this.masterGain && this.ctx) {
       this.masterGain.gain.setTargetAtTime(this.muted ? 0 : this.masterVolume, this.ctx.currentTime, 0.05);
     }
+    this.savePrefs();
+    this.syncMusicRunning();
+    this.notify();
   }
 
   public toggleMute(): boolean {
@@ -823,6 +863,156 @@ export class SoundEngine {
       const targetGain = targetLevel * 0.22;
       this.trafficGainNode.gain.setTargetAtTime(this.muted ? 0 : targetGain, t, 0.3);
     }
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+   * RÉGLAGES JOUEUR (mémorisés) — musique / effets / coupure
+   * ───────────────────────────────────────────────────────────── */
+
+  /** Relit les réglages mémorisés (à l'ouverture du jeu, avant tout son). */
+  public loadPrefs(): AudioPrefs {
+    const p = loadAudioPrefs();
+    this.musicLevel = p.music;
+    this.effectsLevel = p.effects;
+    this.muted = p.muted;
+    if (this.masterGain && this.ctx) {
+      this.masterGain.gain.setTargetAtTime(this.muted ? 0 : this.masterVolume, this.ctx.currentTime, 0.05);
+    }
+    this.applyLevels();
+    this.syncMusicRunning();
+    this.notify();
+    return p;
+  }
+
+  private savePrefs(): void {
+    saveAudioPrefs({ music: this.musicLevel, effects: this.effectsLevel, muted: this.muted });
+  }
+
+  private applyLevels(): void {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this.sfxGain?.gain.setTargetAtTime(this.sfxVolume * this.effectsLevel, t, 0.05);
+    this.ambientGain?.gain.setTargetAtTime(this.ambientVolume * this.effectsLevel, t, 0.05);
+    this.musicGain?.gain.setTargetAtTime(SoundEngine.MUSIC_BASE * this.musicLevel, t, 0.08);
+  }
+
+  public getMusicVolume(): number { return this.musicLevel; }
+  public getEffectsVolume(): number { return this.effectsLevel; }
+
+  /** Volume de la musique (0-1). À 0, la musique s'arrête (aucun calcul). */
+  public setMusicVolume(v: number): void {
+    this.musicLevel = Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
+    this.applyLevels();
+    this.savePrefs();
+    this.syncMusicRunning();
+    this.notify();
+  }
+
+  /** Volume des effets : bruitages et ambiances (0-1). */
+  public setEffectsVolume(v: number): void {
+    this.effectsLevel = Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
+    this.applyLevels();
+    this.savePrefs();
+    this.notify();
+  }
+
+  /** Abonnement aux changements (réglages, état musical) — renvoie la fonction de désabonnement. */
+  public onChange(cb: () => void): () => void {
+    this.listeners.add(cb);
+    return () => this.listeners.delete(cb);
+  }
+
+  private notify(): void {
+    for (const cb of this.listeners) {
+      try { cb(); } catch { /* un abonné défaillant ne bloque pas le son */ }
+    }
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+   * MUSIQUE ADAPTATIVE
+   * ───────────────────────────────────────────────────────────── */
+
+  /**
+   * Lance la musique (à appeler après une interaction du joueur : règles d'autoplay).
+   * `seed` : graine musicale (celle de la partie : même partie, même musique).
+   */
+  public startMusic(seed: number): boolean {
+    this.musicWanted = true;
+    if (!this.music) {
+      const ctx = this.ensureContext();
+      if (!ctx || !this.masterGain) return false;
+      try {
+        this.musicGain = ctx.createGain();
+        this.musicGain.gain.setValueAtTime(SoundEngine.MUSIC_BASE * this.musicLevel, ctx.currentTime);
+        this.musicGain.connect(this.masterGain);
+        this.music = new MusicEngine(ctx, this.musicGain, seed >>> 0, this.director.mood);
+      } catch {
+        // Contexte audio incomplet : le jeu continue sans musique.
+        this.music = null;
+        return false;
+      }
+    }
+    this.syncMusicRunning();
+    this.notify();
+    return true;
+  }
+
+  /** La musique tourne seulement si elle est voulue, audible et l'onglet visible. */
+  private syncMusicRunning(): void {
+    if (!this.music) return;
+    const shouldRun = this.musicWanted && !this.muted && !this.hidden && this.musicLevel > 0;
+    if (shouldRun && !this.music.isRunning) this.music.start();
+    else if (!shouldRun && this.music.isRunning) this.music.pause();
+  }
+
+  /** Fenêtre ouverte (titre) ou fermée (null) : certaines imposent un état musical. */
+  public setMusicScene(modalTitle: string | null): void {
+    this.sceneTitle = modalTitle;
+  }
+
+  /**
+   * Fait suivre la situation à la musique (lecture seule du monde). `nowMs` : temps réel
+   * (performance.now()) pour les fondus et l'anti va-et-vient.
+   */
+  public updateMusic(world: WorldState, scene: Omit<MusicScene, 'modalTitle'>, nowMs: number): void {
+    const signals = readMusicSignals(world, { ...scene, modalTitle: this.sceneTitle });
+    const prev = this.director.mood;
+    this.director = stepDirector(this.director, signals, nowMs);
+    if (this.music) {
+      this.music.setColor(signals.district, signals.hour);
+      this.music.setMood(this.director.mood);
+    }
+    if (this.director.mood !== prev) this.notify();
+  }
+
+  public musicStatus(): MusicStatus {
+    const mood = this.director.mood;
+    return {
+      mood,
+      label: MOODS[mood].label,
+      bpm: this.music ? this.music.stats().bpm : MOODS[mood].bpm,
+      reason: this.director.reason,
+      running: !!this.music?.isRunning,
+    };
+  }
+
+  public musicStats(): MusicStats | null {
+    return this.music ? this.music.stats() : null;
+  }
+
+  /**
+   * Onglet caché : on suspend tout le contexte audio (plus aucun calcul) ; retour : reprise.
+   */
+  public setHidden(hidden: boolean): void {
+    if (this.hidden === hidden) return;
+    this.hidden = hidden;
+    if (this.ctx) {
+      try {
+        if (hidden) this.ctx.suspend?.().catch(() => {});
+        else if (this.initialized) this.ctx.resume().catch(() => {});
+      } catch { /* contexte fermé */ }
+    }
+    this.syncMusicRunning();
   }
 }
 
