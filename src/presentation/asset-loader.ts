@@ -17,14 +17,21 @@ export interface AssetKit {
 
 const BASE = './assets';
 
+/**
+ * URL d'un fichier de `public/assets/` (chemin relatif, ex. `anim/neurapolis_anims.glb`).
+ * Build en un seul fichier : les fichiers embarqués (data URI) passent en priorité.
+ */
+export function assetUrl(path: string): string {
+  const embedded = (globalThis as { __NEURAPOLIS_ASSETS__?: Record<string, string> }).__NEURAPOLIS_ASSETS__;
+  return embedded?.[path] ?? `${BASE}/${path}`;
+}
+
 function loadImg(path: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error(`Failed to load: ${path}`));
-    // Build en un seul fichier : les images sont embarquées (data URI) dans la page.
-    const embedded = (globalThis as { __NEURAPOLIS_ASSETS__?: Record<string, string> }).__NEURAPOLIS_ASSETS__;
-    img.src = embedded?.[path] ?? `${BASE}/${path}`;
+    img.src = assetUrl(path);
   });
 }
 

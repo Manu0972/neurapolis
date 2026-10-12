@@ -19,6 +19,8 @@ import { buildCityScene, groundHeightAt, type CityScene } from './cityScene';
 import { createSkyDome, skyAt } from './sky';
 import { createAmbient, type Ambient } from './ambient';
 import { createCharacter, type Character3D } from './simpleCharacter';
+import { setRiggedLodFocus, startRiggedCharacters } from './rigged/library';
+import { activityFromLabel } from './rigged/animState';
 import { findPath, stepBody, tileOf, type BodyState } from './locomotion';
 import { INTERIOR_CELL, buildInterior, nearestHotspot, type BuiltInterior, type Hotspot, type InteriorSpec } from './interior3d';
 import { updateChunkVisibility } from './chunks';
@@ -212,7 +214,13 @@ export class CityRenderer {
     });
     this.setupScene();
     this.attachControls();
+    // Personnages riggés du studio (public/personnages/, hors Git) : sans manifeste, rien ne change.
+    void startRiggedCharacters();
   }
+
+  /** PNJ en dialogue avec le joueur (il joue l'animation « parler »), ou null. */
+  private talkingNpc: string | null = null;
+  setTalkingNpc(id: string | null): void { this.talkingNpc = id; }
 
   /** Azimut de la caméra autour du joueur (0 = caméra au sud). */
   get cameraYaw(): number { return this.yaw; }
@@ -416,6 +424,7 @@ export class CityRenderer {
   frame(world: WorldState, dt: number, input: CityFrameInput, cw: number, ch: number): void {
     if (!this.renderer || !this.city) return;
     this.frameCount++;
+    setRiggedLodFocus(this.body.x, this.body.z);
     // Grande carte : seuls les blocs à portée du brouillard sont dessinés.
     if (this.city && this.frameCount % 10 === 1) {
       const far = (this.scene.fog as THREE.Fog).far;
@@ -496,7 +505,7 @@ export class CityRenderer {
     const key = JSON.stringify(p.appearance) + p.age;
     if (!this.player || key !== this.playerKey) {
       this.player?.dispose();
-      this.player = createCharacter({ appearance: p.appearance, gender: p.gender, heightM: heightForAge(p.age) });
+      this.player = createCharacter({ appearance: p.appearance, gender: p.gender, heightM: heightForAge(p.age), rig: { key: 'joueur', role: 'joueur' } });
       this.scene.add(this.player.root);
       this.playerKey = key;
     }
@@ -528,6 +537,7 @@ export class CityRenderer {
     // À vélo : assis sur la selle (personnage surélevé, jambes qui pédalent doucement).
     this.player.root.position.set(this.body.x, gy + (this.riding ? 0.42 : 0), this.body.z);
     this.player.setHeading(this.body.heading);
+    this.player.setActivity?.(this.riding ? 'sit' : 'auto');
     this.player.update(dt, this.riding ? Math.min(1.6, this.body.speed * 0.25) : this.body.speed);
     if (this.bike && this.riding) {
       this.bike.position.set(this.body.x, gy, this.body.z);
@@ -549,6 +559,7 @@ export class CityRenderer {
           appearance: npcAppearance(id),
           heightM: heightForAge(def?.age ?? 30),
           bodyColor: def?.color,
+          rig: { key: id, age: def?.age ?? 30 },
         });
         this.scene.add(ch.root);
         const tag = textSprite(def?.name ?? id);
@@ -603,6 +614,7 @@ export class CityRenderer {
       const indoors = !!st && (st.place === 'maison' || st.activity === 'dort') && v.path.length === 0 && !this.pathQueue.includes(v.id);
       v.ch.root.visible = !indoors;
       v.ch.root.position.set(v.x, y, v.z);
+      v.ch.setActivity?.(this.talkingNpc === v.id ? 'talk' : activityFromLabel(st?.activity));
       v.ch.update(dt, speed);
       const near = Math.hypot(this.body.x - v.x, this.body.z - v.z);
       v.tag.visible = near < 14 && !indoors;
@@ -791,7 +803,7 @@ export class CityRenderer {
       const present = Object.values(world.npcs).filter((n) => n.place === spec.placeId && n.activity !== 'dort');
       present.slice(0, spec.npcSlots.length).forEach((n, i) => {
         const def = NPC_BY_ID[n.id];
-        const ch = createCharacter({ appearance: npcAppearance(n.id), heightM: heightForAge(def?.age ?? 30), bodyColor: def?.color });
+        const ch = createCharacter({ appearance: npcAppearance(n.id), heightM: heightForAge(def?.age ?? 30), bodyColor: def?.color, rig: { key: n.id, age: def?.age ?? 30 } });
         const slot = spec.npcSlots[i]!;
         ch.root.position.set(slot.x, 0, slot.z);
         ch.setHeading(slot.face);
@@ -801,7 +813,7 @@ export class CityRenderer {
     }
     // Employés du commerce : le premier à la caisse, les autres près des rayons.
     (opts.staff ?? []).forEach((emp, i) => {
-      const ch = createCharacter({ appearance: npcAppearance(emp.id), heightM: 1.66 + (i % 3) * 0.05, bodyColor: '#3f6d5a' });
+      const ch = createCharacter({ appearance: npcAppearance(emp.id), heightM: 1.66 + (i % 3) * 0.05, bodyColor: '#3f6d5a', rig: { key: emp.id, age: 30 } });
       // En voyage, chaque habitant se tient à son activité ; en boutique, le premier tient la caisse.
       const slot = spec.destinationId ? spec.npcSlots[i] : spec.npcSlots[0];
       const shelf = spec.items.filter((it) => it.kind === 'rayon' || it.kind === 'frigo')[i - 1];
@@ -884,6 +896,7 @@ export class CityRenderer {
       const dx = this.body.x - n.ch.root.position.x;
       const dz = this.body.z - n.ch.root.position.z;
       if (Math.hypot(dx, dz) < 3) n.ch.setHeading(Math.atan2(-dx, -dz));
+      n.ch.setActivity?.(this.talkingNpc === n.id ? 'talk' : activityFromLabel(world.npcs[n.id]?.activity));
       n.ch.update(dt, 0);
     }
     for (const c of this.customers) {
@@ -964,7 +977,8 @@ export class CityRenderer {
         v = undefined;
       }
       if (!v) {
-        const ch = createCharacter({ appearance: r.appearance, gender: r.gender, heightM: r.heightM });
+        // Habitants (étiquette) : modèle riggé possible ; autres joueurs : leur apparence, toujours procédurale.
+        const ch = createCharacter({ appearance: r.appearance, gender: r.gender, heightM: r.heightM, rig: r.label ? { key: r.id } : undefined });
         const tag = r.label ? textSprite(r.label.text, r.label.color, r.label.bg) : textSprite(`🎮 ${r.name}`, '#ffe08a', 'rgba(60,36,10,0.85)');
         this.scene.add(ch.root, tag);
         v = { ch, tag, x: r.x, z: r.z, key };
