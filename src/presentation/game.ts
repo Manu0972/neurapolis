@@ -61,6 +61,7 @@ import { TOKENS } from './tokens';
 import { avatarElement } from './avatar';
 import { loadAssetKit } from './asset-loader';
 import { audio, type AmbientLocation } from './audio';
+import { mountSoundControls } from './music/controls';
 import { CityRenderer, heightForAge } from './city3d/CityRenderer';
 import { moveToTile } from '../simulation/movement';
 import { areaPassable } from '../simulation/areas';
@@ -317,7 +318,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   const initAudioOnce = (): void => {
     audio.init();
     audio.updateAmbient(currentLocation, minutesOfDay(world.time.tick) / 60, world.district.meteo);
+    audio.startMusic(world.seed); // musique adaptative (après interaction : règles d'autoplay)
   };
+  mountSoundControls(ui.cameraToolbarEl, ui.btnMuteAudio); // réglages mémorisés musique / effets
   root.addEventListener('pointerdown', initAudioOnce, { once: true });
   window.addEventListener('keydown', initAudioOnce, { once: true });
 
@@ -1275,6 +1278,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   function showModal(title: string, sub: string, body: HTMLElement, wide = false): void {
     modalOpen = true;
+    audio.setMusicScene(title);
     ui.modalEl.replaceChildren();
     const panel = el('div', 'modal-panel');
     if (wide) panel.classList.add('wide');
@@ -1292,6 +1296,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   function closeModal(): void {
     modalOpen = false;
+    audio.setMusicScene(null);
     ui.modalEl.replaceChildren();
     ui.modalEl.classList.add('hidden');
   }
@@ -3167,6 +3172,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
     // Ambiance audio dynamique réactive au lieu, à l'heure du jour et à la météo
     audio.updateAmbient(currentLocation, minutesOfDay(world.time.tick) / 60, world.district.meteo);
+    // Musique adaptative : elle suit la situation (lecture seule du monde), 4 fois par seconde.
+    if (hudFrame % 15 === 0) audio.updateMusic(world, { interiorPlace: renderer3D?.interiorSpec?.placeId, interiorRoom: renderer3D?.interiorSpec?.roomId, location: currentLocation }, now);
 
     // Bulle de pensée en temps réel pour le compagnon fantôme lors de seuils critiques
     if (world.ghostCompanion) {
