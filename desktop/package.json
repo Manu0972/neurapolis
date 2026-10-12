@@ -9,7 +9,7 @@
     "appId": "fr.neurapolis.jeu",
     "productName": "NEURAPOLIS",
     "directories": { "output": "release" },
-    "files": ["main.cjs", "preload.cjs", "net-relay.mjs", "icon.png", "icon.ico", "game/**"],
+    "files": ["main.cjs", "preload.cjs", "host.cjs", "net-relay.mjs", "icon.png", "icon.ico", "game/**"],
     "win": { "target": [{ "target": "portable", "arch": ["x64"] }], "icon": "icon.ico" },
     "portable": { "artifactName": "NEURAPOLIS.exe" }
   }

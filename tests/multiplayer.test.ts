@@ -50,9 +50,11 @@ describe('multijoueur : coopération', () => {
     const offer = b.multiplayer!.offers[0]!;
     expect(offer.amount).toBe(200);
     respondToOffer(b, offer.id, true);
+    // L'argent n'arrive qu'à la confirmation du prêteur (sa proposition existe encore).
+    expect(b.player.money).toBe(1000);
+    exchange(a, b);
     expect(b.player.money).toBe(1200);
     expect(b.multiplayer!.debts[0]).toMatchObject({ side: 'owe', amount: 220 });
-    exchange(a, b);
     expect(a.multiplayer!.debts[0]).toMatchObject({ side: 'owed', amount: 220 });
     runTicks(b, 15 * TICKS_PER_DAY);
     exchange(a, b);
@@ -75,7 +77,7 @@ describe('multijoueur : coopération', () => {
     actOn(a, 'cooperation', 'achats_groupes', 'B');
     deliver(a, b);
     respondToOffer(b, b.multiplayer!.offers[0]!.id, true);
-    deliver(b, a);
+    exchange(a, b);
     expect(multiSupplierDelta(a)).toBeCloseTo(-0.08);
     expect(multiSupplierDelta(b)).toBeCloseTo(-0.08);
   });
@@ -98,6 +100,7 @@ describe('multijoueur : coopération', () => {
     deliver(a, b);
     expect(econAge(b)).toBe(12);
     respondToOffer(b, b.multiplayer!.offers[0]!.id, true);
+    exchange(a, b);
     expect(econAge(b)).toBe(18);
   });
 });
@@ -108,7 +111,7 @@ describe('multijoueur : zone grise et sabotage', () => {
     actOn(a, 'libre', 'entente_prix', 'B');
     deliver(a, b);
     respondToOffer(b, b.multiplayer!.offers[0]!.id, true);
-    deliver(b, a);
+    exchange(a, b);
     expect(multiDemand(a)).toBeCloseTo(1.12);
     expect(multiDemand(b)).toBeCloseTo(1.12);
     let fineA = -1;
@@ -179,13 +182,14 @@ describe('multijoueur : la ville partagée', () => {
     expect(leaseEligibility(b, unit.id).allowed).toBe(false);
   });
 
-  it('sauvegarde v24 : l’état multijoueur fait l’aller-retour ; une v23 solo migre sans état', () => {
+  it('sauvegarde v25 : l’état multijoueur fait l’aller-retour ; une v23 solo migre sans état', () => {
     const [a, b] = pair();
     actOn(a, 'libre', 'pret', 'B', { amount: 100 });
     const back = importSave(exportSave(a));
     expect(back.version).toBe(CURRENT_SAVE_VERSION);
-    expect(CURRENT_SAVE_VERSION).toBe(24);
+    expect(CURRENT_SAVE_VERSION).toBe(25);
     expect(back.multiplayer!.outbox).toHaveLength(1);
+    expect(back.multiplayer!.sent).toEqual([expect.objectContaining({ peer: 'B', mechanic: 'pret', phase: 'offer', amount: 100 })]);
     expect(back.multiplayer!.peers['B']!.name).toBe('Bilal');
     const old = JSON.parse(exportSave(b));
     old.version = 23;
@@ -196,6 +200,14 @@ describe('multijoueur : la ville partagée', () => {
     partial.multiplayer = { selfId: 'B', peers: {} };
     const m = migrateSave(partial).multiplayer!;
     expect(m.outbox).toEqual([]);
+    expect(m.sent).toEqual([]);
     expect(m.selfId).toBe('B');
+    // Une v24 avec un état multijoueur reçoit la liste des envois en attente (v25).
+    const v24 = JSON.parse(exportSave(a));
+    v24.version = 24;
+    delete v24.multiplayer.sent;
+    const m24 = migrateSave(v24).multiplayer!;
+    expect(m24.sent).toEqual([]);
+    expect(m24.outbox).toHaveLength(1);
   });
 });
