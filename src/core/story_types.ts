@@ -6,7 +6,11 @@
 
 export interface StoryBeat {
   id: string;
-  trigger: { tier?: number; flag?: string; concepts?: number; day?: number };
+  /**
+   * Conditions cumulées (palier, drapeau, notions, jour). `chapter` est une seconde voie :
+   * le cahier se découvre aussi quand la campagne atteint ce chapitre (récit de Val-Ferrand).
+   */
+  trigger: { tier?: number; flag?: string; concepts?: number; day?: number; chapter?: number };
   title: string;
   pages: string[];
   note?: string;
