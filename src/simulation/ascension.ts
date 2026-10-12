@@ -64,29 +64,63 @@ export function learnConcept(w: WorldState, id: string): boolean {
   return true;
 }
 
-/** Bénéfices cumulés qui comptent comme preuve : entreprises de l'Ascension + commerces. */
+/** Mouvements entre le joueur et la caisse (apports, parts versées) : ce ne sont pas des bénéfices. */
+const OWNER_MOVES = /^(Apport|Répartition|Rémunération hebdomadaire)/;
+
+/** Résultat d'exploitation d'un livre de comptes (stand, atelier), hors apports et partages. */
+function ledgerProfit(ledger: readonly { label: string; amount: number }[] | undefined): number {
+  let s = 0;
+  for (const e of ledger ?? []) if (!OWNER_MOVES.test(e.label)) s += e.amount;
+  return Math.max(0, s);
+}
+
+/**
+ * Bénéfices cumulés qui comptent comme preuve : entreprises de l'Ascension, commerces, Stand des
+ * Roses et atelier de la friche (les premières affaires du héros), petits boulots.
+ */
 export function provenProfit(w: WorldState): number {
   const a = ensureAscension(w);
   let shops = 0;
   for (const b of Object.values(w.economy?.businesses ?? {})) {
     for (const h of b.history) shops += h.revenue - h.costOfGoods - h.wages - h.rent - h.other;
   }
-  return round2(a.totalProfit + Math.max(0, shops) + (w.flags['gainsBoulot'] ?? 0));
+  const side = ledgerProfit(w.project?.ledger) + ledgerProfit(w.workshop?.ledger);
+  return round2(a.totalProfit + Math.max(0, shops) + side + (w.flags['gainsBoulot'] ?? 0));
 }
 
-export interface TierCheck { label: string; ok: boolean }
+export interface TierCheck {
+  label: string;
+  ok: boolean;
+  /** Comment y arriver, en une phrase concrète. */
+  hint: string;
+}
+
+/** La connexion la plus proche d'être gagnée, pour un conseil concret. */
+function closestContactHint(w: WorldState): string {
+  const shifts = w.flags['jobShiftsDone'] ?? 0;
+  const a = ensureAscension(w);
+  if (a.contacts['bertin'] === undefined) return `Aide Mme Bertin à l’épicerie (16 h – 19 h) : ${Math.min(3, shifts)}/3 services pour gagner sa confiance.`;
+  if (a.contacts['karim'] === undefined) return 'Va à la friche ouvrir l’atelier avec Karim : il te respectera.';
+  return 'Parle souvent à Noah, Lina ou Yasmine : une amitié qui grandit devient une connexion.';
+}
 
 export function tierChecks(w: WorldState, tier: Exclude<TierId, 1>): TierCheck[] {
   const a = ensureAscension(w);
   const r = TIER_REQUIREMENTS[tier];
   const fmt = (n: number): string => n.toLocaleString('fr-FR');
   const out: TierCheck[] = [
-    { label: `${fmt(r.profit)} € de bénéfices cumulés (${fmt(Math.floor(provenProfit(w)))} €)`, ok: provenProfit(w) >= r.profit },
-    { label: `${r.concepts} concept(s) au carnet d’économie (${Object.keys(a.concepts).length})`, ok: Object.keys(a.concepts).length >= r.concepts },
+    {
+      label: `${fmt(r.profit)} € de bénéfices cumulés (${fmt(Math.floor(provenProfit(w)))} €)`, ok: provenProfit(w) >= r.profit,
+      hint: 'Lance des idées et laisse-les tourner ; investis dans celles qui gagnent. Le stand, l’atelier et les petits boulots comptent aussi.',
+    },
+    {
+      label: `${r.concepts} concept(s) au carnet d’économie (${Object.keys(a.concepts).length})`, ok: Object.keys(a.concepts).length >= r.concepts,
+      hint: `Chaque verdict (${VERDICT_DAYS} jours après un lancement), chaque nouvelle connexion et certains lieux ajoutent une page au carnet.`,
+    },
   ];
-  if (r.contacts > 0) out.push({ label: `${r.contacts} connexions (${Object.keys(a.contacts).length})`, ok: Object.keys(a.contacts).length >= r.contacts });
-  if (r.reputation) out.push({ label: `réputation ${r.reputation} (${Math.round(w.player.reputation)})`, ok: w.player.reputation >= r.reputation });
-  if (r.age) out.push({ label: `${r.age} ans, ou un prête-nom`, ok: econAge(w) >= r.age });
+  if (r.contacts > 0) out.push({ label: `${r.contacts} connexions (${Object.keys(a.contacts).length})`, ok: Object.keys(a.contacts).length >= r.contacts, hint: closestContactHint(w) });
+  if (r.reputation) out.push({ label: `réputation ${r.reputation} (${Math.round(w.player.reputation)})`, ok: w.player.reputation >= r.reputation, hint: 'Rends service au quartier, vends au juste prix, va en cours : on parle de toi en bien.' });
+  if (r.age) out.push({ label: `${r.age} ans, ou un prête-nom`, ok: econAge(w) >= r.age, hint: 'Un adulte peut signer pour toi : bouton « ✍️ Prête-nom ».' });
   return out;
 }
 
@@ -184,8 +218,9 @@ export function resolveLaunch(w: WorldState, choice: StrategyKey): { ok: boolean
   for (const k of ['A', 'B', 'C'] as const) universes[k] = newUniverse(idea, duel.effects[k], st.cost, st.eased);
   const run: VentureRun = {
     ideaId: idea.id, launchedDay: day, strategy: choice, level: eff.startLevel ?? 1,
-    // Trésorerie de départ : un fonds de roulement prélevé sur la mise.
-    cash: round2(st.cost * 0.2),
+    // Trésorerie de départ : un fonds de roulement prélevé sur la mise ; quand on emprunte pour
+    // ouvrir plus grand, une part du prêt reste en caisse pour tenir pendant le lancement.
+    cash: round2(st.cost * 0.2 + borrowed * 0.25),
     revenueTotal: 0, profitTotal: 0, universes, verdictDay: day + VERDICT_DAYS, verdictDone: false, redDays: 0,
   };
   a.ventures[idea.id] = run;
@@ -306,6 +341,25 @@ function verdict(w: WorldState, run: VentureRun): Notification[] {
   return [notify('journal', `⚖️ ${winner.name} avait raison pour « ${idea.name} » : ${winner.right}${learned ? ' (nouveau concept au carnet)' : ''}`, winner.thinker)];
 }
 
+/**
+ * Caisse dans le rouge : une voix prévient, sans spam (au passage dans le rouge, à la fin du
+ * lancement, puis quand la faillite approche). Toujours avec le geste qui sauve.
+ */
+function redAlert(idea: IdeaDef, run: VentureRun, prevCash: number): Notification[] {
+  if (run.cash >= 0 || run.closed) return [];
+  const debt = Math.ceil(-run.cash).toLocaleString('fr-FR');
+  const fix = 'Téléphone (P) → Ascension → « Renflouer ».';
+  const left = BANKRUPTCY_DAYS - run.redDays;
+  if (prevCash >= 0) {
+    return [notify('alerte', run.verdictDone
+      ? `⚠️ « ${idea.name} » passe dans le rouge (−${debt} €). Sans renfort, faillite dans ${left} jours. ${fix}`
+      : `⚠️ « ${idea.name} » passe dans le rouge (−${debt} €). Pendant le lancement, on patiente ; après le verdict, ${BANKRUPTCY_DAYS} jours dans le rouge mènent à la faillite. ${fix}`, 'hayek')];
+  }
+  if (run.redDays === 1) return [notify('alerte', `⚠️ Le lancement de « ${idea.name} » est fini et la caisse est toujours à −${debt} €. ${BANKRUPTCY_DAYS} jours pour revenir dans le vert. ${fix}`, 'hayek')];
+  if (run.redDays === 6 || run.redDays === 8) return [notify('alerte', `🔥 « ${idea.name} » : faillite dans ${left} jours (caisse −${debt} €). Renfloue, ou vends-la tant qu’elle vaut quelque chose. ${fix}`, 'hayek')];
+  return [];
+}
+
 function ventureDay(w: WorldState, run: VentureRun, day: number): Notification[] {
   const a = ensureAscension(w);
   const idea = IDEA_BY_ID[run.ideaId];
@@ -323,6 +377,7 @@ function ventureDay(w: WorldState, run: VentureRun, day: number): Notification[]
     if (k === run.strategy) real = o;
   }
   if (!real) return [];
+  const prevCash = run.cash;
   run.cash = round2(run.cash + real.profit - real.repay);
   run.revenueTotal = round2(run.revenueTotal + real.revenue);
   run.profitTotal = round2(run.profitTotal + real.profit);
@@ -330,7 +385,11 @@ function ventureDay(w: WorldState, run: VentureRun, day: number): Notification[]
   run.last = { day, demand: round2(real.revenue + real.missed), revenue: real.revenue, costs: real.costs, profit: real.profit, unsold: real.unsold, missed: real.missed };
   const out: Notification[] = [];
   if (!run.verdictDone && day >= run.verdictDay) out.push(...verdict(w, run));
-  run.redDays = run.cash < 0 ? run.redDays + 1 : 0;
+  // Pendant le lancement (jusqu'au verdict), fournisseurs et banque patientent : on apprend
+  // d'abord qui avait raison. Ensuite, dix jours d'affilée dans le rouge mènent à la faillite.
+  const red = run.cash < 0;
+  run.redDays = red && run.verdictDone ? run.redDays + 1 : 0;
+  out.push(...redAlert(idea, run, prevCash));
   if (run.redDays >= BANKRUPTCY_DAYS) {
     run.closed = true;
     learnConcept(w, 'faillite');
@@ -403,6 +462,57 @@ export function injectVenture(w: WorldState, id: string, amount: number): { ok: 
   w.player.money = round2(w.player.money - a);
   run.cash = round2(run.cash + a);
   return { ok: true, message: `${a.toLocaleString('fr-FR')} € versés dans la caisse.` };
+}
+
+/** Coûts fixes du jour d'une entreprise lancée (stratégie et niveau compris). */
+export function dailyFixed(run: VentureRun): number {
+  const idea = IDEA_BY_ID[run.ideaId];
+  const duel = idea ? DUEL_BY_ID[idea.duel] : undefined;
+  if (!idea || !duel) return 0;
+  return round2(idea.fixed * duel.effects[run.strategy].fixed * levelReach(run.level));
+}
+
+/** Ce qu'il faut verser pour revenir dans le vert, avec trois jours de coûts fixes d'avance. */
+export function rescueAmount(run: VentureRun): number {
+  if (run.closed || run.cash >= 0) return 0;
+  return Math.ceil(-run.cash + 3 * dailyFixed(run));
+}
+
+/** Renflouer : le joueur remet de sa poche ce qu'il faut (ou tout ce qu'il a). */
+export function rescueVenture(w: WorldState, id: string): { ok: boolean; message: string } {
+  const run = ensureAscension(w).ventures[id];
+  if (!run || run.closed) return { ok: false, message: 'Entreprise introuvable.' };
+  const need = rescueAmount(run);
+  if (need <= 0) return { ok: false, message: 'La caisse n’est pas dans le rouge.' };
+  if (w.player.money <= 0) return { ok: false, message: `Il faudrait ${need.toLocaleString('fr-FR')} € : tu n’as rien sur toi. Retire la caisse d’une autre affaire, ou fais un petit boulot.` };
+  const r = injectVenture(w, id, need);
+  const still = run.cash < 0 ? ` Encore −${Math.ceil(-run.cash).toLocaleString('fr-FR')} €.` : ' La caisse repasse dans le vert.';
+  return { ok: r.ok, message: `${r.message}${still}` };
+}
+
+export type MarketTrend = 'haut' | 'descend' | 'bas' | 'monte';
+
+/** Conjoncture du marché d'une idée aujourd'hui (même cycle que la simulation) : lisible avant de décider. */
+export function marketTrend(w: WorldState, ideaId: string): MarketTrend {
+  const day = dayIndexOf(w.time.tick);
+  const phase = econRand(w, 'asc-phase', ideaId) * 60;
+  const angle = (2 * Math.PI * (day + phase)) / 60;
+  const level = Math.sin(angle);
+  if (level > 0.5) return 'haut';
+  if (level < -0.5) return 'bas';
+  return Math.cos(angle) >= 0 ? 'monte' : 'descend';
+}
+
+export const TREND_LABEL: Readonly<Record<MarketTrend, string>> = {
+  haut: '☀️ marché au plus haut',
+  descend: '📉 marché en baisse',
+  bas: '🌧️ marché au creux',
+  monte: '📈 marché en reprise',
+};
+
+/** Bénéfice quotidien attendu une fois l'affaire installée (niveau 1, stratégie neutre). */
+export function ideaDailyEstimate(idea: IdeaDef): number {
+  return Math.round(idea.market * idea.baseShare * idea.margin - idea.fixed);
 }
 
 export function sellVenture(w: WorldState, id: string): { ok: boolean; message: string } {
