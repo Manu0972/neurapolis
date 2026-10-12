@@ -33,6 +33,8 @@ export function personalize(w: WorldState, text: string): string {
 
 function ready(w: WorldState, b: StoryBeat): boolean {
   const t = b.trigger;
+  // Seconde voie : la campagne de Val-Ferrand fait avancer le récit, même sans palier ni notion.
+  if (t.chapter !== undefined && (w.campaign?.currentChapter ?? 1) >= t.chapter) return true;
   if (t.tier !== undefined && (w.ascension?.tier ?? 1) < t.tier) return false;
   if (t.concepts !== undefined && Object.keys(w.ascension?.concepts ?? {}).length < t.concepts) return false;
   if (t.day !== undefined && dayIndexOf(w.time.tick) < t.day) return false;

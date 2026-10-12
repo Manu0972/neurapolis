@@ -405,3 +405,79 @@ describe('campagne × économie (refonte Big Ambitions)', () => {
     expect(chapter3Help(w)).toBe(5);
   });
 });
+
+describe('campagne V1 — guidage, soutien du quartier et cahiers de Lucien', () => {
+  it('chapitre 4 : huit courses depuis l’ouverture valent la confiance du quartier', async () => {
+    const { chapter4Support, chapter4QuarterBacked, CHAPTER4_SUPPORT } = await import('../src/simulation/campaign');
+    const w = createWorld();
+    w.campaign.currentChapter = 4;
+    w.player.age = 15;
+    w.flags['chapitre4ConseilMobilise'] = 1;
+    w.flags['chapitre4DebatCitoyen'] = 1;
+    w.flags['courses'] = 12;
+    w.flags['chapitre4CoursesDepart'] = 12; // les courses d'avant le chapitre ne comptent pas
+    w.district.confianceQuartier = 35;
+    createProject(w);
+    expect(chapter4QuarterBacked(w)).toBe(false);
+    expect(campaignTick(w)).toHaveLength(0);
+    expect(getCampaignProgressSummary(w).prompt).toContain(`0/${CHAPTER4_SUPPORT}`);
+
+    for (let i = 0; i < CHAPTER4_SUPPORT; i++) expect(runCourse(w).ok).toBe(true);
+    expect(chapter4Support(w)).toBe(CHAPTER4_SUPPORT);
+    campaignTick(w);
+    expect(w.campaign.currentChapter).toBe(5);
+    const ev = w.events.find((e) => e.title.includes('Chapitre 4 accompli'));
+    expect(ev?.causes.some((c) => c.facteur.includes('soutien concret'))).toBe(true);
+  });
+
+  it('la fin du chapitre 3 ouvre le compteur de soutien du chapitre 4', () => {
+    const w = createWorld();
+    w.campaign.currentChapter = 3;
+    w.player.age = 14;
+    w.flags['courses'] = 9;
+    w.flags['chapitre3CoursesDepart'] = 0;
+    w.flags['contreStrategiesLancees'] = 2;
+    w.flags['chapitre3ContreStrategiesDepart'] = 1;
+    campaignTick(w);
+    expect(w.campaign.currentChapter).toBe(4);
+    expect(w.flags['chapitre4CoursesDepart']).toBe(9);
+  });
+
+  it('le HUD dit quoi faire ensuite, puis « rendez-vous à tes 13 ans » quand seul l’âge manque', () => {
+    const w = createWorld();
+    expect(getCampaignProgressSummary(w).prompt).toContain('Tenir le stand');
+    w.campaign.currentChapter = 2;
+    expect(getCampaignProgressSummary(w).prompt).toContain('Samir');
+    w.flags['chapitre2ConversationCoopSamir'] = 1;
+    w.flags['chapitre2VentesCollectives'] = 1;
+    createProject(w);
+    w.project!.rules.collectif = true;
+    const s = getCampaignProgressSummary(w).prompt;
+    expect(s).toContain('Objectifs remplis');
+    expect(s).toContain('13 ans (1er septembre 2021)');
+    w.player.age = 13;
+    expect(getCampaignProgressSummary(w).prompt).not.toContain('Objectifs remplis');
+  });
+
+  it('la confiance du chapitre 4 s’affiche arrondie', () => {
+    const w = createWorld();
+    w.campaign.currentChapter = 4;
+    w.district.confianceQuartier = 47.38291;
+    expect(getCampaignProgressSummary(w).prompt).toContain('Confiance : 47/50');
+  });
+
+  it('les cahiers de Lucien des paliers 1 à 3 se découvrent au fil des chapitres, un par jour', async () => {
+    const { storyDay } = await import('../src/simulation/story');
+    const w = createWorld();
+    w.time.tick = 5 * TICKS_PER_DAY;
+    expect(storyDay(w)).toHaveLength(0); // chapitre 1, aucune notion : rien encore
+    w.campaign.currentChapter = 2;
+    expect(storyDay(w)[0]?.text).toContain('Cahier n°1');
+    expect(storyDay(w)[0]?.text).toContain('Cahier n°2');
+    expect(storyDay(w)).toHaveLength(0); // le cahier 3 attend le Réseau Solidaire
+    w.campaign.currentChapter = 5;
+    for (let i = 0; i < 5; i++) storyDay(w);
+    expect(Object.keys(w.story!.seen)).toHaveLength(7);
+    expect(w.story!.seen['beat_lucien_8_le_canal_et_la_voie_deau']).toBeUndefined(); // palier 4 : hors campagne
+  });
+});
