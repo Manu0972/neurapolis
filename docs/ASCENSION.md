@@ -105,7 +105,7 @@ L'apparence évolue avec l'âge et la réussite. Ce chantier touche le schéma d
 |---|---|---|
 | **ASC-1** | Paliers, 31 idées de business, connexions, état `ascension` (save v17), application « Ascension » | **fait** (2026-10-07) |
 | **ASC-2** | Doubles faces : 6 duels, pop-up de décision, stratégies, verdicts, fiabilité | **fait** au lancement des idées ; à étendre aux décisions courantes (prix, embauches, prêts des commerces) |
-| **ASC-3** | Fonctionnalités à débloquer (applications du téléphone), mini-tutoriels portés par les fantômes | à faire |
+| **ASC-3** | Fonctionnalités à débloquer (applications du téléphone), mini-tutoriels portés par les fantômes | **fait** (sprint V1, 2026-10-12) : Immobilier après une semaine de ventes, Emploi quand des clients sont perdus faute de bras, Banque avec le coût d’opportunité ; chaque application présentée par son fantôme en trois étapes (désactivable, rejouable par ❔ dans le téléphone) ; guide « 👉 Maintenant » sous la carte de chapitre. Entrepôt, Franchise, Bourse, Import : avec les paliers 3 à 6 (hors V1) |
 | **ASC-4** | Création de personnage approfondie (save v18), avec Jules | à faire |
 | **ASC-5** | Secrets du monde, connexions de voyage, paliers 5-6 approfondis | à faire |
 
@@ -123,6 +123,16 @@ Sonde : les 31 idées, 3 graines, 60 jours, stratégie « à ma façon ». Aucun
 | Schumpeter ⟷ Ostrom | 13 | 5 |
 
 Ford gagne surtout sur les idées à faible marge (centrale d'achat, épiceries) : les économies d'échelle y pèsent plus. Keynes dépend du cycle économique de chaque marché, haut ou bas pendant les trois semaines du verdict.
+
+### 6.1 Paliers 1 à 3 (sprint V1, 2026-10-12)
+
+Tests `tests/ascension_balance.test.ts` et `tests/ascension_progression.test.ts` (déterministes) :
+
+- Chacune des 16 idées des paliers 1 à 3, avec chacune des trois voies et trois graines, survit et rapporte en 60 jours quand le joueur renfloue après l’alerte.
+- Lancer et oublier : aucune faillite pendant le lancement. La faillite ne compte qu’après le verdict (dix jours dans le rouge), et une voix prévient trois fois, avec le bouton « Renflouer ».
+- Emprunter (Keynes) laisse une part du prêt en caisse, et sa stratégie est un peu moins exposée au cycle (×2,5 au lieu de ×3,2). La conjoncture de chaque marché est affichée avant de décider.
+- Le Stand des Roses et l’atelier de la friche comptent dans les bénéfices prouvés (hors apports et partages).
+- Un joueur-robot simple (petit boulot chez Mme Bertin quand l’argent manque, une discussion par jour avec Noah, idées les moins chères à sa façon) atteint le Quartier vers le 9e jour, la Ville vers le 45e, et lance sa première affaire de la Ville une quinzaine de jours plus tard.
 
 ## 7. Deuxième vague (vision du 2026-10-07, soir) : état
 

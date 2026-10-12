@@ -118,9 +118,10 @@ describe('verdict', () => {
     expect(ensureAscension(w).ventures['gouters_cour']!.level).toBe(2);
   });
 
-  it('dix jours dans le rouge : faillite, et la leçon reste', () => {
+  it('après le verdict, dix jours dans le rouge : faillite, et la leçon reste', () => {
     const w = launched();
     const run = ensureAscension(w).ventures['gouters_cour']!;
+    run.verdictDone = true; // le lancement est fini : on ne patiente plus
     run.cash = -100000;
     runTicks(w, (BANKRUPTCY_DAYS + 1) * TICKS_PER_DAY);
     expect(run.closed).toBe(true);

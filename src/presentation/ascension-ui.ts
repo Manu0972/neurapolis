@@ -10,8 +10,9 @@ import { CONTACTS } from '../data/ascension/contacts';
 import { DUEL_BY_ID, type DuelFace } from '../data/ascension/duels';
 import { IDEA_BY_ID, TIERS, type IdeaDef } from '../data/ascension/ideas';
 import {
-  MAX_LEVEL, VERDICT_DAYS, cancelLaunch, ensureAscension, ideaStatus, ideasOfTier, injectVenture, investCost, investVenture,
-  provenProfit, requestLaunch, resolveLaunch, sellVenture, tierChecks, withdrawVenture,
+  BANKRUPTCY_DAYS, MAX_LEVEL, TREND_LABEL, VERDICT_DAYS, cancelLaunch, ensureAscension, ideaDailyEstimate, ideaStatus, ideasOfTier,
+  injectVenture, investCost, investVenture, marketTrend, provenProfit, requestLaunch, rescueAmount, rescueVenture, resolveLaunch,
+  sellVenture, tierChecks, withdrawVenture,
 } from '../simulation/ascension';
 import { MANDATES, currentMandate, endMandate, mandateActive, mandateBlockers, signMandate } from '../simulation/proxy';
 import { dayIndexOf } from '../core/clock';
@@ -51,7 +52,12 @@ export function renderAscensionApp(ctx: AscensionCtx, screen: HTMLElement, reren
     const next = TIERS[a.tier]!;
     head.appendChild(el('p', 'asc-next', `Pour atteindre « ${next.name} » :`));
     const ul = el('ul', 'asc-checks');
-    for (const c of tierChecks(w, (a.tier + 1) as 2 | 3 | 4 | 5 | 6)) ul.appendChild(el('li', c.ok ? 'ok' : '', `${c.ok ? '✅' : '⬜'} ${c.label}`));
+    for (const c of tierChecks(w, (a.tier + 1) as 2 | 3 | 4 | 5 | 6)) {
+      const li = el('li', c.ok ? 'ok' : '', `${c.ok ? '✅' : '⬜'} ${c.label}`);
+      // Ce qui manque se dit avec le geste qui y mène.
+      if (!c.ok) li.appendChild(el('div', 'ph-note', `→ ${c.hint}`));
+      ul.appendChild(li);
+    }
     head.appendChild(ul);
   }
   const row = el('div', 'ph-actions');
@@ -83,6 +89,12 @@ export function renderAscensionApp(ctx: AscensionCtx, screen: HTMLElement, reren
           : 'Premier jour : les résultats tombent à minuit.'));
         card.appendChild(el('p', 'ph-note', `Caisse ${money(run.cash)} · cumul ${run.profitTotal >= 0 ? '+' : ''}${money(run.profitTotal)}${run.verdictDone ? '' : ` · verdict de ${duel.title} dans ${Math.max(0, run.verdictDay - day)} j`}${run.redDays > 0 ? ` · ⚠️ ${run.redDays} j dans le rouge` : ''}`));
         const actions = el('div', 'ph-actions');
+        if (run.cash < 0) {
+          card.appendChild(el('p', 'ph-warn', run.verdictDone
+            ? `🔥 Caisse dans le rouge : faillite dans ${Math.max(0, BANKRUPTCY_DAYS - run.redDays)} jour(s) si rien ne change.`
+            : '⚠️ Caisse dans le rouge : pendant le lancement on patiente, mais après le verdict il faudra être dans le vert.'));
+          actions.appendChild(btn(`Renflouer (${money(rescueAmount(run))})`, () => act(rescueVenture(w, idea.id)), 'ph-btn primary'));
+        }
         actions.appendChild(btn('Retirer la caisse', () => act(withdrawVenture(w, idea.id))));
         actions.appendChild(btn(`Verser ${money(idea.startCost * 0.1)}`, () => act(injectVenture(w, idea.id, idea.startCost * 0.1))));
         if (run.level < MAX_LEVEL) actions.appendChild(btn(`Investir (${money(investCost(run))})`, () => act(investVenture(w, idea.id))));
@@ -115,6 +127,7 @@ function ideaCard(ctx: AscensionCtx, idea: IdeaDef, locked: boolean, back: () =>
     card.appendChild(el('p', 'ph-note', idea.pitch));
     const duel = DUEL_BY_ID[idea.duel]!;
     card.appendChild(el('p', 'ph-note', `Mise ${money(st.cost)}${st.eased ? ' (connexion : −25 %)' : ''} · marché jusqu’à ${money(idea.market)}/jour · marge ${Math.round(idea.margin * 100)} % · ${duel.a.emoji}${duel.b.emoji} ${duel.title}`));
+    card.appendChild(el('p', 'ph-note asc-estimate', `≈ +${money(ideaDailyEstimate(idea))}/jour une fois installée (deux à trois semaines pour trouver ses clients) · ${TREND_LABEL[marketTrend(w, idea.id)]}`));
     if (run && !run.closed) {
       card.appendChild(el('p', 'ph-note ok', '✅ En cours'));
     } else {
@@ -157,6 +170,10 @@ export function openDuelModal(ctx: AscensionCtx, back: () => void): void {
   };
   const body = el('div', 'panel-body duel');
   body.appendChild(el('p', 'duel-question', `${idea.icon} ${idea.name} — ${duel.question}`));
+  // Emprunter ou non se décide en lisant la conjoncture : on la montre.
+  if (duel.effects.A.borrow || duel.effects.A.cycle || duel.effects.B.cycle) {
+    body.appendChild(el('p', 'ph-note', `Conjoncture de ce marché aujourd’hui : ${TREND_LABEL[marketTrend(w, idea.id)]} (le cycle dure environ deux mois).`));
+  }
   // La silhouette coupée en deux.
   const mascot = el('div', 'duel-mascot-svg');
   mascot.appendChild(duoAvatar(duel.a.thinker, duel.b.thinker, 'alerte', 112));

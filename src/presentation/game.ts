@@ -88,6 +88,8 @@ import { LAMINOIR_OPTIONS, chooseLaminoirFuture, laminoirDecisionPending } from 
 import { BUS_HOURS, busFare, busRoute, busRunning, isOnBus, stopNear, stopOpen, takeBus } from '../simulation/transit';
 import { BUS_LINES, BUS_STOPS, BUS_STOP_BY_ID } from '../data/city/transit';
 import { createGhostBar } from './ghost-bar';
+import { createAppTutor } from './ghost-tutor';
+import { createGuide } from './guide-ui';
 import { createNewsToaster, openSurpriseModal } from './news-ui';
 import { pendingSurprise } from '../simulation/happenings';
 import { isSilenced, lessonWarnings, rewindOffer, sacrificeCandidates } from '../simulation/rewind';
@@ -153,6 +155,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   const ui = buildUi(root);
   // Barre des fantômes : leurs têtes en haut de l'écran, qui bougent quand ils veulent parler.
   const ghostBar = createGhostBar(root, () => world, () => modalOpen);
+  // Prise en main (ASC-3) : l'étape suivante sous la carte de chapitre, les applications présentées par un fantôme.
+  const guide = createGuide(ui.campaignCardEl, { openApp: (app) => openPhoneUi(app), openMap: () => openCityMap() });
+  const appTutor = createAppTutor(root, { busy: () => modalOpen, openApp: (app) => openPhoneUi(app) });
   let lastTipText = '';
   // Notifications façon téléphone pour le fil d'infos ; un clic ouvre l'application « Infos ».
   const newsToaster = createNewsToaster(root, () => openPhoneUi('infos'));
@@ -3280,6 +3285,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       syncWaypoints();
       syncTips();
       syncStallCrowds();
+      guide.sync(world);
+      appTutor.sync(world);
     }
     if (hudFrame % 2 === 0 && ui.minimapCtx) {
       const pose = playerPose();

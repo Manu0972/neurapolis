@@ -20,6 +20,8 @@ interface Facts {
   /** Entreprise de l'Ascension la plus en difficulté. */
   worstVenture?: { name: string; profit: number; unsold: number; missed: number; redDays: number; level: number };
   bestVenture?: { name: string; profit: number };
+  /** Affaire dont la caisse est dans le rouge (la plus endettée). */
+  redVenture?: { name: string; cash: number; redDays: number; launching: boolean };
   ventureCount: number;
   /** Commerce physique avec le plus de clients perdus hier. */
   lossShop?: { name: string; lost: number; customers: number };
@@ -40,6 +42,7 @@ function facts(w: WorldState): Facts {
   const named = runs.map((r) => ({ r, name: IDEA_BY_ID[r.ideaId]?.name ?? r.ideaId }));
   const worst = named.slice().sort((a, b) => (a.r.last!.profit - b.r.last!.profit))[0];
   const best = named.slice().sort((a, b) => (b.r.last!.profit - a.r.last!.profit))[0];
+  const red = named.filter((x) => x.r.cash < 0).sort((a, b) => a.r.cash - b.r.cash)[0];
   const shops = Object.values(w.economy?.businesses ?? {});
   const lastDays = shops.map((b) => ({ b, h: b.history[b.history.length - 1] })).filter((x) => x.h);
   const loss = lastDays.sort((a, b) => b.h!.lost - a.h!.lost)[0];
@@ -51,6 +54,7 @@ function facts(w: WorldState): Facts {
     fatigue: w.player.needs.fatigue,
     worstVenture: worst ? { name: worst.name, profit: worst.r.last!.profit, unsold: worst.r.last!.unsold, missed: worst.r.last!.missed, redDays: worst.r.redDays, level: worst.r.level } : undefined,
     bestVenture: best ? { name: best.name, profit: best.r.last!.profit } : undefined,
+    redVenture: red ? { name: red.name, cash: red.r.cash, redDays: red.r.redDays, launching: !red.r.verdictDone } : undefined,
     ventureCount: runs.length,
     lossShop: loss ? { name: loss.b.name, lost: loss.h!.lost, customers: loss.h!.customers } : undefined,
     shopCount: shops.length,
@@ -89,7 +93,9 @@ const LENSES: Record<string, Lens> = {
   keynes: (f) => f.worstVenture && f.worstVenture.profit < 0 && f.money > 0
     ? tip('keynes', 2, `« ${f.worstVenture.name} » perd ${eur(-f.worstVenture.profit)} par jour. Ne coupe pas tout dans la panique : parfois il faut dépenser pour que la demande revienne.`)
     : f.money > 500 ? tip('keynes', 1, `${eur(f.money)} qui dorment sur ton compte ne servent personne, mon cher. L’argent doit circuler.`) : null,
-  hayek: (f) => f.debt > 0
+  hayek: (f) => f.redVenture
+    ? tip('hayek', f.redVenture.launching ? 2 : 3, `« ${f.redVenture.name} » a ${eur(-f.redVenture.cash)} de trou en caisse${f.redVenture.launching ? '' : ` depuis ${f.redVenture.redDays} jour(s)`}. Renfloue-la (Téléphone → Ascension) ou vends-la avant la faillite.`)
+    : f.debt > 0
     ? tip('hayek', f.debt > f.money * 3 ? 3 : 2, `Vous devez ${eur(f.debt)}. Chaque jour d’intérêts parie sur un avenir que personne ne connaît. Remboursez avant de grandir.`)
     : null,
   taylor: (f) => f.shopCount > 0 ? tip('taylor', 1, 'As-tu chronométré le temps de passage en caisse ? Une seconde gagnée par client, c’est une file d’attente en moins.') : null,
@@ -101,7 +107,7 @@ const LENSES: Record<string, Lens> = {
     ? tip('raworth', 2, 'Grandir n’est pas un but en soi. Ton plancher, c’est ta santé et celle de ton équipe : tu t’en approches.')
     : null,
   ostrom: (f) => f.contacts < 2
-    ? tip('ostrom', 2, `Tu n’as que ${f.contacts} connexion(s). Seul, on porte tout ; à plusieurs, on écrit les règles ensemble. Va voir les gens du quartier.`)
+    ? tip('ostrom', 2, `Tu n’as que ${f.contacts} connexion(s). Seul, on porte tout. Trois services chez Mme Bertin, l’atelier de Karim à la friche, une amitié qui grandit : chacun t’ouvre des portes.`)
     : null,
   schumpeter: (f) => f.ventureCount > 0 && f.concepts >= 2 ? tip('schumpeter', 1, 'Ton idée d’hier est déjà l’habitude d’aujourd’hui. Qu’est-ce qui la remplacera ? Mieux vaut que ce soit toi.') : null,
   bourdieu: (f) => f.absences >= 2

@@ -19,7 +19,9 @@ function bankrupt() {
   requestLaunch(w, 'gouters_cour');
   resolveLaunch(w, 'B');
   const snapshot = structuredClone(w);
-  ensureAscension(w).ventures['gouters_cour']!.cash = -100000;
+  const run = ensureAscension(w).ventures['gouters_cour']!;
+  run.verdictDone = true; // le lancement est fini : la faillite compte (src/simulation/ascension.ts)
+  run.cash = -100000;
   runTicks(w, (BANKRUPTCY_DAYS + 1) * TICKS_PER_DAY);
   return { w, snapshot };
 }

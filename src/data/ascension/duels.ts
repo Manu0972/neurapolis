@@ -153,7 +153,7 @@ const BASE_DUELS: readonly DuelDef[] = [
       wrong: 'Trop prudent : d’autres ont pris la place pendant que vous comptiez vos sous.',
       concept: 'signal_prix',
     },
-    A: { borrow: 0.8, startLevel: 2, fixed: 1.2, share: 0.9, cycle: 3.2 },
+    A: { borrow: 0.8, startLevel: 2, fixed: 1.12, share: 0.9, cycle: 2.5 },
     B: { fixed: 0.92, share: 0.97, cycle: 0.5 },
     ownWay: 'Un petit prêt, remboursé vite.',
   }),

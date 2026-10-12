@@ -22,6 +22,8 @@ import { BIKE, buyBike, ownsBike } from '../simulation/vehicles';
 import { renderAscensionApp } from './ascension-ui';
 import { renderInfosApp } from './news-ui';
 import { isAppOpen, unlockOf } from '../simulation/unlocks';
+import { APP_TUTORIALS } from '../data/tutorials';
+import { shouldPresent, tutorCard } from './ghost-tutor';
 
 export type PhoneApp = 'ascension' | 'infos' | 'immobilier' | 'commerces' | 'commandes' | 'emploi' | 'banque';
 
@@ -66,6 +68,8 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?
   let selectedBiz = focus?.businessId ?? Object.keys(w.economy!.businesses)[0];
   let unitFilter: 'tous' | 'etals' | 'locaux' = focus?.unitId && UNIT_BY_ID[focus.unitId]?.buildingId.startsWith('etal_') ? 'etals' : 'tous';
   let highlightUnit = focus?.unitId;
+  /** Présentation de l'application rejouée à la demande (bouton ❔). */
+  let replay: PhoneApp | undefined;
 
   const root = el('div', 'phone');
   const tabs = el('nav', 'ph-tabs');
@@ -91,6 +95,13 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?
       tb.addEventListener('click', () => { current = a.id; render(); });
       tabs.appendChild(tb);
     }
+    if (APP_TUTORIALS[current] && openHere(current)) {
+      const help = el('button', 'ph-tab ph-help', '❔');
+      help.type = 'button';
+      help.title = 'Revoir la présentation de cette application par son fantôme';
+      help.addEventListener('click', () => { replay = current; render(); });
+      tabs.appendChild(help);
+    }
     screen.replaceChildren();
     const head = el('div', 'ph-wallet');
     head.appendChild(stat('Argent sur toi', eur(w.player.money), w.player.money < 0 ? 'bad' : ''));
@@ -108,6 +119,10 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?
       card.appendChild(el('p', 'ph-note', 'Tu découvriras cette application en avançant ; une de tes voix te l’expliquera.'));
       screen.appendChild(card);
       return;
+    }
+    // Première visite (ou ❔) : le fantôme de l'application la présente en trois étapes.
+    if (replay === current || shouldPresent(w, current)) {
+      screen.appendChild(tutorCard(w, current, { inline: true, onClose: () => { replay = undefined; render(); } }));
     }
     if (current === 'immobilier') renderImmobilier();
     if (current === 'commerces') renderCommerces();
