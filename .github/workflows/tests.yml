@@ -1,0 +1,26 @@
+# Chaque PR (Jules ou autre) est vérifiée : types TypeScript, tests Vitest, construction Vite. Rien n est publié ni déployé.
+name: tests
+on:
+  pull_request:
+    branches: [main, refonte-3d]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Types
+        run: npx tsc --noEmit
+      - name: Tests
+        run: npx vitest run
+      - name: Construction
+        run: npm run build
