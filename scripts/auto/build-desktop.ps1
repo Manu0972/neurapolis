@@ -38,7 +38,7 @@ if (-not $StageFull.StartsWith($VerifFull + '\', [System.StringComparison]::Ordi
 }
 if (Test-Path $StageFull) { Remove-Item -LiteralPath $StageFull -Recurse -Force }
 New-Item -ItemType Directory -Force (Join-Path $Stage 'game') | Out-Null
-foreach ($file in 'main.cjs', 'preload.cjs', 'package.json', 'icon.png', 'icon.ico') {
+foreach ($file in 'main.cjs', 'preload.cjs', 'host.cjs', 'package.json', 'icon.png', 'icon.ico') {
   Copy-Item (Join-Path $Root "desktop\$file") $Stage -Force
 }
 Copy-Item (Join-Path $Root 'tools\net-relay.mjs') $Stage -Force

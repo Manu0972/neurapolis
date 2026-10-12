@@ -510,6 +510,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (modalOpen || !mp) return;
     openMultiplayerPanel({ session: mp, world, showModal, closeModal, toast, notify: (list) => { for (const n of list) if (n.kind === 'fantome' && n.ghost) ghostBar.push({ ghost: n.ghost, text: n.text, pop: true, mood: 'calme' }); } });
   });
+  // Sauvegarde d'une partie à plusieurs quittée sans « Quitter » : on se reconnecte au même hôte.
+  if (mp.wantsResume()) mp.resume();
 
   // Outil d'inspection (Bible Partie XII) : l'état du monde reste lisible depuis la console
   // et depuis les tests E2E. Lecture/écriture directe = leviers de QA, jamais du gameplay.

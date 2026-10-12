@@ -415,6 +415,14 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
     s.version = 24;
     return s;
   },
+  // 24 → 25 : multijoueur fiable. Les envois qui attendent une suite (`sent`) permettent de
+  // vérifier les réponses des autres joueurs ; une partie solo reste sans état multijoueur.
+  24: (s) => {
+    const m = s.multiplayer as AnySave | undefined;
+    if (m && typeof m === 'object' && !Array.isArray(m.sent)) m.sent = [];
+    s.version = 25;
+    return s;
+  },
 };
 
 export const CURRENT_SAVE_VERSION = SAVE_VERSION;

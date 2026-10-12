@@ -1,5 +1,5 @@
 /**
- * Multijoueur en LAN (save v24) : ce que le monde d'un joueur retient des autres joueurs.
+ * Multijoueur en LAN (save v24, v25 pour `sent`) : ce que le monde d'un joueur retient des autres joueurs.
  *
  * Mondes parallèles reliés : chaque joueur garde sa propre simulation ; le réseau apporte des
  * événements (prêts, alliances, sabotages…) appliqués par des fonctions pures
@@ -96,8 +96,11 @@ export interface MultiEvent {
   to: string;
   day: number;
   mechanic: MultiMechanicId;
-  /** offer : proposition ; act : action directe ; reply : réponse à une proposition ; settle : remboursement. */
-  phase: 'offer' | 'act' | 'reply' | 'settle';
+  /**
+   * offer : proposition ; act : action directe ; reply : réponse (à une proposition, ou retour
+   * d'un sabotage) ; confirm : le proposant confirme un accord accepté (save v25) ; settle : versement.
+   */
+  phase: 'offer' | 'act' | 'reply' | 'confirm' | 'settle';
   amount?: number;
   rate?: number;
   days?: number;
@@ -112,6 +115,24 @@ export interface MultiEvent {
   discovered?: boolean;
 }
 
+/**
+ * Ce que tu as envoyé et qui attend une suite (save v25) : une proposition qui attend sa
+ * réponse (`offer`), un sabotage qui peut revenir (`act`), une proposition que tu as acceptée et
+ * dont tu attends la confirmation (`accepted`). Une réponse qui ne correspond à rien ici est
+ * ignorée : un autre joueur ne peut pas inventer un accord, un remboursement ou une découverte.
+ */
+export interface MultiSent {
+  id: string;
+  peer: string;
+  mechanic: MultiMechanicId;
+  phase: 'offer' | 'act' | 'accepted';
+  amount: number;
+  rate: number;
+  days: number;
+  /** Jour d'envoi (ton calendrier). */
+  day: number;
+}
+
 export interface MultiplayerState {
   /** Ton identifiant de joueur (fixé par la présentation à la première session). */
   selfId: string;
@@ -120,7 +141,7 @@ export interface MultiplayerState {
   offers: MultiOffer[];
   debts: MultiDebt[];
   log: MultiLogEntry[];
-  /** Événements à envoyer (produits par la simulation, vidés par la présentation). */
+  /** Événements à envoyer, gardés jusqu'à l'accusé de réception du destinataire (renvoyés à sa reconnexion). */
   outbox: MultiEvent[];
   /** Événements déjà traités (dédoublonnage), bornés. */
   seen: string[];
@@ -128,8 +149,10 @@ export interface MultiplayerState {
   cooldowns: Record<string, number>;
   /** Compteur pour fabriquer des identifiants stables. */
   nextId: number;
+  /** Envois qui attendent une suite (save v25). */
+  sent: MultiSent[];
 }
 
 export function createMultiplayerState(selfId = ''): MultiplayerState {
-  return { selfId, peers: {}, effects: [], offers: [], debts: [], log: [], outbox: [], seen: [], cooldowns: {}, nextId: 1 };
+  return { selfId, peers: {}, effects: [], offers: [], debts: [], log: [], outbox: [], seen: [], cooldowns: {}, nextId: 1, sent: [] };
 }

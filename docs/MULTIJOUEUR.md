@@ -1,35 +1,66 @@
-# Jouer à plusieurs à NEURAPOLIS (LAN, NordVPN Meshnet)
+# Jouer à plusieurs à NEURAPOLIS (réseau local)
 
-Deux joueurs (ou plus, jusqu'à 8) dans la même ville de Val-Ferrand. Chacun vit sa propre vie
-(famille, collège, affaires), mais vous voyez l'autre marcher dans les rues, vos commerces se
-font concurrence, et vous pouvez **vous associer… ou vous saboter**.
+De 2 à 4 joueurs dans la même ville de Val-Ferrand. Chacun vit sa propre vie (famille, collège,
+affaires), mais vous vous croisez dans les rues (avatar et nom au-dessus de la tête), vos commerces
+se font concurrence, et vous pouvez **vous associer… ou vous saboter**.
 
-## Mettre en place (une fois)
-
-1. **NordVPN Meshnet** : sur les deux ordinateurs, ouvrez NordVPN → *Meshnet* → activez-le.
-   Ajoutez l'appareil de votre ami (même compte : il apparaît tout seul ; comptes différents :
-   *Inviter* avec son adresse e-mail). Dans les autorisations de l'appareil de votre ami,
-   cochez **« Autoriser les connexions entrantes »** (et « accès au réseau local » si proposé).
-2. **Node.js** doit être installé chez l'hôte (https://nodejs.org, version LTS).
-3. Chez l'hôte, le jeu doit être construit (dossier `dist/` ou `.ci/verif/dist/`, ou le fichier
-   unique `NEURAPOLIS.html`).
+Il suffit d'être sur **le même réseau** (même box, même Wi-Fi). Aucun compte, aucun VPN, aucun
+service extérieur. (Un VPN maillé du type Meshnet marche aussi, mais il n'est pas nécessaire.)
 
 ## Lancer une partie
 
-1. **L'hôte** double-clique sur `jouer-en-lan.bat` (ou tape `npm run lan`, ou
-   `node tools/lan-server.mjs`). Windows peut demander d'autoriser Node.js : acceptez pour les
-   réseaux privés. La fenêtre affiche des adresses ; celle de Meshnet commence par `100.`
-   (par exemple `http://100.64.12.34:8765`).
-2. **L'hôte** ouvre `http://localhost:8765`, charge ou crée sa partie, puis clique sur
-   **📡 Multijoueur → Se connecter** et choisit les règles.
-3. **L'ami** ouvre l'adresse Meshnet de l'hôte dans son navigateur, charge ou crée sa partie,
-   puis **📡 Multijoueur → Se connecter** (adresse laissée vide : c'est celle de la page).
-   Avec le fichier unique ouvert en local, il tape l'adresse de l'hôte (ex. `100.64.12.34:8765`).
+**L'hôte** (un seul ordinateur fait serveur), au choix :
 
-Le premier connecté est **l'hôte** : c'est son horloge qui fait foi pour tout le monde. Les
-autres peuvent demander une autre allure ; seul l'hôte « passe le temps » (journée, semaine,
-mois), et tout le monde saute ensemble. En multijoueur, une action longue (bénévolat, buvette…)
-ne fait pas sauter le temps des autres : elle t'occupe jusqu'à ce que l'horloge partagée arrive.
+- **Application NEURAPOLIS** : 📡 Multijoueur → **Héberger sur cet ordinateur**. L'adresse à donner
+  s'affiche (par exemple `192.168.1.20:8765`).
+- **Navigateur** : double-clic sur `jouer-en-lan.bat` (ou `npm run lan`). La première fois, il
+  construit le jeu s'il ne l'est pas. La fenêtre affiche l'adresse à donner
+  (`http://192.168.1.20:8765`). Ouvre `http://localhost:8765`, crée ou charge ta partie, puis
+  📡 Multijoueur → choisis les règles → **Ouvrir la partie sur ce serveur**.
+- Windows peut demander d'autoriser Node.js (ou NEURAPOLIS) : accepte pour les **réseaux privés**.
+
+**Les amis** ouvrent l'adresse de l'hôte dans leur navigateur (`http://192.168.1.20:8765`), créent
+ou chargent leur partie, puis 📡 Multijoueur → **Rejoindre** (adresse vide : c'est ce serveur).
+Depuis l'application ou le fichier `NEURAPOLIS.html`, ils tapent l'adresse `192.168.1.20:8765`.
+
+Le premier connecté est **l'hôte** : son horloge fait foi. Les autres peuvent demander une autre
+allure ; seul l'hôte « passe le temps », et tout le monde saute ensemble. Une partie en avance sur
+celle de l'hôte attend que son horloge la rejoigne (le panneau l'indique).
+
+**Si l'hôte part**, le joueur suivant devient l'hôte automatiquement. **Si un joueur perd la
+connexion**, sa partie continue en solo et se reconnecte toute seule (essais toutes les 1 à 10 s) ;
+ce qui lui était destiné (prêt, remboursement, sabotage…) lui arrive à son retour.
+
+**Sauvegarde et reprise** : chaque joueur sauvegarde sa partie comme d'habitude (prêts, dettes,
+alliances, propositions en attente compris). En rechargeant une sauvegarde de partie à plusieurs,
+le jeu se reconnecte au même hôte ; « Quitter la partie à plusieurs » arrête cette reprise.
+
+## Procédure de test pas à pas
+
+### A. Deux fenêtres sur le même PC (5 minutes)
+
+1. Dans le dossier du jeu : `npm ci` (une fois), puis double-clic sur `jouer-en-lan.bat`.
+2. Fenêtre 1 : `http://localhost:8765` → nouvelle partie (prénom « Alex ») → 📡 Multijoueur →
+   règles « Libre » → **Ouvrir la partie sur ce serveur**. Le panneau dit « 🟢 Tu es l'hôte ».
+3. Fenêtre 2 : `http://127.0.0.1:8765` (adresse différente = sauvegarde séparée ; sinon une fenêtre
+   privée) → nouvelle partie (« Bilal ») → 📡 Multijoueur → **Rejoindre** (adresse vide).
+4. Vérifier : chaque fenêtre affiche « Bilal est dans la partie » / « Alex… » ; le bouton du haut
+   indique « 📡 2 joueurs » ; dehors, on voit l'autre avatar avec « 🎮 Alex » au-dessus de la tête.
+5. Alex : 📡 → Bilal → **Prêter** 100 €. Bilal : 📡 → Propositions reçues → **Accepter**. Bilal
+   reçoit 100 €, Alex voit « On te doit 110 € ».
+6. Fermer la fenêtre 2 : Alex voit « Bilal a quitté la partie ». La rouvrir sur `127.0.0.1:8765`,
+   recharger la partie : elle se reconnecte seule.
+7. Fermer la fenêtre 1 (l'hôte) : Bilal devient l'hôte (« c'est toi l'hôte maintenant »).
+
+### B. Deux PC sur la même box
+
+1. PC hôte : `jouer-en-lan.bat` (ou l'application → Héberger). Noter l'adresse affichée
+   (`http://192.168.x.x:8765`).
+2. PC ami : ouvrir cette adresse dans un navigateur → nouvelle partie → 📡 → Rejoindre.
+3. Mêmes vérifications que A.4 à A.7. Couper le Wi-Fi de l'ami 20 s puis le remettre : il se
+   reconnecte, la partie n'a pas planté.
+4. Si « Impossible de joindre… » : même réseau ? Windows a-t-il autorisé Node.js sur les réseaux
+   privés (Pare-feu Windows → Autoriser une application) ? Wi-Fi « invité » isolé ?
 
 ## Les règles (choisies par l'hôte)
 
@@ -39,10 +70,12 @@ ne fait pas sauter le temps des autres : elle t'occupe jusqu'à ce que l'horloge
 | ⚖️ Libre | tout : coopérer, s'entendre en douce, se trahir |
 | ⚔️ Rivalité | zone grise et sabotage seulement |
 
+Les règles sont vérifiées des deux côtés : un coup interdit par le mode est ignoré à l'arrivée.
+
 ## Les 14 mécaniques
 
 **Coopérer**
-- **Prêt** : l'argent part tout de suite (séquestre) ; si l'autre refuse, il revient. Remboursé dans 14 jours, avec 0, 5 ou 10 % d'intérêts ; un retard coûte de la confiance.
+- **Prêt** (10 € à 50 000 €) : l'argent part tout de suite en séquestre ; il arrive chez l'autre quand le prêteur confirme son acceptation, et revient si l'autre refuse ou ne répond pas sous 5 jours. Remboursé dans 14 jours, avec 0, 5 ou 10 % d'intérêts ; un retard coûte de la confiance.
 - **Coentreprise** (14 jours) : 15 % des bénéfices nouveaux de chacun vont à l'autre, +6 % de demande pour les deux.
 - **Achats groupés** (7 jours) : −8 % chez tous les grossistes, pour les deux.
 - **Recommandation** (5 jours) : +15 % de demande chez l'autre ; ta réputation gagne 2 points.
@@ -65,12 +98,27 @@ Chaque mécanique illustre un concept du carnet (levier, capital social, économ
 oligopole, dumping, asymétrie d'information…), et deux fantômes donnent leur avis : un pour,
 un contre. La relation entre joueurs (−100 à +100) garde la mémoire des coups et des services.
 
-## Technique (pour les curieux)
+## Technique
 
-- Mondes parallèles reliés : chaque joueur garde sa simulation déterministe et sa sauvegarde
-  (version 24, champ `multiplayer`). Le réseau échange la présence, l'horloge de l'hôte, les sauts
-  de temps et des événements d'interaction appliqués par `src/simulation/multiplayer.ts`.
-- Relais : `tools/net-relay.mjs` (WebSocket écrit à la main, sans dépendance), branché sur le
-  serveur LAN (`tools/lan-server.mjs`) et sur le serveur de développement Vite (`/net`).
-- Client : `src/net/client.ts` (reconnexion automatique), protocole `src/net/protocol.ts`,
-  session et panneau `src/presentation/multiplayer.ts`.
+- **Mondes parallèles reliés** : chaque joueur garde sa simulation déterministe et sa sauvegarde
+  (version 25, champ `multiplayer`). Le réseau échange la présence, l'horloge de l'hôte, les sauts
+  de temps et des événements appliqués par `src/simulation/multiplayer.ts`.
+- **Méfiance par défaut** (`src/simulation/multiplayer.ts`) : une réponse n'est appliquée que si
+  elle correspond à un envoi réel (`sent`, save v25) ; un remboursement ne dépasse jamais la dette
+  due ; une part de coentreprise exige un accord en cours ; délais et mode vérifiés à l'arrivée ;
+  au plus 3 propositions en attente par joueur. Un autre joueur ne peut ni créer ni prendre
+  d'argent, ni imposer un accord.
+- **Fiabilité** (`src/net/session.ts`, sans DOM) : une connexion = un joueur (usurpation ignorée) ;
+  les événements restent dans la boîte d'envoi sauvegardée jusqu'à l'accusé de réception (renvoi
+  après coupure, dédoublonnage à l'arrivée) ; débit borné par joueur (sourdine au-delà) ; même
+  sauvegarde ouverte deux fois → nouvel identifiant pour le second.
+- **Protocole** (`src/net/protocol.ts`, version 2) : tout message reçu est validé (`parseGameMsg`) ;
+  textes nettoyés et bornés, toujours affichés comme du texte (jamais du HTML), apparence prise dans
+  les valeurs permises, nombres finis et bornés.
+- **Relais** (`tools/net-relay.mjs`, sans dépendance) : 4 joueurs par salon (refus lisible au 5e),
+  messages ≤ 256 Ko, débit borné par connexion, trames masquées exigées, ping/pong toutes les 10 s,
+  routage d'un message vers un seul joueur (`to`). Branché sur `tools/lan-server.mjs`, sur le
+  serveur Vite (`/net`) et sur l'application de bureau (`desktop/host.cjs`).
+- **Tests** : `tests/net_session.test.ts` (relais réel, 2 à 4 sessions, coupure, départ de l'hôte,
+  client hostile), `tests/multiplayer_hostile.test.ts`, `tests/multiplayer.test.ts`,
+  `tests/net_relay.test.ts`, `tests/desktop_host.test.ts`.

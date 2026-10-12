@@ -1,274 +1,22 @@
 /**
- * Multijoueur en LAN (NordVPN Meshnet ou réseau local) : la session réseau et son panneau.
+ * Multijoueur en réseau local : le panneau (héberger, rejoindre, jouer ensemble).
  *
- * Mondes parallèles reliés : chaque joueur garde sa simulation ; la session échange la présence
- * (avatars dans la ville), l'horloge (l'hôte pilote le temps partagé), les sauts de temps et les
- * interactions (src/simulation/multiplayer.ts). Le premier connecté au salon est l'hôte ; s'il
- * part, le suivant reprend la main.
+ * La session réseau elle-même vit dans `src/net/session.ts` (sans DOM) ; ce module ne fait que
+ * l'afficher et transmettre les choix du joueur. Tout texte venu d'un autre joueur est affiché
+ * comme du texte (`textContent`), jamais comme du HTML.
  */
-import type { Notification, PlayerAppearance, PlayerGender, WorldState } from '../core/types';
+import type { Notification, WorldState } from '../core/types';
 import type { MultiMechanicId, MultiMode } from '../core/multiplayer_types';
+import { TICKS_PER_DAY } from '../core/types';
 import { CONCEPT_BY_ID } from '../data/ascension/concepts';
 import { MULTI_MECHANICS, MULTI_MODES, mechanicAllowed } from '../data/multi_mechanics';
-import {
-  actBlocker, actOn, ensureMultiplayer, publicProfile, receiveMultiEvent, respondToOffer, upsertPeer,
-} from '../simulation/multiplayer';
-import { connectRelay, type NetClient, type NetStatus } from '../net/client';
-import { NET_PROTOCOL, defaultRelayUrl, normalizeRelayUrl, type GameMsg, type RelayMsg } from '../net/protocol';
+import { actBlocker, actOn, ensureMultiplayer, respondToOffer } from '../simulation/multiplayer';
+import { defaultRelayUrl } from '../net/protocol';
+import { MultiplayerSession } from '../net/session';
 import { el } from './ui';
 
-export interface RemotePlayer {
-  conn: number;
-  id: string;
-  name: string;
-  appearance: PlayerAppearance;
-  gender?: PlayerGender;
-  heightM: number;
-  x: number;
-  z: number;
-  h: number;
-  s: number;
-  inside: boolean;
-  /** Dernière position reçue (ms, horloge du navigateur). */
-  seenAt: number;
-}
-
-export interface SessionHooks {
-  /** Notifications de jeu à afficher (toasts, fantômes). */
-  notify(list: Notification[]): void;
-  /** L'hôte a lancé un saut de temps : on fait le même. */
-  skip(kind: 'jour' | 'semaine' | 'mois' | 'vacances'): void;
-  /** (Hôte) un joueur demande une autre allure. */
-  paceRequest(pace: string): void;
-  /** Quelque chose a changé (panneau, HUD). */
-  changed(): void;
-  /** Apparence et taille du joueur local. */
-  me(): { appearance: PlayerAppearance; gender?: PlayerGender; heightM: number };
-}
-
-const ID_KEY = 'neurapolis.multijoueur.id';
-const ADDR_KEY = 'neurapolis.multijoueur.adresse';
-
-function newPlayerId(): string {
-  const a = new Uint32Array(2);
-  crypto.getRandomValues(a);
-  return `j${a[0]!.toString(36)}${a[1]!.toString(36)}`;
-}
-
-function stored(key: string): string {
-  try { return localStorage.getItem(key) ?? ''; } catch { return ''; }
-}
-function store(key: string, v: string): void {
-  try { localStorage.setItem(key, v); } catch { /* préférence perdue : sans gravité */ }
-}
-
-export class MultiplayerSession {
-  private client: NetClient | null = null;
-  status: NetStatus = 'deconnecte';
-  detail = '';
-  me: number | null = null;
-  host: number | null = null;
-  mode: MultiMode = 'libre';
-  /** Mode choisi localement (appliqué si l'on devient hôte). */
-  wantedMode: MultiMode = 'libre';
-  readonly remotes = new Map<number, RemotePlayer>();
-  /** Horloge de l'hôte (pour les autres joueurs). */
-  hostTick: number | null = null;
-  hostPace = 'lent';
-  readonly chat: { name: string; text: string; mine: boolean }[] = [];
-  private lastPose = 0;
-  private lastProfile = 0;
-  private lastClock = 0;
-  private lastOffers = 0;
-
-  constructor(private world: WorldState, private hooks: SessionHooks) {}
-
-  get connected(): boolean { return this.status === 'connecte' && this.me !== null; }
-  get isHost(): boolean { return this.connected && this.me === this.host; }
-  /** Un autre joueur pilote le temps : on suit son horloge. */
-  get followsHost(): boolean { return this.connected && !this.isHost && this.hostTick !== null; }
-  get playerCount(): number { return this.connected ? this.remotes.size + 1 : 0; }
-
-  setWorld(w: WorldState): void { this.world = w; }
-
-  connect(address: string, mode: MultiMode): void {
-    this.disconnect();
-    const m = ensureMultiplayer(this.world, this.world.multiplayer?.selfId || stored(ID_KEY) || newPlayerId());
-    store(ID_KEY, m.selfId);
-    this.wantedMode = mode;
-    this.mode = mode;
-    let url: string;
-    try {
-      url = normalizeRelayUrl(address);
-    } catch {
-      this.status = 'deconnecte';
-      this.detail = 'Adresse invalide.';
-      this.hooks.changed();
-      return;
-    }
-    if (!url) {
-      this.detail = 'Indique l’adresse de l’hôte (ex. 100.64.12.34:8765).';
-      this.hooks.changed();
-      return;
-    }
-    store(ADDR_KEY, address);
-    this.client = connectRelay(url, {
-      onMessage: (msg) => this.onRelay(msg),
-      onStatus: (s, detail) => {
-        this.status = s;
-        this.detail = detail ?? '';
-        if (s !== 'connecte') { this.me = null; this.remotes.clear(); this.hostTick = null; }
-        this.hooks.changed();
-      },
-    });
-  }
-
-  disconnect(): void {
-    this.client?.close();
-    this.client = null;
-    this.status = 'deconnecte';
-    this.me = null;
-    this.host = null;
-    this.hostTick = null;
-    this.remotes.clear();
-    this.hooks.changed();
-  }
-
-  private send(msg: GameMsg): void { this.client?.send(msg); }
-
-  private hello(reply = false): GameMsg {
-    const me = this.hooks.me();
-    return { t: 'hello', v: NET_PROTOCOL, player: publicProfile(this.world), appearance: me.appearance, gender: me.gender, heightM: me.heightM, mode: this.isHost ? this.mode : undefined, reply };
-  }
-
-  private onRelay(msg: RelayMsg): void {
-    switch (msg.t) {
-      case 'welcome':
-        this.me = msg.you;
-        this.host = msg.host;
-        if (this.isHost) this.mode = this.wantedMode;
-        this.send(this.hello());
-        break;
-      case 'host':
-        this.host = msg.conn;
-        if (this.isHost) { this.mode = this.mode || this.wantedMode; this.hostTick = null; this.send(this.hello(true)); }
-        break;
-      case 'leave': {
-        const r = this.remotes.get(msg.conn);
-        this.remotes.delete(msg.conn);
-        if (r) this.hooks.notify([{ kind: 'info', text: `📡 ${r.name} a quitté la partie.` }]);
-        break;
-      }
-      case 'join':
-        break;
-      case 'relay':
-        this.onGame(msg.conn, msg.msg);
-        break;
-      default:
-        break;
-    }
-    this.hooks.changed();
-  }
-
-  private onGame(conn: number, msg: GameMsg): void {
-    const now = performance.now();
-    switch (msg.t) {
-      case 'hello': {
-        if (msg.v !== NET_PROTOCOL) {
-          this.hooks.notify([{ kind: 'alerte', text: `📡 ${msg.player.name} joue avec une autre version du jeu : mettez-vous à jour tous les deux.` }]);
-          return;
-        }
-        const known = this.remotes.has(conn);
-        upsertPeer(this.world, msg.player);
-        this.remotes.set(conn, {
-          conn, id: msg.player.id, name: msg.player.name, appearance: msg.appearance, gender: msg.gender, heightM: msg.heightM,
-          x: this.remotes.get(conn)?.x ?? 0, z: this.remotes.get(conn)?.z ?? 0, h: 0, s: 0, inside: true, seenAt: now,
-        });
-        if (conn === this.host && msg.mode) this.mode = msg.mode;
-        if (!known) this.hooks.notify([{ kind: 'bien', text: `📡 ${msg.player.name} est dans la partie.` }]);
-        if (!msg.reply) this.send(this.hello(true));
-        break;
-      }
-      case 'profile':
-        upsertPeer(this.world, msg.player);
-        break;
-      case 'pose': {
-        const r = this.remotes.get(conn);
-        if (r) Object.assign(r, { x: msg.x, z: msg.z, h: msg.h, s: msg.s, inside: msg.inside, seenAt: now });
-        break;
-      }
-      case 'clock':
-        if (conn === this.host) { this.hostTick = msg.tick; this.hostPace = msg.pace; this.mode = msg.mode; }
-        break;
-      case 'pace':
-        if (this.isHost) this.hooks.paceRequest(msg.pace);
-        break;
-      case 'skip':
-        if (conn === this.host) this.hooks.skip(msg.kind);
-        break;
-      case 'event': {
-        const notes = receiveMultiEvent(this.world, msg.ev);
-        if (notes.length) this.hooks.notify(notes);
-        break;
-      }
-      case 'chat':
-        this.chat.push({ name: msg.name, text: msg.text, mine: false });
-        if (this.chat.length > 30) this.chat.shift();
-        this.hooks.notify([{ kind: 'info', text: `💬 ${msg.name} : ${msg.text}` }]);
-        break;
-      default:
-        break;
-    }
-  }
-
-  /** Chaque image : position, profil, horloge (hôte), événements à envoyer. */
-  update(nowMs: number, pose: { x: number; z: number; heading: number; speed: number }, inside: boolean, pace: string): void {
-    if (!this.connected) return;
-    const m = this.world.multiplayer;
-    if (nowMs - this.lastPose > 100) {
-      this.lastPose = nowMs;
-      this.send({ t: 'pose', p: m?.selfId ?? '', x: Math.round(pose.x * 100) / 100, z: Math.round(pose.z * 100) / 100, h: Math.round(pose.heading * 100) / 100, s: Math.round(pose.speed * 10) / 10, inside });
-    }
-    if (nowMs - this.lastProfile > 5000) {
-      this.lastProfile = nowMs;
-      this.send({ t: 'profile', player: publicProfile(this.world) });
-    }
-    if (this.isHost && nowMs - this.lastClock > 500) {
-      this.lastClock = nowMs;
-      this.send({ t: 'clock', tick: this.world.time.tick, pace, mode: this.mode });
-    }
-    for (const ev of m?.outbox.splice(0) ?? []) this.send({ t: 'event', ev });
-    const offers = m?.offers.length ?? 0;
-    if (offers !== this.lastOffers) { this.lastOffers = offers; this.hooks.changed(); }
-  }
-
-  /** L'hôte saute le temps : tout le monde suit. */
-  broadcastSkip(kind: 'jour' | 'semaine' | 'mois' | 'vacances', target: number): void {
-    if (this.isHost) this.send({ t: 'skip', kind, target });
-  }
-
-  requestPace(pace: string): void {
-    this.send({ t: 'pace', pace });
-  }
-
-  say(text: string): void {
-    const t = text.trim().slice(0, 200);
-    if (!t) return;
-    const name = this.world.player.firstName || this.world.player.name;
-    this.send({ t: 'chat', p: this.world.multiplayer?.selfId ?? '', name, text: t });
-    this.chat.push({ name, text: t, mine: true });
-    if (this.chat.length > 30) this.chat.shift();
-  }
-
-  /** Autres joueurs visibles dehors (position récente). */
-  visibleRemotes(nowMs: number): RemotePlayer[] {
-    return [...this.remotes.values()].filter((r) => !r.inside && nowMs - r.seenAt < 60000);
-  }
-
-  pendingOffers(): number { return this.world.multiplayer?.offers.length ?? 0; }
-
-  savedAddress(): string { return stored(ADDR_KEY); }
-}
+export { MultiplayerSession };
+export type { RemotePlayer, SessionHooks } from '../net/session';
 
 // ---------- Panneau ----------
 
@@ -281,6 +29,8 @@ export interface MultiPanelCtx {
   notify(list: Notification[]): void;
 }
 
+type HostApi = { host(): Promise<{ ok: boolean; port?: number; addresses?: { name: string; address: string; meshnet: boolean }[]; error?: string }> };
+
 const eur = (v: number): string => `${Math.round(v).toLocaleString('fr-FR')} €`;
 
 function button(label: string, onClick: () => void, cls = 'ph-btn'): HTMLButtonElement {
@@ -290,65 +40,58 @@ function button(label: string, onClick: () => void, cls = 'ph-btn'): HTMLButtonE
   return b;
 }
 
+/** Ligne d'état de la connexion, en clair. */
+function statusLine(s: MultiplayerSession): string {
+  if (s.connected) {
+    const role = s.isHost ? 'Tu es l’hôte' : 'Connecté·e à l’hôte';
+    return `🟢 ${role} · ${s.playerCount} joueur${s.playerCount > 1 ? 's' : ''} sur ${s.maxPlayers} au plus`;
+  }
+  if (s.status === 'connexion') return `🟡 ${s.detail || 'Connexion…'}`;
+  return s.detail ? `🔴 ${s.detail}` : '⚪ Pas connecté·e';
+}
+
+/** Durée lisible d'un écart d'horloge (ticks de 10 minutes). */
+function lag(ticks: number): string {
+  const days = Math.floor(ticks / TICKS_PER_DAY);
+  const hours = Math.round(((ticks % TICKS_PER_DAY) * 10) / 60);
+  return days ? `${days} j ${hours} h` : `${hours} h`;
+}
+
 export function openMultiplayerPanel(ctx: MultiPanelCtx): void {
   const { session: s, world: w } = ctx;
   const body = el('div', 'panel-body mp-panel');
   const rerender = (): void => openMultiplayerPanel(ctx);
 
+  // État de la connexion, mis à jour en direct ; le panneau se redessine si l'on se connecte ou se déconnecte.
+  const status = el('p', 'ph-note mp-status', statusLine(s));
+  status.setAttribute('role', 'status');
+  status.setAttribute('aria-live', 'polite');
+  status.style.fontWeight = '700';
+  body.appendChild(status);
+  const wasConnected = s.connected;
+  const live = setInterval(() => {
+    if (!body.isConnected) { clearInterval(live); return; }
+    status.textContent = statusLine(s);
+    if (s.connected !== wasConnected && !body.contains(document.activeElement)) { clearInterval(live); rerender(); }
+  }, 400);
+
   if (!s.connected) {
-    body.appendChild(el('p', 'panel-desc', 'Jouez à plusieurs dans la même ville : chacun garde sa vie et ses affaires, mais vous pouvez vous associer… ou vous saboter.'));
-    const help = el('ol', 'mp-help');
-    for (const line of [
-      'Activez NordVPN Meshnet sur vos deux ordinateurs et ajoutez-vous (ou soyez sur le même réseau local).',
-      'L’hôte lance le serveur du jeu : double-clic sur « jouer-en-lan.bat » (ou « node tools/lan-server.mjs »). Il affiche une adresse en 100.x.x.x.',
-      'L’ami ouvre cette adresse dans son navigateur (ex. http://100.64.12.34:8765), puis clique « Se connecter » ici.',
-    ]) help.appendChild(el('li', '', line));
-    body.appendChild(help);
-    const addr = el('input', 'mp-input') as HTMLInputElement;
-    addr.placeholder = defaultRelayUrl() ? 'adresse de cette page (par défaut)' : 'adresse de l’hôte, ex. 100.64.12.34:8765';
-    addr.value = s.savedAddress();
-    body.appendChild(el('label', 'mp-label', 'Adresse de l’hôte (laisser vide si tu as ouvert sa page)'));
-    body.appendChild(addr);
-    body.appendChild(el('label', 'mp-label', 'Règles (si tu es le premier connecté, c’est toi qui décides)'));
-    const modes = el('div', 'ph-list');
-    let mode: MultiMode = s.wantedMode;
-    for (const m of MULTI_MODES) {
-      const card = el('div', `ph-card mp-mode${m.id === mode ? ' active' : ''}`);
-      card.appendChild(el('div', 'ph-card-title', m.label));
-      card.appendChild(el('p', 'ph-note', m.pitch));
-      card.addEventListener('click', () => {
-        mode = m.id;
-        for (const c of modes.children) c.classList.remove('active');
-        card.classList.add('active');
-      });
-      modes.appendChild(card);
-    }
-    body.appendChild(modes);
-    if (s.detail) body.appendChild(el('p', 'ph-note', `📡 ${s.detail}`));
-    // Application de bureau : héberger d'un clic (serveur intégré, plus besoin du .bat).
-    const appApi = (window as unknown as { neurapolisApp?: { host(): Promise<{ ok: boolean; port?: number; addresses?: { name: string; address: string; meshnet: boolean }[]; error?: string }> } }).neurapolisApp;
-    if (appApi) {
-      const hostNote = el('p', 'ph-note', '');
-      body.appendChild(button('🏠 Héberger une partie sur cet ordinateur', () => {
-        void appApi.host().then((r) => {
-          if (!r.ok) { ctx.toast(r.error ?? 'Impossible d’héberger.', false); return; }
-          const list = (r.addresses ?? []).map((a) => `${a.address}${a.meshnet ? ' (Meshnet)' : ''}`).join(' · ');
-          hostNote.textContent = `Adresse à donner à ton ami : ${list || 'aucune carte réseau trouvée'} — il la tape dans « Adresse de l’hôte ».`;
-          s.connect(`127.0.0.1:${r.port ?? 8765}`, mode);
-          ctx.toast(`Partie hébergée. Ton ami se connecte à : ${list}`, true);
-          setTimeout(rerender, 700);
-        });
-      }, 'ph-btn primary'));
-      body.appendChild(hostNote);
-    }
-    body.appendChild(button(s.status === 'connexion' ? 'Connexion…' : '📡 Se connecter', () => { s.connect(addr.value, mode); ctx.toast('Connexion au salon…', true); setTimeout(rerender, 600); }, 'ph-btn primary'));
-    ctx.showModal('📡 Multijoueur', 'En LAN, via NordVPN Meshnet', body, true);
+    renderLobby(ctx, body, rerender);
+    ctx.showModal('📡 Multijoueur', 'En réseau local : 2 à 4 joueurs dans la même ville', body, true);
     return;
   }
 
   const m = ensureMultiplayer(w);
   const modeDef = MULTI_MODES.find((x) => x.id === s.mode);
   body.appendChild(el('p', 'panel-desc', `${s.isHost ? 'Tu es l’hôte : le temps suit ton horloge.' : 'Le temps suit l’horloge de l’hôte.'} Règles : ${modeDef?.label ?? s.mode} — ${modeDef?.pitch ?? ''}`));
+  if (s.shareAddresses.length) {
+    body.appendChild(el('p', 'ph-note', `🔗 Adresse à donner à tes amis : ${s.shareAddresses.join('  ou  ')}`));
+  }
+  if (s.aheadOfHost > 6) {
+    body.appendChild(el('p', 'ph-note', `⏳ Ta partie est en avance de ${lag(s.aheadOfHost)} sur celle de l’hôte : ton temps attend que son horloge te rejoigne (l’hôte peut « passer le temps » pour aller plus vite).`));
+  }
+  const away = s.offlinePeers();
+  if (away.length) body.appendChild(el('p', 'ph-note', `💤 Hors ligne : ${away.join(', ')}. Ce qui leur est destiné partira à leur retour.`));
 
   // Propositions reçues.
   if (m.offers.length) {
@@ -433,6 +176,21 @@ export function openMultiplayerPanel(ctx: MultiPanelCtx): void {
     body.appendChild(ul);
   }
 
+
+  // Tes propositions qui attendent une réponse.
+  const waiting = (m.sent ?? []).filter((x) => x.phase !== 'act');
+  if (waiting.length) {
+    body.appendChild(el('h3', 'ph-h', '⏳ En attente'));
+    const ul = el('ul', 'asc-checks');
+    for (const x of waiting) {
+      const def = MULTI_MECHANICS.find((y) => y.id === x.mechanic);
+      const who = m.peers[x.peer]?.name ?? '?';
+      const what = `${def?.icon ?? '•'} ${def?.label.toLowerCase() ?? x.mechanic}${x.mechanic === 'pret' ? ` (${eur(x.amount)})` : ''}`;
+      ul.appendChild(el('li', '', x.phase === 'offer' ? `${what} : proposé à ${who}, en attente de sa réponse` : `${what} : accepté, en attente de la confirmation de ${who}`));
+    }
+    body.appendChild(ul);
+  }
+
   // Journal et discussion.
   if (m.log.length) {
     body.appendChild(el('h3', 'ph-h', '🗒️ Journal'));
@@ -445,12 +203,106 @@ export function openMultiplayerPanel(ctx: MultiPanelCtx): void {
   for (const c of s.chat.slice(-8)) chatBox.appendChild(el('div', `mp-line${c.mine ? ' mine' : ''}`, `${c.name} : ${c.text}`));
   body.appendChild(chatBox);
   const say = el('input', 'mp-input') as HTMLInputElement;
-  say.placeholder = 'Écrire à tout le monde…';
+  say.placeholder = 'Écrire à tout le monde… (Entrée pour envoyer)';
+  say.maxLength = 200;
   say.addEventListener('keydown', (e) => {
     e.stopPropagation();
-    if (e.key === 'Enter') { s.say(say.value); rerender(); }
+    if (e.key === 'Enter') {
+      if (!s.say(say.value)) ctx.toast('Message non envoyé : la connexion est coupée.', false);
+      rerender();
+    }
   });
   body.appendChild(say);
-  body.appendChild(button('Se déconnecter', () => { s.disconnect(); ctx.closeModal(); }, 'ph-btn danger'));
+  body.appendChild(button('Quitter la partie à plusieurs', () => { s.disconnect(); ctx.closeModal(); ctx.toast('Tu as quitté la partie à plusieurs. Ta sauvegarde garde vos accords et vos dettes.', true); }, 'ph-btn danger'));
   ctx.showModal('📡 Multijoueur', `${s.isHost ? 'Hôte' : 'Invité·e'} · ${s.playerCount} joueur(s)`, body, true);
+}
+
+/** Écran d'accueil : héberger ou rejoindre, choisir les règles, comprendre ce qui se passe. */
+function renderLobby(ctx: MultiPanelCtx, body: HTMLElement, rerender: () => void): void {
+  const { session: s, world: w } = ctx;
+  const appApi = (window as unknown as { neurapolisApp?: HostApi }).neurapolisApp;
+  const servedByServer = !!defaultRelayUrl();
+  let mode: MultiMode = s.wantedMode;
+  const go = (address: string, label: string): void => {
+    s.connect(address, mode);
+    ctx.toast(label, true);
+    setTimeout(rerender, 700);
+  };
+
+  body.appendChild(el('p', 'panel-desc', 'Jouez à 2, 3 ou 4 dans la même ville de Val-Ferrand : chacun garde sa vie et ses affaires, vous vous croisez dans les rues et vous pouvez vous associer… ou vous saboter. Il suffit d’être sur le même réseau (même box, même Wi-Fi).'));
+
+  // Reprise d'une partie sauvegardée.
+  const peers = Object.values(w.multiplayer?.peers ?? {}).map((p) => p.name);
+  if (peers.length) {
+    const card = el('div', 'ph-card');
+    card.appendChild(el('div', 'ph-card-title', `🔁 Reprendre la partie avec ${peers.join(', ')}`));
+    card.appendChild(el('p', 'ph-note', `Ta sauvegarde garde vos prêts, vos dettes et vos alliances. Reconnecte-toi au même hôte${s.savedAddress() ? ` (${s.savedAddress()})` : ''} pour continuer ensemble.`));
+    card.appendChild(button('Reprendre', () => go(s.savedAddress(), 'Reconnexion à la partie…'), 'ph-btn primary'));
+    body.appendChild(card);
+  }
+
+  // Règles.
+  body.appendChild(el('label', 'mp-label', 'Règles de la partie (c’est l’hôte qui décide)'));
+  const modes = el('div', 'ph-list');
+  for (const md of MULTI_MODES) {
+    const card = el('div', `ph-card mp-mode${md.id === mode ? ' active' : ''}`);
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.appendChild(el('div', 'ph-card-title', md.label));
+    card.appendChild(el('p', 'ph-note', md.pitch));
+    const pick = (): void => {
+      mode = md.id;
+      for (const c of modes.children) c.classList.remove('active');
+      card.classList.add('active');
+    };
+    card.addEventListener('click', pick);
+    card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+    modes.appendChild(card);
+  }
+  body.appendChild(modes);
+
+  // Héberger.
+  const hostCard = el('div', 'ph-card');
+  hostCard.appendChild(el('div', 'ph-card-title', '🏠 Héberger une partie'));
+  if (appApi) {
+    const hostNote = el('p', 'ph-note', 'Ton ordinateur devient le serveur de la partie. Garde l’application ouverte pendant que vous jouez.');
+    hostCard.appendChild(hostNote);
+    hostCard.appendChild(button('Héberger sur cet ordinateur', () => {
+      void appApi.host().then((r) => {
+        if (!r.ok) { ctx.toast(r.error ?? 'Impossible d’héberger.', false); hostNote.textContent = `⚠️ ${r.error ?? 'Impossible d’héberger.'}`; return; }
+        const list = (r.addresses ?? []).map((a) => `${a.address}:${r.port ?? 8765}`).join('  ou  ');
+        go(`127.0.0.1:${r.port ?? 8765}`, list ? `Partie hébergée. Tes amis tapent : ${list}` : 'Partie hébergée (aucune carte réseau trouvée : branche-toi au Wi-Fi).');
+      });
+    }, 'ph-btn primary'));
+  } else if (servedByServer) {
+    hostCard.appendChild(el('p', 'ph-note', `Le jeu vient du serveur ${location.host}. Le premier qui ouvre la partie sur ce serveur en devient l’hôte ; les suivants la rejoignent.`));
+    hostCard.appendChild(button('Ouvrir la partie sur ce serveur', () => go('', 'Connexion au serveur…'), 'ph-btn primary'));
+  } else {
+    hostCard.appendChild(el('p', 'ph-note', 'Pour héberger : lance « jouer-en-lan.bat » (dossier du jeu) ou l’application NEURAPOLIS, puis ouvre l’adresse qu’ils affichent.'));
+  }
+  body.appendChild(hostCard);
+
+  // Rejoindre.
+  const joinCard = el('div', 'ph-card');
+  joinCard.appendChild(el('div', 'ph-card-title', '🔗 Rejoindre une partie'));
+  joinCard.appendChild(el('label', 'mp-label', servedByServer ? 'Adresse de l’hôte (laisse vide pour ce serveur)' : 'Adresse de l’hôte'));
+  const addr = el('input', 'mp-input') as HTMLInputElement;
+  addr.placeholder = servedByServer ? `${location.host} (ce serveur)` : 'par exemple 192.168.1.20:8765';
+  addr.value = s.savedAddress();
+  addr.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') go(addr.value, 'Connexion à l’hôte…');
+  });
+  joinCard.appendChild(addr);
+  joinCard.appendChild(button(s.status === 'connexion' ? 'Connexion…' : 'Rejoindre', () => go(addr.value, 'Connexion à l’hôte…'), 'ph-btn primary'));
+  if (s.status !== 'deconnecte') joinCard.appendChild(button('Annuler', () => { s.disconnect(); rerender(); }, 'ph-btn'));
+  body.appendChild(joinCard);
+
+  const help = el('ul', 'mp-help');
+  for (const line of [
+    'L’adresse de l’hôte ressemble à 192.168.1.20:8765 : elle s’affiche dans sa fenêtre (jouer-en-lan.bat) ou dans ce panneau une fois connecté.',
+    'Deux fenêtres sur le même ordinateur ? Ouvre la deuxième sur 127.0.0.1 au lieu de localhost (ou dans une fenêtre privée) : chaque fenêtre garde ainsi sa propre sauvegarde.',
+    'Ça ne passe pas ? Vérifie que vous êtes sur le même réseau et que Windows a autorisé Node.js (ou NEURAPOLIS) sur les réseaux privés.',
+  ]) help.appendChild(el('li', '', line));
+  body.appendChild(help);
 }
