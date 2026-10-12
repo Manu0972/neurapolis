@@ -153,6 +153,9 @@ export function campaignTick(w: WorldState): Notification[] {
       stage.completed = true;
       if (!w.campaign.completedChapters.includes(3)) w.campaign.completedChapters.push(3);
       w.campaign.currentChapter = 4;
+      // Chapitre 4 : le soutien concret au quartier se compte à partir d'ici.
+      w.flags['chapitre4CoursesDepart'] = w.flags['courses'] ?? 0;
+      w.flags['chapitre4BoulotsDepart'] = w.flags['jobShiftsDone'] ?? 0;
 
       pushEvent(w, {
         type: 'vie',
@@ -178,7 +181,7 @@ export function campaignTick(w: WorldState): Notification[] {
     const stage = w.campaign.stages.find((s) => s.chapter === 4);
     const councilMobilized = (w.flags['chapitre4ConseilMobilise'] ?? 0) > 0;
     const citizenDebateDone = (w.flags['chapitre4DebatCitoyen'] ?? 0) > 0;
-    const districtTrust = w.district.confianceQuartier >= 50;
+    const districtTrust = chapter4QuarterBacked(w);
 
     if (stage && !stage.completed && w.player.age >= stage.targetAge
       && councilMobilized && citizenDebateDone && districtTrust) {
@@ -194,7 +197,9 @@ export function campaignTick(w: WorldState): Notification[] {
           { facteur: 'âge du joueur', seuil: `${w.player.age} ans`, poids: 1 },
           { facteur: 'mobilisation du Conseil', poids: 2 },
           { facteur: 'grand débat citoyen sur la place', poids: 3 },
-          { facteur: 'confiance du quartier', seuil: `${w.district.confianceQuartier}/100`, poids: 2 },
+          w.district.confianceQuartier >= CHAPTER4_TRUST
+            ? { facteur: 'confiance du quartier', seuil: `${Math.round(w.district.confianceQuartier)}/100`, poids: 2 }
+            : { facteur: 'soutien concret au quartier (courses, services chez Mme Bertin)', seuil: `${chapter4Support(w)}/${CHAPTER4_SUPPORT}`, poids: 2 },
         ],
       });
       w.lifeJournal.push({
@@ -532,20 +537,78 @@ export function chapter3Help(w: WorldState): number {
   return Math.max(0, courses) + Math.max(0, shifts);
 }
 
+/** Chapitre 4 : seuil de confiance du quartier, ou soutien concret équivalent. */
+export const CHAPTER4_TRUST = 50;
+export const CHAPTER4_SUPPORT = 8;
+
+/** Chapitre 4 : courses pour l'épicerie et services chez Mme Bertin depuis l'ouverture du chapitre. */
+export function chapter4Support(w: WorldState): number {
+  const courses = (w.flags['courses'] ?? 0) - (w.flags['chapitre4CoursesDepart'] ?? 0);
+  const shifts = (w.flags['jobShiftsDone'] ?? 0) - (w.flags['chapitre4BoulotsDepart'] ?? 0);
+  return Math.max(0, courses) + Math.max(0, shifts);
+}
+
+/**
+ * Chapitre 4 : le quartier suit le joueur s'il lui fait confiance (≥ 50), ou s'il l'a vu agir.
+ * Sans cette seconde voie, un joueur qui a laissé l'épicerie décliner pendant trois ans
+ * (confiance ≈ 35) devait enchaîner une quarantaine de courses : blocage mesuré par le
+ * parcours scripté (tests/parcours).
+ */
+export function chapter4QuarterBacked(w: WorldState): boolean {
+  return w.district.confianceQuartier >= CHAPTER4_TRUST || chapter4Support(w) >= CHAPTER4_SUPPORT;
+}
+
+/** Les objectifs du chapitre en cours sont-ils remplis, âge mis à part ? */
+export function chapterObjectivesMet(w: WorldState): boolean {
+  const ch = w.campaign.currentChapter;
+  if (ch === 1) {
+    return chapter1Sales(w) >= 3 && chapter1Team(w) >= 1 && (w.flags['contreStrategiesLancees'] ?? 0) >= 1;
+  }
+  if (ch === 2) {
+    return (w.flags['chapitre2ConversationCoopSamir'] ?? 0) > 0 && (w.project?.rules.collectif ?? false)
+      && (w.flags['chapitre2VentesCollectives'] ?? 0) > 0;
+  }
+  if (ch === 3) {
+    const strat = (w.flags['contreStrategiesLancees'] ?? 0) - (w.flags['chapitre3ContreStrategiesDepart'] ?? 0);
+    return chapter3Help(w) >= 5 && strat >= 1;
+  }
+  if (ch === 4) {
+    return (w.flags['chapitre4ConseilMobilise'] ?? 0) > 0 && (w.flags['chapitre4DebatCitoyen'] ?? 0) > 0
+      && chapter4QuarterBacked(w);
+  }
+  if (ch === 5) return (w.flags['chapitre5ModeleFonde'] ?? 0) > 0;
+  return true;
+}
+
+/** Objectifs remplis mais âge pas encore atteint : « rendez-vous à tes N ans ». */
+function waitingForBirthday(w: WorldState, targetAge: number): string | null {
+  if (w.player.age >= targetAge || !chapterObjectivesMet(w)) return null;
+  const year = dateOf(0).y + (targetAge - STARTING_PLAYER_AGE);
+  return `✓ Objectifs remplis · le chapitre se conclura à tes ${targetAge} ans (1er septembre ${year}) — 📅 fais passer le temps`;
+}
+
 export function getCampaignProgressSummary(w: WorldState): CampaignSummary {
   const ch = w.campaign.currentChapter;
   const stage = w.campaign.stages.find((s) => s.chapter === ch);
   const age = w.player.age;
 
+  // Chaque ligne du HUD dit où en est le joueur ET quoi faire ensuite (parcours scripté :
+  // sans ces indices, les attentes d'âge et le soutien du chapitre 4 n'étaient pas lisibles).
+  const next = (hint: string | null): string => (hint ? ` · ${hint}` : '');
+  const wait = stage ? waitingForBirthday(w, stage.targetAge) : null;
+
   if (ch === 1) {
     const v = Math.min(3, chapter1Sales(w));
     const m = chapter1Team(w);
     const c = Math.min(1, w.flags['contreStrategiesLancees'] ?? 0);
+    const hint = v < 3 ? '→ ☰ Projet : du stock, puis « Tenir le stand » sur la place'
+      : m < 1 ? '→ discute avec Noah ou Lina, puis recrute dans ☰ Projet'
+        : c < 1 ? '→ ☰ Concurrence : lance une contre-offensive' : null;
     return {
       chapter: 1,
       chapterLabel: `Chapitre 1 (${age} ans)`,
       title: stage?.title ?? 'Les Goûters de Val-Ferrand',
-      prompt: `Ventes : ${v}/3 · Équipe : ${m}/1 · Contre-offensive : ${c}/1`,
+      prompt: `Ventes : ${v}/3 · Équipe : ${m}/1 · Contre-offensive : ${c}/1${next(hint)}`,
       completed: false,
     };
   }
@@ -554,11 +617,14 @@ export function getCampaignProgressSummary(w: WorldState): CampaignSummary {
     const samir = (w.flags['chapitre2ConversationCoopSamir'] ?? 0) > 0;
     const rules = w.project?.rules.collectif ?? false;
     const colSale = (w.flags['chapitre2VentesCollectives'] ?? 0) > 0;
+    const hint = wait ?? (!samir ? '→ parle « coop » à Samir (Friche le matin, place l’après-midi)'
+      : !rules ? '→ ☰ Projet : Noah et Lina dans l’équipe, puis « Règles partagées »'
+        : !colSale ? '→ tiens le stand avec les règles collectives' : null);
     return {
       chapter: 2,
       chapterLabel: `Chapitre 2 (${age} ans)`,
       title: stage?.title ?? 'L’Appel de la Friche Taret',
-      prompt: `Âge : ${age}/13 ans · Samir : ${samir ? '✓' : 'non'} · Règles coop : ${rules ? '✓' : 'non'} · Vente collective : ${colSale ? '✓' : 'non'}`,
+      prompt: `Âge : ${age}/13 ans · Samir : ${samir ? '✓' : 'non'} · Règles coop : ${rules ? '✓' : 'non'} · Vente collective : ${colSale ? '✓' : 'non'}${next(hint)}`,
       completed: false,
     };
   }
@@ -566,11 +632,13 @@ export function getCampaignProgressSummary(w: WorldState): CampaignSummary {
   if (ch === 3) {
     const courses = chapter3Help(w);
     const strat = (w.flags['contreStrategiesLancees'] ?? 0) - (w.flags['chapitre3ContreStrategiesDepart'] ?? 0);
+    const hint = wait ?? (courses < 5 ? '→ à l’épicerie : ☰ Projet « Faire une course »'
+      : strat < 1 ? '→ ☰ Concurrence : une nouvelle contre-offensive' : null);
     return {
       chapter: 3,
       chapterLabel: `Chapitre 3 (${age} ans)`,
       title: stage?.title ?? 'Le Réseau Solidaire',
-      prompt: `Âge : ${age}/14 ans · Courses épicerie : ${Math.max(0, courses)}/5 · Nouvelle riposte : ${Math.max(0, strat)}/1`,
+      prompt: `Âge : ${age}/14 ans · Courses épicerie : ${Math.max(0, courses)}/5 · Nouvelle riposte : ${Math.max(0, strat)}/1${next(hint)}`,
       completed: false,
     };
   }
@@ -578,12 +646,16 @@ export function getCampaignProgressSummary(w: WorldState): CampaignSummary {
   if (ch === 4) {
     const conseil = (w.flags['chapitre4ConseilMobilise'] ?? 0) > 0;
     const debat = (w.flags['chapitre4DebatCitoyen'] ?? 0) > 0;
-    const conf = w.district.confianceQuartier;
+    const conf = Math.round(w.district.confianceQuartier);
+    const backed = chapter4QuarterBacked(w);
+    const hint = wait ?? (!conseil ? '→ ☰ Concurrence : mobilise le Conseil (2 voix actives)'
+      : !debat ? (age < 15 ? '→ le débat de la place aura lieu à tes 15 ans' : '→ ☰ Concurrence ou place du marché : choisis l’aménagement')
+        : !backed ? `→ montre ton soutien : courses pour l’épicerie ${chapter4Support(w)}/${CHAPTER4_SUPPORT}` : null);
     return {
       chapter: 4,
       chapterLabel: `Chapitre 4 (${age} ans)`,
       title: stage?.title ?? 'La Voix du Quartier',
-      prompt: `Âge : ${age}/15 ans · Conseil : ${conseil ? '✓' : 'non'} · Débat place : ${debat ? '✓' : 'non'} · Confiance : ${conf}/50`,
+      prompt: `Âge : ${age}/15 ans · Conseil : ${conseil ? '✓' : 'non'} · Débat place : ${debat ? '✓' : 'non'} · Confiance : ${conf}/${CHAPTER4_TRUST}${backed && conf < CHAPTER4_TRUST ? ' (soutien ✓)' : ''}${next(hint)}`,
       completed: false,
     };
   }
@@ -591,13 +663,14 @@ export function getCampaignProgressSummary(w: WorldState): CampaignSummary {
   if (ch === 5) {
     const fonde = (w.flags['chapitre5ModeleFonde'] ?? 0) > 0;
     const allDone = w.campaign.completedChapters.includes(5);
+    const hint = wait ?? (!fonde ? '→ ☰ Concurrence : choisis le modèle économique' : null);
     return {
       chapter: 5,
       chapterLabel: `Chapitre 5 (${age} ans)`,
       title: stage?.title ?? 'L’Héritage de Val-Ferrand',
       prompt: allDone
         ? '✦ NEURAPOLIS accompli · Épilogue gravé dans l’histoire de la cité'
-        : `Âge : ${age}/16 ans · Modèle économique : ${fonde ? 'Fondé ✓' : 'À choisir'}`,
+        : `Âge : ${age}/16 ans · Modèle économique : ${fonde ? 'Fondé ✓' : 'À choisir'}${next(hint)}`,
       completed: allDone,
     };
   }
