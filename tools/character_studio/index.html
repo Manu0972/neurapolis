@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GLM Character Studio — High-Precision Aesthetic & Biometric Designer</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="theme-dark">
+  <!-- Top Global Header -->
+  <header class="studio-header">
+    <div class="header-brand">
+      <div class="brand-logo-mark">⚡</div>
+      <div class="brand-text">
+        <h1 class="brand-title">GLM CHARACTER STUDIO</h1>
+        <span class="brand-subtitle">High-Precision Biometric, Aesthetic & Manhwa Engine</span>
+      </div>
+    </div>
+
+    <!-- Quick Presets Carousel -->
+    <div class="header-presets">
+      <span class="presets-label">PRESETS:</span>
+      <div id="preset-pills" class="preset-pills-container">
+        <!-- Injected via js/app.js -->
+      </div>
+    </div>
+
+    <!-- Global Actions -->
+    <div class="header-actions">
+      <button type="button" id="btn-randomize" class="btn btn-secondary btn-sm" title="Générer aléatoirement avec équilibre esthétique">
+        <span class="btn-icon">🎲</span> Randomize
+      </button>
+      <button type="button" id="btn-import-json" class="btn btn-secondary btn-sm" title="Importer un Blueprint JSON">
+        <span class="btn-icon">📂</span> Importer
+      </button>
+      <input type="file" id="input-file-import" accept=".json" style="display: none;">
+      <button type="button" id="btn-export-json" class="btn btn-primary btn-sm" title="Exporter le Blueprint JSON complet">
+        <span class="btn-icon">💾</span> JSON
+      </button>
+      <button type="button" id="btn-export-md" class="btn btn-accent btn-sm" title="Exporter la fiche Markdown">
+        <span class="btn-icon">📄</span> Markdown
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace Layout -->
+  <main class="studio-layout">
+    
+    <!-- LEFT PANEL: Controls & Sliders -->
+    <aside class="panel panel-left controls-panel">
+      
+      <!-- Section: Bio & Identity -->
+      <section class="panel-section">
+        <div class="panel-section-header">
+          <span class="section-title">1. Identité & Archétype</span>
+          <span class="section-toggle">▼</span>
+        </div>
+        <div class="panel-section-body">
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label for="input-name">Nom complet</label>
+              <input type="text" id="input-name" class="input-text" value="Kaelen Vance" placeholder="Nom du personnage">
+            </div>
+            <div class="form-group flex-1">
+              <label for="input-age">Âge</label>
+              <input type="number" id="input-age" class="input-text" value="23" min="14" max="99">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="input-alias">Alias / Titre</label>
+              <input type="text" id="input-alias" class="input-text" value="Shadow Weaver" placeholder="ex. Void Walker">
+            </div>
+            <div class="form-group flex-1">
+              <label for="input-role">Rôle / Classe</label>
+              <input type="text" id="input-role" class="input-text" value="Urban Hunter" placeholder="ex. Assassin">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="select-gender">Genre & Silhouette</label>
+              <select id="select-gender" class="select-field">
+                <option value="male" selected>Masculin (Athlétique)</option>
+                <option value="female">Féminin (Galbé & Naturel)</option>
+                <option value="androgynous">Androgyne (Élégant)</option>
+              </select>
+            </div>
+            <div class="form-group flex-1">
+              <label for="select-somatotype">Somatotype</label>
+              <select id="select-somatotype" class="select-field">
+                <option value="mesomorph" selected>Mésomorphe (Musclé)</option>
+                <option value="ectomorph">Ectomorphe (Fin / Élancé)</option>
+                <option value="endomorph">Endomorphe (Puissant / Plein)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="select-style">Preset Graphique</label>
+              <select id="select-style" class="select-field">
+                <option value="korean_webtoon_cinematic" selected>Korean Webtoon Cinematic (Solo Leveling)</option>
+                <option value="anime_cel_shaded_premium">Anime Cel-Shaded Premium (MAPPA / Ufotable)</option>
+                <option value="tactical_semi_realistic">Tactical Semi-Realistic Concept Art</option>
+                <option value="painterly_digital_manhwa">Painterly Digital Manhwa</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="input-backstory">Note narrative courte</label>
+            <textarea id="input-backstory" class="textarea-field" rows="2" placeholder="Brève note sur son origine ou tempérament..."></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Anatomie & Musculature Sans Censure -->
+      <section class="panel-section">
+        <div class="panel-section-header">
+          <span class="section-title">2. Anatomie & Morphologie (Sans Censure)</span>
+          <span class="section-toggle">▼</span>
+        </div>
+        <div class="panel-section-body">
+          
+          <!-- Height Slider -->
+          <div class="slider-control">
+            <div class="slider-header">
+              <label for="slider-height">Taille totale</label>
+              <span id="slider-height-val" class="slider-val-badge">186 cm</span>
+            </div>
+            <input type="range" id="slider-height" min="150" max="215" step="1" value="186" class="range-slider">
+          </div>
+
+          <!-- WHR Slider -->
+          <div class="slider-control">
+            <div class="slider-header">
+              <label for="slider-whr">Waist-to-Hip Ratio (WHR)</label>
+              <span id="slider-whr-val" class="slider-val-badge">0.85</span>
+            </div>
+            <input type="range" id="slider-whr" min="0.58" max="1.00" step="0.01" value="0.85" class="range-slider">
+            <div class="slider-helper">0.65-0.72 : Sablier féminin affirmé | 0.82-0.88 : Athlétique masculin</div>
+          </div>
+
+          <!-- V-Taper / SHR Slider -->
+          <div class="slider-control">
+            <div class="slider-header">
+              <label for="slider-vtaper">V-Taper Épaules / Hanches (SHR)</label>
+              <span id="slider-vtaper-val" class="slider-val-badge">1.55</span>
+            </div>
+            <input type="range" id="slider-vtaper" min="1.00" max="1.80" step="0.01" value="1.55" class="range-slider">
+            <div class="slider-helper">> 1.50 : Grand dorsal déployé & silhouette en V athlétique</div>
+          </div>
+
+          <!-- Muscularity Slider -->
+          <div class="slider-control">
+            <div class="slider-header">
+              <label for="slider-muscularity">Définition Musculaire</label>
+              <span id="slider-muscularity-val" class="slider-val-badge">65%</span>
+            </div>
+            <input type="range" id="slider-muscularity" min="0" max="1" step="0.01" value="0.65" class="range-slider">
+            <div class="slider-helper">Dentelés antérieurs, abdos en plaquettes, séparation des deltoïdes</div>
+          </div>
+
+          <!-- Galbe / Glutes Slider -->
+          <div class="slider-control">
+            <div class="slider-header">
+              <label for="slider-galbe">Galbe & Fessiers</label>
+              <span id="slider-galbe-val" class="slider-val-badge">50%</span>
+            </div>
+            <input type="range" id="slider-galbe" min="0" max="1" step="0.01" value="0.50" class="range-slider">
+            <div class="slider-helper">Cambrure lombaire naturelle, galbe athlétique et vaste externe</div>
+          </div>
+
+          <!-- Vascularity Slider -->
+          <div class="slider-control">
+            <div class="slider-header">
+              <label for="slider-vascularity">Vascularité & Écorché</label>
+              <span id="slider-vascularity-val" class="slider-val-badge">30%</span>
+            </div>
+            <input type="range" id="slider-vascularity" min="0" max="1" step="0.01" value="0.30" class="range-slider">
+          </div>
+
+          <!-- Bust Volume Slider -->
+          <div class="slider-control">
+            <div class="slider-header">
+              <label for="slider-bust">Volume Pectoral / Buste (Gravité Réelle)</label>
+              <span id="slider-bust-val" class="slider-val-badge">40%</span>
+            </div>
+            <input type="range" id="slider-bust" min="0" max="1" step="0.01" value="0.40" class="range-slider">
+            <div class="slider-helper">Chute naturelle en goutte d'eau (aucun effet sphérique artificiel)</div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Section: Canons Faciaux & Harmonie -->
+      <section class="panel-section">
+        <div class="panel-section-header">
+          <span class="section-title">3. Visage, Canthal Tilt & Mâchoire</span>
+          <span class="section-toggle">▼</span>
+        </div>
+        <div class="panel-section-body">
+          
+          <!-- Canthal Tilt Slider -->
+          <div class="slider-control">
+            <div class="slider-header">
+              <label for="slider-canthal">Canthal Tilt (Angle des Yeux)</label>
+              <span id="slider-canthal-val" class="slider-val-badge">+4.5°</span>
+            </div>
+            <input type="range" id="slider-canthal" min="-5" max="10" step="0.5" value="4.5" class="range-slider">
+            <div class="slider-helper">> +3° : Regard félin acéré héroïque de Manhwa</div>
+          </div>
+
+          <!-- Mandibular Angle Slider -->
+          <div class="slider-control">
+            <div class="slider-header">
+              <label for="slider-mandibular">Angle Mandibulaire (Gonial)</label>
+              <span id="slider-mandibular-val" class="slider-val-badge">116°</span>
+            </div>
+            <input type="range" id="slider-mandibular" min="105" max="135" step="1" value="116" class="range-slider">
+            <div class="slider-helper">110°-120° : Masculin ciselé | 125°-135° : Féminin délicat en V</div>
+          </div>
+
+          <!-- Cheekbones Slider -->
+          <div class="slider-control">
+            <div class="slider-header">
+              <label for="slider-cheekbones">Pommettes & Relief Zygomatique</label>
+              <span id="slider-cheekbones-val" class="slider-val-badge">75%</span>
+            </div>
+            <input type="range" id="slider-cheekbones" min="0" max="1" step="0.01" value="0.75" class="range-slider">
+          </div>
+
+          <!-- Facial Symmetry Slider -->
+          <div class="slider-control">
+            <div class="slider-header">
+              <label for="slider-symmetry">Symétrie & Harmonisation</label>
+              <span id="slider-symmetry-val" class="slider-val-badge">95%</span>
+            </div>
+            <input type="range" id="slider-symmetry" min="0.7" max="1" step="0.01" value="0.95" class="range-slider">
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Section: Garde-Robe & Couleurs -->
+      <section class="panel-section">
+        <div class="panel-section-header">
+          <span class="section-title">4. Garde-Robe & Nuancier Hex</span>
+          <span class="section-toggle">▼</span>
+        </div>
+        <div class="panel-section-body">
+          
+          <div class="form-group">
+            <label for="select-wardrobe">Style Vestimentaire</label>
+            <select id="select-wardrobe" class="select-field">
+              <option value="streetwear" selected>K-Streetwear (Oversize / Cargos / Sneakers)</option>
+              <option value="techwear">Techwear Tactique (Gore-Tex / Sangles Fidlock)</option>
+              <option value="modern_hanbok">Modern Neo-Hanbok (Revers croisé / Otgoreum)</option>
+              <option value="light_armor">Armure Légère de Chasseur (Plastron titane)</option>
+              <option value="business">Haute Couture & Power Suit (Veste croisée)</option>
+            </select>
+          </div>
+
+          <!-- Mode Toggle: Duty vs Private -->
+          <div class="form-group">
+            <label>Mode de tenue</label>
+            <div class="radio-toggle-group">
+              <label class="radio-pill">
+                <input type="radio" name="wardrobe-mode" value="duty" checked>
+                <span>Mission / Combat</span>
+              </label>
+              <label class="radio-pill">
+                <input type="radio" name="wardrobe-mode" value="private">
+                <span>Civil / Détendu</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Color Swatches Grid -->
+          <div class="colors-grid">
+            <div class="color-picker-item">
+              <label for="color-primary">Tenue Principale</label>
+              <input type="color" id="color-primary" value="#111216" class="color-input">
+            </div>
+            <div class="color-picker-item">
+              <label for="color-secondary">Secondaire</label>
+              <input type="color" id="color-secondary" value="#2b2d42" class="color-input">
+            </div>
+            <div class="color-picker-item">
+              <label for="color-accent">Accent Néon</label>
+              <input type="color" id="color-accent" value="#00b4d8" class="color-input">
+            </div>
+            <div class="color-picker-item">
+              <label for="color-skin">Peau (Hex)</label>
+              <input type="color" id="color-skin" value="#ffc496" class="color-input">
+            </div>
+            <div class="color-picker-item">
+              <label for="color-hair">Cheveux</label>
+              <input type="color" id="color-hair" value="#141414" class="color-input">
+            </div>
+            <div class="color-picker-item">
+              <label for="color-eyes">Iris / Regard</label>
+              <input type="color" id="color-eyes" value="#00b4d8" class="color-input">
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </aside>
+
+    <!-- CENTER PANEL: Real-Time Visualizer & Biometrics -->
+    <section class="panel panel-center visualizer-panel">
+      
+      <!-- Visualizer Toolbars -->
+      <div class="visualizer-toolbar">
+        <div class="toolbar-group">
+          <span class="toolbar-label">VUE:</span>
+          <button type="button" class="btn btn-xs display-mode-btn active" data-display="body">Corps Entier</button>
+          <button type="button" class="btn btn-xs display-mode-btn" data-display="face">Visage & Canons</button>
+          <button type="button" class="btn btn-xs display-mode-btn" data-display="split">Split Double</button>
+        </div>
+
+        <div class="toolbar-group">
+          <span class="toolbar-label">ANGLE:</span>
+          <button type="button" class="btn btn-xs angle-toggle-btn active" data-view="front">Face</button>
+          <button type="button" class="btn btn-xs angle-toggle-btn" data-view="profile">Profil</button>
+        </div>
+      </div>
+
+      <!-- Canvas / SVG Viewport Container -->
+      <div class="viewport-stage">
+        
+        <!-- Interactive Body Mannequin Canvas/SVG -->
+        <div id="mannequin-container" class="mannequin-viewport">
+          <!-- Rendered dynamically by js/anatomy_renderer.js -->
+        </div>
+
+        <!-- Biometrics & Radar Overlay Badge -->
+        <div class="biometrics-card-overlay">
+          <div class="bio-card-header">Évaluation Biométrique</div>
+          <div class="radar-chart-container" id="radar-container">
+            <!-- Radar chart canvas/svg -->
+          </div>
+          <div class="bio-scores-list">
+            <div class="bio-score-row">
+              <span>Ratio Phi (\u03a6):</span>
+              <strong id="score-phi" class="score-val">94%</strong>
+            </div>
+            <div class="bio-score-row">
+              <span>Harmonie Faciale:</span>
+              <strong id="score-harmonic" class="score-val">96%</strong>
+            </div>
+            <div class="bio-score-row">
+              <span>Dimorphisme:</span>
+              <strong id="score-dimorphic" class="score-val">98%</strong>
+            </div>
+            <div class="bio-score-row">
+              <span>Score Global:</span>
+              <strong id="score-composite" class="score-val highlight">96.0</strong>
+            </div>
+          </div>
+          <div id="biometric-notes" class="bio-notes-text">
+            Silhouette athlétique équilibrée, V-taper puissant et regard acéré.
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- RIGHT PANEL: Prompt Matrix & Generator Output -->
+    <aside class="panel panel-right prompts-panel">
+      
+      <div class="prompts-header">
+        <div class="prompts-title-group">
+          <h2 class="prompts-title">MATRICE DE PROMPTS</h2>
+          <span class="prompts-sub">Optimisé Midjourney v6, FLUX.1 & SDXL</span>
+        </div>
+        <div class="prompt-mode-selector">
+          <button type="button" class="btn btn-xs prompt-mode-btn active" data-mode="turnaround">Turnaround</button>
+          <button type="button" class="btn btn-xs prompt-mode-btn" data-mode="portrait">Portrait</button>
+          <button type="button" class="btn btn-xs prompt-mode-btn" data-mode="action">Action</button>
+        </div>
+      </div>
+
+      <div class="prompts-scroll-content">
+        
+        <!-- Midjourney v6 Card -->
+        <div class="prompt-card">
+          <div class="prompt-card-header">
+            <span class="engine-badge engine-mj">Midjourney v6</span>
+            <button type="button" id="btn-copy-midjourney" class="btn-copy">
+              <span>📋 Copier</span>
+            </button>
+          </div>
+          <div class="prompt-card-body">
+            <pre id="prompt-text-midjourney" class="prompt-code-block"></pre>
+          </div>
+        </div>
+
+        <!-- FLUX.1 Card -->
+        <div class="prompt-card">
+          <div class="prompt-card-header">
+            <span class="engine-badge engine-flux">FLUX.1 (Dev / Schnell)</span>
+            <button type="button" id="btn-copy-flux" class="btn-copy">
+              <span>📋 Copier</span>
+            </button>
+          </div>
+          <div class="prompt-card-body">
+            <pre id="prompt-text-flux" class="prompt-code-block"></pre>
+          </div>
+        </div>
+
+        <!-- SDXL Positive Card -->
+        <div class="prompt-card">
+          <div class="prompt-card-header">
+            <span class="engine-badge engine-sdxl">SDXL Positif</span>
+            <button type="button" id="btn-copy-sdxl-pos" class="btn-copy">
+              <span>📋 Copier</span>
+            </button>
+          </div>
+          <div class="prompt-card-body">
+            <pre id="prompt-text-sdxl-pos" class="prompt-code-block"></pre>
+          </div>
+        </div>
+
+        <!-- SDXL Negative Card -->
+        <div class="prompt-card">
+          <div class="prompt-card-header">
+            <span class="engine-badge engine-neg">SDXL Négatif</span>
+            <button type="button" id="btn-copy-sdxl-neg" class="btn-copy">
+              <span>📋 Copier</span>
+            </button>
+          </div>
+          <div class="prompt-card-body">
+            <pre id="prompt-text-sdxl-neg" class="prompt-code-block"></pre>
+          </div>
+        </div>
+
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- Toast Notification Root -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Main ES Module Entry Point -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
