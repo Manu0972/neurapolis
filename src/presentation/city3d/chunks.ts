@@ -141,7 +141,8 @@ export function chunkify(group: THREE.Group, keep: Set<THREE.Object3D>): { chunk
       continue;
     }
     if (child instanceof THREE.Mesh && child.geometry instanceof THREE.BufferGeometry && !child.geometry.boundingSphere?.radius) child.geometry.computeBoundingSphere();
-    if (child instanceof THREE.Mesh && (child.geometry.boundingSphere?.radius ?? 0) > CHUNK) {
+    // Maillage déjà construit pour un bloc (bâtiments) : rangé entier, sans redécoupage.
+    if (child instanceof THREE.Mesh && !child.userData.prechunked && (child.geometry.boundingSphere?.radius ?? 0) > CHUNK) {
       // Grand maillage fusionné : découpé triangle par triangle.
       const parts = splitGeometry(child.geometry, child.matrix);
       const list: THREE.Mesh[] = [];
