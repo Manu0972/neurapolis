@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 
-function getRepoRoot(): string {
+// La compétence vit dans .agents/ (hors dépôt) : sans elle (CI, clone neuf), la suite est ignorée au lieu d'échouer.
+function getRepoRoot(): string | null {
   let cur = process.cwd();
   while (cur.length > 3) {
     if (fs.existsSync(path.join(cur, '.agents', 'skills', 'character-aesthetic-engineering', 'SKILL.md'))) {
@@ -10,11 +11,13 @@ function getRepoRoot(): string {
     }
     cur = path.dirname(cur);
   }
-  return 'C:\\Users\\laqui\\Documents\\glm';
+  return null;
 }
 
-describe('Character Aesthetic Engineering Skill Verification', () => {
-  const rootDir = getRepoRoot();
+const racine = getRepoRoot();
+
+describe.skipIf(racine === null)('Character Aesthetic Engineering Skill Verification', () => {
+  const rootDir = racine ?? '';
   const skillDir = path.join(rootDir, '.agents', 'skills', 'character-aesthetic-engineering');
   const skillFile = path.join(skillDir, 'SKILL.md');
   const refDir = path.join(skillDir, 'references');

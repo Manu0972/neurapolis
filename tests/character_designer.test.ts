@@ -17,7 +17,7 @@ import {
   ETHNICITY_PRESETS,
   DEFAULT_OLLAMA_ENDPOINT,
   DEFAULT_MODELS
-} from '../tools/character_designer/index.js';
+} from '../tools/character_designer/index.ts';
 
 describe('Character Designer Engine & Aesthetic Engineering Suite', () => {
 
