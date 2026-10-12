@@ -38,3 +38,6 @@ neurapolis-antigravity/
 neurapolis-campaign-worktree/
 neurapolis/
 
+
+# Personnages riggés du studio (dérivés de LoRA privés) : jamais dans le dépôt public.
+/public/personnages/

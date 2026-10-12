@@ -13,6 +13,11 @@ import * as THREE from 'three';
 import type { PlayerAppearance, PlayerGender } from '../../core/types';
 import { DEFAULT_PLAYER_APPEARANCE } from '../../core/types';
 import { EYE_COLOR_INFO, HAIR_COLOR_INFO, OUTFIT_COLOR_INFO, SKIN_TONE_INFO } from '../../core/player_customization';
+import type { CharacterActivity } from './rigged/animState';
+import type { RigRequest } from './rigged/manifest';
+import { createRiggedCharacter } from './rigged/riggedCharacter';
+
+export type { CharacterActivity } from './rigged/animState';
 
 export interface CharacterSpec {
   appearance: PlayerAppearance;
@@ -24,12 +29,19 @@ export interface CharacterSpec {
   legColor?: string;
   /** « low » pour la foule d'ambiance : silhouette complète, petits détails du visage omis, une seule ombre. */
   detail?: 'full' | 'low';
+  /**
+   * Personnage pouvant prendre un modèle riggé du studio (`public/personnages/index.json`).
+   * Sans manifeste, ou sans modèle prévu pour cette clé, rien ne change : personnage procédural.
+   */
+  rig?: RigRequest;
 }
 
 export interface Character3D {
   root: THREE.Group;
   update(dtSeconds: number, speedMps: number): void;
   setHeading(radians: number): void;
+  /** Activité à l'arrêt (assis, parler) ; seuls les personnages riggés l'animent. */
+  setActivity?(activity: CharacterActivity): void;
   dispose(): void;
 }
 
@@ -96,7 +108,17 @@ function outfitLook(a: PlayerAppearance, override?: string, legOverride?: string
 
 // ---------- Construction ----------
 
+/** Personnage du jeu : modèle riggé si le manifeste en prévoit un pour `spec.rig`, sinon procédural. */
 export function createCharacter(spec: CharacterSpec): Character3D {
+  if (spec.rig) {
+    const rigged = createRiggedCharacter({ rig: spec.rig, heightM: spec.heightM }, () => createProceduralCharacter(spec));
+    if (rigged) return rigged;
+  }
+  return createProceduralCharacter(spec);
+}
+
+/** Personnage procédural (formes douces, toute la personnalisation du créateur). */
+export function createProceduralCharacter(spec: CharacterSpec): Character3D {
   const a: PlayerAppearance = { ...DEFAULT_PLAYER_APPEARANCE, ...spec.appearance };
   const baseH = spec.heightM ?? 1.55;
   const H = baseH * (1 + (a.heightAdj ?? 0) * 0.035);

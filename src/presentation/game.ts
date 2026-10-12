@@ -1304,6 +1304,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   function closeModal(): void {
     modalOpen = false;
     audio.setMusicScene(null);
+    renderer3D?.setTalkingNpc(null);
     ui.modalEl.replaceChildren();
     ui.modalEl.classList.add('hidden');
   }
@@ -1329,6 +1330,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   function openNpcDialogue(id: NpcId): void {
     const def = NPC_BY_ID[id];
     if (!def) return;
+    renderer3D?.setTalkingNpc(id);
     const body = el('div', 'panel-body');
     const head = el('div', 'avatar-row');
     head.appendChild(avatarElement(`pnj:${def.id}`, def.color, def.name, 48));
