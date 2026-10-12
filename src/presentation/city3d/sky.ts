@@ -1,6 +1,7 @@
 /**
  * Ciel, soleil et ambiance lumineuse selon l'heure et la météo (lecture seule du monde).
- * Lever ~7 h, coucher ~20 h (septembre) ; la nuit est bleutée, le soir chaud (~1800 K).
+ * Lever ~7 h, coucher ~20 h (septembre) ; la nuit est bleu profond et violette (palette de la DA,
+ * jamais de noir), le soir pêche/ambre (~1800 K), l'horizon de jour crème plutôt que gris.
  */
 import * as THREE from 'three';
 import type { Meteo } from '../../core/types';
@@ -52,15 +53,16 @@ export function skyAt(hour: number, meteo: Meteo): SkyState {
   if (!above) sunColor.set('#7d93c9'); // lune
   const sunIntensity = above ? (0.5 + elev * 2.6) * (1 - overcast * 0.6) : 0.35;
 
-  const skyTop = lerpC('#5d97d8', '#2c3e6e', golden * 0.6).lerp(new THREE.Color('#0b1430'), night);
-  const skyHorizon = lerpC('#cfe2f0', '#ffb27a', golden).lerp(new THREE.Color('#25304f'), night);
+  const skyTop = lerpC('#5d97d8', '#4a4a7a', golden * 0.6).lerp(new THREE.Color('#1a2244'), night);
+  const skyHorizon = lerpC('#e4e6dc', '#ffb27a', golden).lerp(new THREE.Color('#2c2540'), night);
   if (overcast > 0) {
     skyTop.lerp(new THREE.Color(night > 0.5 ? '#151a24' : '#8a929c'), overcast * 0.8);
     skyHorizon.lerp(new THREE.Color(night > 0.5 ? '#1d222c' : '#a7adb3'), overcast * 0.8);
   }
   const hemiSky = skyTop.clone().lerp(new THREE.Color('#ffffff'), 0.25);
-  const hemiGround = lerpC('#8a7a62', '#3a3448', night);
-  const hemiIntensity = 0.45 + (1 - night) * 0.55;
+  // Ombres : violet ardoise le soir et la nuit (guide DA : ombres froides, jamais de noir).
+  const hemiGround = lerpC('#8a7a62', '#4a3f5e', Math.max(night, golden * 0.5));
+  const hemiIntensity = 0.55 + (1 - night) * 0.5;
   const fogColor = skyHorizon.clone();
   void dusk;
   return {

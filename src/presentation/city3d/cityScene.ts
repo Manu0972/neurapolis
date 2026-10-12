@@ -6,15 +6,15 @@
  */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { CITY, CITY_H, CITY_W, FLOOR_H, type CityBuilding, type Face, type FacadeStyle } from '../../data/city/layout';
+import { CITY, CITY_H, CITY_W } from '../../data/city/layout';
 import { surfaceAt, surfaceFast, type Surface } from '../../data/map';
 import { BUS_STOPS } from '../../data/city/transit';
 import { buildLotProps } from './lotProps';
 import { CHUNK, chunkify, type CityChunk } from './chunks';
+import { buildCityBuildings } from './cityBuildings';
 import {
-  asphaltTexture, cobbleTexture, dirtTexture, facadeEmissiveTexture, facadeTexture, flatRoofTexture, glowTexture,
-  grassTexture, gravelTexture, parkingTexture, playgroundTexture, roofTileTexture, shopfrontEmissiveTexture,
-  shopfrontTexture, sidewalkTexture, signTexture, visualRng,
+  asphaltTexture, cobbleTexture, dirtTexture, glowTexture, grassTexture, gravelTexture, parkingTexture,
+  playgroundTexture, sidewalkTexture, skylineTexture, visualRng,
 } from './textures';
 
 export const SURFACE_HEIGHT: Record<Surface, number> = {
@@ -286,226 +286,10 @@ function buildMarkings(group: THREE.Group, disposables: { dispose(): void }[]): 
 }
 
 // ---------- Bâtiments ----------
+// Façades en pixel art, toits, stores et enseignes : voir cityBuildings.ts.
 
+/** Couleurs des bâches d'étal du marché. */
 const AWNINGS = ['#b5523e', '#3f6f5a', '#2f5d8a', '#c08a2e', '#7a3f6a', '#4f7a3a'];
-const SIGN_COLORS = ['#7a3b2a', '#2f4f3f', '#2c3f5e', '#6b4a1f', '#4a2f4f'];
-
-interface BuildingMats {
-  facade: Map<FacadeStyle, THREE.MeshStandardMaterial>;
-  shop: THREE.MeshStandardMaterial[];
-  roofTiles: THREE.MeshStandardMaterial;
-  roofFlat: THREE.MeshStandardMaterial;
-  door: THREE.MeshStandardMaterial;
-  glass: THREE.MeshStandardMaterial;
-}
-
-function buildingMaterials(): BuildingMats {
-  const facade = new Map<FacadeStyle, THREE.MeshStandardMaterial>();
-  const styles: FacadeStyle[] = ['brique', 'enduit_creme', 'enduit_ocre', 'enduit_rose', 'pierre', 'hlm', 'ecole', 'industriel', 'civique', 'hyper'];
-  for (const s of styles) {
-    facade.set(s, new THREE.MeshStandardMaterial({
-      map: facadeTexture(s),
-      emissiveMap: facadeEmissiveTexture(s),
-      emissive: new THREE.Color('#ffb866'),
-      emissiveIntensity: 0,
-      roughness: s === 'hyper' ? 0.5 : 0.92,
-      metalness: s === 'hyper' ? 0.3 : 0,
-      vertexColors: true,
-    }));
-  }
-  const shop = AWNINGS.map((a) => new THREE.MeshStandardMaterial({
-    map: shopfrontTexture(a),
-    emissiveMap: shopfrontEmissiveTexture(),
-    emissive: new THREE.Color('#ffcf8a'),
-    emissiveIntensity: 0,
-    roughness: 0.6,
-  }));
-  return {
-    facade,
-    shop,
-    roofTiles: new THREE.MeshStandardMaterial({ map: roofTileTexture(), roughness: 0.85, vertexColors: true }),
-    roofFlat: new THREE.MeshStandardMaterial({ map: flatRoofTexture(), roughness: 1 }),
-    door: new THREE.MeshStandardMaterial({ color: '#4a3326', roughness: 0.7 }),
-    glass: new THREE.MeshStandardMaterial({ color: '#7d97a8', roughness: 0.1, metalness: 0.4 }),
-  };
-}
-
-/** Coins du bâtiment parcourus dans le sens horaire vu de dessus, avec la face extérieure. */
-function faces(b: CityBuilding): { face: Face; x0: number; z0: number; x1: number; z1: number }[] {
-  const { x, y, w, d } = b;
-  return [
-    { face: 'n', x0: x + w, z0: y, x1: x, z1: y },
-    { face: 'w', x0: x, z0: y, x1: x, z1: y + d },
-    { face: 's', x0: x, z0: y + d, x1: x + w, z1: y + d },
-    { face: 'e', x0: x + w, z0: y + d, x1: x + w, z1: y },
-  ];
-}
-
-function buildBuildings(group: THREE.Group, disposables: { dispose(): void }[], nightMaterials: CityScene['nightMaterials']): {
-  meshes: THREE.Mesh[];
-  signs: Map<string, THREE.Mesh>;
-} {
-  const mats = buildingMaterials();
-  const facadeB = new Map<FacadeStyle, GeoBuilder>();
-  const shopB = mats.shop.map(() => new GeoBuilder());
-  const tilesB = new GeoBuilder();
-  const flatB = new GeoBuilder();
-  const doorB = new GeoBuilder();
-  const glassB = new GeoBuilder();
-  const fb = (s: FacadeStyle): GeoBuilder => {
-    let b = facadeB.get(s);
-    if (!b) { b = new GeoBuilder(); facadeB.set(s, b); }
-    return b;
-  };
-  const signs = new Map<string, THREE.Mesh>();
-  const BASE = 0;
-
-  for (const b of CITY.buildings) {
-    const H = b.floors * FLOOR_H + 0.15;
-    const tint = new THREE.Color().setHSL(0, 0, 0.88 + b.tint * 0.2);
-    const facadeG = fb(b.style);
-    const shopIndex = Math.floor(b.tint * mats.shop.length) % mats.shop.length;
-    // Décalage d'UV par bâtiment : les fenêtres allumées varient d'un immeuble à l'autre.
-    const uOff = Math.floor(b.tint * 4);
-    for (const f of faces(b)) {
-      const isFront = f.face === b.front;
-      if (isFront && b.shopfront) {
-        wall(shopB[shopIndex]!, f.x0, f.z0, f.x1, f.z1, BASE, FLOOR_H + 0.15, 3, FLOOR_H + 0.15, 0);
-        wall(facadeG, f.x0, f.z0, f.x1, f.z1, FLOOR_H + 0.15, H, 3, FLOOR_H, 0, tint, uOff);
-      } else {
-        wall(facadeG, f.x0, f.z0, f.x1, f.z1, BASE, H, 3, FLOOR_H, 0, tint, uOff);
-      }
-    }
-    // Portes : un retrait sombre de 1,2 × 2,2 m sur la façade.
-    for (const d of b.doors) {
-      if (b.shopfront && d.unitId) continue; // la vitrine fait office de porte
-      const dw = b.style === 'hyper' ? 4 : b.style === 'ecole' || b.style === 'civique' ? 2.4 : 1.2;
-      const dh = b.style === 'hyper' ? 2.8 : 2.3;
-      const e = 0.04;
-      const cx = d.x + 0.5;
-      const cz = d.y + 0.5;
-      const target = b.style === 'hyper' ? glassB : doorB;
-      if (d.face === 'n') target.quad(V(cx + dw / 2, 0.15, b.y - e), V(cx - dw / 2, 0.15, b.y - e), V(cx - dw / 2, 0.15 + dh, b.y - e), V(cx + dw / 2, 0.15 + dh, b.y - e), [0, 0, 1, 0, 1, 1, 0, 1]);
-      if (d.face === 's') target.quad(V(cx - dw / 2, 0.15, b.y + b.d + e), V(cx + dw / 2, 0.15, b.y + b.d + e), V(cx + dw / 2, 0.15 + dh, b.y + b.d + e), V(cx - dw / 2, 0.15 + dh, b.y + b.d + e), [0, 0, 1, 0, 1, 1, 0, 1]);
-      if (d.face === 'w') target.quad(V(b.x - e, 0.15, cz - dw / 2), V(b.x - e, 0.15, cz + dw / 2), V(b.x - e, 0.15 + dh, cz + dw / 2), V(b.x - e, 0.15 + dh, cz - dw / 2), [0, 0, 1, 0, 1, 1, 0, 1]);
-      if (d.face === 'e') target.quad(V(b.x + b.w + e, 0.15, cz + dw / 2), V(b.x + b.w + e, 0.15, cz - dw / 2), V(b.x + b.w + e, 0.15 + dh, cz - dw / 2), V(b.x + b.w + e, 0.15 + dh, cz + dw / 2), [0, 0, 1, 0, 1, 1, 0, 1]);
-    }
-    // Toits.
-    if (b.roof === 'plat') {
-      flatB.quad(V(b.x, H, b.y + b.d), V(b.x + b.w, H, b.y + b.d), V(b.x + b.w, H, b.y), V(b.x, H, b.y), [b.x, -b.y - b.d, b.x + b.w, -b.y - b.d, b.x + b.w, -b.y, b.x, -b.y]);
-      // Acrotère de 40 cm.
-      for (const f of faces(b)) {
-        wall(facadeG, f.x0, f.z0, f.x1, f.z1, H, H + 0.4, 3, FLOOR_H, 0, tint);
-      }
-      if (!b.ruined) {
-        // Édicules techniques sur les grands toits.
-        if (b.w * b.d > 300) {
-          const cx = b.x + b.w * 0.3;
-          const cz = b.y + b.d * 0.4;
-          boxInto(flatB, cx, H, cz, 3, 2.2, 2.5);
-        }
-      }
-    } else if (b.roof === 'deux_pans') {
-      const alongX = b.w >= b.d;
-      const span = alongX ? b.d : b.w;
-      const rh = Math.min(4, span * 0.35);
-      const ov = 0.35; // débord
-      if (alongX) {
-        const zm = b.y + b.d / 2;
-        tilesB.quad(V(b.x - ov, H, b.y + b.d + ov), V(b.x + b.w + ov, H, b.y + b.d + ov), V(b.x + b.w + ov, H + rh, zm), V(b.x - ov, H + rh, zm), [0, 0, b.w / 4, 0, b.w / 4, span / 6, 0, span / 6], tint);
-        tilesB.quad(V(b.x + b.w + ov, H, b.y - ov), V(b.x - ov, H, b.y - ov), V(b.x - ov, H + rh, zm), V(b.x + b.w + ov, H + rh, zm), [0, 0, b.w / 4, 0, b.w / 4, span / 6, 0, span / 6], tint);
-        facadeG.tri(V(b.x, H, b.y), V(b.x, H, b.y + b.d), V(b.x, H + rh, zm), [0, 0, b.d / 3, 0, b.d / 6, rh / FLOOR_H], tint);
-        facadeG.tri(V(b.x + b.w, H, b.y + b.d), V(b.x + b.w, H, b.y), V(b.x + b.w, H + rh, zm), [0, 0, b.d / 3, 0, b.d / 6, rh / FLOOR_H], tint);
-      } else {
-        const xm = b.x + b.w / 2;
-        tilesB.quad(V(b.x - ov, H, b.y - ov), V(b.x - ov, H, b.y + b.d + ov), V(xm, H + rh, b.y + b.d + ov), V(xm, H + rh, b.y - ov), [0, 0, b.d / 4, 0, b.d / 4, span / 6, 0, span / 6], tint);
-        tilesB.quad(V(b.x + b.w + ov, H, b.y + b.d + ov), V(b.x + b.w + ov, H, b.y - ov), V(xm, H + rh, b.y - ov), V(xm, H + rh, b.y + b.d + ov), [0, 0, b.d / 4, 0, b.d / 4, span / 6, 0, span / 6], tint);
-        facadeG.tri(V(b.x + b.w, H, b.y), V(b.x, H, b.y), V(xm, H + rh, b.y), [0, 0, b.w / 3, 0, b.w / 6, rh / FLOOR_H], tint);
-        facadeG.tri(V(b.x, H, b.y + b.d), V(b.x + b.w, H, b.y + b.d), V(xm, H + rh, b.y + b.d), [0, 0, b.w / 3, 0, b.w / 6, rh / FLOOR_H], tint);
-      }
-    } else {
-      // Sheds industriels : dents de scie de 6 m, vitrage au nord.
-      const teeth = Math.max(1, Math.floor(b.w / 6));
-      const tw = b.w / teeth;
-      const rh = 2.2;
-      for (let i = 0; i < teeth; i++) {
-        if (b.ruined && i % 3 === 1) continue; // toiture effondrée
-        const x0 = b.x + i * tw;
-        const x1 = x0 + tw;
-        flatB.quad(V(x0, H, b.y + b.d), V(x1, H + rh, b.y + b.d), V(x1, H + rh, b.y), V(x0, H, b.y), [0, 0, 1, 0, 1, 1, 0, 1]);
-        glassB.quad(V(x1, H + rh, b.y + b.d), V(x1, H, b.y + b.d), V(x1, H, b.y), V(x1, H + rh, b.y), [0, 0, 1, 0, 1, 1, 0, 1]);
-      }
-    }
-    // Enseigne au-dessus du rez-de-chaussée.
-    const label = b.label ?? (b.unitId ? 'À LOUER' : undefined);
-    if (label) {
-      const front = faces(b).find((f) => f.face === b.front)!;
-      const len = Math.hypot(front.x1 - front.x0, front.z1 - front.z0);
-      // Vitrine : bandeau sur la largeur du local. Lieu ou immeuble : plaque au-dessus de la porte.
-      const big = b.style === 'hyper' || b.style === 'ecole' || b.style === 'civique' || b.style === 'industriel';
-      const sw = b.unitId || b.shopfront ? Math.min(len - 1, 6) : Math.min(len - 1, big ? 7 : 3.4);
-      const sh = sw * (96 / 512);
-      const door = b.doors[0];
-      const tex = signTexture(label, b.unitId ? '#5b5249' : SIGN_COLORS[Math.floor(b.tint * SIGN_COLORS.length) % SIGN_COLORS.length]!);
-      const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, emissive: new THREE.Color('#ffffff'), emissiveMap: tex, emissiveIntensity: 0 });
-      const sign = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), mat);
-      const alongDoor = door && !b.shopfront;
-      const mx = alongDoor && (b.front === 'n' || b.front === 's') ? door.x + 0.5 : (front.x0 + front.x1) / 2;
-      const mz = alongDoor && (b.front === 'w' || b.front === 'e') ? door.y + 0.5 : (front.z0 + front.z1) / 2;
-      const off = 0.12;
-      const y = b.floors === 1 ? Math.min(H - sh / 2 - 0.1, 2.6)
-        : alongDoor ? 2.75 + sh / 2 : FLOOR_H + 0.15 + sh / 2 + 0.1;
-      if (b.front === 'n') { sign.position.set(mx, y, mz - off); sign.rotation.y = Math.PI; }
-      if (b.front === 's') { sign.position.set(mx, y, mz + off); }
-      if (b.front === 'w') { sign.position.set(mx - off, y, mz); sign.rotation.y = -Math.PI / 2; }
-      if (b.front === 'e') { sign.position.set(mx + off, y, mz); sign.rotation.y = Math.PI / 2; }
-      group.add(sign);
-      nightMaterials.push({ mat, strength: 0.35 });
-      if (b.unitId) signs.set(b.unitId, sign);
-    }
-  }
-
-  const meshes: THREE.Mesh[] = [];
-  const add = (gb: GeoBuilder, mat: THREE.Material, castShadow = true): void => {
-    const geo = gb.build();
-    if (!geo) return;
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.castShadow = castShadow;
-    mesh.receiveShadow = true;
-    group.add(mesh);
-    meshes.push(mesh);
-    disposables.push(geo);
-  };
-  for (const [s, gb] of facadeB) {
-    const mat = mats.facade.get(s)!;
-    add(gb, mat);
-    nightMaterials.push({ mat, strength: 1.1 });
-  }
-  shopB.forEach((gb, i) => {
-    add(gb, mats.shop[i]!);
-    nightMaterials.push({ mat: mats.shop[i]!, strength: 0.9 });
-  });
-  add(tilesB, mats.roofTiles);
-  add(flatB, mats.roofFlat);
-  add(doorB, mats.door, false);
-  add(glassB, mats.glass, false);
-  disposables.push(...mats.facade.values(), ...mats.shop, mats.roofTiles, mats.roofFlat, mats.door, mats.glass);
-  return { meshes, signs };
-}
-
-/** Petit volume (édicule, caisson) ajouté à un GeoBuilder. */
-function boxInto(g: GeoBuilder, cx: number, y0: number, cz: number, w: number, h: number, d: number): void {
-  const x0 = cx - w / 2;
-  const x1 = cx + w / 2;
-  const z0 = cz - d / 2;
-  const z1 = cz + d / 2;
-  const y1 = y0 + h;
-  wall(g, x1, z0, x0, z0, y0, y1, 1, 1);
-  wall(g, x0, z0, x0, z1, y0, y1, 1, 1);
-  wall(g, x0, z1, x1, z1, y0, y1, 1, 1);
-  wall(g, x1, z1, x1, z0, y0, y1, 1, 1);
-  g.quad(V(x0, y1, z1), V(x1, y1, z1), V(x1, y1, z0), V(x0, y1, z0), [0, 0, 1, 0, 1, 1, 0, 1]);
-}
 
 // ---------- Mobilier instancié ----------
 
@@ -743,9 +527,9 @@ function busStop(x: number, y: number, z: number): THREE.Group {
 
 function buildSkyline(group: THREE.Group, disposables: { dispose(): void }[]): void {
   const rnd = visualRng(777);
-  const mats = (['brique', 'enduit_creme', 'pierre', 'hlm', 'enduit_ocre'] as FacadeStyle[]).map((s) =>
-    new THREE.MeshStandardMaterial({ map: facadeTexture(s).clone(), roughness: 0.95, color: '#d8d0c4' }));
-  for (const m of mats) { if (m.map) { m.map.repeat.set(4, 4); m.map.needsUpdate = true; } }
+  // Immeubles lointains : une travée de façade en pixel art répétée (4 × 4 par face).
+  const mats = ['brique_a', 'creme_a', 'pierre_a', 'hlm_a', 'ocre_a'].map((id) =>
+    new THREE.MeshStandardMaterial({ map: skylineTexture(id), roughness: 0.95, color: '#d8d0c4' }));
   const geo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
   const ring: [number, number][] = [];
   for (let x = -60; x < CITY_W + 60; x += 14) { ring.push([x, -30]); }
@@ -804,8 +588,12 @@ export function buildCityScene(): CityScene {
   lap('sol');
   buildMarkings(group, disposables);
   lap('marquages');
-  const { meshes, signs } = buildBuildings(group, disposables, nightMaterials);
+  const city = buildCityBuildings();
+  for (const m of [...city.meshes, ...city.decor]) group.add(m);
+  nightMaterials.push({ mat: city.facadeMaterial, strength: 1.1 }, { mat: city.signs.material, strength: 0.35 });
+  const meshes = city.meshes;
   lap('batiments');
+  (globalThis as { __cityStats?: unknown }).__cityStats = city.stats;
   const { lamps, glows } = buildProps(group, disposables, nightMaterials);
   lap('mobilier');
   buildLotProps(group, disposables, groundHeightAt);
@@ -830,22 +618,11 @@ export function buildCityScene(): CityScene {
     water,
     chunks,
     setUnitSign(unitId: string, text: string, color: string): void {
-      const sign = signs.get(unitId);
-      if (!sign) return;
-      const mat = sign.material as THREE.MeshStandardMaterial;
-      mat.map?.dispose();
-      const tex = signTexture(text, color);
-      mat.map = tex;
-      mat.emissiveMap = tex;
-      mat.needsUpdate = true;
+      city.setUnitSign(unitId, text, color);
     },
     dispose(): void {
       for (const d of disposables) d.dispose();
-      for (const s of signs.values()) {
-        (s.material as THREE.MeshStandardMaterial).map?.dispose();
-        (s.material as THREE.Material).dispose();
-        s.geometry.dispose();
-      }
+      city.dispose();
     },
   };
 }
