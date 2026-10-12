@@ -22,7 +22,7 @@ let room = 0;
 
 beforeAll(async () => {
   server = createServer((_q, r) => r.end('ok'));
-  server.on('upgrade', (_req, socket: Socket) => sockets.push(socket));
+  server.on('upgrade', (...args: unknown[]) => { sockets.push(args[1] as Socket); });
   relay = attachRelay(server);
   await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
   port = (server.address() as AddressInfo).port;
