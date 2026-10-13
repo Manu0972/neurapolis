@@ -63,7 +63,9 @@ describe('engine — sommeil nocturne automatique (22:00 → 07:00)', () => {
   });
 });
 
-describe('engine — argent de poche hebdomadaire (+5 €, une fois par semaine)', () => {
+// Le montant dépend de l'âge et de la conduite (family.ts, vie quotidienne) : ces mondes ne vont
+// pas en cours, donc touchent moins que 5 €. On vérifie la cadence et que l'argent vient de là.
+describe('engine — argent de poche hebdomadaire (une fois par semaine)', () => {
   const argentDePoche = (notifs: Notification[]): Notification[] =>
     notifs.filter((n) => n.text.startsWith('Argent de poche'));
 
@@ -73,18 +75,20 @@ describe('engine — argent de poche hebdomadaire (+5 €, une fois par semaine)
     expect(w.player.money).toBe(15);
   });
 
-  it('une seule fois la première semaine : +5 au passage au 8e jour', () => {
+  it('une seule fois la première semaine : versement au passage au 8e jour', () => {
     const w = createWorld();
     const notifs = runTicks(w, 8 * TICKS_PAR_JOUR); // jour 0 → jour 8
-    expect(w.player.money).toBe(20);
     expect(argentDePoche(notifs)).toHaveLength(1);
+    expect(w.player.money).toBe(15 + (w.flags['argentDePoche'] ?? 0));
+    expect(w.player.money).toBeLessThanOrEqual(20);
   });
 
-  it('exactement 2 fois en 16 jours : +5 les passages aux jours 7 et 14', () => {
+  it('exactement 2 fois en 16 jours : les passages aux jours 7 et 14', () => {
     const w = createWorld();
     const notifs = runTicks(w, 16 * TICKS_PAR_JOUR);
-    expect(w.player.money).toBe(25);
     expect(argentDePoche(notifs)).toHaveLength(2);
+    expect(w.player.money).toBe(15 + (w.flags['argentDePoche'] ?? 0));
+    expect(w.player.money).toBeLessThanOrEqual(25);
   });
 });
 

@@ -5,6 +5,29 @@ import type { Notification, SchoolLifeState, WorldState } from '../core/types';
 import { dayIndexOf, isSchoolDay } from '../core/clock';
 import { notify } from './events';
 
+/** Fatigue d'une demi-journée de cours (8 rendait le joueur assidu irritable en permanence). */
+export const CLASS_FATIGUE = 5;
+
+/**
+ * Classe selon l'âge : la rentrée tombe le 1er septembre, jour de l'anniversaire du joueur.
+ * 12 ans : 5e, 13 : 4e, 14 : 3e (brevet), 15 : 2de au lycée de la cité scolaire, 16 : 1re.
+ */
+export const CLASSES: Readonly<Record<number, string>> = { 11: '6e', 12: '5e', 13: '4e', 14: '3e', 15: '2de', 16: '1re', 17: 'terminale' };
+
+export function classeScolaire(age: number): string {
+  return CLASSES[Math.max(11, Math.min(17, age))]!;
+}
+
+/** Collège jusqu'en 3e, lycée ensuite (même cité scolaire Jean-Moulin). */
+export function etablissementScolaire(age: number): string {
+  return age >= 15 ? 'lycée Jean-Moulin' : 'collège Jean-Moulin';
+}
+
+/** Les contrôles se corsent d'une année sur l'autre (points retirés à la note du vendredi). */
+export function difficulteClasse(age: number): number {
+  return Math.max(0, Math.min(2, (age - 12) * 0.5));
+}
+
 export function ensureSchoolLifeState(w: WorldState): SchoolLifeState {
   if (!w.schoolLife) {
     w.schoolLife = {
@@ -27,17 +50,18 @@ export function attendSchoolClass(w: WorldState): { ok: boolean; message: string
   const sl = ensureSchoolLifeState(w);
   sl.consecutiveClassesAttended += 1;
   sl.attendanceRate = Math.min(100, sl.attendanceRate + 2);
-  sl.academicAverage = Math.min(20, Math.round((sl.academicAverage + 0.2) * 10) / 10);
+  // La moyenne ne bouge plus à chaque séance (elle atteignait 20/20 en trois mois) : ce sont
+  // les notes du vendredi qui la font (family.ts), et la présence y pèse lourd.
   w.player.characteristics.comprehension = Math.min(100, w.player.characteristics.comprehension + 1);
   w.player.characteristics.discipline = Math.min(100, w.player.characteristics.discipline + 1);
-  w.player.needs.fatigue = Math.min(100, w.player.needs.fatigue + 8);
+  w.player.needs.fatigue = Math.min(100, w.player.needs.fatigue + CLASS_FATIGUE);
   w.player.needs.stress = Math.max(0, w.player.needs.stress - 3);
 
   updateParentSentiment(w);
 
   return {
     ok: true,
-    message: `Cours suivi avec attention. Moyenne scolaire : ${sl.academicAverage}/20 (Discipline +1, Compréhension +1). Tes parents sont rassurés.`,
+    message: `Cours suivi avec attention. Moyenne scolaire : ${sl.academicAverage}/20 (Discipline +1, Compréhension +1).`,
   };
 }
 
