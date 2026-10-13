@@ -75,7 +75,7 @@ const tip = (ghost: string, weight: GhostTip['weight'], text: string): GhostTip 
 /** Grille de lecture de chaque penseur. */
 const LENSES: Record<string, Lens> = {
   smith: (f) => f.lossShop && f.lossShop.lost > f.lossShop.customers * 0.3
-    ? tip('smith', 2, `Mon ami, ${f.lossShop.lost} clients sont repartis de « ${f.lossShop.name} » sans rien acheter hier. Le prix ou le rayon parle trop fort : écoute-le.`)
+    ? tip('smith', 2, `Mon enfant, ${f.lossShop.lost} clients sont repartis de « ${f.lossShop.name} » sans rien acheter hier. Le prix ou le rayon parle trop fort : écoute-le.`)
     : f.ventureCount === 0 && f.shopCount === 0
       ? tip('smith', 2, 'Un échange, un seul, et tu comprendras plus qu’avec cent livres. Ouvre l’application Ascension : la cour du collège est déjà un marché.')
       : tip('smith', 1, 'Le prix de marché danse autour du prix naturel. Observe tes concurrents avant de bouger les tiens.'),

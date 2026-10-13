@@ -87,7 +87,7 @@ export function openConvocationModal(ctx: FamilyCtx): boolean {
   if (!c) return false;
   const sl = ensureSchoolLifeState(ctx.world);
   const body = el('div', 'panel-body');
-  body.appendChild(el('p', 'panel-desc', `Le bureau de ${SCHOOL_STAFF.principal.name}, principale du collège Jean-Moulin. Nora a pris sa matinée après sa garde de nuit ; Thierry a échangé son poste au Drive. Motif : ${c.reason}. Ta moyenne : ${sl.academicAverage}/20.`));
+  body.appendChild(el('p', 'panel-desc', `Le bureau de ${SCHOOL_STAFF.principal.name}, ${SCHOOL_STAFF.principal.role}. Nora a pris sa matinée après sa garde de nuit ; Thierry a échangé son poste au Drive. Motif : ${c.reason}. Ta moyenne : ${sl.academicAverage}/20.`));
   const grid = el('div', 'fam-voices');
   for (const v of CONVOCATION_VOICES) {
     const box = el('div', 'duel-face');

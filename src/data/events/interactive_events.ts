@@ -1100,7 +1100,7 @@ export const INTERACTIVE_EVENTS: InteractiveEventDef[] = [
           causes: [{ facteur: 'croyance naïve dans l’autorégulation sans cadre moral', poids: 1 }],
         },
         ghostQuotes: {
-          smith: 'Hum… Mes excuses mon ami. Il manquait des institutions morales préalables et de la sympathie.',
+          smith: 'Hum… Mes excuses, mon enfant. Il manquait des institutions morales préalables et de la sympathie.',
         },
         dialogueResponse: 'Trois cartables piétinés et le bus part avec dix minutes de retard.',
       },

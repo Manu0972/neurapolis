@@ -1148,12 +1148,12 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
     speaker: 'thierry',
     when: 'fatigue',
     mood: 'tendre',
-    text: 'Thierry pose ses mains lourdes sur tes trapèzes noués après une journée de manutention : « Tu as le dos aussi dur qu’une barre d’acier laminée. »',
+    text: 'Tu as porté les cageots du stand tout l’après-midi. Thierry, rentré de sa journée de cariste, pose ses mains lourdes sur tes trapèzes noués : « Tu as le dos aussi dur qu’une barre d’acier laminée. Bienvenue au club. »',
     replies: [
       {
-        label: 'Le métier de cariste et de livreur n’épargne pas les muscles...',
+        label: 'Les cageots pèsent plus lourd qu’on croit… Et toi, au Drive, tu portes ça toute la journée ?',
         effect: { trust: 3, worry: -1, pride: 2 },
-        answer: 'Plie les genoux quand tu soulèves un carton. Ne force jamais sur les reins.',
+        answer: '« Toute la journée, oui. » Il te montre le geste : « Plie les genoux quand tu soulèves un carton. Ne force jamais sur les reins. »',
       },
       {
         label: 'Ça me fait penser à tout ce que tu as porté pendant trente ans à l’usine.',

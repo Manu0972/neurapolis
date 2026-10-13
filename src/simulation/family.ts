@@ -133,8 +133,9 @@ export function attendClass(w: WorldState): { ok: boolean; message: string } {
   if (!s) return { ok: false, message: 'Pas de cours à rejoindre maintenant.' };
   const day = dayIndexOf(w.time.tick);
   const subjects = SESSION_SUBJECT[s];
-  const subject = subjects[Math.floor(econRand(w, 'matiere', day, s) * subjects.length)]!;
   const moment = CLASS_MOMENTS[Math.floor(econRand(w, 'moment', day, s) * CLASS_MOMENTS.length)]!;
+  // Un moment qui nomme sa matière (et son enseignant) l'impose à la séance : cohérence du récit.
+  const subject = moment.subject ?? subjects[Math.floor(econRand(w, 'matiere', day, s) * subjects.length)]!;
   f.attended.push(`${day}:${s}`);
   if (f.attended.length > 120) f.attended.splice(0, f.attended.length - 120);
   f.inClass = { session: s, day, untilTick: tickAt(day, SESSIONS[s].end), moment: `${subject} — ${moment.text}` };
@@ -242,7 +243,7 @@ export function resolveConvocation(w: WorldState, choice: ConvocationChoice): { 
     } else {
       f.promised = true;
       bump(f, 'les_deux', { trust: 3, worry: -2 });
-      message = `${p} apprécie ta franchise, mais ta moyenne (${sl.academicAverage}/20) ne permet pas d’aménagement. « Remontez d’abord vos notes. » Tu promets d’être en cours.`;
+      message = `${p} apprécie ta franchise, mais ta moyenne (${sl.academicAverage}/20) ne permet pas d’aménagement. « Remonte d’abord tes notes. » Tu promets d’être en cours.`;
     }
   } else if (choice === 'promesse') {
     f.promised = true;
@@ -253,7 +254,7 @@ export function resolveConvocation(w: WorldState, choice: ConvocationChoice): { 
     if (caught) {
       bump(f, 'les_deux', { trust: -25, worry: 15, pride: -5 });
       f.groundedUntil = day + 5;
-      message = `${p} sort le registre : tes absences tombent les jours de marché. Le mensonge s’effondre devant tes parents. Puni cinq jours : retour avant 18 h.`;
+      message = `${p} sort le registre : tes absences tombent les jours de marché. Le mensonge s’effondre devant tes parents. Cinq jours de punition : retour avant 18 h.`;
     } else {
       bump(f, 'les_deux', { worry: -4 });
       message = 'Ton histoire de rendez-vous médical passe. Pour cette fois. Tu sens pourtant le regard de Nora, qui connaît tous les médecins de la ville.';

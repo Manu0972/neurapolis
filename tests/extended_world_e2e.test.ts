@@ -174,7 +174,7 @@ export const CANONICAL_DISTRICTS: Record<ExtendedDistrictId, ExtendedDistrictDef
     name: 'La Cité des Roses',
     description: 'Cœur historique battant, place commerçante, collège et épicerie Bertin.',
     ambientKelvin: 1800,
-    pois: ['Place du Marché', 'Épicerie Bertin', 'Collège des Roses', 'Parc des Roses'],
+    pois: ['Place du Marché', 'Épicerie Bertin', 'Collège Jean-Moulin', 'Parc des Roses'],
     keyNpcs: ['noah', 'lina', 'bertin', 'yasmine'],
     dominantGhosts: ['smith', 'marx'],
     economicRole: 'Commerce de proximité et point de ralliement des habitants.',

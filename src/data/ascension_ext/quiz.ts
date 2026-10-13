@@ -139,7 +139,7 @@ export const QUIZZES: readonly ConceptQuiz[] = [
       {
         q: 'Sur la place des Roses, tu vends du pain frais à un tarif raisonnable sans consigne municipale. Selon Adam Smith, pourquoi la ville est-elle bien nourrie ?',
         choices: [
-          'En cherchant ton propre profit, tu es conduit à satisfaire spontanément les besoins réels des habitants',
+          'En cherchant ton propre profit, tu en viens à satisfaire spontanément les besoins réels des habitants',
           'La municipalité régule et impose les quantités précises à chaque artisan chaque matin',
           'Les clients achètent par pure bienveillance solidaire envers ton nouveau commerce',
           'Les fantômes de la Maison du Peuple guident mystérieusement les paniers des passants',

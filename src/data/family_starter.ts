@@ -17,24 +17,31 @@ export const PARENTS: Record<ParentId, { name: string; icon: string; job: string
 };
 
 export const SCHOOL_STAFF = {
-  principal: { name: 'Mme Garnier', role: 'principale du collège Jean-Moulin' },
-  cpe: { name: 'M. Haddad', role: 'conseiller principal d’éducation' },
+  principal: { name: 'M. Vasseur', role: 'principal du collège Jean-Moulin' },
+  cpe: { name: 'Mme Benali', role: 'conseillère principale d’éducation' },
 } as const;
 
 export const SESSION_SUBJECT: Record<SessionId, string[]> = {
-  matin: ['Maths avec Mme Moreau', 'Français avec M. Lefèvre', 'Histoire-géo avec Mme Diallo', 'Anglais avec Mr. Barnes', 'SVT avec M. Roche'],
-  apres: ['Technologie avec M. Roche', 'EPS au gymnase', 'Arts plastiques avec Mme Pinto', 'Maths avec Mme Moreau', 'Musique avec M. Fauré'],
+  matin: ['Maths avec Mme Moreau', 'Français avec Mme Fontaine', 'Histoire-géo avec M. Girard', 'Anglais avec Mr. Barnes', 'SVT avec M. Roche'],
+  apres: ['Technologie avec M. Lambert', 'EPS avec M. Sanchez', 'Arts plastiques avec Mme Pinto', 'Maths avec Mme Moreau', 'Musique avec M. Fauré'],
 };
 
+/**
+ * Un moment de classe. `subject` : la matière (et son enseignant) où il se passe ; la séance
+ * prend alors cette matière, pour qu'un mot intercepté par Mme Moreau n'arrive pas pendant le
+ * cours de M. Girard. Sans `subject`, le texte ne nomme ni matière ni enseignant.
+ */
+export interface ClassMoment { text: string; comprehension: number; mood: number; subject?: string }
+
 /** Moments de classe (un par séance suivie). */
-export const CLASS_MOMENTS: readonly { text: string; comprehension: number; mood: number }[] = [
-  { text: 'Interro surprise sur les pourcentages. Tu repenses à tes marges du stand : facile.', comprehension: 2, mood: 3 },
-  { text: 'Noah te fait passer un mot : « On vend des cartes à la récré ? » Mme Moreau l’intercepte et le lit à voix haute.', comprehension: 0, mood: 5 },
-  { text: 'Lina explique un exercice au tableau mieux que la prof. Tu prends des notes, et des idées.', comprehension: 2, mood: 1 },
-  { text: 'Exposé de Yasmine sur la fermeture des hauts-fourneaux en 2014. Toute la classe se tait. Ton père y travaillait.', comprehension: 1, mood: -2 },
-  { text: 'Tu t’endors pendant le cours de musique. Personne ne t’a vu… sauf M. Fauré.', comprehension: 0, mood: -1 },
-  { text: 'Débat en éducation civique : « Le Drive HyperVal est-il bon pour la ville ? » Tu as beaucoup à dire.', comprehension: 2, mood: 4 },
-  { text: 'Contrôle de géographie sur la vallée du Taret. Tu connais chaque rue par cœur.', comprehension: 1, mood: 2 },
+export const CLASS_MOMENTS: readonly ClassMoment[] = [
+  { text: 'Interro surprise sur les pourcentages. Tu repenses à tes marges du stand : facile.', comprehension: 2, mood: 3, subject: 'Maths avec Mme Moreau' },
+  { text: 'Noah te fait passer un mot : « On vend des cartes à la récré ? » Mme Moreau l’intercepte et le lit à voix haute.', comprehension: 0, mood: 5, subject: 'Maths avec Mme Moreau' },
+  { text: 'Lina explique un exercice au tableau plus clairement que le manuel. Tu prends des notes, et des idées.', comprehension: 2, mood: 1 },
+  { text: 'Exposé de Yasmine sur la fermeture des hauts-fourneaux en 2014. Toute la classe se tait. Ton père y travaillait.', comprehension: 1, mood: -2, subject: 'Histoire-géo avec M. Girard' },
+  { text: 'Tu t’endors pendant le cours de musique. Personne ne l’a remarqué… sauf M. Fauré.', comprehension: 0, mood: -1, subject: 'Musique avec M. Fauré' },
+  { text: 'Débat en éducation civique : « Le Drive HyperVal est-il bon pour la ville ? » Tu as beaucoup à dire.', comprehension: 2, mood: 4, subject: 'Éducation civique avec M. Girard' },
+  { text: 'Contrôle de géographie sur la vallée du Taret. Tu connais chaque rue par cœur.', comprehension: 1, mood: 2, subject: 'Histoire-géo avec M. Girard' },
   { text: 'Une voix murmure une réponse pendant l’exercice. Tu ne sais plus si c’est triché.', comprehension: 1, mood: 0 },
 ];
 
@@ -80,7 +87,7 @@ export const STARTER_FAMILY_LINES: readonly FamilyLine[] = [
     r('« Pas assez. Je vais ralentir. »', 3, -4, 0, '« Le corps, il ne fait pas crédit. Crois-en une aide-soignante. »'),
     r('« Ça va, je gère. »', -1, 4, 0, '« C’est exactement ce que disent mes patients avant de tomber. »'),
   ] },
-  { id: 'c_convoc', speaker: 'les_deux', when: 'convocation', mood: 'fache', text: 'Une lettre de Mme Garnier, la principale. « Vos parents sont convoqués jeudi. » Thierry l’a posée sur la table, sans un mot.', replies: [
+  { id: 'c_convoc', speaker: 'les_deux', when: 'convocation', mood: 'fache', text: 'Une lettre de M. Vasseur, le principal. « Vos parents sont convoqués jeudi. » Thierry l’a posée sur la table, sans un mot.', replies: [
     r('Tout leur expliquer avant le rendez-vous', 4, 0, 0, '« Merci de nous le dire toi-même. On ira ensemble, et on écoutera. »'),
     r('Te taire', -4, 5, 0, 'Le silence dure tout le repas.'),
   ] },

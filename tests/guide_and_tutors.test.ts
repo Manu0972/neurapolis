@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { createWorld } from '../src/core/store';
-import { TICKS_PER_DAY } from '../src/core/types';
+import { TICKS_PER_DAY, type WorldState } from '../src/core/types';
 import { minutesOfDay } from '../src/core/clock';
 import { runTicks, tickWorld } from '../src/simulation/engine';
 import { APP_TUTORIALS, INITIAL_TUTORIALS, appTutorialId } from '../src/data/tutorials';
@@ -87,9 +87,25 @@ describe('applications gagnées en jouant (ASCENSION §3.2)', () => {
   });
 });
 
+/** Campagne de Val-Ferrand achevée : le guide ne parle plus que de l'Ascension. */
+function campagneFinie(w: WorldState): void {
+  for (const st of w.campaign.stages) st.completed = true;
+  w.campaign.currentChapter = 5;
+  w.campaign.completedChapters = [1, 2, 3, 4, 5];
+}
+
 describe('guide « Maintenant »', () => {
-  it('au réveil du premier jour : lancer sa première affaire depuis le téléphone', () => {
+  it('au réveil du premier jour : la carte du chapitre 1 prime (le stand), pas l’Ascension', () => {
     const w = createWorld();
+    const s = nextStep(w)!;
+    expect(s.id).toBe('campagne');
+    expect(s.text).toMatch(/^Chapitre 1 : .*Tenir le stand/);
+    expect(s.action).toBe('carte');
+  });
+
+  it('campagne achevée : lancer sa première affaire depuis le téléphone', () => {
+    const w = createWorld();
+    campagneFinie(w);
     const s = nextStep(w)!;
     expect(s.id).toBe('premiere');
     expect(s.action).toBe('ascension');
@@ -124,10 +140,12 @@ describe('guide « Maintenant »', () => {
     w.player.money = 15;
     requestLaunch(w, 'soutien_scolaire');
     resolveLaunch(w, 'B');
+    campagneFinie(w);
     w.time.tick += 9 * 6; // 16 h 10 : plus de cours aujourd'hui, l'épicerie embauche
     const s = nextStep(w)!;
     expect(s.id).toBe('boulot');
     expect(s.text).toContain('0/3');
+    expect(s.text).toContain('maintenant');
   });
 
   it('ensuite, la preuve qui manque pour le palier suivant, avec son « comment »', () => {
@@ -141,6 +159,7 @@ describe('guide « Maintenant »', () => {
       ideaId: 'soutien_scolaire', launchedDay: 0, strategy: 'B', level: 1, cash: 2, revenueTotal: 10, profitTotal: 2, universes: {},
       verdictDay: 21, verdictDone: false, redDays: 0,
     };
+    campagneFinie(w);
     // Hors des heures de cours : un dimanche après-midi.
     w.time.tick = 5 * TICKS_PER_DAY + 15 * 6;
     const s = nextStep(w);
