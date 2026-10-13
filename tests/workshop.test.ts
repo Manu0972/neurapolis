@@ -18,7 +18,7 @@ import { createWorld } from '../src/core/store';
 import {
   acceptOrder, buySalvageParts, createWorkshop, deliverOrder, ensureAvailableOrders,
   ledgerBalance, ledgerInvariantHolds, maintainTools, repairOrder, scavengeParts,
-  setTariffMode, weeklyResult, workshopDay, workshopWeek, workshopWeeklyDistribution,
+  setTariffMode, weeklyOrderQuota, weeklyResult, workshopDay, workshopWeek, workshopWeeklyDistribution,
 } from '../src/simulation/workshop';
 import { TARIFF_GRID, WORKSHOP_CONFIG } from '../src/data/workshop';
 import { runTicks } from '../src/simulation/engine';
@@ -297,16 +297,51 @@ describe('Atelier de la Friche — Grand Livre & Répartition hebdomadaire', () 
 });
 
 describe('Atelier de la Friche — cadence moteur (engine ticks)', () => {
-  it('workshopDay renouvelle automatiquement les commandes si moins de 3 sont disponibles', () => {
+  it('workshopDay renouvelle les commandes au rythme du quartier : un quota par semaine, selon la confiance', () => {
     const w = openWorkshopForTest(createWorld());
     // Accepter toutes les commandes
     for (const ord of w.workshop!.orders) {
       acceptOrder(w, ord.id, 'standard');
     }
-    expect(w.workshop!.orders.filter((o: RepairOrder) => o.status === 'disponible').length).toBe(0);
+    const dispo = (): number => w.workshop!.orders.filter((o: RepairOrder) => o.status === 'disponible').length;
+    expect(dispo()).toBe(0);
 
+    // Les trois commandes d'ouverture épuisent le quota de la semaine : rien de neuf le jour même.
     workshopDay(w);
-    expect(w.workshop!.orders.filter((o: RepairOrder) => o.status === 'disponible').length).toBeGreaterThanOrEqual(2);
+    expect(dispo()).toBe(0);
+
+    // La semaine suivante, le quartier en apporte de nouvelles : 1 + 1 par tranche de 50 de confiance.
+    w.district.confianceQuartier = 60;
+    w.time.tick += TICKS_PER_DAY * 7;
+    workshopDay(w);
+    expect(dispo()).toBe(weeklyOrderQuota(w));
+    expect(weeklyOrderQuota(w)).toBe(2);
+  });
+
+  it('une commande non prise à l’échéance part ailleurs ; l’historique des livrées reste borné', () => {
+    const w = openWorkshopForTest(createWorld());
+    const first = w.workshop!.orders[0]!;
+    w.time.tick += TICKS_PER_DAY * ((first.deadlineDay ?? 7) + 1);
+    workshopDay(w);
+    expect(w.workshop!.orders.some((o: RepairOrder) => o.id === first.id)).toBe(false);
+  });
+
+  it('le prélèvement solidaire sort de la caisse et finance des actions de quartier', () => {
+    const w = openWorkshopForTest(createWorld());
+    const ws = w.workshop!;
+    const order = ws.orders[0]!;
+    acceptOrder(w, order.id, 'soutien');
+    repairOrder(w, order.id);
+    deliverOrder(w, order.id);
+    const share = Math.round(order.finalPrice * TARIFF_GRID.soutien.solidarityContributionFactor * 100) / 100;
+    expect(ws.balance).toBe(Math.round((order.finalPrice - share) * 100) / 100);
+    expect(ledgerInvariantHolds(ws)).toBe(true);
+    // Fonds plein : la semaine finance une action, la confiance du quartier monte.
+    ws.solidarityFund = 130;
+    const conf = w.district.confianceQuartier;
+    workshopWeek(w);
+    expect(ws.solidarityFund).toBe(10);
+    expect(w.district.confianceQuartier).toBeCloseTo(Math.min(100, conf + 6), 5);
   });
 
   it('une simulation de 7 jours déclenche le tick de l’atelier sans erreur ni régression', () => {

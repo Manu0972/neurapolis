@@ -20,7 +20,21 @@ export const WORKSHOP_CONFIG = {
   scavengeDurationMinutes: 60,   // 1 h de fouille dans les décombres de la friche
   repairDurationMinutes: 60,     // 1 h par réparation
   minRelationKarim: 20,          // relation requise avec Karim pour ouvrir l'atelier
+  // Équilibre sur la durée (campagne de 4 ans, 2026-10) :
+  weeklyOrdersBase: 1,           // commandes qui arrivent chaque semaine, quoi qu'il arrive…
+  ordersPerConfidence: 50,       // … plus une par tranche de 50 points de confiance du quartier
+  deliveredOrdersKept: 12,       // historique des commandes livrées gardé dans la sauvegarde
+  karimPartsCap: 8,              // Karim ne ramasse plus de pièces au-delà (l'établi déborde)
+  solidarityProjectCost: 60,     // le fonds solidaire finance une action de quartier par tranche de 60 €
+  solidarityProjectTrust: 3,     // confiance du quartier gagnée par action financée
 } as const;
+
+/** Actions de quartier financées par le fonds solidaire de l'atelier (dans l'ordre, en boucle). */
+export const SOLIDARITY_PROJECTS: ReadonlyArray<{ title: string; text: string }> = [
+  { title: 'Vélos remis en état pour le foyer', text: 'Le fonds solidaire de l’atelier paie les pièces : trois vélos réparés partent au foyer de jeunes du quartier.' },
+  { title: 'Paniers à l’épicerie Bertin', text: 'Le fonds solidaire règle chez Mme Bertin des paniers pour les familles qui finissent le mois difficilement.' },
+  { title: 'Outils partagés à la Maison du Peuple', text: 'Le fonds solidaire achète une caisse d’outils que les habitants peuvent emprunter à la Maison du Peuple.' },
+];
 
 export interface TariffDetail {
   id: SolidarityTariff;
