@@ -27,7 +27,7 @@ import { mandateDay } from './proxy';
 import { multiplayerDay } from './multiplayer';
 import { happeningsTick } from './happenings';
 import { rewindDay } from './rewind';
-import { familyTick } from './family';
+import { familyTick, weeklyPocketMoney } from './family';
 import { roomDay } from './room';
 import { storyDay } from './story';
 import { unlocksDay } from './unlocks';
@@ -91,8 +91,7 @@ export function tickWorld(w: WorldState): TickOutput {
 
     // Hebdomadaire : argent de poche + répartition des gains du stand (M5) + atelier (J5)
     if (weekIndexOf(day) !== prevWeek) {
-      w.player.money += 5;
-      out.push(notify('info', 'Argent de poche de la semaine : +5 €.'));
+      out.push(...weeklyPocketMoney(w)); // montant selon l'âge et la conduite (family.ts)
       out.push(...projectWeek(w));
       out.push(...workshopWeek(w));
     }
