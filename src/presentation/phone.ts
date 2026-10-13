@@ -20,6 +20,7 @@ import {
 import { el } from './ui';
 import { BIKE, buyBike, ownsBike } from '../simulation/vehicles';
 import { renderAscensionApp } from './ascension-ui';
+import { ASCENSION_LOAN_RATE_PCT, ascensionDebts } from '../simulation/ascension';
 import { renderInfosApp } from './news-ui';
 import { isAppOpen, unlockOf } from '../simulation/unlocks';
 import { APP_TUTORIALS } from '../data/tutorials';
@@ -107,7 +108,10 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?
     head.appendChild(stat('Argent sur toi', eur(w.player.money), w.player.money < 0 ? 'bad' : ''));
     const e = w.economy!;
     head.appendChild(stat('Caisses', eur(Object.values(e.businesses).reduce((s, b) => s + b.cash, 0))));
-    head.appendChild(stat('Dettes', eur(e.loans.reduce((s, l) => s + l.remaining, 0)), e.loans.length ? 'bad' : ''));
+    // Dettes : prêts de la caisse coopérative + emprunts de lancement de l'Ascension.
+    const ascDebts = ascensionDebts(w);
+    const debtTotal = e.loans.reduce((s, l) => s + l.remaining, 0) + ascDebts.reduce((s, d) => s + d.remaining, 0);
+    head.appendChild(stat('Dettes', eur(debtTotal), debtTotal > 0 ? 'bad' : ''));
     head.appendChild(stat('Dans tes bras', `${carriedUnits(e)} / ${e.carryCapacity}`));
     screen.appendChild(head);
     // Application pas encore méritée : on dit comment l'obtenir.
@@ -508,6 +512,13 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?
       lc.appendChild(el('div', 'ph-card-title', `Prêt de ${eur(l.principal)} à ${l.ratePct} %`));
       lc.appendChild(el('p', 'ph-note', `Reste ${eur(l.remaining)} · ${eur(l.dailyPayment)} prélevés chaque nuit sur ton argent personnel.`));
       lc.appendChild(button('Rembourser 50 €', () => act(repayLoan(w, l.id, 50))));
+      screen.appendChild(lc);
+    }
+    // Emprunts de lancement (Ascension) : remboursés chaque jour par l'entreprise elle-même.
+    for (const d of ascensionDebts(w)) {
+      const lc = el('div', 'ph-card');
+      lc.appendChild(el('div', 'ph-card-title', `💳 Emprunt de lancement — ${d.name} (${ASCENSION_LOAN_RATE_PCT} %)`));
+      lc.appendChild(el('p', 'ph-note', `Reste ${eur(d.remaining)} · ${eur(d.dailyRepay)} de capital + ${eur(d.dailyInterest)} d’intérêts par jour, payés par l’entreprise · dernière échéance dans ${d.daysLeft} jours.`));
       screen.appendChild(lc);
     }
   }

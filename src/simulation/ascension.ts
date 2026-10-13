@@ -181,6 +181,69 @@ export function ideaStatus(w: WorldState, id: string): IdeaStatus {
   return { available: reasons.length === 0, reasons, cost, eased: cost < idea.startCost };
 }
 
+/** Taux et durée des emprunts de lancement (affichés au joueur). */
+export const ASCENSION_LOAN_RATE_PCT = 8;
+export const ASCENSION_LOAN_TERM_DAYS = LOAN_TERM_DAYS;
+
+export interface LaunchFinancing {
+  /** Apport payé de ta poche. */
+  own: number;
+  /** Part empruntée (remboursée par l'entreprise, jour après jour). */
+  borrowed: number;
+  /** Assez d'argent sur toi pour l'apport ? */
+  affordable: boolean;
+}
+
+/** Financement de chaque voie (A, B, à ta façon) : apport et emprunt, avant de lancer. */
+export function launchFinancing(w: WorldState, id: string): Record<StrategyKey, LaunchFinancing> | null {
+  const idea = IDEA_BY_ID[id];
+  const duel = idea ? DUEL_BY_ID[idea.duel] : undefined;
+  if (!idea || !duel) return null;
+  const cost = launchCost(w, idea);
+  const out = {} as Record<StrategyKey, LaunchFinancing>;
+  for (const k of ['A', 'B', 'C'] as const) {
+    const borrowed = round2(cost * (duel.effects[k].borrow ?? 0));
+    const own = round2(cost - borrowed);
+    out[k] = { own, borrowed, affordable: w.player.money >= own };
+  }
+  return out;
+}
+
+export interface AscensionDebt {
+  ideaId: string;
+  name: string;
+  /** Capital restant dû. */
+  remaining: number;
+  /** Remboursement quotidien du capital (prélevé sur l'entreprise). */
+  dailyRepay: number;
+  /** Intérêts du jour. */
+  dailyInterest: number;
+  /** Jours avant la dernière échéance. */
+  daysLeft: number;
+}
+
+/** Emprunts en cours des entreprises de l'Ascension (pour l'onglet des dettes). */
+export function ascensionDebts(w: WorldState): AscensionDebt[] {
+  const out: AscensionDebt[] = [];
+  for (const run of Object.values(w.ascension?.ventures ?? {})) {
+    if (run.closed) continue;
+    const u = run.universes[run.strategy];
+    const idea = IDEA_BY_ID[run.ideaId];
+    const duel = idea ? DUEL_BY_ID[idea.duel] : undefined;
+    if (!u || !idea || !duel || u.loan <= 0) continue;
+    const dailyRepay = round2(Math.min(u.loan, (idea.startCost * (duel.effects[run.strategy].borrow ?? 0)) / LOAN_TERM_DAYS));
+    out.push({
+      ideaId: idea.id,
+      name: idea.name,
+      remaining: round2(u.loan),
+      dailyRepay,
+      dailyInterest: round2(u.loan * LOAN_DAILY_RATE),
+      daysLeft: dailyRepay > 0 ? Math.ceil(u.loan / dailyRepay) : 0,
+    });
+  }
+  return out;
+}
+
 /** Le joueur veut lancer une idée : le double face apparaît et attend sa décision. */
 export function requestLaunch(w: WorldState, id: string): { ok: boolean; message: string } {
   const a = ensureAscension(w);
