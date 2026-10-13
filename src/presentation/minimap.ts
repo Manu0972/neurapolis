@@ -182,40 +182,64 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, size: number, w: Worl
 }
 
 /** Grand plan de la ville avec légende des repères (touche M). */
+/**
+ * Cadre du grand plan : les quartiers ouverts (et le joueur), avec une marge. Au palier 1, le plan
+ * montre le centre en grand au lieu d'une ville entière où les lieux tiennent dans un coin.
+ */
+export function mapFrame(
+  open: readonly { x: number; y: number; w: number; h: number }[], pos: { x: number; z: number },
+  mapW: number, mapH: number, margin = 12,
+): { x: number; y: number; w: number; h: number } {
+  if (!open.length) return { x: 0, y: 0, w: mapW, h: mapH };
+  const x0 = Math.max(0, Math.floor(Math.min(pos.x, ...open.map((a) => a.x)) - margin));
+  const y0 = Math.max(0, Math.floor(Math.min(pos.z, ...open.map((a) => a.y)) - margin));
+  const x1 = Math.min(mapW, Math.ceil(Math.max(pos.x, ...open.map((a) => a.x + a.w)) + margin));
+  const y1 = Math.min(mapH, Math.ceil(Math.max(pos.z, ...open.map((a) => a.y + a.h)) + margin));
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
 export function renderCityMap(w: WorldState, pos: { x: number; z: number }): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'city-map';
   const c = document.createElement('canvas');
-  // Grande carte : le plan entier tient dans ~1 600 pixels de large (2,4 px/m sur l'ancienne ville).
-  const scale = Math.min(2.4, 1600 / MAP_W);
-  c.width = Math.round(MAP_W * scale);
-  c.height = Math.round(MAP_H * scale);
+  const shut = new Set(lockedAreas(w).map((a) => a.id));
+  // Grande carte : les quartiers ouverts tiennent dans ~1 600 × 1 100 pixels.
+  const frame = mapFrame(CITY_AREAS.filter((a) => !shut.has(a.id)), pos, MAP_W, MAP_H);
+  const scale = Math.min(4, 1600 / frame.w, 1100 / frame.h);
+  c.width = Math.round(frame.w * scale);
+  c.height = Math.round(frame.h * scale);
   const ctx = c.getContext('2d')!;
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(baseImage(), 0, 0, c.width, c.height);
+  ctx.translate(-frame.x * scale, -frame.y * scale);
+  ctx.drawImage(baseImage(), frame.x, frame.y, frame.w, frame.h, frame.x * scale, frame.y * scale, frame.w * scale, frame.h * scale);
   shadeLocked(ctx, w, 0, 0, scale);
+  // Le plan s'affiche plus petit que sa taille réelle : textes et repères grossis d'autant
+  // pour rester lisibles à l'écran (sinon ~5 px de haut).
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1280;
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 720;
+  const shown = Math.min(1, (vw - 80) / c.width, (vh - 150) / c.height);
+  const k = Math.min(3, Math.max(1, 1 / shown));
   // Noms des quartiers (cadenas et palier pour ceux encore fermés).
-  const shut = new Set(lockedAreas(w).map((a) => a.id));
   ctx.save();
   ctx.textAlign = 'center';
   for (const a of CITY_AREAS) {
     const cx = (a.x + a.w / 2) * scale;
     const cy = (a.y + a.h / 2) * scale;
-    ctx.font = '800 15px system-ui, sans-serif';
-    ctx.lineWidth = 4;
+    ctx.font = `800 ${15 * k}px system-ui, sans-serif`;
+    ctx.lineWidth = 4 * k;
     ctx.strokeStyle = 'rgba(20,14,10,0.85)';
     ctx.fillStyle = shut.has(a.id) ? '#f2c230' : '#fbf3e2';
     const label = shut.has(a.id) ? `🔒 ${a.name}` : a.name;
     ctx.strokeText(label, cx, cy);
     ctx.fillText(label, cx, cy);
     if (shut.has(a.id)) {
-      ctx.font = '600 11px system-ui, sans-serif';
-      ctx.strokeText(`palier ${a.tier}`, cx, cy + 15);
-      ctx.fillText(`palier ${a.tier}`, cx, cy + 15);
+      ctx.font = `600 ${11 * k}px system-ui, sans-serif`;
+      ctx.strokeText(`palier ${a.tier}`, cx, cy + 15 * k);
+      ctx.fillText(`palier ${a.tier}`, cx, cy + 15 * k);
     }
   }
   ctx.restore();
-  ctx.font = '600 11px system-ui, sans-serif';
+  ctx.font = `600 ${11 * k}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
   for (const r of CITY.roads) {
     ctx.save();
@@ -231,21 +255,25 @@ export function renderCityMap(w: WorldState, pos: { x: number; z: number }): HTM
   for (const m of markers(w)) {
     ctx.fillStyle = m.color;
     ctx.strokeStyle = '#2a1a14';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2 * k;
     ctx.beginPath();
-    ctx.arc((m.x + 0.5) * scale, (m.y + 0.5) * scale, m.ring ? 7 : 5, 0, Math.PI * 2);
+    ctx.arc((m.x + 0.5) * scale, (m.y + 0.5) * scale, (m.ring ? 7 : 5) * k, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     if (m.label) {
+      // Étiquette sur fond clair : lisible sur les toits comme sur la chaussée.
+      ctx.lineWidth = 3 * k;
+      ctx.strokeStyle = 'rgba(251,243,226,0.9)';
+      ctx.strokeText(m.label, (m.x + 0.5) * scale, (m.y + 0.5) * scale - 9 * k);
       ctx.fillStyle = '#2a1a14';
-      ctx.fillText(m.label, (m.x + 0.5) * scale, (m.y - 2.5) * scale);
+      ctx.fillText(m.label, (m.x + 0.5) * scale, (m.y + 0.5) * scale - 9 * k);
     }
   }
   ctx.fillStyle = '#ffffff';
   ctx.strokeStyle = '#c25a40';
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 3 * k;
   ctx.beginPath();
-  ctx.arc(pos.x * scale, pos.z * scale, 7, 0, Math.PI * 2);
+  ctx.arc(pos.x * scale, pos.z * scale, 8 * k, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
   wrap.appendChild(c);

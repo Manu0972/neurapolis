@@ -85,7 +85,7 @@ export function mountCharacterCreation(
   eyebrow.textContent = 'VAL-FERRAND • RENTRÉE 2020';
   const title = document.createElement('h1');
   title.id = 'creator-title';
-  title.textContent = 'Création de ton Personnage';
+  title.textContent = 'Création de ton personnage';
   const subtitle = document.createElement('p');
   subtitle.className = 'creator-subtitle';
   subtitle.textContent =
@@ -419,7 +419,7 @@ export function mountCharacterCreation(
   submitButton.type = 'button';
   submitButton.className = 'start-button primary creator-submit-btn';
   submitButton.id = 'creator-submit-btn';
-  submitButton.textContent = 'Valider et Commencer l’Aventure';
+  submitButton.textContent = 'Valider et commencer l’aventure';
   submitButton.disabled = true;
 
   submitButton.addEventListener('click', () => {
@@ -875,6 +875,10 @@ function ensureCreatorStyles(): void {
       font-weight: 800;
       font-size: 1rem;
       color: #2a1a14;
+    }
+    /* La colonne occupe toute la hauteur de la grille : l'aperçu et « Valider » restent à l'écran. */
+    .creator-preview-col {
+      align-self: stretch;
     }
     .creator-preview-card {
       background: #fff;
