@@ -199,7 +199,7 @@ export class CityRenderer {
       this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
       this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       this.renderer.shadowMap.enabled = true;
-      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      this.renderer.shadowMap.type = THREE.PCFShadowMap;
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
       ok = true;
@@ -759,6 +759,18 @@ export class CityRenderer {
   get inInterior(): boolean { return !!this.interior; }
   get interiorSpec(): InteriorSpec | undefined { return this.interior?.spec; }
 
+  /** Habitant de l'intérieur à portée de voix (moins de 2,2 m), ou null. */
+  get interiorNpcNear(): string | null {
+    if (!this.interior) return null;
+    let best: string | null = null;
+    let bestD = 2.2;
+    for (const n of this.interiorNpcs) {
+      const d = Math.hypot(this.body.x - n.ch.root.position.x, this.body.z - n.ch.root.position.z);
+      if (d < bestD) { bestD = d; best = n.id; }
+    }
+    return best;
+  }
+
   /** Point d'interaction à portée dans l'intérieur courant. */
   get interiorHotspot(): Hotspot | null {
     return this.interior ? nearestHotspot(this.interior.spec, this.body.x, this.body.z) : null;
@@ -800,7 +812,9 @@ export class CityRenderer {
     }
     // Habitants présents dans ce lieu : chacun à son poste.
     if (spec.placeId) {
-      const present = Object.values(world.npcs).filter((n) => n.place === spec.placeId && n.activity !== 'dort');
+      // « maison » désigne le domicile de chaque habitant, pas celui du joueur : personne ne s'invite chez toi.
+      const present = spec.placeId === 'maison' ? []
+        : Object.values(world.npcs).filter((n) => n.place === spec.placeId && n.activity !== 'dort');
       present.slice(0, spec.npcSlots.length).forEach((n, i) => {
         const def = NPC_BY_ID[n.id];
         const ch = createCharacter({ appearance: npcAppearance(n.id), heightM: heightForAge(def?.age ?? 30), bodyColor: def?.color, rig: { key: n.id, age: def?.age ?? 30 } });

@@ -82,6 +82,9 @@ function btn(label: string, cls: string, run: () => void): HTMLButtonElement {
   return b;
 }
 
+/** Étape en cours par application : un téléphone redessiné (achat, lancement…) ne relance pas le tuto au début. */
+const tutorSteps = new Map<string, number>();
+
 /** La carte du fantôme : son dessin, une étape à la fois, et de quoi passer. */
 export function tutorCard(w: WorldState, app: string, opts: TutorCardOptions): HTMLElement {
   injectStyle();
@@ -96,8 +99,8 @@ export function tutorCard(w: WorldState, app: string, opts: TutorCardOptions): H
   card.appendChild(art);
   const bubble = el('div', 'gt-bubble');
   card.appendChild(bubble);
-  let step = 0;
-  const done = (): void => { markAppTutorialSeen(w, app); opts.onClose(); };
+  let step = Math.min(tutorSteps.get(app) ?? 0, t.steps.length - 1);
+  const done = (): void => { tutorSteps.delete(app); markAppTutorialSeen(w, app); opts.onClose(); };
   const draw = (): void => {
     bubble.replaceChildren();
     const head = el('div', 'gt-head');
@@ -110,7 +113,7 @@ export function tutorCard(w: WorldState, app: string, opts: TutorCardOptions): H
     const last = step === t.steps.length - 1;
     if (!last) {
       foot.appendChild(btn('Passer', 'ph-btn', done));
-      foot.appendChild(btn('Suivant ›', 'ph-btn primary', () => { step += 1; draw(); }));
+      foot.appendChild(btn('Suivant ›', 'ph-btn primary', () => { step += 1; tutorSteps.set(app, step); draw(); }));
     } else {
       if (opts.onOpen) foot.appendChild(btn(`Ouvrir ${t.icon} ${t.label}`, 'ph-btn primary', () => { const go = opts.onOpen!; done(); go(); }));
       foot.appendChild(btn('Compris', opts.onOpen ? 'ph-btn' : 'ph-btn primary', done));

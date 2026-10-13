@@ -572,7 +572,7 @@ canvas.map-canvas-3d { image-rendering: auto; touch-action: none; }
 .hud2-clock-row { display: flex; align-items: center; gap: 10px; }
 .hud2 .hud-clock { font-size: 30px; font-weight: 800; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; line-height: 1; }
 .hud2-date-col { display: flex; flex-direction: column; }
-.hud2 .hud-date { font-size: 12.5px; opacity: 0.92; text-transform: capitalize; }
+.hud2 .hud-date { font-size: 12.5px; opacity: 0.92; }
 .hud2-weather { font-size: 12px; opacity: 0.85; }
 .hud2 .speed-row { display: flex; gap: 4px; }
 .hud2 .speed-btn {
@@ -947,3 +947,31 @@ canvas.map-canvas-3d { image-rendering: auto; touch-action: none; }
 .mp-panel .mp-line.mine { color: #ffd9a0; }
 .mp-panel .mp-log.bien { color: #9be3a5; }
 .mp-panel .mp-log.mal { color: #ff9b85; }
+
+/* ===== Qualité de jeu (vague 2) ===== */
+/* Projet : résultat de la dernière action, en tête du panneau redessiné. */
+.projet-flash {
+  margin: 6px 0 4px; padding: 6px 10px; border-radius: 8px; font-weight: 700;
+  background: rgba(120, 200, 120, 0.14); border: 1px solid rgba(120, 200, 120, 0.45);
+}
+.projet-flash.bad { background: rgba(240, 138, 110, 0.14); border-color: rgba(240, 138, 110, 0.55); }
+/* Conseil : les voix inconnues tiennent sur quelques lignes, l'arrivée en attente est rappelée. */
+.council-col.council-inconnues { flex-direction: row; flex-wrap: wrap; align-content: flex-start; }
+.council-col.council-inconnues .panel-sub { flex-basis: 100%; }
+.council-col.council-inconnues .ghost-chip.silhouette { width: 30px; padding: 4px 0; text-align: center; }
+.council-waiting { margin-bottom: 8px; border-left: 3px solid var(--or); }
+/* Plan de la ville : grand et entier à l'écran. */
+.modal-panel.wide:has(.city-map) { width: min(1100px, calc(100vw - 24px)); max-height: calc(100vh - 24px); }
+.city-map canvas { max-height: calc(100vh - 150px); width: auto; margin: 0 auto; }
+/* Petits écrans en hauteur (≈ 1024 × 600) : HUD plus compact, la mini-carte passe à droite
+   pour ne plus recouvrir la carte de chapitre ni « 👉 Maintenant ». */
+@media (max-height: 760px) {
+  .hud2 .hud-clock { font-size: 24px; }
+  .hud2-status { padding: 6px 10px; gap: 4px; }
+  .hud2-needs { padding: 5px 9px; }
+  .hud2-minimap-canvas { width: 140px; height: 140px; }
+  .hud2-street { max-width: 150px; font-size: 11px; }
+}
+@media (max-height: 680px) and (pointer: fine) {
+  .hud2-minimap { left: auto; right: 12px; }
+}
