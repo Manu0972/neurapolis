@@ -24,7 +24,21 @@ import { markCatastrophe } from './rewind';
 export const NEWS_HOURS: readonly number[] = [7, 12, 18];
 /** Pas de surprise pendant les premiers jours : le joueur apprend d'abord. */
 export const GRACE_DAYS = 10;
-const SURPRISE_COOLDOWN = 3;
+/**
+ * Jours sans surprise après une surprise. 3 jours suffisaient tant que le fil se tarissait
+ * (6 surprises en 4 ans) ; une fois réparé, il en tombait ~45 par an : 7 jours en gardent ~25.
+ */
+const SURPRISE_COOLDOWN = 7;
+/**
+ * Une même dépêche ne repasse pas avant 90 jours : faute de modèle frais, le journal se tait
+ * (avant : ~1,8 dépêche par jour sur 36 modèles, chacune répétée ~70 fois en quatre ans).
+ */
+export const NEWS_REPEAT_DAYS = 90;
+/** Une même surprise ne revient pas avant 120 jours (une catastrophe, pas avant un an). */
+export const SURPRISE_REPEAT_DAYS = 120;
+export const CATASTROPHE_REPEAT_DAYS = 365;
+/** Une surprise ne prend jamais plus que cette part de ce que le joueur a en poche. */
+export const MAX_PLAYER_LOSS_SHARE = 0.5;
 
 const round2 = (v: number): number => Math.round(v * 100) / 100;
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
@@ -55,10 +69,9 @@ export function moneyScale(w: WorldState): number {
 
 function pickNews(w: WorldState, day: number, hour: number): NewsTemplate | undefined {
   const h = ensureHappenings(w);
-  const recent = new Set(h.news.slice(0, 20).map((n) => n.templateId));
+  const recent = new Set(h.news.filter((n) => day - n.day < NEWS_REPEAT_DAYS).map((n) => n.templateId));
   const tier = tierOf(w);
-  const pool = NEWS.filter((n) => n.minTier <= tier && !recent.has(n.id));
-  const list = pool.length > 0 ? pool : NEWS.filter((n) => n.minTier <= tier);
+  const list = NEWS.filter((n) => n.minTier <= tier && !recent.has(n.id));
   if (list.length === 0) return undefined;
   return list[Math.floor(econRand(w, 'news-pick', day, hour) * list.length)];
 }
@@ -94,7 +107,8 @@ function pickTarget(w: WorldState, kind: SurpriseDef['target'], salt: number): T
 }
 
 /** Argent d'un facteur de surprise, à l'échelle de la cible. */
-function cashFor(w: WorldState, target: Target, factor: number): number {
+function cashFor(w: WorldState, target: Target, factor: number, pocketScale = false): number {
+  if (pocketScale) return round2(factor * 10);
   if (target.kind === 'entreprise' && target.id) {
     const idea = IDEA_BY_ID[target.id];
     return round2(factor * (idea ? idea.startCost * 0.05 : moneyScale(w)));
@@ -113,16 +127,19 @@ function moveCash(w: WorldState, target: Target, amount: number): number {
     if (b) { b.cash = round2(b.cash + amount); return amount; }
   }
   const before = w.player.money;
-  w.player.money = round2(Math.max(0, w.player.money + amount));
+  // Un coup dur n'emporte jamais plus de la moitié de la poche d'un coup (un « acompte » de
+  // 800 € vidait la caisse d'un collégien plusieurs fois par campagne).
+  const capped = amount < 0 ? Math.max(amount, -before * MAX_PLAYER_LOSS_SHARE) : amount;
+  w.player.money = round2(Math.max(0, w.player.money + capped));
   return round2(w.player.money - before);
 }
 
 interface Effects { cashFactor?: number; demandMult?: number; demandDays?: number; reputation?: number; stress?: number }
 
-function applyEffects(w: WorldState, target: Target, e: Effects, label: string): number {
+function applyEffects(w: WorldState, target: Target, e: Effects, label: string, pocketScale = false): number {
   const h = ensureHappenings(w);
   const day = dayIndexOf(w.time.tick);
-  const cash = moveCash(w, target, cashFor(w, target, e.cashFactor ?? 0));
+  const cash = moveCash(w, target, cashFor(w, target, e.cashFactor ?? 0, pocketScale));
   if (e.demandMult !== undefined && e.demandDays && target.id) h.effects.push({ target: target.id, mult: e.demandMult, untilDay: day + e.demandDays, label });
   if (e.reputation) w.player.reputation = clamp(w.player.reputation + e.reputation, 0, 100);
   if (e.stress) w.player.needs.stress = clamp(w.player.needs.stress + e.stress, 0, 100);
@@ -161,7 +178,10 @@ function trigger(w: WorldState, day: number, hour: number): Notification[] {
   const tone: SurpriseDef['tone'] = roll < 0.12 * d ? 'catastrophe' : roll < 0.3 + 0.3 * d ? 'mauvais' : 'bon';
   const tones: SurpriseDef['tone'][] = tone === 'catastrophe' ? ['catastrophe', 'mauvais'] : [tone];
   for (const t of tones) {
-    const pool = SURPRISES.filter((s) => s.tone === t && s.minTier <= tier && !h.history.slice(0, 6).some((r) => r.surpriseId === s.id));
+    // Écarter les surprises récentes (par date, et non « les six dernières » : quand toutes les
+    // surprises jouables étaient dans les six dernières, plus aucune n'arrivait — 6 en 4 ans).
+    const pool = SURPRISES.filter((s) => s.tone === t && s.minTier <= tier
+      && !h.history.some((r) => r.surpriseId === s.id && day - r.day < (s.tone === 'catastrophe' ? CATASTROPHE_REPEAT_DAYS : SURPRISE_REPEAT_DAYS)));
     const n = pool.length;
     for (let k = 0; k < n; k++) {
       const def = pool[(Math.floor(econRand(w, 'surprise-pick', day, hour) * n) + k) % n]!;
@@ -173,7 +193,7 @@ function trigger(w: WorldState, day: number, hour: number): Notification[] {
         return [notify(def.tone === 'bon' ? 'bien' : 'alerte', `⚡ ${def.title} — une décision t’attend.`)];
       }
       const text = fill(def.text, target);
-      const cash = applyEffects(w, target, def, def.title);
+      const cash = applyEffects(w, target, def, def.title, def.pocketScale);
       record(w, def, cash, text);
       const money = cash !== 0 ? ` (${cash > 0 ? '+' : ''}${Math.round(cash).toLocaleString('fr-FR')} €)` : '';
       return [notify(def.tone === 'bon' ? 'bien' : 'alerte', `${def.tone === 'catastrophe' ? '💥' : def.tone === 'bon' ? '🍀' : '⚡'} ${def.title} : ${text}${money}`, TONE_GHOST[def.tone])];
@@ -202,7 +222,7 @@ export function resolveSurprise(w: WorldState, index: number): { ok: boolean; me
     ? { cashFactor: opt.failCashFactor ?? opt.cashFactor, demandMult: opt.demandMult, demandDays: opt.demandDays, reputation: opt.reputation, stress: (opt.stress ?? 0) + 10 }
     : opt;
   const outcome = failed ? (opt.failOutcome ?? opt.outcome) : opt.outcome;
-  const cash = applyEffects(w, target, effects, def.title);
+  const cash = applyEffects(w, target, effects, def.title, def.pocketScale);
   const t = (ensureAscension(w).trust[opt.ghost] ??= { right: 0, wrong: 0, followed: 0, ignored: 0 });
   t.followed += 1;
   if (failed) t.wrong += 1; else t.right += 1;
