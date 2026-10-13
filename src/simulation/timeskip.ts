@@ -10,7 +10,7 @@
  */
 import type { Notification, WorldState } from '../core/types';
 import { TICKS_PER_DAY } from '../core/types';
-import { dateOf, dayIndexOf, isVacances, minutesOfDay } from '../core/clock';
+import { dateOf, dayIndexOf, isVacances, minutesOfDay, sameDateNextMonth } from '../core/clock';
 import { PLACE_ANCHORS } from '../data/map';
 import { provenProfit } from './ascension';
 import { tickWorld } from './engine';
@@ -47,7 +47,8 @@ export function skipTarget(w: WorldState, kind: SkipKind): number {
     while (isVacances(d) && d < day + 120) d++;
     return tickOf(d, WAKE);
   }
-  return tickOf(next + 27, WAKE);
+  // Un mois du calendrier (du 14 au 14) : douze clics font une année.
+  return tickOf(Math.max(next + 27, sameDateNextMonth(day)), WAKE);
 }
 
 /** Pourquoi on ne peut pas passer le temps maintenant (ou null). */
