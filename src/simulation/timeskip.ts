@@ -75,6 +75,11 @@ interface Snap {
   tier: number;
 }
 
+/** La moyenne scolaire affichée partout (bilan, panneau Famille, bulletin) : schoolLife. */
+export function schoolAverage(w: WorldState): number {
+  return ensureSchoolLifeState(w).academicAverage;
+}
+
 const snap = (w: WorldState): Snap => {
   const f = ensureFamily(w);
   return {
@@ -83,7 +88,7 @@ const snap = (w: WorldState): Snap => {
     profit: provenProfit(w),
     reputation: w.player.reputation,
     trust: familyTrust(w),
-    average: ensureSchoolLifeState(w).academicAverage,
+    average: schoolAverage(w),
     attended: f.attended.length,
     absences: f.absences.filter((a) => !a.excused).length,
     grades: f.grades.length,
@@ -148,8 +153,13 @@ export function skipReport(w: WorldState, s: SkipSession): SkipReport {
   const classes = b.attended - a.attended;
   if (classes > 0 || b.absences > a.absences) lines.push(`🏫 Cours suivis : ${classes} demi-journée(s)${b.absences > a.absences ? ` · absences : ${b.absences - a.absences}` : ''}`);
   const f = ensureFamily(w);
-  const newGrades = f.grades.slice(-(b.grades - a.grades > 0 ? b.grades - a.grades : 0));
-  if (newGrades.length) lines.push(`📝 Notes : ${newGrades.map((g) => `${g.note}/20`).join(', ')} · moyenne ${b.average}/20`);
+  // Les notes du saut : celles datées d'après le départ (le carnet est plafonné à 30 notes, un
+  // décompte par longueur se trompait — et `slice(-0)` renvoyait TOUT le carnet).
+  const startDay = Math.floor(a.tick / TICKS_PER_DAY);
+  const newGrades = f.grades.filter((g) => g.day >= startDay && g.day <= Math.floor(b.tick / TICKS_PER_DAY));
+  // Moyenne : une seule source de vérité, celle du panneau Famille et du bulletin.
+  const avg = schoolAverage(w);
+  if (newGrades.length) lines.push(`📝 Notes : ${newGrades.map((g) => `${g.note}/20`).join(', ')} · moyenne ${a.average === avg ? '' : `${a.average} → `}${avg}/20`);
   if (Math.round(b.trust) !== Math.round(a.trust)) lines.push(`👪 Confiance de tes parents : ${Math.round(a.trust)} → ${Math.round(b.trust)}`);
   if (Math.round(b.reputation) !== Math.round(a.reputation)) lines.push(`⭐ Réputation : ${Math.round(a.reputation)} → ${Math.round(b.reputation)}`);
   if (b.concepts > a.concepts) lines.push(`📒 Concepts appris : +${b.concepts - a.concepts}`);
