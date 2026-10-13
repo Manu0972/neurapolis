@@ -27,8 +27,8 @@ import {
 } from '../simulation/workshop';
 import { TARIFF_GRID, WORKSHOP_CONFIG } from '../data/workshop';
 import {
-  councilAnswerAdvice, councilArrivalChoose, councilColumns, councilPendingArrivals,
-  councilSleep, councilWake, ghostSignature, mobilizeCouncilForDebate,
+  councilActiveCount, councilAnswerAdvice, councilArrivalChoose, councilColumns, councilPendingArrivals,
+  councilSleep, councilWake, ghostSignature, mobilizeCouncilForDebate, MAX_ACTIVE_VOICES,
 } from '../simulation/council';
 import {
   calculateEpilogue, foundLastingEconomicModel, holdCitizenDebate, type EpilogueResult,
@@ -91,6 +91,7 @@ import { BUS_LINES, BUS_STOPS, BUS_STOP_BY_ID } from '../data/city/transit';
 import { createGhostBar } from './ghost-bar';
 import { createAppTutor } from './ghost-tutor';
 import { createGuide } from './guide-ui';
+import { RIVAL_STRATEGY_LABELS, euros } from './labels';
 import { createNewsToaster, openSurpriseModal } from './news-ui';
 import { pendingSurprise } from '../simulation/happenings';
 import { isSilenced, lessonWarnings, rewindOffer, sacrificeCandidates } from '../simulation/rewind';
@@ -847,7 +848,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         card.appendChild(el('div', 'ph-card-title', `💾 ${label}`));
         card.appendChild(el('p', 'ph-note', !sum.exists ? 'Vide.'
           : sum.error ? `⚠️ ${sum.error}`
-            : `${sum.name ?? '—'}, ${sum.age ?? '?'} ans · ${dateOf(dayIndexOf(sum.tick ?? 0)).label} · ${(sum.money ?? 0).toFixed(2)} € · ${sum.businesses ?? 0} commerce(s)`));
+            : `${sum.name ?? '—'}, ${sum.age ?? '?'} ans · ${dateOf(dayIndexOf(sum.tick ?? 0)).label} · ${euros(sum.money ?? 0)} · ${sum.businesses ?? 0} commerce(s)`));
         const row = el('div', 'ph-actions');
         if (slot !== 'auto') {
           const save = el('button', 'ph-btn primary', 'Sauvegarder ici');
@@ -964,7 +965,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   }
 
   function playerPose(): { x: number; z: number; heading: number } {
-    return renderer3D && use3D ? renderer3D.playerPose : { x: world.player.pos.x + 0.5, z: world.player.pos.y + 0.5, heading: 0 };
+    // À l'intérieur, la pose 3D est celle de la pièce : la mini-carte et le plan montrent la porte du lieu.
+    return renderer3D && use3D && !renderer3D.inInterior ? renderer3D.playerPose : { x: world.player.pos.x + 0.5, z: world.player.pos.y + 0.5, heading: 0 };
   }
   function openCityMap(): void {
     showModal('🗺️ Plan de Val-Ferrand', 'Centre-ville · 1 case = 1 mètre', renderCityMap(world, playerPose()), true);
@@ -1204,15 +1206,22 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     return null;
   }
 
+  /** Habitant (du monde) à portée dans l'intérieur courant, d'après la scène 3D. */
+  function interiorNpcNear(): string | null {
+    const id = renderer3D?.interiorNpcNear ?? null;
+    return id && world.npcs[id] ? id : null;
+  }
+
   function promptText(): string {
     if (world.player.asleep) return '😴 Tu dors. La nuit passe…';
     if (inShift(world)) return `🧺 ${JOB.title} — fin du service à ${hhmmOfTick(world.flags['jobShiftEnd'] ?? world.time.tick)}`;
+    if (isInClass(world)) return `📚 En cours jusqu’à ${hhmmOfTick(world.family?.inClass?.untilTick ?? world.time.tick)}`;
     if (layoutEdit) return '🛠️ Aménager — Tab : meuble suivant · flèches : déplacer · R : tourner · Entrée : valider · Échap : terminer';
     if (renderer3D?.inInterior) {
       const inside = interiorActionHere();
       if (inside) return inside.label;
-      const nearNpc = npcsNearby(world, 2)[0];
-      if (nearNpc) return `E — Parler à ${NPC_BY_ID[nearNpc.id]?.name ?? 'quelqu’un'}`;
+      const nearNpc = interiorNpcNear();
+      if (nearNpc) return `E — Parler à ${NPC_BY_ID[nearNpc]?.name ?? 'quelqu’un'}`;
       if (renderer3D.interiorSpec?.destinationId) {
         return `${renderer3D.interiorSpec.title} · ${travelSlotsLeft(world)} demi-journée(s) sur place · approche-toi d’une icône pour agir`;
       }
@@ -1237,8 +1246,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (renderer3D?.inInterior) {
       const inside = interiorActionHere();
       if (inside) { inside.run(); return; }
-      const nearNpc = npcsNearby(world, 2)[0];
-      if (nearNpc) openNpcDialogue(nearNpc.id);
+      const nearNpc = interiorNpcNear();
+      if (nearNpc) openNpcDialogue(nearNpc);
       return;
     }
     const eco = economyActionHere();
@@ -1344,7 +1353,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
     const topicRow = el('div', 'topic-row');
     for (const topic of dialogueTopics(id)) {
-      const btn = el('button', 'btn btn-topic', topic);
+      const btn = el('button', 'btn btn-topic', topic.charAt(0).toUpperCase() + topic.slice(1));
       btn.addEventListener('click', () => {
         lineBox.textContent = npcLine(world, id, topic) ?? '…';
         showReplies();
@@ -2192,7 +2201,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
       box.appendChild(el('h4', 'journal-title', `${rival.name} (${placeName})`));
       box.appendChild(el('p', 'panel-desc',
-        `Prix rival : ${rival.price.toFixed(2)} € · Stratégie : ${rival.strategy} · Agressivité : ${rival.aggressiveness}/100`));
+        `Prix rival : ${rival.price.toFixed(2)} € · Stratégie : ${RIVAL_STRATEGY_LABELS[rival.strategy] ?? rival.strategy} · Agressivité : ${rival.aggressiveness}/100`));
 
       const lastClosed = rival.marketObservation.lastClosed;
       if (lastClosed) {
@@ -2370,9 +2379,24 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     return row;
   }
 
+  /** Dernier résultat d'action du stand : affiché en tête du panneau redessiné. */
+  let projetFlash: { text: string; ok: boolean } | null = null;
+
   function openProjet(): void {
     const p = world.project;
     const body = el('div', 'panel-body');
+    // Après une action, le panneau est redessiné (stock, caisse et boutons à jour) au même défilement.
+    const refresh = (text: string, ok: boolean): void => {
+      const top = ui.modalEl.querySelector('.modal-panel')?.scrollTop ?? 0;
+      projetFlash = { text, ok };
+      openProjet();
+      const again = ui.modalEl.querySelector('.modal-panel');
+      if (again) again.scrollTop = top;
+    };
+    if (projetFlash) {
+      body.appendChild(el('p', `panel-note projet-flash${projetFlash.ok ? '' : ' bad'}`, projetFlash.text));
+      projetFlash = null;
+    }
 
     // Onglets de bascule entre projets économiques
     const projTabs = el('div', 'reply-row');
@@ -2413,7 +2437,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     prixInput.addEventListener('input', () => prixLabel.textContent = `${Number(prixInput.value).toFixed(2)} €`);
     prixBtn.addEventListener('click', () => {
       const r = setPrice(world, Number(prixInput.value));
-      prixBtn.textContent = r.ok ? `Prix : ${p.price.toFixed(2)} € ✓` : r.message;
+      refresh(r.ok ? `Prix : ${p.price.toFixed(2)} € ✓` : r.message, r.ok);
     });
     prixRow.appendChild(prixInput);
     prixRow.appendChild(prixLabel);
@@ -2422,8 +2446,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const achatBtn = el('button', 'btn btn-action', `Acheter du stock (${STAND_CONFIG.stockCost} € — ${STAND_CONFIG.stockUnits} unités)`);
     achatBtn.addEventListener('click', () => {
       const r = buyStock(world);
-      achatBtn.textContent = r.message;
-      achatBtn.disabled = !r.ok;
+      refresh(r.message, r.ok);
     });
     body.appendChild(achatBtn);
 
@@ -2456,8 +2479,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       btn.disabled = deja || !debloque;
       btn.addEventListener('click', () => {
         const r = recruitMember(world, id);
-        btn.textContent = r.ok ? `${npcDef.name} a rejoint l’équipe ✓` : r.message;
-        btn.disabled = !r.ok;
+        refresh(r.ok ? `${npcDef.name} a rejoint l’équipe ✓` : r.message, r.ok);
       });
       body.appendChild(btn);
     }
@@ -2469,21 +2491,24 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       const lieu = placeAtAdjacent(world);
       const ici = lieu === 'college' || lieu === 'place' ? lieu : null;
       if (!ici) {
-        venteBtn.textContent = 'Rends-toi à la récré (collège) ou sur la place pour vendre.';
+        refresh('Rends-toi à la récré (collège) ou sur la place pour vendre.', false);
         return;
       }
       const r = runSalesSession(world, ici);
-      venteBtn.textContent = r.message;
+      // Le bouton promet « 1 h » : l'horloge avance d'autant (à la fermeture du panneau).
+      if (r.ok) spendTaskTime(60, 'Tenir le stand');
+      refresh(r.message, r.ok);
     });
     body.appendChild(venteBtn);
     const courseBtn = el('button', 'btn btn-action', 'Faire une course pour l’épicerie (20 min — 2 €)');
     courseBtn.addEventListener('click', () => {
       if (placeAtAdjacent(world) !== 'epicerie') {
-        courseBtn.textContent = 'Rends-toi à l’épicerie pour prendre une course.';
+        refresh('Rends-toi à l’épicerie pour prendre une course.', false);
         return;
       }
       const r = runCourse(world);
-      courseBtn.textContent = r.message;
+      if (r.ok) spendTaskTime(20, 'Course pour l’épicerie');
+      refresh(r.message, r.ok);
     });
     body.appendChild(courseBtn);
 
@@ -2493,30 +2518,33 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const reglesBtn = el('button', 'btn btn-action', 'Adopter des règles partagées (équipe ≥ 2)');
     reglesBtn.addEventListener('click', () => {
       const r = adoptSharedRules(world);
-      reglesBtn.textContent = r.ok ? `${r.message} ✓` : r.message;
-      reglesBtn.disabled = !r.ok;
+      refresh(r.ok ? `${r.message} ✓` : r.message, r.ok);
     });
     body.appendChild(reglesBtn);
     const imposerBtn = el('button', 'btn btn-action', 'Imposer une règle (peut être contournée)');
     imposerBtn.addEventListener('click', () => {
-      imposerBtn.textContent = imposeRule(world).message;
+      const r = imposeRule(world);
+      refresh(r.message, r.ok);
     });
     body.appendChild(imposerBtn);
     const optBtn = el('button', 'btn btn-action', 'Tenter une optimisation du rendement');
     optBtn.addEventListener('click', () => {
-      optBtn.textContent = optimizeStand(world).message;
+      const r = optimizeStand(world);
+      refresh(r.message, r.ok);
     });
     body.appendChild(optBtn);
     const dataBtn = el('button', 'btn btn-action',
       `Vendre le fichier clients (+${DATA_SALE.gain} € · réputation −${DATA_SALE.reputationPenalty})`);
     dataBtn.addEventListener('click', () => {
-      dataBtn.textContent = sellCustomerData(world).message;
+      const r = sellCustomerData(world);
+      refresh(r.message, r.ok);
     });
     body.appendChild(dataBtn);
     const ecoBtn = el('button', 'btn btn-action',
       `Choix écologique coûteux (−${ECO_CHOICE.cost} € · réputation +${ECO_CHOICE.reputation})`);
     ecoBtn.addEventListener('click', () => {
-      ecoBtn.textContent = makeEcoChoice(world).message;
+      const r = makeEcoChoice(world);
+      refresh(r.message, r.ok);
     });
     body.appendChild(ecoBtn);
 
@@ -2555,9 +2583,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const repartBtn = el('button', 'btn btn-action', 'Répartir les gains de la semaine maintenant');
     repartBtn.addEventListener('click', () => {
       const r = repartition(world);
-      repartBtn.textContent = r.ok
+      refresh(r.ok
         ? `${r.message} — ${r.shares.map((s) => `${s.label} ${s.amount.toFixed(2)} €`).join(' · ')}`
-        : r.message;
+        : r.message, r.ok);
     });
     body.appendChild(repartBtn);
 
@@ -2755,10 +2783,14 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     head.appendChild(el('span', 'ghost-era', def.era));
     body.appendChild(head);
     for (const line of scene.lines) body.appendChild(el('p', 'scene-line', line));
-    const msg = el('p', 'panel-note', '');
+    const full = councilActiveCount(world) >= MAX_ACTIVE_VOICES;
+    const msg = el('p', 'panel-note', full
+      ? `Ton Conseil est complet (${MAX_ACTIVE_VOICES} voix). Pour écouter ${def.name}, endors d’abord une voix depuis le Conseil — ou repousse-la pour l’instant.`
+      : '');
     body.appendChild(msg);
     const choices = el('div', 'reply-row');
     const listenBtn = el('button', 'btn btn-reply', ARRIVAL_CHOICE.listen);
+    listenBtn.disabled = full;
     listenBtn.addEventListener('click', () => {
       const r = councilArrivalChoose(world, id, 'ecouter');
       if (!r.ok) {
@@ -2863,13 +2895,25 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       body.appendChild(el('p', 'panel-note', `🌑 Alliance des ombres : ${allianceDesOmbres(world)}. Quelque chose prend note de tes refus.`));
     }
 
+    const waiting = councilPendingArrivals(world).filter((g) => deferredArrivals.has(g));
+    for (const gid of waiting) {
+      const def = GHOST_DEFS_BY_ID[gid];
+      if (!def) continue;
+      const box = el('div', 'ghost-detail council-waiting');
+      box.appendChild(el('p', 'panel-desc', `⏳ ${def.emoji} ${def.name} attend ta réponse. Endors une voix ci-dessous si tu veux lui laisser la place.`));
+      const again = el('button', 'btn btn-action', `Revoir la scène de ${def.name}`);
+      again.addEventListener('click', () => { deferredArrivals.delete(gid); openArrivalScene(gid); });
+      box.appendChild(again);
+      body.appendChild(box);
+    }
+
     const grid = el('div', 'council-grid');
     const colonnes: ReadonlyArray<[string, GhostId[], string]> = [
       ['Voix actives', cols.actives, 'council-col council-actives'],
       ['Endormies', cols.endormies, 'council-col'],
       ['Hostiles', cols.hostiles, 'council-col council-hostiles'],
       ['Mortes', cols.mortes, 'council-col'],
-      ['Inconnues', cols.inconnues, 'council-col'],
+      ['Inconnues', cols.inconnues, 'council-col council-inconnues'],
     ];
     for (const [label, ids, cls] of colonnes) {
       const col = el('div', cls);
