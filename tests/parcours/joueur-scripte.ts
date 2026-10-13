@@ -19,7 +19,7 @@
  * Déterministe : tout passe par le PRNG du monde ; aucune horloge réelle.
  */
 import { createCustomWorld } from '../../src/core/player_customization';
-import { dateOf, dayIndexOf, isSchoolDay, minutesOfDay } from '../../src/core/clock';
+import { dateOf, dayIndexOf, isSchoolDay, isVacances, minutesOfDay } from '../../src/core/clock';
 import { TICKS_PER_DAY, type NpcId, type PlaceId, type WorldState } from '../../src/core/types';
 import { PLACE_ANCHORS, isWalkable } from '../../src/data/map';
 import { CITY_H, CITY_W } from '../../src/data/city/layout';
@@ -43,6 +43,10 @@ import {
   calculateEpilogue, chapter4QuarterBacked, chapterObjectivesMet, foundLastingEconomicModel, getCampaignProgressSummary, holdCitizenDebate,
 } from '../../src/simulation/campaign';
 import { COUNTER_STRATEGIES } from '../../src/data/rivals';
+import { WORKSHOP_CONFIG } from '../../src/data/workshop';
+import {
+  acceptOrder, buySalvageParts, createWorkshop, deliverOrder, maintainTools, repairOrder, scavengeParts,
+} from '../../src/simulation/workshop';
 
 /** « appliqué » tient son stand toute l'année ; « pressé » ne fait que les objectifs et saute des mois. */
 export type Profil = 'applique' | 'presse';
@@ -55,6 +59,8 @@ export interface ParcoursOptions {
   /** Choix narratifs (par défaut : tournent avec la graine pour couvrir toutes les branches). */
   urbanChoice?: UrbanChoiceId;
   model?: LastingEconomicModelId;
+  /** Observateur appelé chaque jour après les mesures (diagnostic, lecture seule). */
+  observer?: (w: WorldState) => void;
 }
 
 export interface ChapitreBilan {
@@ -70,6 +76,39 @@ export interface ChapitreBilan {
   money: number;
   needs: string;
   note: string;
+}
+
+/** Relevé économique d'une année scolaire (du 1er septembre au 31 août, ou jusqu'à la fin du parcours). */
+export interface ReleveAnnuel {
+  /** Année scolaire, ex. « 2020-21 ». */
+  annee: string;
+  /** Âge du joueur pendant cette année. */
+  age: number;
+  /** Date (ISO) du relevé. */
+  date: string;
+  /** Argent de poche au moment du relevé. */
+  money: number;
+  /** Chiffre d'affaires du stand sur l'année (ventes, courses, coopérative ; hors apports du joueur). */
+  caStand: number;
+  /** Dépenses du stand sur l'année (stock, contre-offensives payées par la caisse…). */
+  depensesStand: number;
+  /** Parts de gains reversées au joueur par le stand sur l'année. */
+  partsJoueur: number;
+  /** Apports de la poche du joueur à la caisse du stand sur l'année. */
+  apports: number;
+  /** Caisse du stand au moment du relevé. */
+  caisse: number;
+  stock: number;
+  prix: number;
+  reputation: number;
+  confiance: number;
+  vitalite: number;
+  /** Parts de marché des rivaux (0-100), par rival. */
+  rivaux: Record<string, number>;
+  /** Atelier de la Friche : chiffre d'affaires de l'année, pièces, outils, fonds solidaire, commandes gardées. */
+  atelier?: { ca: number; pieces: number; outils: number; fonds: number; commandes: number; livre: number };
+  /** Taille des livres de comptes (stand + atelier) : la sauvegarde ne doit pas enfler sans fin. */
+  ecritures: number;
 }
 
 export interface ParcoursBilan {
@@ -92,6 +131,67 @@ export interface ParcoursBilan {
   cahiers: string[];
   epilogue?: { model: string; legacy: string; urban: string; ghost: string; text: string };
   finalState: { money: number; reputation: number; vitalite: number; confiance: number; team: number };
+  /** Relevé économique année par année (une ligne par année scolaire commencée). */
+  releves: ReleveAnnuel[];
+  /** Clics « Passer le temps » du joueur pressé (mois, vacances). */
+  sauts: { mois: number; vacances: number };
+}
+
+const r2 = (v: number): number => Math.round(v * 100) / 100;
+
+/**
+ * Relevé de l'année scolaire qui commence le jour `fromDay` (inclus) : flux du stand jusqu'au jour
+ * `toDay` exclu (défaut : demain), soldes et jauges arrêtés maintenant.
+ */
+export function releveAnnuel(w: WorldState, fromDay: number, age: number, toDay?: number): ReleveAnnuel {
+  const today = dayIndexOf(w.time.tick);
+  const end = toDay ?? today + 1;
+  const y = dateOf(fromDay).y;
+  const p = w.project;
+  let ca = 0;
+  let dep = 0;
+  let parts = 0;
+  let apports = 0;
+  for (const e of p?.ledger ?? []) {
+    if (e.day < fromDay || e.day >= end) continue;
+    if (e.label.startsWith('Apport de capital')) { apports += e.amount; continue; }
+    if (e.label.startsWith('Répartition — part de')) {
+      if (e.label.endsWith(w.player.name)) parts -= e.amount;
+      continue;
+    }
+    if (e.amount > 0) ca += e.amount;
+    else dep -= e.amount;
+  }
+  const ws = w.workshop;
+  let caAtelier = 0;
+  for (const e of ws?.ledger ?? []) {
+    if (e.day < fromDay || e.day >= end) continue;
+    if (e.label.startsWith('Paiement réparation')) caAtelier += e.amount;
+  }
+  const rivaux: Record<string, number> = {};
+  for (const [id, r] of Object.entries(w.rivals ?? {})) rivaux[id] = Math.round(r.marketShare);
+  return {
+    annee: `${y}-${String((y + 1) % 100).padStart(2, '0')}`,
+    age,
+    date: dateOf(today).iso,
+    money: r2(w.player.money),
+    caStand: r2(ca),
+    depensesStand: r2(dep),
+    partsJoueur: r2(parts),
+    apports: r2(apports),
+    caisse: r2(p?.balance ?? 0),
+    stock: p?.stock ?? 0,
+    prix: p?.price ?? 0,
+    reputation: Math.round(w.player.reputation),
+    confiance: Math.round(w.district.confianceQuartier),
+    vitalite: Math.round(w.district.vitaliteEpicerie),
+    rivaux,
+    atelier: ws ? {
+      ca: r2(caAtelier), pieces: ws.partsStock, outils: Math.round(ws.toolCondition), fonds: r2(ws.solidarityFund),
+      commandes: ws.orders.length, livre: ws.completedRepairsCount,
+    } : undefined,
+    ecritures: (p?.ledger.length ?? 0) + (ws?.ledger.length ?? 0),
+  };
 }
 
 const MIN = (h: number, m = 0): number => h * 60 + m;
@@ -150,6 +250,10 @@ export function jouerCampagne(opts: ParcoursOptions): ParcoursBilan {
   let lastChapter = 0;
   let objectivesDay: number | null = null;
   let chapterOpenedDay = 0;
+  const releves: ReleveAnnuel[] = [];
+  const sauts = { mois: 0, vacances: 0 };
+  let anneeDebut = 0;
+  let anneeAge = w.player.age;
 
   const refus = (what: string, message: string): void => {
     refusals.push(`J${dayIndexOf(w.time.tick)} ${what} : ${message}`);
@@ -239,6 +343,39 @@ export function jouerCampagne(opts: ParcoursOptions): ParcoursBilan {
     if (!r.ok) refus('course', r.message);
     return r.ok;
   };
+  /** Le dimanche à la Friche avec Karim : ouvrir l'atelier, puis réparer et livrer (écran Atelier). */
+  const atelier = (libre: () => boolean): void => {
+    if (!allerA('friche')) return;
+    if (!w.workshop?.active) {
+      const r = createWorkshop(w);
+      if (!r.ok) { refus('ouvrir l’atelier', r.message); return; }
+      passer(30);
+    }
+    const ws = w.workshop!;
+    for (let n = 0; n < 3 && libre(); n++) {
+      if (ws.toolCondition < 40) {
+        const r = maintainTools(w);
+        if (!r.ok) { refus('entretenir les outils', r.message); break; }
+        passer(30);
+      }
+      const order = ws.orders.find((o) => o.status === 'en_cours') ?? ws.orders.find((o) => o.status === 'disponible');
+      if (!order) break;
+      if (order.status === 'disponible') acceptOrder(w, order.id);
+      if (ws.partsStock < order.partsRequired) {
+        // Pièces : la caisse ou la poche si possible, sinon une heure de fouille.
+        const r = ws.balance + w.player.money >= WORKSHOP_CONFIG.partsBatchCost ? buySalvageParts(w) : scavengeParts(w);
+        passer(r.ok && r.message.startsWith('Fouille') ? WORKSHOP_CONFIG.scavengeDurationMinutes : 15);
+        if (!r.ok) { refus('pièces', r.message); break; }
+        if (ws.partsStock < order.partsRequired) continue;
+      }
+      const rr = repairOrder(w, order.id);
+      passer(WORKSHOP_CONFIG.repairDurationMinutes);
+      if (!rr.ok) { refus('réparer', rr.message); break; }
+      const rd = deliverOrder(w, order.id);
+      if (!rd.ok) refus('livrer', rd.message);
+    }
+  };
+
   /** Contre-offensive la moins chère disponible (l'écran Concurrence). */
   const contreOffensive = (): boolean => {
     const choices = [...COUNTER_STRATEGIES].sort((a, b) => a.costMoney - b.costMoney);
@@ -345,6 +482,8 @@ export function jouerCampagne(opts: ParcoursOptions): ParcoursBilan {
       const wd = dateOf(day).weekday;
       if (wd === 6) for (let i = 0; i < 2 && libre(); i++) vendre();
       if (wd === 3 && libre()) course();
+      // Le dimanche, à partir du chapitre de la Friche : l'atelier de réparation avec Karim.
+      if (wd === 0 && ch >= 2 && libre()) atelier(libre);
     }
   };
 
@@ -370,14 +509,28 @@ export function jouerCampagne(opts: ParcoursOptions): ParcoursBilan {
 
       const waitingForAge = objectivesDay !== null;
       if (opts.profil === 'presse' && waitingForAge && !w.campaign.completedChapters.includes(5)) {
-        // Le joueur pressé a fini ses objectifs : il fait passer le temps, mois par mois.
-        const r = skipTime(w, 'mois');
-        if ('error' in r) refus('passer le mois', r.error);
+        // Le joueur pressé a fini ses objectifs : il fait passer le temps — les vacances d'un
+        // coup quand il y est, sinon mois par mois (les deux boutons de « Passer le temps »).
+        const kind = isVacances(dayIndexOf(w.time.tick)) ? 'vacances' : 'mois';
+        const r = skipTime(w, kind);
+        if ('error' in r) refus(`passer ${kind === 'mois' ? 'le mois' : 'les vacances'}`, r.error);
+        else sauts[kind] += 1;
       } else {
         tempsLibre(fin);
         routineJusqua(tickAt(dayIndexOf(w.time.tick) + 1, MIN(7)));
       }
       conseil();
+
+      // Relevé annuel : chaque 1er septembre (l'âge change), on clôt l'année écoulée.
+      if (w.player.age > anneeAge) {
+        const veille = dayIndexOf(w.time.tick);
+        let debutNouvelle = veille;
+        while (dateOf(debutNouvelle).m !== 9 || dateOf(debutNouvelle).d !== 1) debutNouvelle--;
+        const r = releveAnnuel(w, anneeDebut, anneeAge, debutNouvelle);
+        releves.push(r);
+        anneeDebut = debutNouvelle;
+        anneeAge = w.player.age;
+      }
 
       // Mesures du jour.
       minMoney = Math.min(minMoney, w.player.money);
@@ -389,6 +542,8 @@ export function jouerCampagne(opts: ParcoursOptions): ParcoursBilan {
         maxNeedsStreak[k] = Math.max(maxNeedsStreak[k] ?? 0, needsStreak[k] ?? 0);
         if ((needsStreak[k] ?? 0) >= 7) alerte(`Besoin « ${k} » au plafond 7 jours de suite (spirale) vers le jour ${dayIndexOf(w.time.tick)}`);
       }
+
+      opts.observer?.(w);
 
       // Chapitres terminés depuis le dernier passage.
       for (const c of w.campaign.completedChapters) {
@@ -428,6 +583,7 @@ export function jouerCampagne(opts: ParcoursOptions): ParcoursBilan {
   if (!finished && errors.length === 0 && !alerts.some((a) => a.includes('bloqué'))) {
     alerte(`Campagne non terminée après ${dayIndexOf(w.time.tick)} jours : ${getCampaignProgressSummary(w).prompt}`);
   }
+  if (dayIndexOf(w.time.tick) > anneeDebut) releves.push(releveAnnuel(w, anneeDebut, anneeAge));
   const story = ensureStory(w);
   let epilogue: ParcoursBilan['epilogue'];
   if (finished) {
@@ -457,6 +613,8 @@ export function jouerCampagne(opts: ParcoursOptions): ParcoursBilan {
       confiance: Math.round(w.district.confianceQuartier),
       team: w.project?.members.length ?? 0,
     },
+    releves,
+    sauts,
   };
 }
 
@@ -469,10 +627,23 @@ export function formatBilan(b: ParcoursBilan): string {
   }
   lines.push(`  Argent minimal ${b.minMoney.toFixed(2)} € · séries besoins au plafond ${JSON.stringify(b.maxNeedsStreak)} · voix actives ${b.activeVoices} · palier ${b.tier} · concepts ${b.concepts}`);
   lines.push(`  Fin : ${JSON.stringify(b.finalState)}`);
+  if (b.sauts.mois + b.sauts.vacances > 0) lines.push(`  Passer le temps : ${b.sauts.mois} × « mois », ${b.sauts.vacances} × « vacances »`);
+  lines.push(...formatReleves(b.releves));
   lines.push(`  Cahiers de Lucien : ${b.cahiers.length ? b.cahiers.join(', ') : 'aucun'}`);
   if (b.epilogue) lines.push(`  Épilogue : ${b.epilogue.legacy} — ${b.epilogue.model} · ${b.epilogue.urban} · voix de ${b.epilogue.ghost}`);
   for (const a of b.alerts) lines.push(`  ⚠ ${a}`);
   for (const e of b.errors) lines.push(`  ✗ ${e.split('\n').slice(0, 4).join(' | ')}`);
   if (!b.finished || b.alerts.length) for (const r of b.refusals.slice(-12)) lines.push(`    refus ${r}`);
   return lines.join('\n');
+}
+
+/** Tableau lisible du relevé annuel (une ligne par année scolaire). */
+export function formatReleves(releves: ReleveAnnuel[]): string[] {
+  const lines = ['  Année    | âge | relevé     | poche €  | CA stand € | dépenses € | parts € | apports € | caisse € | stock | prix | répu | confiance | vitalité | rivaux'];
+  for (const r of releves) {
+    const riv = Object.entries(r.rivaux).map(([id, v]) => `${id} ${v}%`).join(' ');
+    const at = r.atelier ? ` | atelier CA ${r.atelier.ca.toFixed(2)} € · pièces ${r.atelier.pieces} · outils ${r.atelier.outils} % · fonds ${r.atelier.fonds.toFixed(2)} € · commandes ${r.atelier.commandes} · livrées ${r.atelier.livre}` : '';
+    lines.push(`  ${r.annee.padEnd(8)} | ${String(r.age).padStart(3)} | ${r.date} | ${r.money.toFixed(2).padStart(8)} | ${r.caStand.toFixed(2).padStart(10)} | ${r.depensesStand.toFixed(2).padStart(10)} | ${r.partsJoueur.toFixed(2).padStart(7)} | ${r.apports.toFixed(2).padStart(9)} | ${r.caisse.toFixed(2).padStart(8)} | ${String(r.stock).padStart(5)} | ${r.prix.toFixed(2)} | ${String(r.reputation).padStart(4)} | ${String(r.confiance).padStart(9)} | ${String(r.vitalite).padStart(8)} | ${riv} | écritures ${r.ecritures}${at}`);
+  }
+  return lines;
 }
