@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { escapeHtml, showGhostAdvicePopup, updateHud, buildUi } from '../src/presentation/ui';
+import { avatarSvg, avatarElement } from '../src/presentation/avatar';
 import { createWorld } from '../src/core/store';
 
 describe('UI Security & XSS Prevention (escapeHtml)', () => {
@@ -66,5 +67,21 @@ describe('UI Security & XSS Prevention (escapeHtml)', () => {
     const widgetHtml = mockWidgetEl.innerHTML;
     expect(widgetHtml).not.toContain('<iframe src="javascript:alert(1)">');
     expect(widgetHtml).toContain('&lt;iframe src=&quot;javascript:alert(1)&quot;&gt;');
+  });
+
+  it('sanitizes malicious color string in avatarSvg to prevent SVG attribute injection / XSS', () => {
+    const maliciousColor = '#ffffff" onload="alert(1)"';
+    const svg = avatarSvg('pnj:test', maliciousColor);
+
+    expect(svg).not.toContain('#ffffff" onload="alert(1)"');
+    expect(svg).toContain('#ffffff&quot; onload=&quot;alert(1)&quot;');
+  });
+
+  it('sanitizes malicious script tags in avatarSvg color parameter', () => {
+    const scriptColor = 'red"><script>alert("xss")</script>';
+    const svg = avatarSvg('joueur:test', scriptColor);
+
+    expect(svg).not.toContain('<script>alert("xss")</script>');
+    expect(svg).toContain('&lt;script&gt;');
   });
 });
