@@ -34,7 +34,7 @@ export const PLACES: PlaceDef[] = [
   },
   {
     id: 'college',
-    name: 'Collège des Roses',
+    name: 'Collège Jean-Moulin',
     description: 'Les cours, les récrés, et Mme Moreau qui surveille d’un œil. Toute la bande y passe.',
     actions: [
       { id: 'reviser', label: 'Réviser en salle d’étude', needs: { fatigue: 10, stress: 5, faim: 5 }, skill: 'organisation', xp: 1 },

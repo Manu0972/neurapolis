@@ -2,6 +2,7 @@
  * NEURAPOLIS — Événements narratifs scolaires & Vie au collège Jean-Moulin (Workflow AG-2 Phase 5).
  * Textes strictement neutres en genre ; {prenom} autorisé ; aucune formule genrée.
  */
+import type { ClassMoment } from '../family_starter';
 
 export interface SchoolEvent {
   id: string;
@@ -745,99 +746,117 @@ export const SCHOOL_EVENTS: readonly SchoolEvent[] = [
 // =========================================================================
 // 30 Moments de classe immersifs et variés (CLASS_MOMENTS_EXT)
 // =========================================================================
-export const CLASS_MOMENTS_EXT: readonly { text: string; comprehension: number; mood: number }[] = [
+export const CLASS_MOMENTS_EXT: readonly ClassMoment[] = [
   {
     text: 'En cours de mathématiques, Mme Moreau trace des courbes de probabilité au tableau. Tu visualises instantanément tes flux de vente de la semaine.',
+    subject: 'Maths avec Mme Moreau',
     comprehension: 2,
     mood: 2,
   },
   {
     text: 'M. Girard projette une carte de la vallée du Taret en 1910. Tu repères la rue où se trouve l’atelier avant même qu’il ne la nomme.',
+    subject: 'Histoire-géo avec M. Girard',
     comprehension: 1,
     mood: 3,
   },
   {
     text: 'Un exercice d’accord grammatical épineux en français. Mme Fontaine sourit en voyant ta copie sans la moindre rature.',
+    subject: 'Français avec Mme Fontaine',
     comprehension: 2,
     mood: 1,
   },
   {
     text: 'En technologie, le fer à souder fume doucement. M. Lambert t’apprend à réparer un interrupteur plutôt qu’à en racheter un neuf.',
+    subject: 'Technologie avec M. Lambert',
     comprehension: 2,
     mood: 2,
   },
   {
     text: 'Interrogation surprise de vocabulaire anglais. Les faux amis te tendent des pièges, mais tu t’en sors avec les honneurs.',
+    subject: 'Anglais avec Mr. Barnes',
     comprehension: 1,
     mood: 0,
   },
   {
     text: 'Séance d’endurance sous la bruine avec M. Sanchez. Tu cales ton souffle sur celui de Dylan pour l’aider à tenir les six tours de piste.',
+    subject: 'EPS avec M. Sanchez',
     comprehension: 0,
     mood: 3,
   },
   {
     text: 'En physique-chimie, l’expérience sur la tension électrique échoue dans un petit nuage blanc inoffensif. Rires complices sur la paillasse.',
+    subject: 'Physique-chimie avec M. Roche',
     comprehension: 1,
     mood: 2,
   },
   {
     text: 'Au CDI, Mme Aubert te réserve discrètement un ouvrage rare sur les coopératives de production du dix-neuvième siècle.',
+    subject: 'CDI avec Mme Aubert',
     comprehension: 2,
     mood: 3,
   },
   {
     text: 'Pendant le cours d’arts plastiques, Zoé te montre comment donner du relief aux briques industrielles avec un simple lavis d’encre.',
+    subject: 'Arts plastiques avec Mme Pinto',
     comprehension: 1,
     mood: 4,
   },
   {
     text: 'En éducation musicale, l’écoute d’un chant traditionnel des mineurs gallois donne des frissons à toute la rangée.',
+    subject: 'Musique avec M. Fauré',
     comprehension: 1,
     mood: 1,
   },
   {
     text: 'Noah fait tomber sa trousse en plein milieu d’une démonstration géométrique silencieuse. Mme Moreau soupire sans sévérité.',
+    subject: 'Maths avec Mme Moreau',
     comprehension: 0,
     mood: 1,
   },
   {
     text: 'En SVT, l’observation des micro-organismes du canal au microscope révèle un monde foisonnant insoupçonné.',
+    subject: 'SVT avec M. Roche',
     comprehension: 2,
     mood: 2,
   },
   {
-    text: 'Le soleil de mai tape contre les rideaux orange de la salle 104. La classe lutte contre la somnolence du début d’après-midi.',
+    text: 'Le soleil tape contre les rideaux orange de la salle 104. La classe lutte contre la somnolence.',
     comprehension: 0,
     mood: -1,
   },
   {
     text: 'Débat animé en éducation morale et civique sur la répartition du budget municipal. Tes arguments économiques font mouche.',
+    subject: 'Éducation civique avec M. Girard',
     comprehension: 2,
     mood: 4,
   },
   {
     text: 'Une dictée difficile d’un texte classique. Tu prends le temps de peser chaque terminaison pour éviter les pièges.',
+    subject: 'Français avec Mme Fontaine',
     comprehension: 1,
     mood: 1,
   },
   {
     text: 'En technologie, l’imprimante 3D termine une pièce de rechange conçue par tes soins. M. Lambert hoche la tête avec approbation.',
+    subject: 'Technologie avec M. Lambert',
     comprehension: 2,
     mood: 3,
   },
   {
     text: 'Un contrôle de géographie économique sur les corridors de fret européens. Les trajets de camions de ton père t’aident à tout retenir.',
+    subject: 'Histoire-géo avec M. Girard',
     comprehension: 2,
     mood: 2,
   },
   {
     text: 'Dylan te glisse un schéma de fixation de porte-bagages dessiné pendant le cours d’histoire. Pas très scolaire, mais très ingénieux.',
+    subject: 'Histoire-géo avec M. Girard',
     comprehension: 1,
     mood: 2,
   },
   {
     text: 'Mme Moreau explique le calcul des intérêts composés. Dans ton esprit, la formule s’illumine comme une évidence marchande.',
+    subject: 'Maths avec Mme Moreau',
     comprehension: 2,
     mood: 3,
   },
@@ -848,11 +867,13 @@ export const CLASS_MOMENTS_EXT: readonly { text: string; comprehension: number; 
   },
   {
     text: 'Une heure de permanence studieuse au réfectoire. Le silence permet d’avancer les devoirs avant la tournée du soir.',
+    subject: 'Permanence',
     comprehension: 1,
     mood: 1,
   },
   {
     text: 'En EPS, tournoi de badminton par équipes. Vous remportez la finale de classe après un échange acharné au filet.',
+    subject: 'EPS avec M. Sanchez',
     comprehension: 0,
     mood: 4,
   },
@@ -862,37 +883,42 @@ export const CLASS_MOMENTS_EXT: readonly { text: string; comprehension: number; 
     mood: 3,
   },
   {
-    text: 'Tu retrouves un brouillon de calcul de marge griffonné au dos d’une feuille de physique. Heureusement, la prof ne l’a pas vu.',
+    text: 'Tu retrouves un brouillon de calcul de marge griffonné au dos d’une feuille de physique. Heureusement, personne ne l’a vu.',
     comprehension: 0,
     mood: 1,
   },
   {
     text: 'Le chauffage de la salle de français tombe en panne un matin de janvier. On garde les écharpes et on lit Zola emmitouflés.',
+    subject: 'Français avec Mme Fontaine',
     comprehension: 1,
     mood: -1,
   },
   {
     text: 'En arts plastiques, ton affiche pour le recyclage des métaux est affichée dans le hall d’entrée par Mme Pinto.',
+    subject: 'Arts plastiques avec Mme Pinto',
     comprehension: 1,
     mood: 4,
   },
   {
     text: 'Mme Benali passe dans les rangs pour distribuer les fiches d’orientation. Un frisson d’anticipation parcourt les tables.',
+    subject: 'Heure de vie de classe',
     comprehension: 1,
     mood: 2,
   },
   {
     text: 'En cours de chimie, tu comprends le principe de conservation de la matière : « rien ne se perd, tout se transforme ». Cela vaut aussi pour l’artisanat.',
+    subject: 'Physique-chimie avec M. Roche',
     comprehension: 2,
     mood: 2,
   },
   {
-    text: 'La sirène d’exercice d’évacuation retentit en plein milieu d’une équation. Rassemblement ordonné dans la cour sous les ordres de M. Sanchez.',
+    text: 'La sirène d’exercice d’évacuation retentit en plein milieu d’une équation. Rassemblement ordonné dans la cour sous les ordres de Mme Benali, la CPE.',
+    subject: 'Maths avec Mme Moreau',
     comprehension: 0,
     mood: 1,
   },
   {
-    text: 'Dernière heure du vendredi avant le week-end. Les sacs sont déjà bouclés, l’esprit est tourné vers les projets de la place.',
+    text: 'Dernière heure avant la sonnerie. Les sacs sont déjà bouclés, l’esprit est tourné vers les projets de la place.',
     comprehension: 0,
     mood: 3,
   },

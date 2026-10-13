@@ -17,7 +17,9 @@ export function ensureStory(w: WorldState): StoryState {
 /** Prénom et accords : les textes du récit restent justes quel que soit le personnage. */
 export function personalize(w: WorldState, text: string): string {
   const name = w.player.firstName || w.player.name || 'toi';
-  let t = text.replace(/\{prenom\}/g, name);
+  // Accord : « couché{e} » → couché / couchée / couché·e (même graphie inclusive que « admis·e »).
+  const e = w.player.gender === 'garcon' ? '' : w.player.gender === 'fille' ? 'e' : '·e';
+  let t = text.replace(/\{prenom\}/g, name).replace(/\{e\}/g, e);
   if (w.player.gender !== 'garcon') {
     const fille = w.player.gender === 'fille';
     t = t
