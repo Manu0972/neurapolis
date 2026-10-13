@@ -158,6 +158,27 @@ export function executeCounterStrategy(w: WorldState, strategyId: string, startA
   };
 }
 
+/**
+ * Retour au calme, une fois par semaine sans riposte : une guerre des prix coûte cher, le rival
+ * remonte ses prix de 5 centimes et relâche sa pression vers son niveau d'origine. Sans cela,
+ * chaque riposte était définitive : au bout de quelques semaines le Drive restait pour toujours
+ * à 0,70 € et à l'agressivité maximale, quoi que fasse le joueur pendant quatre ans.
+ */
+export const RIVAL_RELAX = { priceStep: 0.05, aggressivenessStep: 5, qualityStep: 2 } as const;
+
+function towards(v: number, target: number, step: number): number {
+  return v < target ? Math.min(target, v + step) : Math.max(target, v - step);
+}
+
+export function relaxRival(rival: RivalState): void {
+  const base = INITIAL_RIVALS[rival.id];
+  if (!base) return;
+  rival.price = round2(towards(rival.price, base.price, RIVAL_RELAX.priceStep));
+  rival.aggressiveness = towards(rival.aggressiveness, base.aggressiveness, RIVAL_RELAX.aggressivenessStep);
+  rival.quality = towards(rival.quality, base.quality, RIVAL_RELAX.qualityStep);
+  if (rival.price === base.price && rival.aggressiveness === base.aggressiveness) rival.strategy = base.strategy;
+}
+
 /** Tick quotidien de la concurrence : évolution des parts, réactions des rivaux, impact territorial. */
 export function rivalDay(w: WorldState): Notification[] {
   const out: Notification[] = [];
@@ -260,6 +281,8 @@ export function rivalDay(w: WorldState): Notification[] {
       // Si le joueur est repoussé, le rival remonte progressivement ses marges
       rival.price = round2(rival.price + 0.10);
       rival.strategy = 'standard';
+    } else if (day % 7 === 0 && rival.reactionCooldown === 0) {
+      relaxRival(rival);
     }
   }
 

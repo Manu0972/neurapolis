@@ -23,6 +23,26 @@ export const STAND_CONFIG = {
   recruitables: ['noah', 'lina'] as const,      // l'équipe du contrat
 } as const;
 
+/**
+ * Équilibre sur la durée (campagne de 4 ans, 2026-10) :
+ *  - la réputation s'entretient : chaque semaine elle revient d'un dixième vers 40 (le quartier
+ *    oublie vite) — un stand actif se stabilise haut (≈ 80-95), un stand délaissé retombe ;
+ *    (une vente rapporte +2 sous 60 de réputation, +1 au-delà) ;
+ *  - une semaine de travail partagé apaise : rivalité −1 (au-dessus de 20) avec chaque coéquipier
+ *    qui a travaillé — sans cela, quatre ans de petites frictions finissaient toujours en départ ;
+ *  - le livre de comptes se clôt par exercice : au-delà de `ledgerMaxEntries` écritures, celles
+ *    de plus de `ledgerKeepDays` jours sont reportées en deux lignes « report à nouveau ».
+ */
+export const LONG_RUN_CONFIG = {
+  reputationPivot: 40,
+  reputationFullGainBelow: 60,   // une vente réussie : +2 de réputation en dessous, +1 au-dessus
+  reputationWeeklyReturn: 0.1,
+  rivalryWeeklySoothing: 1,
+  rivalrySoothingFloor: 20,      // les petites frictions restent ; seules les vraies tensions retombent
+  ledgerMaxEntries: 600,
+  ledgerKeepDays: 400,
+} as const;
+
 /** Demande par session : base (acheteurs à prix nul) − pente × prix, modulée. */
 export const DEMAND_CONFIG = {
   baseAtZero: 26,        // acheteurs théoriques si le prix était nul

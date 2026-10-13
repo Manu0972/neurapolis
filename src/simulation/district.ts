@@ -43,7 +43,9 @@ export function checkVitaliteEvents(w: WorldState): void {
     });
     return;
   }
-  if (d.vitaliteEpicerie >= SEUIL_EMBAUCHE) {
+  // L'embauche n'arrive qu'une fois : le bonus de confiance aussi (avant 2026-10, il se
+  // rejouait à chaque appel — chaque jour et chaque course — et figeait la confiance à 100).
+  if (d.vitaliteEpicerie >= SEUIL_EMBAUCHE && !w.seen['epicerie_embauche']) {
     const avant = d.confianceQuartier;
     d.confianceQuartier = clamp(avant + 10);
     pushEvent(w, {
@@ -81,8 +83,9 @@ export function districtDay(w: WorldState): void {
   d.confianceQuartier = clamp(d.confianceQuartier + (cible - d.confianceQuartier) * 0.05);
   // Météo saisonnière, tirée chaque matin au PRNG du monde.
   d.meteo = drawMeteo(w, dateOf(day).m);
-  // La confiance du quartier ≥ 60 entretient la réputation du joueur (+1/jour).
-  if (d.confianceQuartier >= 60) {
+  // La confiance du quartier ≥ 60 entretient la réputation du joueur (+1/jour), jusqu'à 75 :
+  // au-delà, seule l'activité du joueur la porte (sinon elle restait figée à 100 des années).
+  if (d.confianceQuartier >= 60 && w.player.reputation < 75) {
     w.player.reputation = clamp(w.player.reputation + 1);
   }
   checkVitaliteEvents(w);

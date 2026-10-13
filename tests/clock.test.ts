@@ -5,6 +5,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   dateOf,
+  periodeVacances,
+  vacancesDeLAnnee,
   dayIndexOf,
   hhmm,
   hhmmOfTick,
@@ -100,13 +102,14 @@ describe('horloge — mercredi après-midi libre', () => {
 });
 
 describe('horloge — vacances scolaires 2020-21', () => {
-  it('Toussaint du 17 octobre au 2 novembre 2020, bornes incluses', () => {
+  it('Toussaint du samedi 17 octobre au dimanche 1er novembre 2020 (reprise lundi 2), bornes incluses', () => {
     const debut = dayOfIso('2020-10-17');
-    const fin = dayOfIso('2020-11-02');
-    expect(fin - debut).toBe(16); // 17 jours de vacances
+    const fin = dayOfIso('2020-11-01');
+    expect(fin - debut).toBe(15); // 16 jours de vacances
     for (let day = debut; day <= fin; day++) expect(isVacances(day)).toBe(true);
     expect(isVacances(debut - 1)).toBe(false); // 16 octobre
-    expect(isVacances(fin + 1)).toBe(false); // 3 novembre
+    expect(isVacances(fin + 1)).toBe(false); // lundi 2 novembre : reprise des cours
+    expect(isSchoolDay(fin + 1)).toBe(true);
     expect(isVacances(0)).toBe(false); // rentrée
   });
 
@@ -128,3 +131,75 @@ describe('horloge — vacances scolaires 2020-21', () => {
     expect(weekIndexOf(14)).toBe(2);
   });
 });
+
+describe('horloge — calendrier scolaire zone A, 2020-21 → 2024-25', () => {
+  const ANNEES = [2020, 2021, 2022, 2023, 2024];
+
+  it('chaque année scolaire a ses cinq périodes : Toussaint, Noël, hiver, printemps, été', () => {
+    for (const y of ANNEES) {
+      expect(vacancesDeLAnnee(y).map((p) => p.nom), `année ${y}`).toEqual(['Toussaint', 'Noël', 'hiver', 'printemps', 'été']);
+    }
+  });
+
+  it('les petites vacances durent deux semaines (16 jours), du samedi au dimanche', () => {
+    for (const y of ANNEES) {
+      for (const p of vacancesDeLAnnee(y).filter((x) => x.nom !== 'été')) {
+        const d0 = dayOfIso(p.debut);
+        const d1 = dayOfIso(p.fin);
+        expect(d1 - d0 + 1, `${p.nom} ${y}`).toBe(Noel2022(p) ? 17 : 16);
+        expect(dateOf(d0).weekday, `${p.nom} ${y} commence un samedi`).toBe(6);
+        expect(isSchoolDay(d1 + 1) || dateOf(d1 + 1).weekday === 1, `reprise après ${p.nom} ${y}`).toBe(true);
+      }
+    }
+  });
+
+  it('les grandes vacances vont de la fin des cours à la veille de la rentrée', () => {
+    const rentrees = ['2021-09-02', '2022-09-01', '2023-09-04', '2024-09-02', '2025-09-01'];
+    for (let i = 0; i < ANNEES.length; i++) {
+      const ete = vacancesDeLAnnee(ANNEES[i]!).find((p) => p.nom === 'été')!;
+      const rentree = dayOfIso(rentrees[i]!);
+      expect(isVacances(rentree - 1), `veille de la rentrée ${rentrees[i]}`).toBe(true);
+      expect(isSchoolDay(rentree), `rentrée ${rentrees[i]}`).toBe(true);
+      expect(dayOfIso(ete.fin)).toBe(rentree - 1);
+      // Près de huit semaines sans cours.
+      expect(rentree - dayOfIso(ete.debut)).toBeGreaterThanOrEqual(54);
+    }
+  });
+
+  it('periodeVacances nomme la période (Noël 2023, hiver 2022) et renvoie null en classe', () => {
+    expect(periodeVacances(dayOfIso('2023-12-25'))?.nom).toBe('Noël');
+    expect(periodeVacances(dayOfIso('2022-02-15'))?.nom).toBe('hiver');
+    expect(periodeVacances(dayOfIso('2021-04-15'))?.nom).toBe('printemps');
+    expect(periodeVacances(dayOfIso('2023-09-02'))?.nom).toBe('été'); // samedi avant la rentrée du 4
+    expect(periodeVacances(dayOfIso('2022-03-08'))).toBeNull();
+  });
+
+  it('environ 36 semaines de classe par an : le calendrier est complet', () => {
+    for (const y of ANNEES) {
+      const d0 = dayOfIso(`${y}-09-01`);
+      const d1 = dayOfIso(`${y + 1}-08-31`);
+      let ecole = 0;
+      for (let d = d0; d <= d1; d++) if (isSchoolDay(d)) ecole++;
+      // 36 semaines × 5 jours = 180, moins les jours fériés non modélisés : 175-185 jours.
+      expect(ecole, `jours d’école ${y}-${y + 1}`).toBeGreaterThanOrEqual(170);
+      expect(ecole, `jours d’école ${y}-${y + 1}`).toBeLessThanOrEqual(185);
+    }
+  });
+
+  it('après 2025, un calendrier type déterministe prend le relais (la vie continue)', () => {
+    for (const y of [2025, 2030, 2040]) {
+      const v = vacancesDeLAnnee(y);
+      expect(v.map((p) => p.nom)).toEqual(['Toussaint', 'Noël', 'hiver', 'printemps', 'été']);
+      expect(v).toEqual(vacancesDeLAnnee(y)); // stable
+      for (const p of v) expect(dateOf(dayOfIso(p.debut)).weekday).toBe(6);
+    }
+    expect(isVacances(dayOfIso('2031-12-25'))).toBe(true);
+    expect(isVacances(dayOfIso('2031-08-15'))).toBe(true);
+    expect(isSchoolDay(dayOfIso('2031-03-11'))).toBe(true);
+  });
+});
+
+/** Noël 2022 : reprise le mardi 3 janvier 2023 (le lundi 2 est férié de fait) — 17 jours. */
+function Noel2022(p: { nom: string; debut: string }): boolean {
+  return p.nom === 'Noël' && p.debut === '2022-12-17';
+}

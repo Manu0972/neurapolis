@@ -13,12 +13,14 @@
 import type { NpcId, Notification, RepartitionMode, SolidarityTariff, WorkshopState, WorldState } from '../core/types';
 import { dateOf, dayIndexOf, weekIndexOf } from '../core/clock';
 import { rngInt, rngNext } from '../core/rng';
-import { CATALOG_ORDERS, TARIFF_GRID, WORKSHOP_CONFIG, type CatalogOrderTemplate } from '../data/workshop';
+import { CATALOG_ORDERS, SOLIDARITY_PROJECTS, TARIFF_GRID, WORKSHOP_CONFIG, type CatalogOrderTemplate } from '../data/workshop';
+import { compactLedger } from './project';
 import { bump, notify, pushEvent } from './events';
 import { applyRelation } from './relations';
 import { addXp } from './skills';
 
-const round2 = (v: number): number => Math.round(v * 100) / 100;
+// « + 0 » : jamais de −0 (un solde nul doit valoir 0, y compris pour Object.is).
+const round2 = (v: number): number => Math.round(v * 100) / 100 + 0;
 
 export interface WorkshopAction {
   ok: boolean;
@@ -163,6 +165,19 @@ export function scavengeParts(w: WorldState): WorkshopAction {
   return { ok: true, message: `Fouille réussie : +${yieldCount} pièces de récupération (stock : ${ws.partsStock}).` };
 }
 
+/**
+ * Caisse trop juste : le fonds solidaire avance ce qui manque (avant la poche du joueur), pour
+ * que l'atelier qui sert le quartier ne s'arrête pas faute de pièces ou d'entretien.
+ */
+function drawSolidarityFund(w: WorldState, cost: number): void {
+  const ws = w.workshop;
+  if (!ws || ws.balance >= cost || ws.solidarityFund <= 0) return;
+  const avance = round2(Math.min(ws.solidarityFund, cost - ws.balance));
+  if (avance <= 0) return;
+  ws.solidarityFund = round2(ws.solidarityFund - avance);
+  postWorkshop(w, 'Apport du fonds solidaire', avance);
+}
+
 /** Acheter un lot de pièces de récupération auprès d'un ferrailleur local. */
 export function buySalvageParts(w: WorldState): WorkshopAction {
   const ws = w.workshop;
@@ -172,6 +187,7 @@ export function buySalvageParts(w: WorldState): WorkshopAction {
   const units = WORKSHOP_CONFIG.partsBatchUnits;
 
   // Paiement : caisse d'abord, apport personnel si nécessaire
+  drawSolidarityFund(w, cost);
   if (ws.balance >= cost) {
     postWorkshop(w, `Achat de ${units} pièces de récupération (caisse)`, -cost);
   } else {
@@ -208,6 +224,7 @@ export function maintainTools(w: WorldState): WorkshopAction {
 
   const cost = WORKSHOP_CONFIG.maintenanceCost;
 
+  drawSolidarityFund(w, cost);
   if (ws.balance >= cost) {
     postWorkshop(w, 'Maintenance et révision des outils (caisse)', -cost);
   } else {
@@ -348,8 +365,13 @@ export function deliverOrder(w: WorldState, orderId: string): WorkshopAction {
   ws.completedRepairsCount += 1;
 
   // Calcul et mise en réserve de la part solidaire
+  // Le prélèvement solidaire sort vraiment de la caisse (il n'est plus compté deux fois :
+  // dans le fonds et dans les gains répartis).
   const solidarityShare = round2(price * tariffDetail.solidarityContributionFactor);
-  ws.solidarityFund = round2(ws.solidarityFund + solidarityShare);
+  if (solidarityShare > 0) {
+    postWorkshop(w, `Répartition — fonds solidaire (${Math.round(tariffDetail.solidarityContributionFactor * 100)} %)`, -solidarityShare);
+    ws.solidarityFund = round2(ws.solidarityFund + solidarityShare);
+  }
 
   // Effets relationnels avec le client
   applyRelation(w, order.clientNpc, {
@@ -488,16 +510,40 @@ export function ensureAvailableOrders(w: WorldState, targetCount = 3): void {
   }
 }
 
+/** Réparations apportées par le quartier chaque semaine : 1 + 1 par tranche de 50 de confiance. */
+export function weeklyOrderQuota(w: WorldState): number {
+  return WORKSHOP_CONFIG.weeklyOrdersBase + Math.floor(w.district.confianceQuartier / WORKSHOP_CONFIG.ordersPerConfidence);
+}
+
+/** Garde les commandes livrées récentes (au plus `deliveredOrdersKept`, et celles de la quinzaine). */
+function pruneDeliveredOrders(ws: WorkshopState, day: number): void {
+  const delivered = ws.orders.filter((o) => o.status === 'livre');
+  if (delivered.length <= WORKSHOP_CONFIG.deliveredOrdersKept) return;
+  const drop = new Set(delivered
+    .slice(0, delivered.length - WORKSHOP_CONFIG.deliveredOrdersKept)
+    .filter((o) => o.receivedDay < day - 14));
+  if (drop.size > 0) ws.orders = ws.orders.filter((o) => !drop.has(o));
+}
+
 /** Tick quotidien de l'atelier : renouvellement des commandes et activité autonome de Karim. */
 export function workshopDay(w: WorldState): Notification[] {
   const ws = w.workshop;
   if (!ws?.active) return [];
 
   const out: Notification[] = [];
-  ensureAvailableOrders(w, 3);
+  const day = dayIndexOf(w.time.tick);
+  // Les clients n'attendent pas éternellement : une commande non prise à l'échéance part ailleurs.
+  ws.orders = ws.orders.filter((o) => o.status !== 'disponible' || o.deadlineDay === undefined || o.deadlineDay >= day);
+  pruneDeliveredOrders(ws, day);
+  // Le quartier apporte un nombre limité de réparations par semaine, selon sa confiance.
+  const weekStart = weekIndexOf(day) * 7;
+  const arrived = ws.orders.filter((o) => o.receivedDay >= weekStart).length;
+  const available = ws.orders.filter((o) => o.status === 'disponible').length;
+  const room = Math.max(0, weeklyOrderQuota(w) - arrived);
+  if (room > 0 && available < 3) ensureAvailableOrders(w, Math.min(3, available + room));
 
   // Karim contribue s'il a de bons outils : il trouve parfois 1 pièce de récupération
-  if (ws.toolCondition >= 50 && rngNext(w) < 0.35) {
+  if (ws.toolCondition >= 50 && ws.partsStock < WORKSHOP_CONFIG.karimPartsCap && rngNext(w) < 0.35) {
     ws.partsStock += 1;
     ws.work['karim'] = (ws.work['karim'] ?? 0) + 1;
     out.push(notify('info', 'Karim a déniché une pièce utile dans les bennes de la Friche.'));
@@ -520,6 +566,26 @@ export function workshopWeek(w: WorldState): Notification[] {
       out.push(notify('bien', `Atelier : ${action.message}`));
     }
   }
+
+  // Le fonds solidaire ne dort pas : par tranche pleine, il finance une action de quartier.
+  while (ws.solidarityFund >= WORKSHOP_CONFIG.solidarityProjectCost) {
+    const n = w.flags['fondsSolidaireActions'] ?? 0;
+    const projet = SOLIDARITY_PROJECTS[n % SOLIDARITY_PROJECTS.length]!;
+    ws.solidarityFund = round2(ws.solidarityFund - WORKSHOP_CONFIG.solidarityProjectCost);
+    w.district.confianceQuartier = Math.min(100, w.district.confianceQuartier + WORKSHOP_CONFIG.solidarityProjectTrust);
+    bump(w, 'fondsSolidaireActions');
+    pushEvent(w, {
+      type: 'quartier',
+      title: `Fonds solidaire : ${projet.title}`,
+      text: `${projet.text} (−${WORKSHOP_CONFIG.solidarityProjectCost} € du fonds · confiance du quartier +${WORKSHOP_CONFIG.solidarityProjectTrust}).`,
+      causes: [
+        { facteur: 'prélèvement solidaire sur chaque réparation', seuil: `${WORKSHOP_CONFIG.solidarityProjectCost} €`, poids: 3 },
+        { facteur: 'tarifs choisis à l’atelier', poids: 1 },
+      ],
+    });
+    out.push(notify('bien', `Le fonds solidaire de l’atelier finance : ${projet.title}.`));
+  }
+  compactLedger(ws.ledger, day);
 
   // Démarrer une nouvelle semaine
   ws.week = {

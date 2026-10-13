@@ -161,7 +161,9 @@ describe('Challenger 2 — Adversarial Stress Harness', () => {
         }
       }
 
-      expect(cyclesCount).toBeGreaterThan(30);
+      // Le quartier apporte 1 à 3 réparations par semaine (quota selon la confiance, 2026-10) :
+      // une douzaine de cycles complets au moins en 60 jours.
+      expect(cyclesCount).toBeGreaterThan(12);
       expect(wsLedgerInvariantHolds(ws)).toBe(true);
       expect(wsLedgerBalance(ws)).toBe(ws.balance);
     });

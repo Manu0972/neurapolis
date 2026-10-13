@@ -11,11 +11,11 @@
  * (fusion), Contrat de Sécurité (rendement +20 %) et sabotage de Taylor (−15 %).
  * Données : src/data/project.ts. État : w.project (types.ts).
  */
-import { MAX_PENDING_DELIVERIES, type Meteo, type NpcId, type Notification, type PlaceId, type ProjectState, type RepartitionMode, type WorldState } from '../core/types';
+import { MAX_PENDING_DELIVERIES, type LedgerEntry, type Meteo, type NpcId, type Notification, type PlaceId, type ProjectState, type RepartitionMode, type WorldState } from '../core/types';
 import { dateOf, dayIndexOf, weekIndexOf } from '../core/clock';
 import { rngChance, rngPick } from '../core/rng';
 import {
-  DATA_SALE, DEMAND_CONFIG, ECO_CHOICE, INCIDENT_CONFIG, OPTIMIZE, REGLE_IMPOSE,
+  DATA_SALE, DEMAND_CONFIG, ECO_CHOICE, INCIDENT_CONFIG, LONG_RUN_CONFIG, OPTIMIZE, REGLE_IMPOSE,
   REPARTITION_CONFIG, STAND_CONFIG, STAND_EVENTS, WEEK_HOURS_LIMIT,
 } from '../data/project';
 import { SKILLS_LABELS } from '../data/actions';
@@ -88,6 +88,38 @@ export function weeklyResult(p: ProjectState): number {
 
 export function ledgerInvariantHolds(p: ProjectState): boolean {
   return ledgerBalance(p) === p.balance;
+}
+
+/** Mouvements entre le joueur et la caisse (apports, répartitions) : pas de l'activité. */
+const OWNER_MOVE = /^(Apport|Répartition|Rémunération hebdomadaire)/;
+
+/**
+ * Clôture d'exercice : quand le livre dépasse `maxEntries` écritures, celles de plus de
+ * `keepDays` jours sont remplacées par deux reports à nouveau — l'activité (ventes, achats…)
+ * et les mouvements du propriétaire (apports, répartitions). La somme est conservée au centime :
+ * l'invariant Σ = solde tient, et le bénéfice prouvé (Ascension) ne change pas.
+ */
+export function compactLedger(ledger: LedgerEntry[], today: number, maxEntries: number = LONG_RUN_CONFIG.ledgerMaxEntries, keepDays: number = LONG_RUN_CONFIG.ledgerKeepDays): boolean {
+  if (ledger.length <= maxEntries) return false;
+  const cutoff = today - keepDays;
+  let activityCents = 0;
+  let ownerCents = 0;
+  let n = 0;
+  while (n < ledger.length && ledger[n]!.day < cutoff) {
+    const e = ledger[n]!;
+    const c = Math.round(e.amount * 100);
+    if (OWNER_MOVE.test(e.label)) ownerCents += c;
+    else activityCents += c;
+    n++;
+  }
+  if (n < 3) return false;
+  const day = Math.max(0, cutoff - 1);
+  const date = dateOf(day).iso;
+  ledger.splice(0, n,
+    { day, date, label: 'Report à nouveau — activité des exercices clos', amount: activityCents / 100 },
+    { day, date, label: 'Répartitions et apports — report à nouveau', amount: ownerCents / 100 },
+  );
+  return true;
 }
 
 // ---------- Stock & prix ----------
@@ -267,7 +299,9 @@ export function runSalesSession(w: WorldState, place: string): SessionResult {
   p.stock -= sold;
   post(w, `Vente — ${sold} unité(s) à ${p.price.toFixed(2)} €`, revenue);
   p.week.revenue = round2(p.week.revenue + revenue);
-  w.player.reputation = clamp(w.player.reputation + 2, 0, 100);
+  // Rendements décroissants : une vente de plus compte moins quand tout le quartier te connaît.
+  const repGain = w.player.reputation < LONG_RUN_CONFIG.reputationFullGainBelow ? 2 : 1;
+  w.player.reputation = clamp(w.player.reputation + repGain, 0, 100);
   bump(w, 'ventes');
   bump(w, 'echanges'); // une revente = un échange vécu (déclencheurs du Conseil)
   bump(w, 'sessionsReussies'); // 3 sessions réussies : déclencheur Ohno (§6)
@@ -279,10 +313,10 @@ export function runSalesSession(w: WorldState, place: string): SessionResult {
   pushEvent(w, {
     type: 'vie',
     title: `Vente au stand — ${sold} unités`,
-    text: `${sold} clients s’arrêtent en une heure : ${revenue.toFixed(2)} € dans la caisse. Réputation +2.${chapter2CollectiveSale ? ' L’équipe a tenu cette vente avec les règles décidées ensemble.' : ''}`,
+    text: `${sold} clients s’arrêtent en une heure : ${revenue.toFixed(2)} € dans la caisse. Réputation +${repGain}.${chapter2CollectiveSale ? ' L’équipe a tenu cette vente avec les règles décidées ensemble.' : ''}`,
     causes: [
       { facteur: 'prix de vente', seuil: `${p.price.toFixed(2)} €`, poids: 2 },
-      { facteur: 'réputation dans le quartier', seuil: `${w.player.reputation - 2}/100`, poids: 1 },
+      { facteur: 'réputation dans le quartier', seuil: `${w.player.reputation - repGain}/100`, poids: 1 },
       { facteur: 'météo', seuil: w.district.meteo, poids: 1 },
       ...(rival ? [{ facteur: `projection d'attractivité face à ${rival.name}`, seuil: `${playerShare}%`, poids: 2 }] : []),
       ...(chapter2CollectiveSale ? [{ facteur: 'règles collectives adoptées et conversation avec Samir', poids: 2 }] : []),
@@ -728,6 +762,15 @@ export function projectWeek(w: WorldState): Notification[] {
   if (hours > WEEK_HOURS_LIMIT) bump(w, 'semaines40h');
   // Contrat de Sécurité : amitié du groupe −2/semaine (M6).
   weeklySecurityCost(w, out);
+  // La durée : réputation entretenue, tensions apaisées par le travail commun, exercices clos.
+  const rep = w.player.reputation;
+  w.player.reputation = clamp(Math.round(rep - (rep - LONG_RUN_CONFIG.reputationPivot) * LONG_RUN_CONFIG.reputationWeeklyReturn), 0, 100);
+  for (const m of p.members) {
+    if ((p.work[m] ?? 0) <= 0) continue;
+    const rel = w.player.relations[m];
+    if (rel && rel.rivalite > LONG_RUN_CONFIG.rivalrySoothingFloor) applyRelation(w, m, { rivalite: -LONG_RUN_CONFIG.rivalryWeeklySoothing });
+  }
+  compactLedger(p.ledger, dayIndexOf(w.time.tick));
   p.week = { index: weekIndexOf(dayIndexOf(w.time.tick)), revenue: 0, expenses: 0, distributed: false };
   p.work = { player: 0 };
   for (const m of p.members) p.work[m] = 0;
