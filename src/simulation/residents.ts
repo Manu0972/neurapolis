@@ -81,16 +81,29 @@ export function residentNear(w: WorldState, dist = 2): ResidentDef | undefined {
   return residentsPresent(w).find((r) => Math.abs(r.x - x) <= dist && Math.abs(r.y - y) <= dist)?.def;
 }
 
-/** Une conversation : salut, une réplique du jour, et une rumeur par jour. */
+/** Une vieille rumeur ne revient pas avant ce délai, une fois toutes racontées. */
+export const RUMOR_REPEAT_DAYS = 120;
+
+/** Une conversation : salut, une réplique du jour, et au plus une rumeur par jour. */
 export function talkToResident(w: WorldState, id: string): { greeting: string; line: string; rumor?: string; clue?: boolean } {
   const r = RESIDENTS.find((x) => x.id === id);
   if (!r) return { greeting: '', line: '' };
   const day = dayIndexOf(w.time.tick);
   const line = r.lines[(day + hashOf(r.id)) % r.lines.length] ?? '';
   const key = `habitant:${r.id}`;
-  if ((w.flags[key] ?? 0) === day + 1 || !r.rumors.length) return { greeting: r.greeting, line };
+  const last = (w.flags[key] ?? 0) - 1;
+  if (last === day || !r.rumors.length) return { greeting: r.greeting, line };
+  // Chaque rumeur se raconte d'abord une fois ; quand tout est dit, l'habitant ne ressort une
+  // vieille histoire qu’au bout de quatre mois (sinon, les deux mêmes rumeurs un jour sur deux).
+  const toldKey = `rumeursDites:${r.id}`;
+  const told = w.flags[toldKey] ?? 0;
+  const fresh = r.rumors.map((_, i) => i).filter((i) => (told & (1 << i)) === 0);
+  if (fresh.length === 0 && last >= 0 && day - last < RUMOR_REPEAT_DAYS) return { greeting: r.greeting, line };
+  const pool = fresh.length > 0 ? fresh : r.rumors.map((_, i) => i);
+  const index = pool[(day + hashOf(`${r.id}:rumeur`)) % pool.length]!;
   w.flags[key] = day + 1;
-  const rumor = r.rumors[(day + hashOf(`${r.id}:rumeur`)) % r.rumors.length]!;
+  w.flags[toldKey] = told | (1 << index);
+  const rumor = r.rumors[index]!;
   let clue = false;
   if (rumor.secretId && !w.flags[`indice:${rumor.secretId}`]) {
     w.flags[`indice:${rumor.secretId}`] = 1;

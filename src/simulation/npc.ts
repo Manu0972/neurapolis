@@ -55,16 +55,31 @@ function rememberNeighborhoodEvents(w: WorldState, day: number): void {
   }
 }
 
-/** Réaction liée au dernier fait mémorisé par ce PNJ, si le sujet correspond. */
+/** Un souvenir se raconte dans les trois semaines qui suivent le fait… */
+export const RECALL_DAYS = 21;
+/** … et la même réaction ne revient pas avant un mois (sinon : la même phrase pendant 4 ans). */
+export const RECALL_GAP_DAYS = 30;
+
+/**
+ * Réaction liée au dernier fait mémorisé par ce PNJ, si le sujet correspond. La dire la
+ * « consomme » (drapeau `souvenir:<pnj>:<réaction>` = jour + 1) : elle ne revient que pour un
+ * fait plus récent, et pas avant un mois. Au-delà, le PNJ reprend ses répliques habituelles.
+ */
 export function rememberedNpcLine(w: WorldState, npcId: NpcId, topic: string): string | null {
   const npc = w.npcs[npcId];
   if (!npc) return null;
+  const today = dayIndexOf(w.time.tick);
   for (const eventId of [...npc.memory].reverse()) {
     const event: GameEvent | undefined = w.events.find((candidate) => candidate.id === eventId);
-    if (!event) continue;
-    const reaction = NPC_EVENT_REACTIONS.find((candidate) =>
+    if (!event || today - event.day > RECALL_DAYS) continue;
+    const idx = NPC_EVENT_REACTIONS.findIndex((candidate) =>
       candidate.npcId === npcId && candidate.topic === topic && event.title.startsWith(candidate.eventTitlePrefix));
-    if (reaction) return reaction.line;
+    if (idx < 0) continue;
+    const key = `souvenir:${npcId}:${idx}`;
+    const last = (w.flags[key] ?? 0) - 1;
+    if (last >= 0 && (last >= event.day || today - last < RECALL_GAP_DAYS)) continue;
+    w.flags[key] = today + 1;
+    return NPC_EVENT_REACTIONS[idx]!.line;
   }
   return null;
 }
