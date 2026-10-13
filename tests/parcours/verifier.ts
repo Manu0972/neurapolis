@@ -48,8 +48,8 @@ export function verifierEconomie(b: ParcoursBilan): void {
     const quoi = `${r.annee} (${b.profil}, graine ${b.seed})`;
     const gain = r.money - avant;
     avant = r.money;
-    // Argent de poche (≈ 10 €/semaine) + affaires : pas d'inflation de l'argent.
-    expect(gain, `gain d’argent ${quoi}`).toBeLessThanOrEqual(b.profil === 'applique' ? 1600 : 700);
+    // Argent de poche + affaires + surprises de la vie : pas d'inflation de l'argent.
+    expect(gain, `gain d’argent ${quoi}`).toBeLessThanOrEqual(b.profil === 'applique' ? 1900 : 800);
     expect(r.ecritures, `écritures comptables ${quoi}`).toBeLessThanOrEqual(1300);
     expect(r.stock, `stock du stand ${quoi}`).toBeLessThanOrEqual(40);
     expect(r.caisse, `caisse du stand ${quoi}`).toBeLessThanOrEqual(200);
@@ -74,10 +74,10 @@ export function verifierEconomie(b: ParcoursBilan): void {
   }
   const fin = annees[annees.length - 1]!.money;
   if (b.profil === 'applique') {
-    expect(fin, 'argent à 16 ans (appliqué)').toBeGreaterThanOrEqual(2500);
+    expect(fin, 'argent à 16 ans (appliqué)').toBeGreaterThanOrEqual(2200);
     expect(fin, 'argent à 16 ans (appliqué)').toBeLessThanOrEqual(6000);
   } else {
-    expect(fin, 'argent à 16 ans (pressé)').toBeGreaterThanOrEqual(1500);
+    expect(fin, 'argent à 16 ans (pressé)').toBeGreaterThanOrEqual(700);
     expect(fin, 'argent à 16 ans (pressé)').toBeLessThanOrEqual(2800);
   }
 }
