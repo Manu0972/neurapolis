@@ -120,6 +120,7 @@ describe('M7 — sauvegarde aller-retour après une fusion et un antagonisme act
     expect(recruitMember(w, 'noah').ok).toBe(true);
     expect(recruitMember(w, 'lina').ok).toBe(true);
     expect(adoptSharedRules(w).ok).toBe(true);
+    delete w.flags['conseilDerniereArrivee']; // cadence d'une arrivée par jour (testée ailleurs)
     runTicks(w, 1);
     expect(councilArrivalChoose(w, 'ostrom', 'ecouter').ok).toBe(true);
 

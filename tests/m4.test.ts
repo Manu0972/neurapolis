@@ -19,7 +19,7 @@ import { adoptSharedRules, optimizeStand } from '../src/simulation/project';
 import { GHOST_DEFS, GEN1_RESTANTS, GEN2_IDS } from '../src/data/ghosts/registry';
 import { ADVICE_POOL, ARRIVAL_SCENES, FAREWELLS, GHOST_DOCTRINES } from '../src/data/ghosts/scenes';
 import {
-  conflitDeRepartition, incidentAuStand, standPret, tryPathTrigger,
+  conflitDeRepartition, incidentAuStand, sansCadence, standPret, toutesLesArrivees, tryPathTrigger,
 } from './helpers';
 
 const DAY = TICKS_PER_DAY;
@@ -190,10 +190,12 @@ describe('plafond — 4 voix actives, réveil et endormissement manuels', () => 
     w.flags['incidents'] = 1;
     w.flags['optimisations'] = 1;
     runTicks(w, 1);
+    toutesLesArrivees(w);
     for (const id of ['smith', 'marx', 'hobbes', 'taylor']) arrive(w, id);
     expect(councilActiveCount(w)).toBe(4);
 
     giveProject(w, true);
+    sansCadence(w);
     runTicks(w, 1);
     expect(councilPendingArrivals(w)).toContain('ostrom');
     const refuse = councilArrivalChoose(w, 'ostrom', 'ecouter');
@@ -372,6 +374,7 @@ describe('loyauté — +5 suivi, −3 ignoré, +8 aligné, −10 contraire', () 
     w.flags['echanges'] = 1;
     w.flags['conflitsRepartition'] = 1;
     runTicks(w, 1);
+    toutesLesArrivees(w);
     arrive(w, 'smith'); // doctrine : marche
     arrive(w, 'marx');  // doctrine : solidarite
 
@@ -391,6 +394,7 @@ describe('loyauté — +5 suivi, −3 ignoré, +8 aligné, −10 contraire', () 
     giveProject(w, true);
     w.flags['incidents'] = 1;
     runTicks(w, 1);
+    toutesLesArrivees(w);
     arrive(w, 'ostrom'); // communs
     arrive(w, 'hobbes'); // autorite
     councilKeyDecision(w, 'communs');
