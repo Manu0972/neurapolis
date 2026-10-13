@@ -2,7 +2,10 @@
 import { createWorld } from '../core/store';
 import { createCustomWorld } from '../core/player_customization';
 import type { WorldState } from '../core/types';
-import { inspectAutoSave, saveToSlot, loadFromSlot, PENDING_LOAD_KEY } from '../saves/persist';
+import { inspectAutoSave, saveToSlot, loadFromSlot, slotSummary, PENDING_LOAD_KEY } from '../saves/persist';
+import { dateOf, dayIndexOf, hhmmOfTick } from '../core/clock';
+import { MANUAL_SLOTS, newerManualSlot, slotNumber } from './save-choice';
+import { frenchDateLabel } from './labels';
 import { startGame } from './game';
 import { mountCharacterCreation } from './character-creator';
 import { TitleFlyover } from './city3d/TitleFlyover';
@@ -102,6 +105,27 @@ export function mountStartScreen(root: HTMLElement): void {
       startGame(root, savedWorld);
     });
     card.appendChild(resume);
+  }
+
+  // Une sauvegarde manuelle plus récente que celle de la nuit : on la propose aussi.
+  const newer = autoSave.kind === 'unavailable' ? null
+    : newerManualSlot(savedWorld?.time.tick, MANUAL_SLOTS.map((s) => slotSummary(s)));
+  if (newer && newer.tick !== undefined) {
+    const when = `${frenchDateLabel(dateOf(dayIndexOf(newer.tick)).label)}, ${hhmmOfTick(newer.tick)}`;
+    const slotBtn = button(`Reprendre l’emplacement ${slotNumber(newer.slot)} (${when})`, !savedWorld);
+    slotBtn.title = 'Ta dernière sauvegarde manuelle est plus récente que la sauvegarde automatique de la nuit.';
+    slotBtn.addEventListener('click', () => {
+      try {
+        const loaded = loadFromSlot(newer.slot);
+        try { saveToSlot('auto', loaded); } catch { /* reprise sans mise à jour de l'auto-sauvegarde */ }
+        stopFlyover();
+        startGame(root, loaded);
+      } catch (err) {
+        status.textContent = `Chargement impossible : ${err instanceof Error ? err.message : String(err)}`;
+        status.classList.add('error');
+      }
+    });
+    card.appendChild(slotBtn);
   }
 
   const fresh = button(savedWorld ? 'Nouvelle partie' : 'Commencer');

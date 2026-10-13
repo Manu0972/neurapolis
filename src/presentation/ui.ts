@@ -6,6 +6,7 @@
 import type { NeedId, WorldState } from '../core/types';
 import { dateOf, dayIndexOf, hhmm, minutesOfDay } from '../core/clock';
 import { PACES } from './time-pace';
+import { frenchDateLabel } from './labels';
 import { NEED_LABELS } from '../data/places';
 import { SAVE_LABEL } from '../data/texts';
 import { getCampaignProgressSummary } from '../simulation/campaign';
@@ -391,7 +392,7 @@ export function updateHud(ui: UiRefs, w: WorldState, prompt: string): void {
     cache.clock = clockStr;
   }
 
-  const dateStr = dateOf(day).label;
+  const dateStr = frenchDateLabel(dateOf(day).label);
   if (cache.date !== dateStr) {
     ui.dateEl.textContent = dateStr;
     cache.date = dateStr;
