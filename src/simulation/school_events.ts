@@ -15,6 +15,11 @@ import { pushEvent } from './events';
 /** Événements de départ, puis les 25 d'Antigravity (workflow AG-2). */
 export const SCHOOL_EVENTS: readonly SchoolEvent[] = [...STARTER_SCHOOL_EVENTS, ...AG_SCHOOL_EVENTS.filter((e) => !STARTER_SCHOOL_EVENTS.some((x) => x.id === e.id))];
 const CHANCE = 0.35;
+/**
+ * Au plus un événement tous les 18 jours : sans ce délai, les onze événements de la 5e
+ * tombaient tous dans le premier trimestre, puis plus rien pendant neuf mois.
+ */
+export const SCHOOL_EVENT_GAP_DAYS = 18;
 
 const clamp = (v: number, lo = 0, hi = 100): number => Math.max(lo, Math.min(hi, v));
 
@@ -29,11 +34,14 @@ function eligible(w: WorldState, e: SchoolEvent): boolean {
 export function rollSchoolEvent(w: WorldState, salt: string): void {
   if ((w.flags['ecoleEnAttente'] ?? 0) > 0) return;
   const day = dayIndexOf(w.time.tick);
+  const last = (w.flags['ecoleDernier'] ?? 0) - 1;
+  if (last >= 0 && day - last < SCHOOL_EVENT_GAP_DAYS) return;
   if (econRand(w, 'ecole', day, salt) >= CHANCE) return;
   const pool = SCHOOL_EVENTS.filter((e) => eligible(w, e));
   if (pool.length === 0) return;
   const e = pool[Math.floor(econRand(w, 'ecole-pick', day, salt) * pool.length)]!;
   w.flags['ecoleEnAttente'] = SCHOOL_EVENTS.indexOf(e) + 1;
+  w.flags['ecoleDernier'] = day + 1;
 }
 
 export function pendingSchoolEvent(w: WorldState): SchoolEvent | undefined {

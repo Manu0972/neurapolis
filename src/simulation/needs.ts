@@ -14,7 +14,10 @@ export function needsTick(w: WorldState): void {
   const n = w.player.needs;
   if (w.player.asleep) {
     // Nuit moins réparatrice sous stress (§5) : récupération de fatigue réduite.
-    n.fatigue = clamp(n.fatigue - 0.35 * (n.stress > 70 ? 0.6 : 1));
+    // Sommeil profond : au-delà de 60, plus on est épuisé, plus la nuit répare (sans ça, un
+    // élève assidu restait au-dessus de 70 — irritable — pendant quatre ans).
+    const deep = n.fatigue > 60 ? (n.fatigue - 60) * 0.01 : 0;
+    n.fatigue = clamp(n.fatigue - (0.35 + deep) * (n.stress > 70 ? 0.6 : 1));
     n.faim = clamp(n.faim + 0.05);
   } else {
     n.fatigue = clamp(n.fatigue + 0.08);

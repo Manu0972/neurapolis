@@ -11,14 +11,14 @@ describe('École, Études & Dynamique Familiale', () => {
     expect(sl.parentSentiment).toBe('satisfait');
   });
 
-  it('assister à un cours améliore les notes, la discipline et la compréhension', () => {
+  it('assister à un cours améliore la discipline et la compréhension (la moyenne vient des notes du vendredi)', () => {
     const w = createWorld();
     const initDisc = w.player.characteristics.discipline;
     const res = attendSchoolClass(w);
     expect(res.ok).toBe(true);
 
     const sl = ensureSchoolLifeState(w);
-    expect(sl.academicAverage).toBeGreaterThan(14.5);
+    expect(sl.academicAverage).toBe(14.5);
     expect(w.player.characteristics.discipline).toBe(initDisc + 1);
   });
 

@@ -52,6 +52,8 @@ export interface SurpriseDef {
   reputation?: number;
   stress?: number;
   concept?: string;
+  /** Montants à l'échelle de l'argent de poche (1 = 10 €), quel que soit le palier. */
+  pocketScale?: boolean;
 }
 
 /** Effet en cours sur la demande : un secteur entier, ou une seule cible. */
