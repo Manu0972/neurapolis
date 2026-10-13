@@ -5,14 +5,20 @@
  *   entrant au collège ; la séance passe en accéléré avec un « moment de classe ».
  * - Absence : une séance manquée est notée ; excusée si un arrangement avec la principale la
  *   couvre. Deux absences injustifiées en sept jours : convocation des parents.
- * - Parents : Nora et Thierry ont chacun confiance, inquiétude et fierté. Dîner à 19 h 30 si tu
- *   es à la maison ; note du vendredi ; argent de poche s'ils sont fiers ; punition s'ils sont
- *   trop inquiets. Sans leur confiance, ils ne se portent plus garants pour tes baux.
+ * - Parents : Nora et Thierry ont chacun confiance, inquiétude et fierté, qui reviennent
+ *   doucement vers leur humeur de fond chaque jour (rien ne reste bloqué à 0 ou 100). Dîner à
+ *   19 h 30 si tu es à la maison ; note du vendredi ; punition s'ils sont trop inquiets. Sans
+ *   leur confiance, ils ne se portent plus garants pour tes baux.
+ * - Argent de poche (vague 2, vie quotidienne) : chaque semaine, un montant selon l'âge
+ *   (5 € à 12 ans → 7 € à 15 ans), réduit de moitié après une absence ou si la confiance est
+ *   fragile, suspendu pendant une punition. Prime de bulletin à la rentrée.
+ * - Années scolaires : rentrée le 1er septembre (5e → 4e → 3e → 2de → 1re), bilan de l'année,
+ *   brevet à la sortie de 3e ; les contrôles se corsent chaque année.
  *
  * Aucune notification n'est émise ici : tout passe par les dîners et le bureau de la principale
  * (présentation). Aléa : hachage déterministe (`econRand`).
  */
-import type { WorldState } from '../core/types';
+import type { Notification, WorldState } from '../core/types';
 import {
   createFamilyState, type FamilyLine, type FamilyMoment, type FamilyState, type ParentId, type SessionId,
 } from '../core/family_types';
@@ -27,7 +33,8 @@ const CLASS_MOMENTS = [...STARTER_CLASS_MOMENTS, ...CLASS_MOMENTS_EXT];
 import { FAMILY_LINES, FAMILY_LINE_BY_ID } from '../data/family_registry';
 import { econRand } from './economy';
 import { pushEvent } from './events';
-import { attendSchoolClass, ensureSchoolLifeState } from './school_life';
+import { attendSchoolClass, classeScolaire, difficulteClasse, ensureSchoolLifeState, etablissementScolaire } from './school_life';
+import { notify } from './events';
 import { rollSchoolEvent } from './school_events';
 
 export const SESSIONS: Record<SessionId, { start: number; end: number }> = {
@@ -41,6 +48,10 @@ const HOME_RADIUS = 8;
 export const COSIGN_TRUST = 35;
 
 const clamp = (v: number): number => Math.max(0, Math.min(100, v));
+
+/** Humeur de fond des parents, vers laquelle les jauges reviennent (2 % de l'écart par jour). */
+export const PARENT_BASELINE = { trust: 60, worry: 30, pride: 50 } as const;
+const DRIFT = 0.02;
 
 export function ensureFamily(w: WorldState): FamilyState {
   if (!w.family) w.family = createFamilyState();
@@ -130,7 +141,6 @@ export function attendClass(w: WorldState): { ok: boolean; message: string } {
   attendSchoolClass(w);
   w.player.characteristics.comprehension = Math.min(100, w.player.characteristics.comprehension + moment.comprehension);
   w.player.needs.moral = clamp(w.player.needs.moral + moment.mood);
-  bump(f, 'les_deux', { worry: -1 });
   syncSchoolLife(w);
   return { ok: true, message: `${subject}. ${moment.text}` };
 }
@@ -161,14 +171,38 @@ function recordAbsence(w: WorldState, day: number, s: SessionId): void {
 
 // ---------- Dîners ----------
 
-const TOPIC_PRIORITY: FamilyMoment[] = ['convocation', 'absence', 'mauvaise_note', 'echec_business', 'bonne_note', 'reussite_business', 'fatigue'];
+const TOPIC_PRIORITY: FamilyMoment[] = ['convocation', 'absence', 'nuit_blanche', 'mauvaise_note', 'echec_business', 'anniversaire', 'bonne_note', 'reussite_business', 'fatigue'];
+/**
+ * Sujets qui reviennent souvent : on n'en reparle pas avant ce nombre de jours (sans ça, un
+ * joueur fatigué entendait parler de sa fatigue à presque tous les dîners pendant quatre ans).
+ */
+const TOPIC_COOLDOWN: Partial<Record<FamilyMoment, number>> = { fatigue: 7, bonne_note: 6, reussite_business: 10 };
+/** Une même réplique ne revient pas avant ce nombre de jours (si le choix le permet). */
+export const DINNER_LINE_GAP = 21;
+/** Sans sujet particulier, on ne se parle vraiment qu'un soir sur deux ou trois (sinon, les infos). */
+const PLAIN_DINNER_CHANCE = 0.45;
+
+const sinceFlag = (w: WorldState, key: string, day: number): number => {
+  const v = w.flags[key] ?? 0;
+  return v > 0 ? day - (v - 1) : Infinity;
+};
 
 function pickLine(w: WorldState, day: number): FamilyLine | undefined {
   const f = ensureFamily(w);
-  const when = TOPIC_PRIORITY.find((t) => f.topics.includes(t)) ?? 'diner';
+  const topics = TOPIC_PRIORITY.filter((t) => f.topics.includes(t) && sinceFlag(w, `dinerSujet:${t}`, day) >= (TOPIC_COOLDOWN[t] ?? 0));
+  const when: FamilyMoment = topics.find((t) => FAMILY_LINES.some((l) => l.when === t)) ?? 'diner';
+  if (when === 'diner' && econRand(w, 'diner-calme', day) >= PLAIN_DINNER_CHANCE) return undefined;
   const pool = FAMILY_LINES.filter((l) => l.when === when);
-  const list = pool.length > 0 ? pool : FAMILY_LINES.filter((l) => l.when === 'diner');
-  return list[Math.floor(econRand(w, 'diner', day) * list.length)];
+  const all = pool.length > 0 ? pool : FAMILY_LINES.filter((l) => l.when === 'diner');
+  const fresh = all.filter((l) => sinceFlag(w, `diner:${l.id}`, day) >= DINNER_LINE_GAP);
+  const oldest = all.reduce<FamilyLine | undefined>((a, l) => (!a || sinceFlag(w, `diner:${l.id}`, day) > sinceFlag(w, `diner:${a.id}`, day) ? l : a), undefined);
+  const list = fresh.length > 0 ? fresh : oldest ? [oldest] : [];
+  const line = list[Math.floor(econRand(w, 'diner', day) * list.length)];
+  if (line) {
+    w.flags[`diner:${line.id}`] = day + 1;
+    w.flags[`dinerSujet:${when}`] = day + 1;
+  }
+  return line;
 }
 
 export function pendingDinner(w: WorldState): FamilyLine | undefined {
@@ -245,14 +279,21 @@ export function resolveConvocation(w: WorldState, choice: ConvocationChoice): { 
 
 const crossed = (prev: number, now: number, at: number): boolean => prev < at && now >= at;
 
-/** Chaque tick : fin des séances (absences), note du vendredi, dîner, couvre-feu, argent de poche. */
+/** Chaque tick : fin des séances (absences), note du vendredi, dîner, couvre-feu, rentrée. */
 export function familyTick(w: WorldState, prevTick: number): void {
   const f = ensureFamily(w);
   const day = dayIndexOf(w.time.tick);
   if (dayIndexOf(prevTick) !== day) {
-    // Nouveau jour : la punition se lève peut-être, l'inquiétude trop haute punit.
+    // Nouveau jour : les humeurs reviennent doucement vers leur fond (rien ne reste figé).
+    for (const id of ['nora', 'thierry'] as const) {
+      const p = f.parents[id];
+      p.trust = clamp(p.trust + (PARENT_BASELINE.trust - p.trust) * DRIFT);
+      p.worry = clamp(p.worry + (PARENT_BASELINE.worry - p.worry) * DRIFT);
+      p.pride = clamp(p.pride + (PARENT_BASELINE.pride - p.pride) * DRIFT);
+    }
+    // L'inquiétude trop haute punit — une fois la punition finie seulement, jamais en chaîne.
     const worry = Math.max(f.parents.nora.worry, f.parents.thierry.worry);
-    if (worry >= 85 && f.groundedUntil <= day) f.groundedUntil = day + 3;
+    if (worry >= 85 && f.groundedUntil < day) f.groundedUntil = day + 3;
     // Ce que les parents ont appris de tes affaires depuis hier.
     const closed = Object.values(w.ascension?.ventures ?? {}).filter((v) => v.closed).length;
     if (closed > (w.flags['famFaillites'] ?? 0)) topic(f, 'echec_business');
@@ -260,6 +301,13 @@ export function familyTick(w: WorldState, prevTick: number): void {
     const tier = w.ascension?.tier ?? 1;
     if (tier > (w.flags['famPalier'] ?? 1)) { topic(f, 'reussite_business'); bump(f, 'les_deux', { pride: 6 }); }
     w.flags['famPalier'] = tier;
+  }
+  // Rentrée : l'âge change le 1er septembre (campagne) ; la nouvelle classe suit.
+  const classeAge = w.flags['classeAge'] ?? 0;
+  if (classeAge === 0) w.flags['classeAge'] = w.player.age;
+  else if (w.player.age > classeAge) {
+    w.flags['classeAge'] = w.player.age;
+    rentree(w, day);
   }
   const pm = dayIndexOf(prevTick) === day ? minutesOfDay(prevTick) : -1;
   const m = minutesOfDay(w.time.tick);
@@ -272,18 +320,12 @@ export function familyTick(w: WorldState, prevTick: number): void {
     if (crossed(pm, m, SESSIONS[s].end) && !f.attended.includes(`${day}:${s}`)) recordAbsence(w, day, s);
   }
   // Note du vendredi.
-  if (dateOf(day).weekday === 5 && crossed(pm, m, SESSIONS.apres.end)) {
-    const sl = ensureSchoolLifeState(w);
-    const week = f.attended.filter((k) => Number(k.split(':')[0]) > day - 7).length;
-    const note = Math.round(Math.max(0, Math.min(20, 6 + week * 1.1 + w.player.characteristics.comprehension / 20 + econRand(w, 'note', day) * 4 - 2)) * 2) / 2;
-    f.grades.push({ day, subject: 'Contrôle de la semaine', note });
-    if (f.grades.length > 30) f.grades.splice(0, f.grades.length - 30);
-    sl.academicAverage = Math.round(((sl.academicAverage * 3 + note) / 4) * 10) / 10;
-    if (note >= 14) { topic(f, 'bonne_note'); bump(f, 'les_deux', { pride: 4, worry: -3 }); }
-    if (note < 10) { topic(f, 'mauvaise_note'); bump(f, 'les_deux', { pride: -2, worry: 5 }); }
+  if (dateOf(day).weekday === 5 && crossed(pm, m, SESSIONS.apres.end)) fridayGrade(w, day);
+  // Couvre-feu de la punition : le respecter apaise, le braver inquiète.
+  if (f.groundedUntil > day && crossed(pm, m, CURFEW)) {
+    if (isHome(w)) bump(f, 'les_deux', { worry: -2, trust: 1 });
+    else bump(f, 'les_deux', { worry: 5, trust: -3 });
   }
-  // Couvre-feu de la punition.
-  if (f.groundedUntil > day && crossed(pm, m, CURFEW) && !isHome(w)) bump(f, 'les_deux', { worry: 5, trust: -3 });
   // Dîner.
   if (crossed(pm, m, DINNER)) {
     if (w.player.needs.fatigue > 80) topic(f, 'fatigue');
@@ -297,15 +339,128 @@ export function familyTick(w: WorldState, prevTick: number): void {
       if (f.groundedUntil > day) bump(f, 'les_deux', { trust: -5 });
     }
   }
-  // Argent de poche du dimanche, quand ils sont fiers et confiants.
-  if (dateOf(day).weekday === 0 && crossed(pm, m, 10 * 60)) {
-    const pride = (f.parents.nora.pride + f.parents.thierry.pride) / 2;
-    if (pride >= 65 && familyTrust(w) >= 55) {
-      w.player.money = Math.round((w.player.money + 5) * 100) / 100;
-      w.flags['argentDePoche'] = (w.flags['argentDePoche'] ?? 0) + 5;
-    }
+  // Pas rentré à 23 h : la nuit blanche sera au menu du prochain dîner.
+  if (crossed(pm, m, 23 * 60) && !isHome(w)) {
+    topic(f, 'nuit_blanche');
+    bump(f, 'les_deux', { worry: 3 });
   }
   syncSchoolLife(w);
+}
+
+// ---------- Notes ----------
+
+/** Demi-journées de cours prévues sur les sept derniers jours (jusqu'à `day` inclus). */
+function scheduledLastWeek(day: number): number {
+  let n = 0;
+  for (let d = day - 6; d <= day; d++) if (d >= 0) n += sessionsOf(d).length;
+  return n;
+}
+
+/**
+ * Note du vendredi : la présence pèse le plus (7 points), puis la compréhension (4 points) ;
+ * la fatigue coûte, la classe se corse chaque année, et le hasard du contrôle joue ±3 points.
+ * Un élève assidu tourne autour de 13-16, un élève qui sèche la moitié des cours autour de 9-11.
+ */
+export function fridayGrade(w: WorldState, day: number): number {
+  const f = ensureFamily(w);
+  const sl = ensureSchoolLifeState(w);
+  const planned = scheduledLastWeek(day);
+  const attended = f.attended.filter((k) => Number(k.split(':')[0]) > day - 7).length;
+  const presence = planned > 0 ? Math.min(1, attended / planned) : 1;
+  const raw = 4 + 7 * presence + 4 * (w.player.characteristics.comprehension / 100)
+    - difficulteClasse(w.player.age) - (w.player.needs.fatigue > 70 ? 1.5 : 0)
+    + econRand(w, 'note', day) * 6 - 3;
+  const note = Math.round(Math.max(0, Math.min(20, raw)) * 2) / 2;
+  f.grades.push({ day, subject: 'Contrôle de la semaine', note });
+  if (f.grades.length > 30) f.grades.splice(0, f.grades.length - 30);
+  sl.academicAverage = Math.round(((sl.academicAverage * 3 + note) / 4) * 10) / 10;
+  if (note >= 14) { topic(f, 'bonne_note'); bump(f, 'les_deux', { pride: 3, worry: -2 }); }
+  if (note < 10) { topic(f, 'mauvaise_note'); bump(f, 'les_deux', { pride: -2, worry: 4 }); }
+  // Une semaine complète, sans une absence : la confiance se gagne aussi comme ça.
+  if (planned > 0 && presence >= 1) bump(f, 'les_deux', { trust: 2 });
+  return note;
+}
+
+// ---------- Rentrée ----------
+
+/** Brevet à la sortie de 3e : jamais d'échec sec (le jeu suit le joueur jusqu'en 2de). */
+export function brevetMention(average: number): { label: string; pride: number } {
+  if (average >= 16) return { label: 'mention très bien', pride: 10 };
+  if (average >= 14) return { label: 'mention bien', pride: 7 };
+  if (average >= 12) return { label: 'mention assez bien', pride: 4 };
+  if (average >= 10) return { label: 'admis·e sans mention', pride: 1 };
+  return { label: 'admis·e de justesse, après l’oral de rattrapage', pride: -3 };
+}
+
+/** Prime de bulletin versée à la rentrée selon la moyenne de l'année écoulée. */
+export function bulletinBonus(average: number): number {
+  return average >= 16 ? 30 : average >= 14 ? 20 : 0;
+}
+
+function rentree(w: WorldState, day: number): void {
+  const f = ensureFamily(w);
+  const sl = ensureSchoolLifeState(w);
+  const age = w.player.age;
+  const avg = sl.academicAverage;
+  const absences = f.absences.filter((a) => !a.excused && a.day > day - 365).length;
+  const bonus = bulletinBonus(avg);
+  const parts: string[] = [`Bulletin de l’an dernier : ${avg}/20 de moyenne, ${absences} demi-journée(s) d’absence injustifiée.`];
+  if (age === 15) {
+    const b = brevetMention(avg);
+    parts.push(`Brevet des collèges : ${b.label}.`);
+    bump(f, 'les_deux', { pride: b.pride });
+  }
+  if (bonus > 0) {
+    w.player.money = Math.round((w.player.money + bonus) * 100) / 100;
+    w.flags['primesBulletin'] = (w.flags['primesBulletin'] ?? 0) + bonus;
+    parts.push(`Thierry glisse ${bonus} € dans ta trousse neuve : « Pour le bulletin. »`);
+    bump(f, 'les_deux', { pride: 3 });
+  } else if (avg < 10) {
+    parts.push('Nora a encadré au feutre rouge les remarques des profs. On en reparlera au dîner.');
+    bump(f, 'les_deux', { worry: 6 });
+  }
+  topic(f, 'anniversaire');
+  // Nouvelle année, nouvelles règles : l'aménagement et la promesse ne se reportent pas.
+  f.arrangement = undefined;
+  f.promised = false;
+  pushEvent(w, {
+    type: 'vie',
+    title: `Rentrée en ${classeScolaire(age)}`,
+    text: `${age === 15 ? 'Premier jour au ' : 'Retour au '}${etablissementScolaire(age)}, en ${classeScolaire(age)}. ${parts.join(' ')}`,
+    causes: [
+      { facteur: 'rentrée scolaire', seuil: dateOf(day).iso, poids: 3 },
+      { facteur: 'moyenne de l’année', seuil: `${avg}/20`, poids: 2 },
+    ],
+  });
+}
+
+// ---------- Argent de poche ----------
+
+/** Argent de poche hebdomadaire selon l'âge (versé au changement de semaine). */
+export const POCKET_MONEY_BY_AGE: Readonly<Record<number, number>> = { 12: 5, 13: 5, 14: 6, 15: 7, 16: 8 };
+
+export function pocketMoneyStatus(w: WorldState): { amount: number; full: number; reason: string } {
+  const f = ensureFamily(w);
+  const day = dayIndexOf(w.time.tick);
+  const full = POCKET_MONEY_BY_AGE[Math.max(12, Math.min(16, w.player.age))]!;
+  if (f.groundedUntil >= day) return { amount: 0, full, reason: 'tu es puni·e, il est suspendu' };
+  const trust = familyTrust(w);
+  if (trust < COSIGN_TRUST) return { amount: 0, full, reason: `leur confiance est trop basse (${Math.round(trust)}/100)` };
+  const absent = f.absences.some((a) => !a.excused && a.day > day - 7);
+  if (absent) return { amount: Math.floor(full / 2), full, reason: 'moitié seulement : une absence cette semaine' };
+  if (trust < 50) return { amount: Math.floor(full / 2), full, reason: 'moitié seulement : leur confiance est fragile' };
+  return { amount: full, full, reason: '' };
+}
+
+/** Versement de la semaine (appelé par le moteur au changement de semaine). */
+export function weeklyPocketMoney(w: WorldState): Notification[] {
+  const st = pocketMoneyStatus(w);
+  if (st.amount > 0) {
+    w.player.money = Math.round((w.player.money + st.amount) * 100) / 100;
+    w.flags['argentDePoche'] = (w.flags['argentDePoche'] ?? 0) + st.amount;
+  }
+  if (st.amount === st.full) return [notify('info', `Argent de poche de la semaine : +${st.amount} €.`)];
+  return [notify('info', `Argent de poche de la semaine : ${st.amount > 0 ? `+${st.amount} € (${st.reason})` : `rien — ${st.reason}`}.`)];
 }
 
 

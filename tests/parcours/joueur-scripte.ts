@@ -55,6 +55,8 @@ export interface ParcoursOptions {
   /** Choix narratifs (par défaut : tournent avec la graine pour couvrir toutes les branches). */
   urbanChoice?: UrbanChoiceId;
   model?: LastingEconomicModelId;
+  /** Observateur appelé une fois par jour joué, après les mesures (tests de la vie quotidienne). */
+  chaqueJour?: (w: WorldState, day: number) => void;
 }
 
 export interface ChapitreBilan {
@@ -389,6 +391,8 @@ export function jouerCampagne(opts: ParcoursOptions): ParcoursBilan {
         maxNeedsStreak[k] = Math.max(maxNeedsStreak[k] ?? 0, needsStreak[k] ?? 0);
         if ((needsStreak[k] ?? 0) >= 7) alerte(`Besoin « ${k} » au plafond 7 jours de suite (spirale) vers le jour ${dayIndexOf(w.time.tick)}`);
       }
+
+      opts.chaqueJour?.(w, dayIndexOf(w.time.tick));
 
       // Chapitres terminés depuis le dernier passage.
       for (const c of w.campaign.completedChapters) {
