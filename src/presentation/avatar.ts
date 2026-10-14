@@ -5,6 +5,7 @@
  */
 import { makeSeed, rngInt, rngNext } from '../core/rng';
 import { TOKENS } from './tokens';
+import { escapeHtml } from './ui';
 
 const SKINS = ['#f2c9a5', '#e8b98c', '#d9a06b', '#c68a5a', '#8a5a3b'];
 const HAIRS = ['#3a2c22', '#1f1a26', '#5b3a24', '#2c2c33', '#a3542a'];
@@ -42,7 +43,9 @@ function partsFor(seedKey: string, color: string): AvatarParts {
 
 /** SVG complet du visage, teinté par la couleur du personnage. */
 export function avatarSvg(seedKey: string, color: string, size = 48): string {
-  const p = partsFor(seedKey, color);
+  // Sécurisation XSS / SVG Injection : la couleur est échappée pour éviter tout breakout d'attribut XML/HTML.
+  const safeColor = escapeHtml(color);
+  const p = partsFor(seedKey, safeColor);
 
   const hair =
     p.hairStyle === 0
@@ -66,7 +69,7 @@ export function avatarSvg(seedKey: string, color: string, size = 48): string {
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img">` +
     `<rect width="${size}" height="${size}" rx="${size * 0.22}" fill="${TOKENS.panel}"/>` +
-    `<circle cx="${size / 2}" cy="${size / 2}" r="${size * 0.42}" fill="${color}" fill-opacity="0.14"/>` +
+    `<circle cx="${size / 2}" cy="${size / 2}" r="${size * 0.42}" fill="${safeColor}" fill-opacity="0.14"/>` +
     `<circle cx="${size / 2}" cy="${size + 8}" r="${size * 0.34}" fill="${p.shirt}"/>` +
     `<circle cx="${size / 2}" cy="${size * 0.55}" r="${size * 0.27}" fill="${p.skin}"/>` +
     hair +
