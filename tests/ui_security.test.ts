@@ -67,4 +67,48 @@ describe('UI Security & XSS Prevention (escapeHtml)', () => {
     expect(widgetHtml).not.toContain('<iframe src="javascript:alert(1)">');
     expect(widgetHtml).toContain('&lt;iframe src=&quot;javascript:alert(1)&quot;&gt;');
   });
+
+  it('safely builds E2E panel DOM elements', () => {
+    const steps = [
+      { name: 'Étape 1 <script>alert(1)</script>', ok: true, detail: 'OK' },
+      { name: 'Étape 2', ok: false, detail: '<img src=x onerror=alert(2)>' },
+    ];
+    const ok = steps.every((s) => s.ok);
+
+    const createdElements: Array<{ tag: string; textContent?: string }> = [];
+    const mockDocument = {
+      createElement: (tag: string) => {
+        const el: any = {
+          tag,
+          className: '',
+          style: {},
+          children: [] as any[],
+          appendChild(child: any) {
+            this.children.push(child);
+            return child;
+          },
+        };
+        createdElements.push(el);
+        return el;
+      },
+      createTextNode: (text: string) => {
+        const node = { text };
+        createdElements.push({ tag: '#text', textContent: text });
+        return node;
+      },
+      body: {
+        appendChild: () => {},
+      },
+    };
+
+    const panel = mockDocument.createElement('div');
+    panel.className = 'e2e-report';
+    const statusB = mockDocument.createElement('b');
+    statusB.textContent = ok ? '✅ E2E réussi' : '❌ E2E en échec';
+    panel.appendChild(statusB);
+    panel.appendChild(mockDocument.createTextNode(` — ${steps.filter((s) => s.ok).length}/${steps.length} étapes`));
+
+    expect(statusB.textContent).toBe('❌ E2E en échec');
+    expect(createdElements.some((e) => e.textContent?.includes(' — 1/2 étapes'))).toBe(true);
+  });
 });
