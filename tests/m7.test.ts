@@ -102,6 +102,13 @@ describe('M7 — avatars SVG procéduraux par seed', () => {
     expect(svg).not.toContain('NaN');
     expect(svg).not.toContain('undefined');
   });
+
+  it('échappe correctement la couleur pour empêcher les injections XSS / SVG breakout', () => {
+    const maliciousColor = '#ff0000"><script>alert(1)</script>';
+    const svg = avatarSvg('joueur:Camille', maliciousColor);
+    expect(svg).not.toContain('<script>');
+    expect(svg).toContain('&quot;&gt;&lt;script&gt;');
+  });
 });
 
 // ---------- Sauvegarde : l'état du Conseil survit ----------
