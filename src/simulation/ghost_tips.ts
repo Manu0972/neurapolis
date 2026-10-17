@@ -96,7 +96,7 @@ const LENSES: Record<string, Lens> = {
   hayek: (f) => f.redVenture
     ? tip('hayek', f.redVenture.launching ? 2 : 3, `« ${f.redVenture.name} » a ${eur(-f.redVenture.cash)} de trou en caisse${f.redVenture.launching ? '' : ` depuis ${f.redVenture.redDays} jour(s)`}. Renfloue-la (Téléphone → Ascension) ou vends-la avant la faillite.`)
     : f.debt > 0
-    ? tip('hayek', f.debt > f.money * 3 ? 3 : 2, `Vous devez ${eur(f.debt)}. Chaque jour d’intérêts parie sur un avenir que personne ne connaît. Remboursez avant de grandir.`)
+    ? tip('hayek', f.debt > f.money * 3 ? 3 : 2, `Tu dois ${eur(f.debt)}. Chaque jour d’intérêts parie sur un avenir que personne ne connaît. Rembourse avant de grandir.`)
     : null,
   taylor: (f) => f.shopCount > 0 ? tip('taylor', 1, 'As-tu chronométré le temps de passage en caisse ? Une seconde gagnée par client, c’est une file d’attente en moins.') : null,
   dejours: (f) => f.stress > 65 || f.fatigue > 75

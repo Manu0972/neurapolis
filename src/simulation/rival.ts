@@ -11,6 +11,7 @@
  * 4. Conséquence systémique sur le territoire : la part de marché du Drive détermine
  *    la pression subie par l’épicerie de Mme Bertin au lieu d'une dérive fixe.
  */
+import { indicePrix } from './inflation';
 import type { Notification, PlaceId, RivalId, RivalState, WorldState, CounterStrategyDef } from '../core/types';
 import { dayIndexOf } from '../core/clock';
 import { COUNTER_STRATEGIES, INITIAL_RIVALS } from '../data/rivals';
@@ -90,7 +91,8 @@ export function calculateMarketShares(w: WorldState, place: PlaceId): {
   const playerAttractiveness = (playerPriceScore * 0.4) + (playerReputationScore * 0.3) + (playerQualityScore * 0.3);
 
   // Attractivité rival : prix rival, qualité rival, agressivité commerciale
-  const rivalPriceScore = Math.max(10, 100 - rival.price * 40);
+  // Le prix du rival suit l'inflation (2022-2023) ; on compare des prix du même jour.
+  const rivalPriceScore = Math.max(10, 100 - rival.price * indicePrix(today) * 40);
   const rivalQualityScore = Math.max(10, rival.quality - penaltyRival);
   const rivalAggressivenessScore = rival.aggressiveness;
   const rivalAttractiveness = (rivalPriceScore * 0.4) + (rivalQualityScore * 0.3) + (rivalAggressivenessScore * 0.3);

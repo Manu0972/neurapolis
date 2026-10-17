@@ -71,7 +71,7 @@ export const LANDMARKS: readonly LandmarkDef[] = [
       },
       {
         id: 'h_benevolat', icon: '🤝', title: 'Bénévolat à l’accueil', host: 'Josiane, cadre de santé', minutes: 120, hours: [H(9), H(18)],
-        text: 'Tu orientes les familles perdues dans les couloirs. Josiane note ton nom : « Revenez quand vous voulez. Ici, la gentillesse ne se facture pas. »',
+        text: 'Tu orientes les familles perdues dans les couloirs. Josiane note ton nom : « Reviens quand tu veux. Ici, la gentillesse ne se facture pas. »',
         effects: { reputation: 2, needs: { moral: 3, fatigue: 8 }, xp: [['communication', 15]] },
       },
       {

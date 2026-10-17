@@ -76,6 +76,10 @@ export function verifierEconomie(b: ParcoursBilan): void {
   // sorties, BD, cadeaux, forfait à 15 ans : ≈ 12 €/semaine, ≈ 2 500 € en quatre ans pour
   // l'appliqué, ≈ 870 € pour le pressé qui saute des mois). Mesures (graines 20200901, 7, 42) :
   // appliqué 3 832-3 855 € sans dépenses → 1 322-1 354 € ; pressé 1 180-1 242 € → 308-370 €.
+  // Vague 4 (inflation 2022-2023, indice 1,09 fin 2023) : le stock passe de 15 € à 16,40 €, le
+  // joueur scripté garde son prix à 1 € (la demande se calcule en prix réel, donc elle monte un peu).
+  // Effet mesuré (graine 20200901) : appliqué 1 301 € à 16 ans (≈ −2 %), pressé 367-384 € (inchangé
+  // à l'arrondi) — les fourchettes [900 ; 5 000] et [150 ; 2 000] gardent leur marge : inchangées.
   const fin = annees[annees.length - 1]!.money;
   if (b.profil === 'applique') {
     expect(fin, 'argent à 16 ans (appliqué)').toBeGreaterThanOrEqual(900);

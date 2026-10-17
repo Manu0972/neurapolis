@@ -33,7 +33,7 @@ const CLASS_MOMENTS = [...STARTER_CLASS_MOMENTS, ...CLASS_MOMENTS_EXT];
 import { FAMILY_LINES, FAMILY_LINE_BY_ID } from '../data/family_registry';
 import { econRand } from './economy';
 import { pushEvent } from './events';
-import { attendSchoolClass, classeScolaire, difficulteClasse, ensureSchoolLifeState, etablissementScolaire } from './school_life';
+import { attendSchoolClass, bonusRevisions, classeScolaire, difficulteClasse, ensureSchoolLifeState, etablissementScolaire } from './school_life';
 import { notify } from './events';
 import { rollSchoolEvent } from './school_events';
 
@@ -370,7 +370,9 @@ export function fridayGrade(w: WorldState, day: number): number {
   const presence = planned > 0 ? Math.min(1, attended / planned) : 1;
   const raw = 4 + 7 * presence + 4 * (w.player.characteristics.comprehension / 100)
     - difficulteClasse(w.player.age) - (w.player.needs.fatigue > 70 ? 1.5 : 0)
-    + econRand(w, 'note', day) * 6 - 3;
+    + econRand(w, 'note', day) * 6 - 3
+    + bonusRevisions(w);
+  w.flags['devoirsSemaine'] = 0; // les révisions servent au contrôle de la semaine, puis on repart
   const note = Math.round(Math.max(0, Math.min(20, raw)) * 2) / 2;
   f.grades.push({ day, subject: 'Contrôle de la semaine', note });
   if (f.grades.length > 30) f.grades.splice(0, f.grades.length - 30);

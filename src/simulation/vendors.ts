@@ -186,7 +186,7 @@ export function recordVendorTrade(
   return {
     ok: true,
     message: tierUpgraded
-      ? `Tier ${rel.tier} débloqué chez ${def.name} ! Remise : ${Math.round(rel.discountRate * 100)} % (Ligne de crédit : ${rel.creditLineLimit} €)`
+      ? `Palier ${rel.tier} débloqué chez ${def.name} ! Remise : ${Math.round(rel.discountRate * 100)} % (Ligne de crédit : ${rel.creditLineLimit} €)`
       : `Achat enregistré chez ${def.name}. Total dépensé : ${rel.spentTotal.toFixed(2)} € (${rel.tradeCount} transactions).`,
     tierUpgraded,
     notifications: notifs,
@@ -206,7 +206,7 @@ export function buyVendorSpecialGood(
   const vendors = ensureVendorsState(w);
   const rel = vendors[vendorId];
   if (!rel || rel.tier < good.requiredTier) {
-    return { ok: false, message: `Niveau de relation insuffisant (Tier ${good.requiredTier} requis).` };
+    return { ok: false, message: `Niveau de relation insuffisant (palier ${good.requiredTier} requis).` };
   }
 
   const finalCost = good.cost * (1 - rel.discountRate);

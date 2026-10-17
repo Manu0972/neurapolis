@@ -107,7 +107,7 @@ export function openConvocationModal(ctx: FamilyCtx): boolean {
     grid.appendChild(box);
   }
   body.appendChild(grid);
-  ctx.showModal('🏫 Convocation', `${SCHOOL_STAFF.principal.name} vous attend`, body, true);
+  ctx.showModal('🏫 Convocation', `${SCHOOL_STAFF.principal.name} t’attend`, body, true);
   return true;
 }
 
