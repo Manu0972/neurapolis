@@ -11,6 +11,7 @@
  * (fusion), Contrat de Sécurité (rendement +20 %) et sabotage de Taylor (−15 %).
  * Données : src/data/project.ts. État : w.project (types.ts).
  */
+import { indicePrix, prixIndexe } from './inflation';
 import { MAX_PENDING_DELIVERIES, type LedgerEntry, type Meteo, type NpcId, type Notification, type PlaceId, type ProjectState, type RepartitionMode, type WorldState } from '../core/types';
 import { dateOf, dayIndexOf, weekIndexOf } from '../core/clock';
 import { rngChance, rngPick } from '../core/rng';
@@ -124,10 +125,20 @@ export function compactLedger(ledger: LedgerEntry[], today: number, maxEntries: 
 
 // ---------- Stock & prix ----------
 
+/** Prix d'un achat de stock ce jour-là (inflation 2022-2023 comprise). */
+export function coutStock(day: number): number {
+  return prixIndexe(STAND_CONFIG.stockCost, day);
+}
+
+/** Prix de vente maximal du stand ce jour-là (le plafond suit l'inflation). */
+export function prixMaxStand(day: number): number {
+  return prixIndexe(STAND_CONFIG.priceMax, day);
+}
+
 export function buyStock(w: WorldState): ProjectAction {
   const p = w.project;
   if (!p?.active) return { ok: false, message: 'Pas de projet actif.' };
-  const cost = STAND_CONFIG.stockCost;
+  const cost = coutStock(dayIndexOf(w.time.tick));
   // La caisse paie d'abord, la poche complète (équilibrage M7 : un goûter à 1 €
   // ne doit pas verrouiller le stand toute une semaine).
   if (p.balance + w.player.money < cost) {
@@ -172,7 +183,7 @@ export function buyStock(w: WorldState): ProjectAction {
 export function setPrice(w: WorldState, price: number): ProjectAction {
   const p = w.project;
   if (!p?.active) return { ok: false, message: 'Pas de projet actif.' };
-  p.price = round2(clamp(price, STAND_CONFIG.priceMin, STAND_CONFIG.priceMax));
+  p.price = round2(clamp(price, STAND_CONFIG.priceMin, prixMaxStand(dayIndexOf(w.time.tick))));
   return { ok: true, message: `Prix fixé à ${p.price.toFixed(2)} €.` };
 }
 
@@ -217,8 +228,9 @@ export function recruitMember(w: WorldState, npcId: NpcId): ProjectAction {
 // ---------- Demande & sessions de vente ----------
 
 /** Demande (unités) d'une session — pure et déterministe (prévision, tests). */
-export function demandAt(price: number, reputation: number, weekday: number, meteo: Meteo): number {
-  const base = DEMAND_CONFIG.baseAtZero - DEMAND_CONFIG.slope * price;
+export function demandAt(price: number, reputation: number, weekday: number, meteo: Meteo, indice = 1): number {
+  // Inflation : les clients raisonnent en prix réel (prix affiché ÷ indice des prix).
+  const base = DEMAND_CONFIG.baseAtZero - DEMAND_CONFIG.slope * (price / indice);
   const dayFactor = DEMAND_CONFIG.weekdayFactor[weekday] ?? 1;
   const weatherFactor = DEMAND_CONFIG.weatherFactor[meteo];
   return Math.max(0, Math.floor(base * (reputation / DEMAND_CONFIG.reputationDivisor) * dayFactor * weatherFactor));
@@ -239,7 +251,7 @@ export function runSalesSession(w: WorldState, place: string): SessionResult {
   const day = dayIndexOf(w.time.tick);
   const placeId: PlaceId = (place === 'collège' || place === 'college') ? 'college' : 'place';
   const { playerShare, rival } = calculateMarketShares(w, placeId);
-  const baseDemand = demandAt(p.price, w.player.reputation, dateOf(day).weekday, w.district.meteo);
+  const baseDemand = demandAt(p.price, w.player.reputation, dateOf(day).weekday, w.district.meteo, indicePrix(day));
   // DEMAND_CONFIG représente la demande de référence au partage égal; l'autre moitié revient au rival.
   const marketPotential = baseDemand * 2;
   const demand = Math.max(0, Math.round(marketPotential * playerShare / 100));
@@ -678,7 +690,7 @@ export function registerForecast(w: WorldState): void {
   if (!p?.active) return;
   const day = dayIndexOf(w.time.tick);
   p.lastForecast = {
-    expected: demandAt(p.price, w.player.reputation, dateOf(day + 1).weekday, w.district.meteo),
+    expected: demandAt(p.price, w.player.reputation, dateOf(day + 1).weekday, w.district.meteo, indicePrix(day + 1)),
     day,
   };
 }
@@ -735,7 +747,7 @@ export function projectDay(w: WorldState): void {
   if (w.council.fusionsDone.includes('marche_des_communs') && p.stock > 0) {
     const weekday = dateOf(day).weekday;
     if (weekday === 0 || weekday === 6) {
-      const demand = demandAt(p.price, w.player.reputation, weekday, w.district.meteo);
+      const demand = demandAt(p.price, w.player.reputation, weekday, w.district.meteo, indicePrix(day));
       const sold = Math.min(p.stock, demand);
       if (sold > 0) {
         const revenue = round2(sold * p.price * securityYieldFactor(w) * taylorSabotageFactor(w));

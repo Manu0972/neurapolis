@@ -169,10 +169,58 @@ export function isVacances(day: number): boolean {
   return periodeVacances(day) !== null;
 }
 
-/** École les lundi-vendredi hors vacances (le mercredi après-midi est libre). */
+/** Dimanche de Pâques (calendrier grégorien, algorithme de Meeus/Jones/Butcher), en ms UTC. */
+function paquesMs(y: number): number {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mois = Math.floor((h + l - 7 * m + 114) / 31), jour = ((h + l - 7 * m + 114) % 31) + 1;
+  return Date.UTC(y, mois - 1, jour);
+}
+
+const FERIES_FIXES: Readonly<Record<string, string>> = {
+  '01-01': 'Jour de l’an', '05-01': 'Fête du Travail', '05-08': 'Victoire 1945', '07-14': 'Fête nationale',
+  '08-15': 'Assomption', '11-01': 'Toussaint', '11-11': 'Armistice 1918', '12-25': 'Noël',
+};
+const cacheFeries = new Map<number, ReadonlyMap<string, string>>();
+
+/**
+ * Jours fériés français de l'année (2020-2025 pour la campagne, la règle vaut ensuite) :
+ * fêtes fixes, lundi de Pâques, Ascension, lundi de Pentecôte. Le vendredi qui suit
+ * l'Ascension est aussi sans cours (« pont » du calendrier scolaire), mais pas férié.
+ */
+export function joursFeries(y: number): ReadonlyMap<string, string> {
+  let m = cacheFeries.get(y);
+  if (!m) {
+    const map = new Map<string, string>();
+    for (const [md, nom] of Object.entries(FERIES_FIXES)) map.set(`${y}-${md}`, nom);
+    const p = paquesMs(y);
+    map.set(isoOfMs(p + DAY_MS), 'Lundi de Pâques');
+    map.set(isoOfMs(p + 39 * DAY_MS), 'Ascension');
+    map.set(isoOfMs(p + 50 * DAY_MS), 'Lundi de Pentecôte');
+    m = map;
+    cacheFeries.set(y, m);
+  }
+  return m;
+}
+
+/** Nom du jour férié, ou null. Pas d'école ces jours-là ; les commerces, eux, restent ouverts. */
+export function jourFerie(day: number): string | null {
+  const d = dateOf(day);
+  return joursFeries(d.y).get(d.iso) ?? null;
+}
+
+/** Vendredi du pont de l'Ascension : pas de cours (calendrier scolaire national). */
+export function isPontAscension(day: number): boolean {
+  const d = dateOf(day);
+  return isoOfMs(paquesMs(d.y) + 40 * DAY_MS) === d.iso;
+}
+
+/** École les lundi-vendredi hors vacances, jours fériés et pont de l'Ascension (le mercredi après-midi est libre). */
 export function isSchoolDay(day: number): boolean {
   const wd = dateOf(day).weekday;
-  return wd >= 1 && wd <= 5 && !isVacances(day);
+  return wd >= 1 && wd <= 5 && !isVacances(day) && jourFerie(day) === null && !isPontAscension(day);
 }
 
 export type DayPhase =

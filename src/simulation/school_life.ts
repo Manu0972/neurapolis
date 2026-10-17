@@ -91,9 +91,28 @@ export function skipSchoolForBusiness(
   };
 }
 
+/** Bonus de révision sur la prochaine note du vendredi : +0,5 par soirée, plafonné à +1,5. */
+export const DEVOIRS_BONUS_PAR_SOIREE = 0.5;
+export const DEVOIRS_BONUS_MAX = 1.5;
+
+/** Bonus de révision accumulé depuis le dernier contrôle (consommé par la note du vendredi). */
+export function bonusRevisions(w: WorldState): number {
+  return Math.min(DEVOIRS_BONUS_MAX, (w.flags['devoirsSemaine'] ?? 0) * DEVOIRS_BONUS_PAR_SOIREE);
+}
+
+/**
+ * Devoirs du soir : la moyenne ne bouge pas directement (elle montait sans limite jusqu'à 20/20) ;
+ * elle découle des notes (family.ts, fridayGrade). Les devoirs renforcent la compréhension et
+ * préparent le prochain contrôle (bonus plafonné). Une seule séance comptée par jour.
+ */
 export function studyEveningHomework(w: WorldState): { ok: boolean; message: string } {
-  const sl = ensureSchoolLifeState(w);
-  sl.academicAverage = Math.min(20, Math.round((sl.academicAverage + 0.5) * 10) / 10);
+  ensureSchoolLifeState(w);
+  const day = dayIndexOf(w.time.tick);
+  if ((w.flags['devoirsJour'] ?? 0) === day + 1) {
+    return { ok: false, message: 'Tes devoirs du jour sont déjà faits. Repose-toi, la suite demain.' };
+  }
+  w.flags['devoirsJour'] = day + 1;
+  w.flags['devoirsSemaine'] = Math.min(DEVOIRS_BONUS_MAX / DEVOIRS_BONUS_PAR_SOIREE, (w.flags['devoirsSemaine'] ?? 0) + 1);
   w.player.characteristics.comprehension = Math.min(100, w.player.characteristics.comprehension + 2);
   w.player.needs.fatigue = Math.min(100, w.player.needs.fatigue + 12);
   w.player.needs.moral = Math.min(100, w.player.needs.moral + 5);
@@ -102,7 +121,7 @@ export function studyEveningHomework(w: WorldState): { ok: boolean; message: str
 
   return {
     ok: true,
-    message: `Devoirs et révisions terminés au calme. Moyenne consolidée à ${sl.academicAverage}/20. Tes parents apprécient ta rigueur.`,
+    message: `Devoirs et révisions terminés au calme (Compréhension +2). Le prochain contrôle s’annonce mieux (révisions +${bonusRevisions(w).toString().replace('.', ',')} point).`,
   };
 }
 

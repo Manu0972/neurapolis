@@ -18,6 +18,7 @@ import {
   makeEcoChoice, optimizeStand, recruitMember, repartition, runCourse, runSalesSession,
   sellCustomerData, setPrice, setRepartitionMode, weeklyResult,
 } from '../simulation/project';
+import { coutStock, prixMaxStand } from '../simulation/project';
 import {
   acceptOrder, buySalvageParts, createWorkshop, deliverOrder,
   ledgerInvariantHolds as workshopLedgerInvariantHolds,
@@ -1909,7 +1910,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const vendors = ensureVendorsState(world);
     const body = el('div', 'panel-body');
 
-    body.appendChild(el('p', 'panel-desc', 'Commercer régulièrement avec les marchands fait grimper vos Paliers de Fidélité (Tiers 0 à 3), débloquant remises permanentes et stocks réservés.'));
+    body.appendChild(el('p', 'panel-desc', 'Commercer régulièrement avec les marchands fait grimper tes paliers de fidélité (0 à 3), débloquant remises permanentes et stocks réservés.'));
 
     for (const [vId, def] of Object.entries(VENDOR_DEFS) as [VendorId, typeof VENDOR_DEFS[VendorId]][]) {
       const rel = vendors[vId] ?? {
@@ -1937,7 +1938,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           const discountedPrice = (good.cost * (1 - rel.discountRate)).toFixed(2);
           gRow.appendChild(el('span', 'stat-label', `${good.name} (${discountedPrice} €)`));
           const canBuy = rel.tier >= good.requiredTier && world.player.money >= Number(discountedPrice);
-          const buyBtn = el('button', 'btn btn-action', rel.tier < good.requiredTier ? `Requis Tier ${good.requiredTier}` : `Acheter (${discountedPrice} €)`);
+          const buyBtn = el('button', 'btn btn-action', rel.tier < good.requiredTier ? `Palier ${good.requiredTier} requis` : `Acheter (${discountedPrice} €)`);
           buyBtn.disabled = !canBuy;
           if (canBuy) {
             buyBtn.addEventListener('click', () => {
@@ -2235,7 +2236,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           ? '⚠ Le Drive écrase l’épicerie de Mme Bertin (−0,20/jour)'
           : rival.marketShare >= 45
             ? 'Équilibre fragile : l’épicerie résiste (−0,10/jour)'
-            : '✓ Vos circuits courts protègent l’épicerie (+0,10/jour) !';
+            : '✓ Tes circuits courts protègent l’épicerie (+0,10/jour) !';
         const pressureSource = lastClosed
           ? `Pression du quartier après le bilan du jour ${lastClosed.day} : `
           : 'Pression de fond estimée, avant une première vente mesurée : ';
@@ -2438,7 +2439,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const prixInput = el('input', 'price-input');
     prixInput.type = 'range';
     prixInput.min = String(STAND_CONFIG.priceMin);
-    prixInput.max = String(STAND_CONFIG.priceMax);
+    prixInput.max = String(prixMaxStand(dayIndexOf(world.time.tick)));
     prixInput.step = '0.1';
     prixInput.value = String(p.price);
     const prixLabel = el('span', 'stat-label', `${p.price.toFixed(2)} €`);
@@ -2452,7 +2453,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     prixRow.appendChild(prixLabel);
     prixRow.appendChild(prixBtn);
     body.appendChild(prixRow);
-    const achatBtn = el('button', 'btn btn-action', `Acheter du stock (${STAND_CONFIG.stockCost} € — ${STAND_CONFIG.stockUnits} unités)`);
+    const achatBtn = el('button', 'btn btn-action', `Acheter du stock (${coutStock(dayIndexOf(world.time.tick)).toFixed(2).replace('.', ',')} € — ${STAND_CONFIG.stockUnits} unités)`);
     achatBtn.addEventListener('click', () => {
       const r = buyStock(world);
       refresh(r.message, r.ok);

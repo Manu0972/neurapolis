@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createWorld } from '../src/core/store';
-import { attendSchoolClass, ensureSchoolLifeState, negotiateWithTeacher, schoolDayTick, skipSchoolForBusiness, studyEveningHomework, talkWithParents } from '../src/simulation/school_life';
+import { attendSchoolClass, ensureSchoolLifeState, negotiateWithTeacher, schoolDayTick, skipSchoolForBusiness, studyEveningHomework, talkWithParents, bonusRevisions, DEVOIRS_BONUS_MAX } from '../src/simulation/school_life';
+import { fridayGrade } from '../src/simulation/family';
+import { dayIndexOf } from '../src/core/clock';
+import { TICKS_PER_DAY } from '../src/core/types';
 
 describe('École, Études & Dynamique Familiale', () => {
   it('initialise l’état scolaire avec une moyenne et une assiduité saines', () => {
@@ -34,12 +37,22 @@ describe('École, Études & Dynamique Familiale', () => {
     expect(sl.parentSentiment === 'inquiet' || sl.parentSentiment === 'tres_inquiet').toBe(true);
   });
 
-  it('étudier le soir permet de remonter la moyenne', () => {
+  it('les devoirs ne touchent pas la moyenne : ils préparent la prochaine note (plafonné)', () => {
     const w = createWorld();
-    const res = studyEveningHomework(w);
-    expect(res.ok).toBe(true);
     const sl = ensureSchoolLifeState(w);
-    expect(sl.academicAverage).toBeGreaterThan(14.5);
+    const avant = sl.academicAverage;
+    const comp = w.player.characteristics.comprehension;
+    expect(studyEveningHomework(w).ok).toBe(true);
+    expect(studyEveningHomework(w).ok).toBe(false); // une seule séance par jour
+    expect(sl.academicAverage).toBe(avant);
+    expect(w.player.characteristics.comprehension).toBe(comp + 2);
+    // Cinq soirées : le bonus plafonne à +1,5 et la moyenne ne bouge toujours pas.
+    for (let d = 1; d <= 5; d++) { w.time.tick += TICKS_PER_DAY; studyEveningHomework(w); }
+    expect(sl.academicAverage).toBe(avant);
+    expect(bonusRevisions(w)).toBe(DEVOIRS_BONUS_MAX);
+    // La note du vendredi consomme le bonus.
+    fridayGrade(w, dayIndexOf(w.time.tick));
+    expect(bonusRevisions(w)).toBe(0);
   });
 
   it('permet de négocier un statut officiel d’aménagement avec M. Moreau', () => {
