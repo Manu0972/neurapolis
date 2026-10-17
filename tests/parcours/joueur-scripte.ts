@@ -27,6 +27,7 @@ import { LASTING_ECONOMIC_MODELS, URBAN_CHOICES, type LastingEconomicModelId, ty
 import { BEATS } from '../../src/data/story_registry';
 import { STAND_CONFIG } from '../../src/data/project';
 import { tickWorld } from '../../src/simulation/engine';
+import { basculerForfait, depenseStatus, faireDepense, forfaitActif, FORFAIT_MIN_AGE, type DepenseId } from '../../src/simulation/depenses';
 import { beginSkip, skipTime, stepSkip } from '../../src/simulation/timeskip';
 import { attendClass, classWindow, isInClass } from '../../src/simulation/family';
 import { finishOrigin, ensureStory } from '../../src/simulation/story';
@@ -61,6 +62,8 @@ export interface ParcoursOptions {
   model?: LastingEconomicModelId;
   /** Observateur appelé une fois par jour joué, après les mesures (tests de la vie quotidienne). */
   chaqueJour?: (w: WorldState, day: number) => void;
+  /** Dépenses courantes d'ado (goûters, sorties, BD, cadeaux, forfait à 15 ans) : oui par défaut. */
+  depenses?: boolean;
 }
 
 export interface ChapitreBilan {
@@ -296,6 +299,23 @@ export function jouerCampagne(opts: ParcoursOptions): ParcoursBilan {
     passer(15);
     return placeAtAdjacent(w) === place;
   };
+  /**
+   * Dépenses d'un ado raisonnable, choisies dans l'appli « Dépenses » : un goûter le lundi et le
+   * jeudi, une sortie un samedi sur deux, une BD et un petit cadeau par mois, des fournitures à la
+   * rentrée, le forfait téléphone à 15 ans — seulement s'il garde une réserve.
+   */
+  const depensesDuJour = (day: number, school: boolean, wd: number): void => {
+    const achat = (id: DepenseId, reserve: number): void => {
+      if (w.player.money - reserve > 0 && depenseStatus(w, id).ok) faireDepense(w, id);
+    };
+    const d = dateOf(day);
+    if (school && (wd === 1 || wd === 4)) achat('gouter', 10);
+    if (wd === 6 && Math.floor(day / 7) % 2 === 0) achat('sortie', 25);
+    if (d.d === 10) achat('bd', 30);
+    if (d.d === 20) achat('cadeau', 40);
+    if (d.m === 9 && d.d <= 7) achat('fournitures', 15);
+    if (w.player.age >= FORFAIT_MIN_AGE && !forfaitActif(w) && w.player.money > 40) basculerForfait(w);
+  };
   /** Les arrivées de fantômes : le joueur appliqué les écoute (dans la limite de 4 voix). */
   const conseil = (): void => {
     for (const id of councilPendingArrivals(w)) {
@@ -506,6 +526,7 @@ export function jouerCampagne(opts: ParcoursOptions): ParcoursBilan {
       const fin = MIN(19);
       routineJusqua(tickAt(day, debut));
       conseil();
+      if (opts.depenses !== false) depensesDuJour(day, school, wd);
 
       const waitingForAge = objectivesDay !== null;
       if (opts.profil === 'presse' && waitingForAge && !w.campaign.completedChapters.includes(5)) {

@@ -21,12 +21,13 @@ import { el } from './ui';
 import { BIKE, buyBike, ownsBike } from '../simulation/vehicles';
 import { renderAscensionApp } from './ascension-ui';
 import { ASCENSION_LOAN_RATE_PCT, ascensionDebts } from '../simulation/ascension';
+import { DEPENSES, FORFAIT_MIN_AGE, FORFAIT_SEMAINE, basculerForfait, depenseStatus, faireDepense, forfaitActif } from '../simulation/depenses';
 import { renderInfosApp } from './news-ui';
 import { isAppOpen, unlockOf } from '../simulation/unlocks';
 import { APP_TUTORIALS } from '../data/tutorials';
 import { shouldPresent, tutorCard } from './ghost-tutor';
 
-export type PhoneApp = 'ascension' | 'infos' | 'immobilier' | 'commerces' | 'commandes' | 'emploi' | 'banque';
+export type PhoneApp = 'ascension' | 'infos' | 'immobilier' | 'commerces' | 'commandes' | 'emploi' | 'banque' | 'depenses';
 
 export interface PhoneContext {
   world: WorldState;
@@ -44,6 +45,7 @@ const APPS: { id: PhoneApp; icon: string; label: string }[] = [
   { id: 'commandes', icon: '📦', label: 'Commandes' },
   { id: 'emploi', icon: '👥', label: 'Emploi' },
   { id: 'banque', icon: '🏦', label: 'Banque' },
+  { id: 'depenses', icon: '🛍️', label: 'Dépenses' },
 ];
 
 const eur = (v: number): string => `${v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
@@ -87,11 +89,11 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?
   function render(): void {
     tabs.replaceChildren();
     // Sur place, devant un local (touche E), l'annonce s'ouvre toujours : c'est en y allant qu'on apprend.
-    const openHere = (id: PhoneApp): boolean => isAppOpen(w, id) || (id === 'immobilier' && !!focus?.unitId);
+    const openHere = (id: PhoneApp): boolean => id === 'depenses' || isAppOpen(w, id) || (id === 'immobilier' && !!focus?.unitId);
     for (const a of APPS) {
       const open = openHere(a.id);
       const tb = el('button', `ph-tab${a.id === current ? ' active' : ''}${open ? '' : ' locked'}`, `${open ? a.icon : '🔒'} ${a.label}`);
-      if (!open) tb.title = unlockOf(a.id)?.how ?? '';
+      if (!open) tb.title = (a.id === 'depenses' ? undefined : unlockOf(a.id))?.how ?? '';
       tb.type = 'button';
       tb.addEventListener('click', () => { current = a.id; render(); });
       tabs.appendChild(tb);
@@ -116,7 +118,7 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?
     screen.appendChild(head);
     // Application pas encore méritée : on dit comment l'obtenir.
     if (!openHere(current)) {
-      const u = unlockOf(current);
+      const u = current === 'depenses' ? undefined : unlockOf(current);
       const card = el('div', 'ph-card locked-app');
       card.appendChild(el('div', 'ph-card-title', `🔒 ${APPS.find((x) => x.id === current)?.label ?? ''}`));
       card.appendChild(el('p', 'ph-note', `Pas encore. ${u?.how ?? ''}`));
@@ -133,6 +135,7 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?
     if (current === 'commandes') renderCommandes();
     if (current === 'emploi') renderEmploi();
     if (current === 'banque') renderBanque();
+    if (current === 'depenses') renderDepenses();
     if (current === 'infos') renderInfosApp(w, screen);
     if (current === 'ascension') renderAscensionApp(ctx, screen, render, () => openPhone(ctx, 'ascension'));
   }
@@ -479,6 +482,34 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?
       market.appendChild(row);
     }
     screen.appendChild(market);
+  }
+
+  // ----- Dépenses courantes (choisies, jamais imposées) -----
+  function renderDepenses(): void {
+    const card = el('div', 'ph-card');
+    card.appendChild(el('div', 'ph-card-title', '🛍️ Ton argent de poche'));
+    card.appendChild(el('p', 'ph-note', 'Rien n’est obligatoire : chaque achat te fait un peu de bien (ou fait plaisir à quelqu’un).'));
+    for (const d of DEPENSES) {
+      const st = depenseStatus(w, d.id);
+      const row = el('div', 'ph-row');
+      row.appendChild(el('p', 'ph-note', `${d.icon} ${d.label} — ${eur(d.price)} · ${d.effect}`));
+      const b = button(`Acheter (${eur(d.price)})`, () => { const r = faireDepense(w, d.id); ctx.toast(r.message, r.ok); ctx.onChange(); render(); });
+      b.disabled = !st.ok;
+      if (!st.ok) b.title = st.raison;
+      row.appendChild(b);
+      card.appendChild(row);
+    }
+    screen.appendChild(card);
+    const tel = el('div', 'ph-card');
+    tel.appendChild(el('div', 'ph-card-title', '📱 Forfait téléphone'));
+    tel.appendChild(el('p', 'ph-note', forfaitActif(w)
+      ? `Actif : ${eur(FORFAIT_SEMAINE)} par semaine (15 € par mois). Tu restes joignable : moral et amitiés en profitent un peu.`
+      : w.player.age < FORFAIT_MIN_AGE ? `Tes parents disent : à ${FORFAIT_MIN_AGE} ans.` : '15 € par mois, résiliable quand tu veux. Suspendu sans pénalité si l’argent manque.'));
+    const tb = button(forfaitActif(w) ? 'Résilier' : 'Prendre le forfait', () => { const r = basculerForfait(w); ctx.toast(r.message, r.ok); ctx.onChange(); render(); });
+    tb.disabled = !forfaitActif(w) && w.player.age < FORFAIT_MIN_AGE;
+    tel.appendChild(tb);
+    tel.appendChild(el('p', 'ph-note', `Dépensé depuis le début : ${eur(w.flags['depensesTotal'] ?? 0)}.`));
+    screen.appendChild(tel);
   }
 
   // ----- Banque -----

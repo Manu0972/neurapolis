@@ -28,6 +28,7 @@ import { multiplayerDay } from './multiplayer';
 import { happeningsTick } from './happenings';
 import { rewindDay } from './rewind';
 import { familyTick, weeklyPocketMoney } from './family';
+import { depensesSemaine } from './depenses';
 import { roomDay } from './room';
 import { storyDay } from './story';
 import { unlocksDay } from './unlocks';
@@ -92,6 +93,7 @@ export function tickWorld(w: WorldState): TickOutput {
     // Hebdomadaire : argent de poche + répartition des gains du stand (M5) + atelier (J5)
     if (weekIndexOf(day) !== prevWeek) {
       out.push(...weeklyPocketMoney(w)); // montant selon l'âge et la conduite (family.ts)
+      out.push(...depensesSemaine(w)); // forfait téléphone choisi par le joueur (depenses.ts)
       out.push(...projectWeek(w));
       out.push(...workshopWeek(w));
     }
