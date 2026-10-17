@@ -36,7 +36,7 @@ import {
   choixEcoCouteux, coequipierAuBout, conflitDeRepartition, donneesExploitees, ecouter,
   incidentAuStand, maitriser, optimisationRatee, previsionsRatees, regleImposeeQuiEchoue,
   repartitionSimple, semaineDePerte, semaineSurchargee, standPret, troisSessionsReussies,
-  tryPathTrigger, venduJusquAuBout,
+  toutesLesArrivees, tryPathTrigger, venduJusquAuBout,
 } from './helpers';
 
 const DAY = TICKS_PER_DAY;
@@ -73,6 +73,7 @@ describe('affinités — +1 quand deux voix actives approuvent la même décisio
     w.flags['echanges'] = 1;
     w.flags['semainesPerte'] = 1;
     runTicks(w, 1);
+    toutesLesArrivees(w);
     ecouter(w, 'smith'); // doctrine : marche
     ecouter(w, 'keynes'); // doctrine : marche
     expect(affinityOf(w, 'smith', 'keynes')).toBe(0);
@@ -86,6 +87,7 @@ describe('affinités — +1 quand deux voix actives approuvent la même décisio
     w.flags['echanges'] = 1;
     w.flags['conflitsRepartition'] = 1;
     runTicks(w, 1);
+    toutesLesArrivees(w);
     ecouter(w, 'smith'); // marche
     ecouter(w, 'marx');  // solidarite — contraire
     councilKeyDecision(w, 'marche');
@@ -97,6 +99,7 @@ describe('affinités — +1 quand deux voix actives approuvent la même décisio
     w.flags['echanges'] = 1;
     w.flags['semainesPerte'] = 1;
     runTicks(w, 1);
+    toutesLesArrivees(w);
     ecouter(w, 'smith');  // marche
     ecouter(w, 'keynes'); // marche
     councilKeyDecision(w, 'communs'); // aucune des deux alignée (et aucune contraire)

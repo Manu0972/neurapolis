@@ -10,6 +10,7 @@
  * Même API que le module promis à Jules (`characters.ts`). Pieds à y = 0, regard vers −Z.
  */
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { PlayerAppearance, PlayerGender } from '../../core/types';
 import { DEFAULT_PLAYER_APPEARANCE } from '../../core/types';
 import { EYE_COLOR_INFO, HAIR_COLOR_INFO, OUTFIT_COLOR_INFO, SKIN_TONE_INFO } from '../../core/player_customization';
@@ -42,7 +43,50 @@ export interface Character3D {
   setHeading(radians: number): void;
   /** Activité à l'arrêt (assis, parler) ; seuls les personnages riggés l'animent. */
   setActivity?(activity: CharacterActivity): void;
+  /**
+   * Niveau de détail : au loin, la silhouette entière devient UN seul maillage figé (couleurs
+   * par sommet) — un appel de dessin au lieu d'une trentaine. De près, rien ne change.
+   */
+  setLod?(far: boolean): void;
   dispose(): void;
+}
+
+/** Distance (m, au joueur) au-delà de laquelle la foule passe en silhouette simplifiée (modifiable en QA). */
+export const CROWD_LOD = { distance: 26 };
+
+const impostorMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 });
+
+/** Fusionne les maillages d'un personnage (pose de repos) en un seul, couleurs par sommet. */
+function buildImpostor(root: THREE.Object3D, body: THREE.Object3D): THREE.Mesh | null {
+  const rootInv = new THREE.Matrix4();
+  root.updateMatrixWorld(true);
+  rootInv.copy(root.matrixWorld).invert();
+  const parts: THREE.BufferGeometry[] = [];
+  const m = new THREE.Matrix4();
+  body.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.visible) return;
+    const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+    const color = (material as THREE.MeshStandardMaterial | undefined)?.color;
+    if (!color || (material as THREE.Material).transparent) return;
+    let g = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
+    for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal') g.deleteAttribute(name);
+    if (!g.attributes.normal) g.computeVertexNormals();
+    g.applyMatrix4(m.multiplyMatrices(rootInv, mesh.matrixWorld));
+    const n = g.attributes.position!.count;
+    const cols = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) cols.set([color.r, color.g, color.b], i * 3);
+    g.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+    parts.push(g);
+  });
+  if (parts.length === 0) return null;
+  const merged = mergeGeometries(parts, false);
+  for (const p of parts) p.dispose();
+  if (!merged) return null;
+  const im = new THREE.Mesh(merged, impostorMat);
+  im.castShadow = true;
+  im.name = 'silhouette';
+  return im;
 }
 
 // ---------- Caches partagés (géométries et matériaux) ----------
@@ -542,11 +586,27 @@ export function createProceduralCharacter(spec: CharacterSpec): Character3D {
   let blinkIn = 1.5 + variation * 3;
   let blink = 0;
 
+  // Foule (« low ») : silhouette fusionnée construite tout de suite, en pose de repos.
+  const impostor: THREE.Mesh | null = full ? null : buildImpostor(root, hips);
+  if (impostor) { impostor.visible = false; root.add(impostor); }
+  let far = false;
+
   return {
     root,
     setHeading(r: number): void { heading = r; },
+    setLod(f: boolean): void {
+      if (f === far || !impostor) return;
+      far = f;
+      hips.visible = !f;
+      impostor.visible = f;
+    },
     update(dt: number, speed: number): void {
       dt = Math.min(dt, 0.1);
+      if (far) {
+        // Au loin : seul le cap compte (la silhouette est figée).
+        root.rotation.y = shownHeading = heading;
+        return;
+      }
       t += dt;
       speedS = smooth(speedS, speed, 9, dt);
       const walk = Math.min(1, speedS / 1.3);
@@ -601,6 +661,7 @@ export function createProceduralCharacter(spec: CharacterSpec): Character3D {
       for (const l of lids) l.rotation.x = open - lid * (open + Math.PI / 2);
     },
     dispose(): void {
+      impostor?.geometry.dispose();
       root.removeFromParent();
     },
   };

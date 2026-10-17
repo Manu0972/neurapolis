@@ -6,7 +6,7 @@
 import { createWorld } from '../src/core/store';
 import { runTicks } from '../src/simulation/engine';
 import { TICKS_PER_DAY, type WorldState } from '../src/core/types';
-import { councilArrivalChoose, councilPendingArrivals } from '../src/simulation/council';
+import { councilArrivalChoose, councilPendingArrivals, councilTick } from '../src/simulation/council';
 import {
   adoptSharedRules, buyStock, createProject, imposeRule, makeEcoChoice, optimizeStand,
   projectDay, projectWeek, recruitMember, repartition, runCourse, runSalesSession,
@@ -30,6 +30,24 @@ export function standPret(w: WorldState): void {
 export function ecouter(w: WorldState, id: string): void {
   const r = councilArrivalChoose(w, id, 'ecouter');
   if (!r.ok) throw new Error(`arrivée ${id} refusée : ${r.message}`);
+  sansCadence(w);
+}
+
+/**
+ * Les tests de mécanique du Conseil enchaînent plusieurs arrivées dans la même journée :
+ * on rouvre le créneau quotidien (la cadence elle-même est testée dans fenetres.test.ts).
+ */
+export function sansCadence(w: WorldState): void {
+  delete w.flags['conseilDerniereArrivee'];
+}
+
+/** Toutes les voix déjà armées se présentent maintenant (sans la cadence d'une par jour). */
+export function toutesLesArrivees(w: WorldState): void {
+  for (let k = 0; k < 8; k++) {
+    sansCadence(w);
+    councilTick(w);
+  }
+  sansCadence(w);
 }
 
 /** Maîtrise complète d'une notion par le cycle réel : découverte → cours → 3 applications. */
@@ -53,8 +71,12 @@ export function tryPathTrigger(id: string, path: (w: WorldState) => void): void 
     } catch {
       continue;
     }
-    runTicks(w, 1);
-    if (councilPendingArrivals(w).includes(id)) return;
+    // Une autre voix armée par le même chemin peut passer d'abord (une arrivée par tick).
+    for (let k = 0; k < 6; k++) {
+      sansCadence(w);
+      runTicks(w, 1);
+      if (councilPendingArrivals(w).includes(id)) return;
+    }
   }
   throw new Error(`aucun seed ne déclenche l’arrivée de ${id} par ce chemin (400 essais)`);
 }

@@ -9,12 +9,22 @@
 import * as THREE from 'three';
 
 export const CHUNK = 128;
+/**
+ * Petit mobilier instancié (bancs, étals, cartons, buissons, couronnes d'arbres…) : au-delà de
+ * cette distance (m, entre la caméra et le bord de son groupe d'instances), il n'est plus dessiné.
+ * À cette distance il fait un ou deux pixels sous le brouillard ; de près, rien ne change.
+ */
+export const DETAIL_LOD = { far: 150 };
+/** Rayon (m) sous lequel une géométrie instanciée compte comme « petit mobilier ». */
+const DETAIL_MAX_RADIUS = 1.6;
 
 export interface CityChunk {
   key: string;
   cx: number;
   cz: number;
   group: THREE.Group;
+  /** Petit mobilier instancié du bloc, masqué au loin (voir DETAIL_LOD). */
+  details: THREE.InstancedMesh[];
 }
 
 const keyOf = (x: number, z: number): string => `${Math.floor(x / CHUNK)},${Math.floor(z / CHUNK)}`;
@@ -26,7 +36,7 @@ function chunkFor(chunks: Map<string, CityChunk>, root: THREE.Group, x: number, 
     const [i, j] = key.split(',').map(Number) as [number, number];
     const group = new THREE.Group();
     group.name = `bloc ${key}`;
-    c = { key, cx: (i + 0.5) * CHUNK, cz: (j + 0.5) * CHUNK, group };
+    c = { key, cx: (i + 0.5) * CHUNK, cz: (j + 0.5) * CHUNK, group, details: [] };
     chunks.set(key, c);
     root.add(group);
   }
@@ -135,7 +145,10 @@ export function chunkify(group: THREE.Group, keep: Set<THREE.Object3D>): { chunk
         });
         im.instanceMatrix.needsUpdate = true;
         im.computeBoundingSphere();
-        chunkFor(chunks, group, (i0 + 0.5) * CHUNK, (j0 + 0.5) * CHUNK).group.add(im);
+        const chunk = chunkFor(chunks, group, (i0 + 0.5) * CHUNK, (j0 + 0.5) * CHUNK);
+        chunk.group.add(im);
+        if (!child.geometry.boundingSphere) child.geometry.computeBoundingSphere();
+        if ((child.geometry.boundingSphere?.radius ?? Infinity) < DETAIL_MAX_RADIUS) chunk.details.push(im);
       }
       group.remove(child);
       continue;
@@ -178,5 +191,13 @@ export function updateChunkVisibility(chunks: readonly CityChunk[], camX: number
     const dx = c.cx - camX;
     const dz = c.cz - camZ;
     c.group.visible = dx * dx + dz * dz <= r2;
+    if (!c.group.visible) continue;
+    // Petit mobilier : seulement à portée de vue utile (bord du groupe d'instances).
+    for (const im of c.details) {
+      const s = im.boundingSphere;
+      if (!s) continue;
+      const d = Math.hypot(s.center.x - camX, s.center.z - camZ) - s.radius;
+      im.visible = d <= DETAIL_LOD.far;
+    }
   }
 }

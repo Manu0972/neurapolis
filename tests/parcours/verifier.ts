@@ -72,12 +72,16 @@ export function verifierEconomie(b: ParcoursBilan): void {
     expect(drive, `part du Drive ${quoi}`).toBeGreaterThanOrEqual(25);
     expect(drive, `part du Drive ${quoi}`).toBeLessThanOrEqual(85);
   }
+  // Depuis la vague 3 (rythme), le joueur scripté dépense comme un ado raisonnable (goûters,
+  // sorties, BD, cadeaux, forfait à 15 ans : ≈ 12 €/semaine, ≈ 2 500 € en quatre ans pour
+  // l'appliqué, ≈ 870 € pour le pressé qui saute des mois). Mesures (graines 20200901, 7, 42) :
+  // appliqué 3 832-3 855 € sans dépenses → 1 322-1 354 € ; pressé 1 180-1 242 € → 308-370 €.
   const fin = annees[annees.length - 1]!.money;
   if (b.profil === 'applique') {
-    expect(fin, 'argent à 16 ans (appliqué)').toBeGreaterThanOrEqual(2200);
-    expect(fin, 'argent à 16 ans (appliqué)').toBeLessThanOrEqual(6000);
+    expect(fin, 'argent à 16 ans (appliqué)').toBeGreaterThanOrEqual(900);
+    expect(fin, 'argent à 16 ans (appliqué)').toBeLessThanOrEqual(5000);
   } else {
-    expect(fin, 'argent à 16 ans (pressé)').toBeGreaterThanOrEqual(700);
-    expect(fin, 'argent à 16 ans (pressé)').toBeLessThanOrEqual(2800);
+    expect(fin, 'argent à 16 ans (pressé)').toBeGreaterThanOrEqual(150);
+    expect(fin, 'argent à 16 ans (pressé)').toBeLessThanOrEqual(2000);
   }
 }

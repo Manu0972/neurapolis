@@ -11,8 +11,9 @@ import { DUEL_BY_ID, type DuelFace } from '../data/ascension/duels';
 import { IDEA_BY_ID, TIERS, type IdeaDef } from '../data/ascension/ideas';
 import {
   BANKRUPTCY_DAYS, MAX_LEVEL, TREND_LABEL, VERDICT_DAYS, cancelLaunch, ensureAscension, ideaDailyEstimate, ideaStatus, ideasOfTier,
-  injectVenture, investCost, investVenture, marketTrend, provenProfit, requestLaunch, rescueAmount, rescueVenture, resolveLaunch,
+  ASCENSION_LOAN_RATE_PCT, ASCENSION_LOAN_TERM_DAYS, injectVenture, investCost, launchFinancing, investVenture, marketTrend, provenProfit, requestLaunch, rescueAmount, rescueVenture, resolveLaunch,
   sellVenture, tierChecks, withdrawVenture,
+  type LaunchFinancing,
 } from '../simulation/ascension';
 import { MANDATES, currentMandate, endMandate, mandateActive, mandateBlockers, signMandate } from '../simulation/proxy';
 import { dayIndexOf } from '../core/clock';
@@ -29,6 +30,8 @@ export interface AscensionCtx {
 }
 
 const money = (v: number): string => `${Math.round(v).toLocaleString('fr-FR')} €`;
+/** Au centime près pour les petites sommes (apport, argent de poche). */
+const cents = (v: number): string => `${v.toLocaleString('fr-FR', { minimumFractionDigits: v < 100 && v % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })} €`;
 
 function btn(label: string, onClick: () => void, cls = 'ph-btn'): HTMLButtonElement {
   const b = el('button', cls, label);
@@ -138,20 +141,43 @@ function ideaCard(ctx: AscensionCtx, idea: IdeaDef, locked: boolean, back: () =>
       }, 'ph-btn primary');
       b.disabled = !st.available;
       card.appendChild(b);
+      // Pas assez pour la mise entière : seule une voie avec emprunt est possible — on le dit avant.
+      const fin = launchFinancing(w, idea.id);
+      if (st.available && fin && w.player.money < st.cost) {
+        const loanWay = (['A', 'B', 'C'] as const).find((k) => fin[k].affordable && fin[k].borrowed > 0);
+        if (loanWay) {
+          const f = fin[loanWay];
+          card.appendChild(el('p', 'ph-note bad asc-loan', `💳 Financé par un emprunt de ${cents(f.borrowed)} (apport ${cents(f.own)} sur tes ${cents(w.player.money)}) : seule la voie qui emprunte est à ta portée. Remboursé par l’entreprise sur ${ASCENSION_LOAN_TERM_DAYS} jours à ${ASCENSION_LOAN_RATE_PCT} % par an.`));
+        }
+      }
       if (!st.available) for (const reason of st.reasons) card.appendChild(el('p', 'ph-note', reason));
     }
   }
   return card;
 }
 
-function faceEl(f: DuelFace, side: 'a' | 'b', choose: () => void): HTMLElement {
+/** Apport et emprunt d'une voie, affichés avant de la suivre ; bouton grisé sans l'apport. */
+function financingNote(box: HTMLElement, fin: LaunchFinancing | undefined, choose: HTMLButtonElement): void {
+  if (!fin) return;
+  box.appendChild(el('p', `ph-note${fin.borrowed > 0 ? ' asc-loan' : ''}`, fin.borrowed > 0
+    ? `💳 Apport ${cents(fin.own)} + emprunt de ${cents(fin.borrowed)} (${ASCENSION_LOAN_RATE_PCT} %/an, ${ASCENSION_LOAN_TERM_DAYS} jours)`
+    : `Apport ${cents(fin.own)}, sans emprunt`));
+  if (!fin.affordable) {
+    choose.disabled = true;
+    box.appendChild(el('p', 'ph-note bad', 'Pas assez d’argent sur toi pour cet apport.'));
+  }
+}
+
+function faceEl(f: DuelFace, side: 'a' | 'b', choose: () => void, fin?: LaunchFinancing): HTMLElement {
   const box = el('div', `duel-face duel-${side}`);
   box.style.setProperty('--face', f.color);
   box.appendChild(el('div', 'duel-emoji', f.emoji));
   box.appendChild(el('div', 'duel-name', f.name));
   box.appendChild(el('div', 'duel-strategy', f.strategy));
   box.appendChild(el('p', 'duel-advice', `« ${f.advice} »`));
-  box.appendChild(btn(`Suivre ${f.name.split(' ').pop()}`, choose, 'ph-btn primary'));
+  const b = btn(`Suivre ${f.name.split(' ').pop()}`, choose, 'ph-btn primary');
+  box.appendChild(b);
+  financingNote(box, fin, b);
   return box;
 }
 
@@ -179,12 +205,15 @@ export function openDuelModal(ctx: AscensionCtx, back: () => void): void {
   mascot.appendChild(duoAvatar(duel.a.thinker, duel.b.thinker, 'alerte', 112));
   body.appendChild(mascot);
   const split = el('div', 'duel-split');
-  split.appendChild(faceEl(duel.a, 'a', () => decide('A')));
-  split.appendChild(faceEl(duel.b, 'b', () => decide('B')));
+  const fin = launchFinancing(w, idea.id) ?? undefined;
+  split.appendChild(faceEl(duel.a, 'a', () => decide('A'), fin?.A));
+  split.appendChild(faceEl(duel.b, 'b', () => decide('B'), fin?.B));
   body.appendChild(split);
   const own = el('div', 'duel-own');
   own.appendChild(el('p', 'ph-note', `Ou à ta façon : ${duel.ownWay}`));
-  own.appendChild(btn('Faire à ma façon', () => decide('C')));
+  const ownBtn = btn('Faire à ma façon', () => decide('C'));
+  own.appendChild(ownBtn);
+  financingNote(own, fin?.C, ownBtn);
   own.appendChild(btn('Réfléchir encore', () => { cancelLaunch(w); back(); }));
   body.appendChild(own);
   body.appendChild(el('p', 'ph-note', `Le verdict tombera dans ${VERDICT_DAYS} jours : on comparera ce qu’aurait donné chaque voie.`));

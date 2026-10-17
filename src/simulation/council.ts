@@ -24,6 +24,28 @@ import { recordTaylorRefusal } from './antagonists';
 export const MAX_ACTIVE_VOICES = 4;
 export const REFUSAL_DELAY_DAYS = 2;   // jours avant qu'un fantôme repoussé puisse revenir
 export const DEATH_DAYS_AT_ZERO = 3;   // loyauté à 0 pendant 3 jours → mort symbolique
+/**
+ * Cadence des arrivées : au plus une voix nouvelle (ou de retour) par jour tant que le Conseil
+ * se forme (les quatre premières rencontres), puis une tous les trois jours. Sans ce rythme,
+ * cinq fantômes se présentaient dès la première journée. Drapeau `conseilDerniereArrivee`
+ * (jour + 1) : pas de changement de schéma.
+ */
+export const ARRIVAL_GAP_DAYS_EARLY = 1;
+export const ARRIVAL_GAP_DAYS_LATER = 3;
+export const ARRIVAL_EARLY_COUNT = 4;
+
+/** Nombre de voix déjà rencontrées (présentées, en attente ou passées par le Conseil). */
+export function councilMetCount(w: WorldState): number {
+  return Object.values(w.council.ghosts).filter((g) => g.status !== 'inconnu' || g.arrivalPending).length;
+}
+
+/** Une nouvelle arrivée peut-elle se présenter aujourd'hui ? */
+export function councilArrivalSlotOpen(w: WorldState, day = dayIndexOf(w.time.tick)): boolean {
+  const last = (w.flags['conseilDerniereArrivee'] ?? 0) - 1;
+  if (last < 0) return true;
+  const gap = councilMetCount(w) < ARRIVAL_EARLY_COUNT ? ARRIVAL_GAP_DAYS_EARLY : ARRIVAL_GAP_DAYS_LATER;
+  return day - last >= gap;
+}
 
 const clamp = (v: number, min = 0, max = 100): number => Math.max(min, Math.min(max, v));
 
@@ -205,15 +227,19 @@ export function councilTick(w: WorldState): Notification[] {
     if (!st) continue;
     reconcileStatus(w, def, st);
     if (st.arrivalPending) continue; // choix du joueur en attente (scène UI)
+    if (st.status !== 'inconnu' && st.status !== 'refuse') continue;
+    if (!councilArrivalSlotOpen(w, day)) continue; // une arrivée par jour au plus (voir plus haut)
     if (st.status === 'inconnu') {
       if (def.apparition.condition(w)) {
         st.arrivalPending = true;
+        w.flags['conseilDerniereArrivee'] = day + 1;
         out.push(notify('fantome', `${def.name} est là. Quelque chose veut te parler.`, def.id));
       }
     } else if (st.status === 'refuse') {
       if (day >= (st.returnDay ?? Number.POSITIVE_INFINITY)
         && def.apparition.condition(w) && progressBeyond(w, st)) {
         st.arrivalPending = true;
+        w.flags['conseilDerniereArrivee'] = day + 1;
         st.returnDay = undefined;
         st.refusalSnapshot = undefined;
         out.push(notify('fantome', `${def.name} est revenu. Tu as avancé, depuis.`, def.id));

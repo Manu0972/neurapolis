@@ -63,6 +63,8 @@ import { loadAssetKit } from './asset-loader';
 import { audio, type AmbientLocation } from './audio';
 import { mountSoundControls } from './music/controls';
 import { CityRenderer, heightForAge } from './city3d/CityRenderer';
+import { CROWD_LOD } from './city3d/simpleCharacter';
+import { DETAIL_LOD } from './city3d/chunks';
 import { moveToTile } from '../simulation/movement';
 import { areaPassable } from '../simulation/areas';
 import { areaAt } from '../data/city/layout';
@@ -93,12 +95,11 @@ import { createAppTutor } from './ghost-tutor';
 import { createGuide } from './guide-ui';
 import { RIVAL_STRATEGY_LABELS, euros } from './labels';
 import { createNewsToaster, openSurpriseModal } from './news-ui';
-import { pendingSurprise } from '../simulation/happenings';
+import { arriveesAProposer, ecoleAProposer, fenetreEncoreEnAttente, fermerSansChoisir, surpriseAProposer, type FenetreAuto } from '../simulation/fenetres';
 import { isSilenced, lessonWarnings, rewindOffer, sacrificeCandidates } from '../simulation/rewind';
 import { recordDay } from '../saves/chronicle';
 import { openRewindModal } from './rewind-ui';
 import { openConvocationModal, openDinnerModal, openFamilyPanel, openSchoolEventModal } from './family-ui';
-import { pendingSchoolEvent } from '../simulation/school_events';
 import { bedroomExtras, openPlanner, openShelf, type PlanCtx } from './plan-ui';
 import { openDuelModal } from './ascension-ui';
 import { buildAppearanceEditor } from './appearance-editor';
@@ -250,6 +251,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   let lastAutoModalTick = -1e9;
   let autoModalWasOpen = false;
   let lastTickMs = 0;
+  /** Fenêtre automatique ouverte (pour savoir si elle a été fermée sans choix). */
+  let autoWindow: FenetreAuto | null = null;
   let taskLabel = '';
   /** Une action vient d'être faite : l'horloge avance de sa durée (si l'option est active). */
   function spendTaskTime(minutes: number, label: string): void {
@@ -540,6 +543,12 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       goto: (place: PlaceId) => { const a = PLACE_ANCHORS[place]; world.player.pos.x = a.x; world.player.pos.y = a.y; },
       /** Mémoire graphique (géométries, textures) et coût du rendu. */
       gpu: () => renderer3D?.gpuInfo,
+      /** Appels de dessin par sous-groupe de la scène (QA performance). */
+      draws: (depth?: number, min?: number) => renderer3D?.drawBreakdown(depth, min),
+      /** Distance de la silhouette simplifiée de la foule (mesures avant/après). */
+      crowdLod: (d: number) => { CROWD_LOD.distance = d; },
+      /** Distance d’affichage du petit mobilier instancié (mesures avant/après). */
+      detailLod: (d: number) => { DETAIL_LOD.far = d; },
       /** Taille de la sauvegarde (octets) et ses plus gros champs. */
       saveSize: () => {
         const parts = Object.entries(world).map(([k, v]) => [k, JSON.stringify(v ?? null).length] as const).sort((a, b) => b[1] - a[1]);
@@ -3079,7 +3088,13 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
     // File des fenêtres : une fenêtre automatique non urgente au plus par heure de jeu.
     if (modalOpen && !autoModalWasOpen) autoModalWasOpen = true;
-    if (!modalOpen && autoModalWasOpen) { autoModalWasOpen = false; lastAutoModalTick = world.time.tick; }
+    if (!modalOpen && autoModalWasOpen) {
+      autoModalWasOpen = false;
+      lastAutoModalTick = world.time.tick;
+      // Fermée par ✕ sans choisir : la fenêtre se repose (ou est abandonnée), voir simulation/fenetres.ts.
+      if (autoWindow && fenetreEncoreEnAttente(world, autoWindow)) fermerSansChoisir(world, autoWindow);
+      autoWindow = null;
+    }
     // Multijoueur : un invité qui rattrape l'horloge de l'hôte n'est pas interrompu en route.
     const catchingUp = !!mp?.followsHost && (mp.hostTick ?? 0) - world.time.tick > 6;
     const quietOk = world.time.tick - lastAutoModalTick >= 6 && !catchingUp;
@@ -3095,22 +3110,28 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         openFusionScene();
       } else {
         // Scène d'arrivée : un fantôme attend le choix du joueur.
-        const pend = councilPendingArrivals(world).filter((id) => !deferredArrivals.has(id));
+        // Cadence : une fenêtre fermée par ✕ se repose (simulation/fenetres.ts).
+        const pend = arriveesAProposer(world).filter((id) => !deferredArrivals.has(id));
+        const surprise = surpriseAProposer(world);
+        const ecole = ecoleAProposer(world);
         if (pend.length > 0 && quietOk) {
           audio.playGhostArrival();
+          autoWindow = { kind: 'arrivee', id: pend[0]! };
           openArrivalScene(pend[0] ?? '');
         } else if (world.streetRecognition?.spontaneousEncounterPending && quietOk) {
           openStreetEncounterModal();
-        } else if (quietOk && pendingSurprise(world) && world.time.tick >= surpriseRetryTick && !world.player.asleep && !travelFastForward() && !isOnBus(world)) {
-          // Dilemme : deux fantômes défendent chacun une option. Fermé sans choisir, il revient une heure plus tard.
+        } else if (quietOk && surprise && world.time.tick >= surpriseRetryTick && !world.player.asleep && !travelFastForward() && !isOnBus(world)) {
+          // Dilemme : deux fantômes défendent chacun une option. Fermé sans choisir, il revient une demi-journée plus tard.
           surpriseRetryTick = world.time.tick + 6;
+          autoWindow = surprise;
           audio.playMarketAlert();
           openSurpriseModal({ world, showModal, closeModal, toast }, (ghost, text, failed) => {
             ghostBar.push({ ghost, text, pop: true, mood: failed ? 'alerte' : 'joie' });
             updateHud(ui, world, promptText());
           });
-        } else if (quietOk && pendingSchoolEvent(world) && !isInClass(world) && !world.player.asleep) {
-          // Sortie de cours : la vie du collège s'invite.
+        } else if (quietOk && ecole && !isInClass(world) && !world.player.asleep) {
+          // Sortie de cours : la vie du collège s'invite (fermée deux fois : refusée).
+          autoWindow = ecole;
           openSchoolEventModal({ world, showModal, closeModal, toast }, (ghost, text) => ghostBar.push({ ghost, text, pop: true, mood: 'calme' }));
         } else if (!catchingUp && pendingDinner(world) && world.family?.pendingDinner !== dinnerShownId && isHome(world) && !world.player.asleep) {
           // Le dîner : Nora et Thierry attendent une réponse.

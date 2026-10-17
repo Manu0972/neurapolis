@@ -13,7 +13,7 @@ import type { WorldState } from '../../core/types';
 import { dateOf, dayIndexOf, minutesOfDay } from '../../core/clock';
 import { CITY } from '../../data/city/layout';
 import { groundHeightAt } from './cityScene';
-import { createCharacter, type Character3D } from './simpleCharacter';
+import { CROWD_LOD, createCharacter, type Character3D } from './simpleCharacter';
 import { visualRng } from './textures';
 import { VALID_HAIR_COLORS, VALID_HAIR_STYLES, VALID_OUTFIT_COLORS, VALID_OUTFIT_STYLES, VALID_SKIN_TONES, type PlayerAppearance } from '../../core/types';
 
@@ -212,6 +212,7 @@ export function createMarketLife(): MarketLife {
         const mine = !!world.economy?.leases[v.unitId];
         v.ch.root.visible = !mine && !night && h < 19.5;
         if (!v.ch.root.visible) { if (v.bubble) { v.bubble.removeFromParent(); v.bubble = null; } continue; }
+        v.ch.setLod?.(Math.hypot(player.x - v.x, player.z - v.z) > CROWD_LOD.distance);
         v.ch.update(dt, 0);
         v.next -= dt;
         if (v.bubble && t > v.until) { v.bubble.removeFromParent(); v.bubble = null; }
@@ -249,6 +250,7 @@ export function createMarketLife(): MarketLife {
           s.ch.setHeading(Math.atan2(-dx, -dz));
         }
         s.ch.root.position.set(s.x, groundHeightAt(s.x, s.z), s.z);
+        s.ch.setLod?.(Math.hypot(player.x - s.x, player.z - s.z) > CROWD_LOD.distance);
         s.ch.update(dt, speed);
       });
 
@@ -283,6 +285,7 @@ export function createMarketLife(): MarketLife {
       musician.root.visible = plays;
       notes.visible = plays;
       if (plays) {
+        musician.setLod?.(Math.hypot(player.x - mx, player.z - mz) > CROWD_LOD.distance);
         musician.update(dt, 0);
         accordion.scale.x = 1 + Math.sin(t * 3.2) * 0.25;
         notes.position.set(mx, groundHeightAt(mx, mz) + 2.3 + Math.sin(t * 1.5) * 0.12, mz);
