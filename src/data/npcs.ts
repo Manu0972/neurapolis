@@ -7,7 +7,7 @@ import type { NpcDef } from '../core/types';
 
 export const NPCS: NpcDef[] = [
   {
-    id: 'noah', name: 'Noah Martin', age: 12, role: 'Ami proche · collège des Roses',
+    id: 'noah', name: 'Noah Martin', age: 12, role: 'Ami proche · collège Jean-Moulin',
     traits: ['Créatif', 'Sociable', 'Impulsif', 'Sensible à la reconnaissance'],
     color: '#4ea1ff',
     routine: [

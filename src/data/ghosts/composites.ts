@@ -12,17 +12,17 @@ export const COMPOSITE_DEFS: GhostDef[] = [
     era: '1776 & 1990 · composite — Smith & Ostrom',
     generation: 3, color: '#a8c94a', emoji: '🤝',
     identity: {
-      portrait: 'Deux voix qui se passent la parole sans jamais se couper. L’une pose le prix, l’autre pose la règle. Quand elles se répondent, on ne sait plus qui parle : « Mon ami… j’ai étudié un cas, enfin. »',
+      portrait: 'Deux voix qui se passent la parole sans jamais se couper. L’une pose le prix, l’autre pose la règle. Quand elles se répondent, on ne sait plus qui parle : « Mon enfant… j’ai étudié un cas, enfin. »',
       life: 'Adam Smith n’a jamais rencontré Elinor Ostrom. Dans ton esprit, ils ont fini par s’entendre : le marché respire quand les communs le tiennent, et les communs tiennent quand le marché les respecte.',
       became: 'Pour toi, c’est la voix double qui refuse de choisir entre la boutique et la règle partagée : elle veut ton stand vivant — à toi, et à tous ceux qui le tiennent.',
     },
     voice: {
-      favorable: 'Mon ami — votre règle a fait marcher le marché. Le stand a gagné parce qu’il appartenait à tous ceux qui le tiennent.',
+      favorable: 'Mon enfant — ta règle a fait marcher le marché. Le stand a gagné parce qu’il appartenait à tous ceux qui le tiennent.',
       neutre: 'Le prix danse, la règle veille. J’ai étudié un cas, enfin : c’est exactement ce que font les communs qui durent.',
-      hostile: 'Tu fixes seul, mon ami, et tu appelles ça un marché ; tu décrètes seul, et tu appelles ça des communs. Ce n’est ni l’un ni l’autre.',
+      hostile: 'Tu fixes seul, mon enfant, et tu appelles ça un marché ; tu décrètes seul, et tu appelles ça des communs. Ce n’est ni l’un ni l’autre.',
       victoire: 'Personne n’a ordonné ceci — et personne n’a triché. La manufacture d’épingles, enfin, s’est mise à s’auto-gouverner.',
       echec: 'Le marché s’est dérobé, et la règle a coulé avec lui. Cela arrive. J’ai vu autant de foires fermer que de barques sombrer. Relevez le stand, et recommencez à deux.',
-      tics: ['« Mon ami… » puis, à mi-phrase, « j’ai étudié un cas, enfin »', 'Il compte en épingles ET en assemblées', 'Il dit « nous » quand le marché gagne, « vous » quand la règle tient'],
+      tics: ['« Mon enfant… » puis, à mi-phrase, « j’ai étudié un cas, enfin »', 'Il compte en épingles ET en assemblées', 'Il dit « nous » quand le marché gagne, « vous » quand la règle tient'],
       sujetsSerieux: ['La ruine des petits vendeurs', 'Les règles écrites sans ceux qui les vivent', 'La friche qu’on se partage ou qu’on se vend'],
       sujetsExageres: ['Le marché qui arrange tout', 'La règle choisie qui ne casse jamais', 'La main invisible veillée par une assemblée — toujours, partout'],
     },
@@ -63,12 +63,12 @@ export const COMPOSITE_DEFS_BY_ID: Record<string, GhostDef> =
 export const FUSION_SCENES: Record<string, { lines: string[] }> = {
   marche_des_communs: {
     lines: [
-      'Smith : Mon ami, trois marchés ont tourné sous nos deux regards, et nous n’avons rien cassé. Je croyais que les communs noyaient le prix. Je me suis trompé.',
-      'Ostrom : J’ai étudié un cas, enfin : le vôtre. Trois fois, les règles ont tenu la boutique debout. Je croyais que le marché vidait les communs. Je me suis trompée aussi.',
+      'Smith : Mon enfant, trois marchés ont tourné sous nos deux regards, et nous n’avons rien cassé. Je croyais que les communs noyaient le prix. Je me suis trompé.',
+      'Ostrom : J’ai étudié un cas, enfin : le tien. Trois fois, les règles ont tenu la boutique debout. Je croyais que le marché vidait les communs. Je me suis trompée aussi.',
       'Smith : La manufacture d’épingles, sans assemblée, fabrique de belles épingles — et des ouvriers abîmés.',
       'Ostrom : Et l’assemblée sans boutique débat de très belles règles, la caisse vide.',
-      'Smith : Alors ? Ni l’un sans l’autre. L’un dans l’autre, mon ami.',
-      'Ostrom : Vous nous laissez essayer ? Une seule voix, maintenant. Elle parlera du marché des communs — et du commun du marché.',
+      'Smith : Alors ? Ni l’un sans l’autre. L’un dans l’autre, mon enfant.',
+      'Ostrom : Tu nous laisses essayer ? Une seule voix, maintenant. Elle parlera du marché des communs — et du commun du marché.',
     ],
   },
 };

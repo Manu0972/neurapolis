@@ -16,6 +16,7 @@ import { dayIndexOf } from '../core/clock';
 import { COUNTER_STRATEGIES, INITIAL_RIVALS } from '../data/rivals';
 import { bump, notify, pushEvent } from './events';
 import { addXp } from './skills';
+import { payFromStandThenPocket, standSpendable } from './stand_cash';
 
 const clamp = (v: number, min = 0, max = 100): number => Math.max(min, Math.min(max, v));
 const round2 = (v: number): number => Math.round(v * 100) / 100;
@@ -105,6 +106,14 @@ export function calculateMarketShares(w: WorldState, place: PlaceId): {
   return { playerShare, rivalShare, rival };
 }
 
+/** D'où vient l'argent d'une contre-offensive, en clair. */
+function payLabel(fromCaisse: number, fromPoche: number): string {
+  const parts: string[] = [];
+  if (fromCaisse > 0) parts.push(`${fromCaisse.toFixed(2)} € de la caisse du stand`);
+  if (fromPoche > 0) parts.push(`${fromPoche.toFixed(2)} € de ta poche`);
+  return parts.length ? `payée : ${parts.join(' + ')}` : 'gratuite';
+}
+
 /** Exécution d'une contre-stratégie par le joueur. */
 export function executeCounterStrategy(w: WorldState, strategyId: string, startAfterTicks = 0): { ok: boolean; message: string; timeCostTicks?: number } {
   const def = COUNTER_STRATEGIES.find((c) => c.id === strategyId);
@@ -117,8 +126,11 @@ export function executeCounterStrategy(w: WorldState, strategyId: string, startA
     return { ok: false, message: 'Cette contre-stratégie est déjà active.' };
   }
 
-  if (w.player.money < def.costMoney) {
-    return { ok: false, message: `Pas assez d'argent (${w.player.money.toFixed(2)} € / ${def.costMoney.toFixed(2)} € requis).` };
+  // Une contre-offensive défend le stand : la caisse du stand paie d'abord, la poche complète
+  // (même règle que l'achat de stock). Avant, seule la poche payait, sans que rien ne le dise.
+  if (standSpendable(w) < def.costMoney) {
+    const caisse = w.project?.active ? ` · caisse du stand ${Math.max(0, w.project.balance).toFixed(2)} €` : '';
+    return { ok: false, message: `Pas assez d'argent : ${def.costMoney.toFixed(2)} € requis (toi ${w.player.money.toFixed(2)} €${caisse}).` };
   }
 
   if (w.player.needs.fatigue > 85) {
@@ -126,7 +138,7 @@ export function executeCounterStrategy(w: WorldState, strategyId: string, startA
   }
 
   // Application des coûts
-  w.player.money = round2(w.player.money - def.costMoney);
+  const paid = payFromStandThenPocket(w, `Contre-offensive : ${def.label}`, def.costMoney);
   w.player.needs.fatigue = clamp(w.player.needs.fatigue + 15);
   const today = dayIndexOf(w.time.tick);
   rival.activeCounterActions = rival.activeCounterActions.filter((action) => action.strategyId !== def.id || today < action.expiresDay);
@@ -153,7 +165,7 @@ export function executeCounterStrategy(w: WorldState, strategyId: string, startA
 
   return {
     ok: true,
-    message: `${def.label} activée. Projection avant vente : ${playerShare}%.`,
+    message: `${def.label} activée (${payLabel(paid.fromCaisse, paid.fromPoche)}). Projection avant vente : ${playerShare}%.`,
     timeCostTicks: Math.ceil(def.costTimeMinutes / 10),
   };
 }

@@ -20,7 +20,7 @@ export const APP_TUTORIALS: Readonly<Record<string, AppTutorial>> = {
   ascension: {
     app: 'ascension', ghost: 'smith', icon: '🚀', label: 'Ascension',
     steps: [
-      'Mon ami, chaque carte est une idée de business : regarde la mise, puis ce qu’elle peut rapporter par jour.',
+      'Mon enfant, chaque carte est une idée de business : regarde la mise, puis ce qu’elle peut rapporter par jour.',
       '« Lancer », et deux voix se disputent la méthode. Suis l’une, l’autre, ou fais à ta façon.',
       'Chaque nuit, la caisse bouge. Reviens « Retirer la caisse » : ces bénéfices ouvrent le palier suivant.',
     ],

@@ -2257,7 +2257,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       sBox.appendChild(el('span', 'rel-name', strat.label));
       sBox.appendChild(el('p', 'panel-desc', strat.description));
       sBox.appendChild(el('p', 'panel-note',
-        `Coût : ${strat.costMoney} € · Temps : ${strat.costTimeMinutes} min · bonus d’attractivité : +${strat.playerShareBonus} · Réputation immédiate : +${strat.reputationBonus}`));
+        `Coût : ${strat.costMoney} € (caisse du stand d’abord, puis ta poche) · Temps : ${strat.costTimeMinutes} min · bonus d’attractivité : +${strat.playerShareBonus} · Réputation immédiate : +${strat.reputationBonus}`));
 
       const btn = el('button', 'btn btn-action', isActive ? `✓ Active · ${daysRemaining} j` : `Lancer (${strat.costMoney} €)`);
       btn.disabled = !!isActive;

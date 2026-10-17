@@ -370,7 +370,7 @@ export const GHOST_JOUST_DEFS: GhostJoustDef[] = [
       {
         ghost: 'machiavel',
         quote:
-          'Comme vous êtes extrêmes… L’un veut transformer une boîte à biscuits en forteresse, l’autre veut faire vœu de pauvreté franciscaine. Camille, écoute l’art de gouverner : achète le cadenas, pose-le ostensiblement sur la boîte, mais ne le verrouille pas ! Que tout le monde voie le cadenas : ils penseront que tu es vigilant et qu’on ne te trompe pas impunément. Mais ne l’enclenche pas : ainsi, Lina est rassurée par l’apparence de la rigueur, Noah n’est pas vexé, et toi, tu gardes l’œil ouvert. Paraître fort évite d’avoir à punir.',
+          'Comme vous êtes extrêmes… L’un veut transformer une boîte à biscuits en forteresse, l’autre veut faire vœu de pauvreté franciscaine. Camille, écoute l’art de gouverner : achète le cadenas, pose-le ostensiblement sur la boîte, mais ne le verrouille pas ! Que tout le monde voie le cadenas : ils penseront que tu fais attention et qu’on ne te trompe pas impunément. Mais ne l’enclenche pas : ainsi, Lina est rassurée par l’apparence de la rigueur, Noah n’est pas vexé, et toi, tu gardes l’œil ouvert. Paraître fort évite d’avoir à punir.',
       },
       {
         ghost: 'graeber',

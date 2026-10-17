@@ -5,7 +5,7 @@
  */
 import { STARTING_PLAYER_AGE, type DoctrineKey, type GhostId, type Notification, type WorldState } from '../core/types';
 import { dateOf, dayIndexOf } from '../core/clock';
-import { LASTING_ECONOMIC_MODELS, URBAN_CHOICES, type LastingEconomicModelId, type UrbanChoiceId } from '../data/campaign';
+import { INITIAL_CAMPAIGN_STAGES, LASTING_ECONOMIC_MODELS, URBAN_CHOICES, type LastingEconomicModelId, type UrbanChoiceId } from '../data/campaign';
 import { DOCTRINE_LABELS } from '../data/texts';
 import { NPC_BY_ID } from '../data/npcs';
 import { GHOST_DEFS_BY_ID } from '../data/ghosts/registry';
@@ -21,6 +21,20 @@ function ageForDay(day: number): number {
   const current = dateOf(day);
   const beforeBirthday = current.m < start.m || (current.m === start.m && current.d < start.d);
   return STARTING_PLAYER_AGE + Math.max(0, current.y - start.y - (beforeBirthday ? 1 : 0));
+}
+
+/**
+ * Les titres et objectifs des chapitres sont des textes de données copiés dans la sauvegarde :
+ * une correction de texte (tutoiement, titre sans âge) doit atteindre aussi les anciennes
+ * parties. Pas de changement de schéma : seuls `title` et `objective` sont rafraîchis.
+ */
+export function syncStageTexts(w: WorldState): void {
+  for (const st of w.campaign.stages) {
+    const ref = INITIAL_CAMPAIGN_STAGES.find((r) => r.id === st.id);
+    if (!ref) continue;
+    if (st.title !== ref.title) st.title = ref.title;
+    if (st.objective !== ref.objective) st.objective = ref.objective;
+  }
 }
 
 /** Vérifie et fait progresser les chapitres de la campagne. */
@@ -41,6 +55,7 @@ export function campaignTick(w: WorldState): Notification[] {
     w.lifeJournal.push({ day, date: date.iso, title, text: `Une année de plus à grandir dans le quartier. J’ai ${age} ans.` });
     out.push(notify('journal', title));
   }
+  syncStageTexts(w);
   const currentChapter = w.campaign.currentChapter;
 
   // Traitement des conséquences différées (choix passés avec retombées ultérieures)
@@ -160,7 +175,7 @@ export function campaignTick(w: WorldState): Notification[] {
       pushEvent(w, {
         type: 'vie',
         title: 'Chapitre 3 accompli : Le quartier fait front',
-        text: 'Cinq courses ont aidé l’épicerie à garder ses habitués. Face au Drive, vous avez aussi investi dans une nouvelle contre-offensive : l’alliance du quartier commence à peser.',
+        text: 'Cinq courses ont aidé l’épicerie à garder ses habitués. Face au Drive, tu as aussi investi dans une nouvelle contre-offensive : l’alliance du quartier commence à peser.',
         causes: [
           { facteur: 'âge du joueur', seuil: `${w.player.age} ans`, poids: 1 },
           { facteur: 'courses livrées pour l’épicerie depuis la Friche', seuil: String(coursesSinceOpening), poids: 2 },
@@ -422,7 +437,7 @@ export function calculateEpilogue(w: WorldState): EpilogueResult {
 
   const pName = w.player.name || 'Le protagoniste';
   const epilogueText = [
-    `Quatre ans ont passé depuis ce matin de rentrée où ${pName}, douze ans, ouvrait son premier stand de goûters face aux grilles du collège des Roses. De la négociation des premiers caramels jusqu’aux réunions tumultueuses de la Friche Taret, chaque étape a façonné l’âme de Val-Ferrand.`,
+    `Quatre ans ont passé depuis ce matin de rentrée où ${pName}, douze ans, ouvrait son premier stand de goûters face aux grilles du collège Jean-Moulin. De la négociation des premiers caramels jusqu’aux réunions tumultueuses de la Friche Taret, chaque étape a façonné l’âme de Val-Ferrand.`,
     urbanChoice?.epilogueSummary ?? 'Sur la place, les habitants ont continué à débattre de la meilleure façon de partager leur ville.',
     `En fondant « ${modelDef.title} », ${pName} et le quartier ont prouvé que l’économie n’était pas une fatalité subie, mais un contrat vivant que l’on réinvente chaque jour. Dans les pensées de ${pName}, la voix de ${dominantGhost.name} résonne avec sagesse : « ${quote} ».`,
     `Aujourd’hui, à seize ans, ${pName} regarde la place de Val-Ferrand s’animer. L’Héritage est vivant, transmis et partagé. NEURAPOLIS est devenue une cité où l’on grandit debout.`,
@@ -587,6 +602,67 @@ function waitingForBirthday(w: WorldState, targetAge: number): string | null {
   return `✓ Objectifs remplis · le chapitre se conclura à tes ${targetAge} ans (1er septembre ${year}) — 📅 fais passer le temps`;
 }
 
+/**
+ * Objectifs remplis et âge atteint : la campagne se vérifie au changement de jour (campaignTick
+ * tourne à la clôture du jour). Sans cet indice, le joueur ne savait pas quoi attendre.
+ */
+export const CHAPTER_CLOSES_TONIGHT = '✓ Objectifs remplis · le chapitre se conclut à la fin de la journée — 🛏️ va dormir ou 📅 fais passer le temps';
+
+/** Retire l'âge en fin de titre (« … (13 ans) ») : l'âge du chapitre est porté par l'étiquette. */
+export function stageTitle(title: string): string {
+  return title.replace(/\s*\(\d+ ans\)\s*$/, '');
+}
+
+/**
+ * La prochaine étape de la campagne, en une phrase. Source unique pour la carte de chapitre
+ * (HUD) et pour le guide « Maintenant » (simulation/guide.ts) :
+ *  - « → … » : une action concrète à faire ;
+ *  - « ✓ … » : objectifs remplis, il reste à attendre (fin de journée ou anniversaire) ;
+ *  - null : campagne achevée.
+ */
+export function campaignNextHint(w: WorldState): string | null {
+  const ch = w.campaign.currentChapter;
+  const stage = w.campaign.stages.find((s) => s.chapter === ch);
+  if (!stage || stage.completed) return null;
+  const wait = waitingForBirthday(w, stage.targetAge);
+  if (wait) return wait;
+  if (chapterObjectivesMet(w)) return CHAPTER_CLOSES_TONIGHT;
+  const age = w.player.age;
+
+  if (ch === 1) {
+    const v = chapter1Sales(w);
+    const m = chapter1Team(w);
+    const c = w.flags['contreStrategiesLancees'] ?? 0;
+    return v < 3 ? '→ ☰ Projet : du stock, puis « Tenir le stand » sur la place'
+      : m < 1 ? '→ discute avec Noah ou Lina, puis recrute dans ☰ Projet'
+        : c < 1 ? '→ ☰ Concurrence : lance une contre-offensive (payée par la caisse du stand, puis ta poche)' : null;
+  }
+  if (ch === 2) {
+    const samir = (w.flags['chapitre2ConversationCoopSamir'] ?? 0) > 0;
+    const rules = w.project?.rules.collectif ?? false;
+    const colSale = (w.flags['chapitre2VentesCollectives'] ?? 0) > 0;
+    return !samir ? '→ parle « coop » à Samir (Friche le matin, place l’après-midi)'
+      : !rules ? '→ ☰ Projet : Noah et Lina dans l’équipe, puis « Règles partagées »'
+        : !colSale ? '→ tiens le stand avec les règles collectives' : null;
+  }
+  if (ch === 3) {
+    const strat = (w.flags['contreStrategiesLancees'] ?? 0) - (w.flags['chapitre3ContreStrategiesDepart'] ?? 0);
+    return chapter3Help(w) < 5 ? '→ à l’épicerie : ☰ Projet « Faire une course »'
+      : strat < 1 ? '→ ☰ Concurrence : une nouvelle contre-offensive (caisse du stand, puis ta poche)' : null;
+  }
+  if (ch === 4) {
+    const conseil = (w.flags['chapitre4ConseilMobilise'] ?? 0) > 0;
+    const debat = (w.flags['chapitre4DebatCitoyen'] ?? 0) > 0;
+    return !conseil ? '→ ☰ Concurrence : mobilise le Conseil (2 voix actives)'
+      : !debat ? (age < 15 ? '⏳ le débat de la place aura lieu à tes 15 ans' : '→ ☰ Concurrence ou place du marché : choisis l’aménagement')
+        : !chapter4QuarterBacked(w) ? `→ montre ton soutien : courses pour l’épicerie ${chapter4Support(w)}/${CHAPTER4_SUPPORT}` : null;
+  }
+  if (ch === 5) {
+    return (w.flags['chapitre5ModeleFonde'] ?? 0) > 0 ? null : '→ ☰ Concurrence : choisis le modèle économique';
+  }
+  return null;
+}
+
 export function getCampaignProgressSummary(w: WorldState): CampaignSummary {
   const ch = w.campaign.currentChapter;
   const stage = w.campaign.stages.find((s) => s.chapter === ch);
@@ -594,21 +670,22 @@ export function getCampaignProgressSummary(w: WorldState): CampaignSummary {
 
   // Chaque ligne du HUD dit où en est le joueur ET quoi faire ensuite (parcours scripté :
   // sans ces indices, les attentes d'âge et le soutien du chapitre 4 n'étaient pas lisibles).
-  const next = (hint: string | null): string => (hint ? ` · ${hint}` : '');
-  const wait = stage ? waitingForBirthday(w, stage.targetAge) : null;
+  const hint = campaignNextHint(w);
+  const next = hint ? ` · ${hint}` : '';
+  // L'étiquette porte l'âge DU CHAPITRE, comme le journal ; l'âge actuel du joueur est dans la
+  // ligne « Âge : 12/13 ans ». Avant : « Chapitre 2 (12 ans) » à côté de « …Friche Taret (13 ans) ».
+  const label = `Chapitre ${ch}${stage ? ` (${stage.targetAge} ans)` : ''}`;
+  const title = (fallback: string): string => stageTitle(stage?.title ?? fallback);
 
   if (ch === 1) {
     const v = Math.min(3, chapter1Sales(w));
     const m = chapter1Team(w);
     const c = Math.min(1, w.flags['contreStrategiesLancees'] ?? 0);
-    const hint = v < 3 ? '→ ☰ Projet : du stock, puis « Tenir le stand » sur la place'
-      : m < 1 ? '→ discute avec Noah ou Lina, puis recrute dans ☰ Projet'
-        : c < 1 ? '→ ☰ Concurrence : lance une contre-offensive' : null;
     return {
       chapter: 1,
-      chapterLabel: `Chapitre 1 (${age} ans)`,
-      title: stage?.title ?? 'Les Goûters de Val-Ferrand',
-      prompt: `Ventes : ${v}/3 · Équipe : ${m}/1 · Contre-offensive : ${c}/1${next(hint)}`,
+      chapterLabel: label,
+      title: title('Les Goûters de Val-Ferrand'),
+      prompt: `Ventes : ${v}/3 · Équipe : ${m}/1 · Contre-offensive : ${c}/1${next}`,
       completed: false,
     };
   }
@@ -617,14 +694,11 @@ export function getCampaignProgressSummary(w: WorldState): CampaignSummary {
     const samir = (w.flags['chapitre2ConversationCoopSamir'] ?? 0) > 0;
     const rules = w.project?.rules.collectif ?? false;
     const colSale = (w.flags['chapitre2VentesCollectives'] ?? 0) > 0;
-    const hint = wait ?? (!samir ? '→ parle « coop » à Samir (Friche le matin, place l’après-midi)'
-      : !rules ? '→ ☰ Projet : Noah et Lina dans l’équipe, puis « Règles partagées »'
-        : !colSale ? '→ tiens le stand avec les règles collectives' : null);
     return {
       chapter: 2,
-      chapterLabel: `Chapitre 2 (${age} ans)`,
-      title: stage?.title ?? 'L’Appel de la Friche Taret',
-      prompt: `Âge : ${age}/13 ans · Samir : ${samir ? '✓' : 'non'} · Règles coop : ${rules ? '✓' : 'non'} · Vente collective : ${colSale ? '✓' : 'non'}${next(hint)}`,
+      chapterLabel: label,
+      title: title('L’Appel de la Friche Taret'),
+      prompt: `Âge : ${age}/13 ans · Samir : ${samir ? '✓' : 'non'} · Règles coop : ${rules ? '✓' : 'non'} · Vente collective : ${colSale ? '✓' : 'non'}${next}`,
       completed: false,
     };
   }
@@ -632,13 +706,11 @@ export function getCampaignProgressSummary(w: WorldState): CampaignSummary {
   if (ch === 3) {
     const courses = chapter3Help(w);
     const strat = (w.flags['contreStrategiesLancees'] ?? 0) - (w.flags['chapitre3ContreStrategiesDepart'] ?? 0);
-    const hint = wait ?? (courses < 5 ? '→ à l’épicerie : ☰ Projet « Faire une course »'
-      : strat < 1 ? '→ ☰ Concurrence : une nouvelle contre-offensive' : null);
     return {
       chapter: 3,
-      chapterLabel: `Chapitre 3 (${age} ans)`,
-      title: stage?.title ?? 'Le Réseau Solidaire',
-      prompt: `Âge : ${age}/14 ans · Courses épicerie : ${Math.max(0, courses)}/5 · Nouvelle riposte : ${Math.max(0, strat)}/1${next(hint)}`,
+      chapterLabel: label,
+      title: title('Le Réseau Solidaire'),
+      prompt: `Âge : ${age}/14 ans · Courses épicerie : ${Math.max(0, courses)}/5 · Nouvelle riposte : ${Math.max(0, strat)}/1${next}`,
       completed: false,
     };
   }
@@ -648,14 +720,11 @@ export function getCampaignProgressSummary(w: WorldState): CampaignSummary {
     const debat = (w.flags['chapitre4DebatCitoyen'] ?? 0) > 0;
     const conf = Math.round(w.district.confianceQuartier);
     const backed = chapter4QuarterBacked(w);
-    const hint = wait ?? (!conseil ? '→ ☰ Concurrence : mobilise le Conseil (2 voix actives)'
-      : !debat ? (age < 15 ? '→ le débat de la place aura lieu à tes 15 ans' : '→ ☰ Concurrence ou place du marché : choisis l’aménagement')
-        : !backed ? `→ montre ton soutien : courses pour l’épicerie ${chapter4Support(w)}/${CHAPTER4_SUPPORT}` : null);
     return {
       chapter: 4,
-      chapterLabel: `Chapitre 4 (${age} ans)`,
-      title: stage?.title ?? 'La Voix du Quartier',
-      prompt: `Âge : ${age}/15 ans · Conseil : ${conseil ? '✓' : 'non'} · Débat place : ${debat ? '✓' : 'non'} · Confiance : ${conf}/${CHAPTER4_TRUST}${backed && conf < CHAPTER4_TRUST ? ' (soutien ✓)' : ''}${next(hint)}`,
+      chapterLabel: label,
+      title: title('La Voix du Quartier'),
+      prompt: `Âge : ${age}/15 ans · Conseil : ${conseil ? '✓' : 'non'} · Débat place : ${debat ? '✓' : 'non'} · Confiance : ${conf}/${CHAPTER4_TRUST}${backed && conf < CHAPTER4_TRUST ? ' (soutien ✓)' : ''}${next}`,
       completed: false,
     };
   }
@@ -663,14 +732,13 @@ export function getCampaignProgressSummary(w: WorldState): CampaignSummary {
   if (ch === 5) {
     const fonde = (w.flags['chapitre5ModeleFonde'] ?? 0) > 0;
     const allDone = w.campaign.completedChapters.includes(5);
-    const hint = wait ?? (!fonde ? '→ ☰ Concurrence : choisis le modèle économique' : null);
     return {
       chapter: 5,
-      chapterLabel: `Chapitre 5 (${age} ans)`,
-      title: stage?.title ?? 'L’Héritage de Val-Ferrand',
+      chapterLabel: label,
+      title: title('L’Héritage de Val-Ferrand'),
       prompt: allDone
         ? '✦ NEURAPOLIS accompli · Épilogue gravé dans l’histoire de la cité'
-        : `Âge : ${age}/16 ans · Modèle économique : ${fonde ? 'Fondé ✓' : 'À choisir'}${next(hint)}`,
+        : `Âge : ${age}/16 ans · Modèle économique : ${fonde ? 'Fondé ✓' : 'À choisir'}${next}`,
       completed: allDone,
     };
   }

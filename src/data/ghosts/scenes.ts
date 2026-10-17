@@ -29,11 +29,11 @@ export const ARRIVAL_CHOICE = { listen: 'L’écouter', refuse: 'Le repousser' }
 export const ARRIVAL_SCENES: Record<GhostId, ArrivalSceneDef> = {
   smith: {
     lines: [
-      'Mon ami. On m’a dit qu’il y avait eu un échange, ici, ce matin. Un goûter contre une pièce, librement convenu.',
+      'Mon enfant. On m’a dit qu’il y avait eu un échange, ici, ce matin. Un goûter contre une pièce, librement convenu.',
       'Sais-tu ce que tu as vu ? Deux personnes qui voulaient des choses différentes, et qui se sont arrangées sans qu’aucun bureau ne s’en mêle.',
       'Le boulanger, le boucher, le marchand de goûters : ce n’est pas leur bonté qui te nourrit. C’est leur intérêt, bien entendu.',
       'La manufacture d’épingles t’expliquerait le reste. Mais elle attendra. D’abord : veux-tu que je t’apprenne à écouter le marché respirer ?',
-      'Je ne promets pas la justice, mon ami. Je promets de ne jamais te mentir sur les prix.',
+      'Je ne promets pas la justice, mon enfant. Je promets de ne jamais te mentir sur les prix.',
     ],
   },
   marx: {
@@ -214,7 +214,7 @@ export const FAREWELLS: Record<GhostId, FarewellDef> = {
   smith: {
     lines: [
       'Je m’en vais comme je suis venu : en voyant le marché respirer une dernière fois.',
-      'Ne pleure pas sur ma voix, mon ami — écoute les prix. Ils te diront ce que je n’ai pas su dire.',
+      'Ne pleure pas sur ma voix, mon enfant — écoute les prix. Ils te diront ce que je n’ai pas su dire.',
     ],
     citation: 'Ce n’est pas de la bienveillance du boucher, du brasseur ou du boulanger que nous attendons notre dîner, mais de leur intérêt.',
     notion: 'prix_rarete',
@@ -399,12 +399,12 @@ export const ADVICE_POOL: Record<GhostId, AdviceDef[]> = {
     },
     {
       id: 'smith_c2',
-      text: 'Baisse ton prix et la concurrence fera le reste : le marché punit tout seul ceux qui vendent trop cher, mon ami.',
+      text: 'Baisse ton prix et la concurrence fera le reste : le marché punit tout seul ceux qui vendent trop cher, mon enfant.',
       veracite: 'exageree',
     },
     {
       id: 'smith_c3',
-      text: 'Le marché, mon ami, est toujours bienveillant : ce qui est bon pour ton stand est bon pour tout le quartier, sans exception.',
+      text: 'Le marché, mon enfant, est toujours bienveillant : ce qui est bon pour ton stand est bon pour tout le quartier, sans exception.',
       veracite: 'mensonge',
     },
   ],
@@ -684,7 +684,7 @@ export const ADVICE_POOL: Record<GhostId, AdviceDef[]> = {
   marche_des_communs: [
     {
       id: 'mdc_c1',
-      text: 'Fais écrire la règle par ceux qui la vivront, mon ami — j’ai étudié un cas : une règle votée se défend toute seule.',
+      text: 'Fais écrire la règle par ceux qui la vivront, mon enfant — j’ai étudié un cas : une règle votée se défend toute seule.',
       veracite: 'vraie',
     },
     {

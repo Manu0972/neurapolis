@@ -117,8 +117,8 @@ const BASE_DUELS: readonly DuelDef[] = [
     a: {
       thinker: 'smith', name: 'Adam Smith', emoji: '📊', color: '#ffc94a',
       strategy: 'Prix et salaires du marché',
-      advice: 'Mon ami, paie ce que paie le marché et vends au prix du marché. Chacun y trouvera son compte, sans que tu aies à le décider.',
-      right: 'Nul maître n’a ordonné ceci, et pourtant tout a fonctionné. La main invisible, mon ami.',
+      advice: 'Mon enfant, paie ce que paie le marché et vends au prix du marché. Chacun y trouvera son compte, sans que tu aies à le décider.',
+      right: 'Nul maître n’a ordonné ceci, et pourtant tout a fonctionné. La main invisible, mon enfant.',
       wrong: 'Ton équipe est partie au premier concurrent venu… Je n’ai jamais promis la loyauté, seulement l’échange.',
       concept: 'main_invisible',
     },

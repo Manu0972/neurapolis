@@ -456,7 +456,9 @@ describe('campagne V1 — guidage, soutien du quartier et cahiers de Lucien', ()
     expect(s).toContain('Objectifs remplis');
     expect(s).toContain('13 ans (1er septembre 2021)');
     w.player.age = 13;
-    expect(getCampaignProgressSummary(w).prompt).not.toContain('Objectifs remplis');
+    // Âge atteint : plus d'attente d'anniversaire, le chapitre se conclut au changement de jour.
+    expect(getCampaignProgressSummary(w).prompt).not.toContain('1er septembre');
+    expect(getCampaignProgressSummary(w).prompt).toContain('fin de la journée');
   });
 
   it('la confiance du chapitre 4 s’affiche arrondie', () => {

@@ -157,7 +157,7 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
   },
   college: {
     placeId: 'college',
-    title: 'Collège des Roses',
+    title: 'Collège Jean-Moulin',
     rooms: [
       {
         id: 'classe',

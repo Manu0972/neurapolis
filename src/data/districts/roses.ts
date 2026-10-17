@@ -8,12 +8,12 @@ export const ROSES_DISTRICT: ExtendedDistrictDef = {
   id: 'roses',
   name: 'La Cité des Roses',
   description:
-    'Cœur historique battant de Val-Ferrand, regroupant la place marchande pavée, l’épicerie traditionnelle de Mme Bertin, le Collège des Roses et le parc public. Point de départ de la résistance citoyenne face à l’expansion du Drive HyperVal.',
+    'Cœur historique battant de Val-Ferrand, regroupant la place marchande pavée, l’épicerie traditionnelle de Mme Bertin, le collège Jean-Moulin et le parc public. Point de départ de la résistance citoyenne face à l’expansion du Drive HyperVal.',
   ambientKelvin: 1800,
   pois: [
     'Place du Marché',
     'Épicerie Bertin',
-    'Collège des Roses',
+    'Collège Jean-Moulin',
     'Parc des Roses',
   ],
   poiDetails: [
@@ -35,7 +35,7 @@ export const ROSES_DISTRICT: ExtendedDistrictDef = {
     },
     {
       id: 'college_roses',
-      name: 'Collège des Roses',
+      name: 'Collège Jean-Moulin',
       description: 'Établissement scolaire public où Camille, Noah et Lina suivent leurs cours et animent les récréations sous l’œil attentif de Mme Moreau.',
       atmosphere: 'Cour de récréation goudronnée bordée de marronniers, sonnerie stridente de la cloche, odeur de craie et rires d’élèves.',
       systemicRole: 'Apprentissage des compétences, déblocage des notions économiques et lieu de rendez-vous de la bande.',
