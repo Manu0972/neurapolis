@@ -9,13 +9,14 @@
  * Le hasard vient de `visualRng`, jamais du PRNG du monde.
  */
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CITY, CITY_W, ROAD_W } from '../../data/city/layout';
 import { surfaceFast } from '../../data/map';
 import { BUS_LINES, BUS_STOP_BY_ID, type BusLine } from '../../data/city/transit';
 import {
   VALID_HAIR_COLORS, VALID_HAIR_STYLES, VALID_OUTFIT_COLORS, VALID_OUTFIT_STYLES, VALID_SKIN_TONES, type PlayerAppearance,
 } from '../../core/types';
-import { createCharacter, type Character3D } from './simpleCharacter';
+import { CROWD_LOD, createCharacter, type Character3D } from './simpleCharacter';
 import { visualRng } from './textures';
 
 const VX = [...new Set(CITY.roads.filter((r) => r.axis === 'v').map((r) => r.x))].sort((a, b) => a - b);
@@ -136,7 +137,14 @@ interface Car {
 
 const CAR_COLORS = ['#b8352c', '#2f5d8a', '#e8e2d4', '#2b2b2e', '#6a7a3a', '#c9a227', '#8c8f94', '#4a2f5e', '#d9733a'];
 
-function carMesh(color: string, shared: { body: THREE.BufferGeometry; cabin: THREE.BufferGeometry; wheel: THREE.BufferGeometry; glass: THREE.Material; tire: THREE.Material; mats: Map<string, THREE.MeshStandardMaterial> }, van: boolean): { g: THREE.Group; lights: THREE.MeshStandardMaterial } {
+/** Géométries d'une pièce, fusionnées (quatre roues, deux phares) : un appel de dessin au lieu de quatre. */
+function mergedAt(geo: THREE.BufferGeometry, at: readonly (readonly [number, number, number])[]): THREE.BufferGeometry {
+  const merged = mergeGeometries(at.map(([x, y, z]) => geo.clone().translate(x, y, z)), false)!;
+  geo.dispose();
+  return merged;
+}
+
+function carMesh(color: string, shared: { body: THREE.BufferGeometry; cabin: THREE.BufferGeometry; wheel: THREE.BufferGeometry; lamps: THREE.BufferGeometry; glass: THREE.Material; tire: THREE.Material; mats: Map<string, THREE.MeshStandardMaterial> }, van: boolean): { g: THREE.Group; lights: THREE.MeshStandardMaterial } {
   const g = new THREE.Group();
   let paint = shared.mats.get(color);
   if (!paint) {
@@ -150,18 +158,13 @@ function carMesh(color: string, shared: { body: THREE.BufferGeometry; cabin: THR
   cabin.position.set(0, van ? 1.35 : 1.15, van ? -0.3 : 0.15);
   if (van) cabin.scale.set(1.02, 1.5, 1.6);
   const lights = new THREE.MeshStandardMaterial({ color: '#fff6dd', emissive: new THREE.Color('#ffe9b0'), emissiveIntensity: 0 });
-  for (const side of [-0.6, 0.6]) {
-    const l = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.14, 0.05), lights);
-    l.position.set(side, 0.65, -2.13);
-    g.add(l);
-  }
+  // Phares et roues : une géométrie fusionnée chacun (même rendu, moins d'appels de dessin).
+  const headlights = new THREE.Mesh(shared.lamps, lights);
   g.add(body, cabin);
-  for (const [x, z] of [[-0.8, -1.35], [0.8, -1.35], [-0.8, 1.35], [0.8, 1.35]] as const) {
-    const w = new THREE.Mesh(shared.wheel, shared.tire);
-    w.position.set(x, 0.33, z);
-    g.add(w);
-  }
+  const wheels = new THREE.Mesh(shared.wheel, shared.tire);
+  g.add(wheels);
   g.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true; });
+  g.add(headlights); // trop petits pour porter une ombre visible
   return { g, lights };
 }
 
@@ -182,7 +185,8 @@ export function createAmbient(opts: { cars?: number; pedestrians?: number; buses
   const shared = {
     body: new THREE.BoxGeometry(1.8, 0.75, 4.2),
     cabin: new THREE.BoxGeometry(1.6, 0.55, 2.1),
-    wheel: new THREE.CylinderGeometry(0.33, 0.33, 0.24, 12).rotateZ(Math.PI / 2),
+    wheel: mergedAt(new THREE.CylinderGeometry(0.33, 0.33, 0.24, 12).rotateZ(Math.PI / 2), [[-0.8, 0.33, -1.35], [0.8, 0.33, -1.35], [-0.8, 0.33, 1.35], [0.8, 0.33, 1.35]]),
+    lamps: mergedAt(new THREE.BoxGeometry(0.3, 0.14, 0.05), [[-0.6, 0.65, -2.13], [0.6, 0.65, -2.13]]),
     glass: new THREE.MeshStandardMaterial({ color: '#2b3846', roughness: 0.1, metalness: 0.6 }),
     tire: new THREE.MeshStandardMaterial({ color: '#1c1c1c', roughness: 0.9 }),
     mats: new Map<string, THREE.MeshStandardMaterial>(),
@@ -447,6 +451,8 @@ export function createAmbient(opts: { cars?: number; pedestrians?: number; buses
         // Ralentit près du joueur pour ne pas le traverser.
         const close = Math.hypot(w.pos.x - player.x, w.pos.z - player.z) < 0.9;
         w.ch.root.position.copy(w.pos);
+        // Au loin : silhouette d'un seul tenant (un appel de dessin au lieu d'une trentaine).
+        w.ch.setLod?.(Math.hypot(w.pos.x - player.x, w.pos.z - player.z) > CROWD_LOD.distance);
         w.ch.setHeading(Math.atan2(-(b2.x - a2.x), -(b2.z - a2.z)));
         w.ch.update(dt, close ? 0 : w.speed);
         if (close) w.t -= (w.speed * dt) / len;
@@ -469,6 +475,7 @@ export function createAmbient(opts: { cars?: number; pedestrians?: number; buses
       shared.body.dispose();
       shared.cabin.dispose();
       shared.wheel.dispose();
+      shared.lamps.dispose();
       shared.glass.dispose();
       shared.tire.dispose();
       for (const m of shared.mats.values()) m.dispose();

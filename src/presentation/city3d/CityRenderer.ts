@@ -18,7 +18,7 @@ import {
 import { buildCityScene, groundHeightAt, type CityScene } from './cityScene';
 import { createSkyDome, skyAt } from './sky';
 import { createAmbient, type Ambient } from './ambient';
-import { createCharacter, type Character3D } from './simpleCharacter';
+import { CROWD_LOD, createCharacter, type Character3D } from './simpleCharacter';
 import { setRiggedLodFocus, startRiggedCharacters } from './rigged/library';
 import { activityFromLabel } from './rigged/animState';
 import { findPath, stepBody, tileOf, type BodyState } from './locomotion';
@@ -237,6 +237,35 @@ export class CityRenderer {
     const i = this.renderer?.info;
     return { geometries: i?.memory.geometries ?? 0, textures: i?.memory.textures ?? 0, calls: i?.render.calls ?? 0, triangles: i?.render.triangles ?? 0, programs: i?.programs?.length ?? 0 };
   }
+  /**
+   * QA : appels de dessin (ombres comprises) par sous-groupe de la scène. Chaque sous-groupe est
+   * masqué tour à tour : l'écart avec le total est son coût. `depth` descend dans les groupes coûteux.
+   */
+  drawBreakdown(depth = 1, minCalls = 8): { total: number; parts: { name: string; calls: number; meshes: number }[] } {
+    const r = this.renderer;
+    if (!r) return { total: 0, parts: [] };
+    const scene = this.inInterior ? this.interiorScene : this.scene;
+    const measure = (): number => { r.render(scene, this.camera); return r.info.render.calls; };
+    const total = measure();
+    const parts: { name: string; calls: number; meshes: number }[] = [];
+    const label = (o: THREE.Object3D, i: number): string => o.name || `${o.type}#${i}${(o as THREE.Mesh).material && !Array.isArray((o as THREE.Mesh).material) ? `(${((o as THREE.Mesh).material as THREE.Material).name || ''})` : ''}`;
+    const visit = (parent: THREE.Object3D, prefix: string, d: number): void => {
+      parent.children.forEach((c, i) => {
+        if (!c.visible) return;
+        c.visible = false;
+        const calls = total - measure();
+        c.visible = true;
+        if (calls < minCalls) return;
+        let meshes = 0;
+        c.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes += 1; });
+        const name = `${prefix}${label(c, i)}`;
+        parts.push({ name, calls, meshes });
+        if (d > 0 && c.children.length > 0) visit(c, `${name} › `, d - 1);
+      });
+    };
+    visit(scene, '', depth);
+    return { total, parts: parts.sort((a, b) => b.calls - a.calls) };
+  }
   /** Bus en circulation (QA). */
   get busPositions(): { line: string; x: number; z: number; speed: number }[] { return this.ambient?.buses() ?? []; }
   get playerPose(): { x: number; z: number; heading: number; speed: number } { return { x: this.body.x, z: this.body.z, heading: this.body.heading, speed: this.body.speed }; }
@@ -405,7 +434,12 @@ export class CityRenderer {
   }
 
   private animateCrowds(dt: number): void {
-    for (const chars of this.stallCrowds.values()) for (const c of chars) c.update(dt, 0);
+    for (const chars of this.stallCrowds.values()) {
+      for (const c of chars) {
+        c.setLod?.(Math.hypot(c.root.position.x - this.body.x, c.root.position.z - this.body.z) > CROWD_LOD.distance);
+        c.update(dt, 0);
+      }
+    }
   }
 
   private animateWaypoints(): void {

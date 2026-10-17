@@ -63,6 +63,8 @@ import { loadAssetKit } from './asset-loader';
 import { audio, type AmbientLocation } from './audio';
 import { mountSoundControls } from './music/controls';
 import { CityRenderer, heightForAge } from './city3d/CityRenderer';
+import { CROWD_LOD } from './city3d/simpleCharacter';
+import { DETAIL_LOD } from './city3d/chunks';
 import { moveToTile } from '../simulation/movement';
 import { areaPassable } from '../simulation/areas';
 import { areaAt } from '../data/city/layout';
@@ -543,6 +545,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       gpu: () => renderer3D?.gpuInfo,
       /** Appels de dessin par sous-groupe de la scène (QA performance). */
       draws: (depth?: number, min?: number) => renderer3D?.drawBreakdown(depth, min),
+      /** Distance de la silhouette simplifiée de la foule (mesures avant/après). */
+      crowdLod: (d: number) => { CROWD_LOD.distance = d; },
+      /** Distance d’affichage du petit mobilier instancié (mesures avant/après). */
+      detailLod: (d: number) => { DETAIL_LOD.far = d; },
       /** Taille de la sauvegarde (octets) et ses plus gros champs. */
       saveSize: () => {
         const parts = Object.entries(world).map(([k, v]) => [k, JSON.stringify(v ?? null).length] as const).sort((a, b) => b[1] - a[1]);
