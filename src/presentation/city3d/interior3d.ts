@@ -108,6 +108,8 @@ const fixKind = (id: string): ItemKind => (/canap/.test(id) ? 'canape' : kindFor
 /**
  * Placement automatique : objets muraux au fond, puis le long des murs gauche et droit,
  * le reste au centre. Laisse toujours une allée libre devant la porte.
+ * Les objets du centre commencent APRÈS la zone d'accès des meubles du fond (point d'accès +
+ * icône) : avant, une plante posée au centre cachait les icônes du lit et du bureau.
  */
 function arrange(kinds: { id: string; kind: ItemKind; label: string; icon: string }[], w: number, d: number): InteriorItem[] {
   const out: InteriorItem[] = [];
@@ -115,6 +117,7 @@ function arrange(kinds: { id: string; kind: ItemKind; label: string; icon: strin
   let leftZ = 1.2;
   let rightZ = 1.2;
   let centerI = 0;
+  const center: { id: string; kind: ItemKind; label: string; icon: string }[] = [];
   for (const k of kinds) {
     const [iw, id] = SIZES[k.kind];
     const wallish = k.kind === 'fenetre' || k.kind === 'tableau' || k.kind === 'etagere' || k.kind === 'rayon' || k.kind === 'lit' || k.kind === 'frigo' || k.kind === 'etabli' || k.kind === 'bureau';
@@ -128,15 +131,33 @@ function arrange(kinds: { id: string; kind: ItemKind; label: string; icon: strin
       out.push({ ...k, x: w - 0.15 - id / 2, z: rightZ + iw / 2, rot: Math.PI / 2, w: id, d: iw });
       rightZ += iw + 0.5;
     } else {
-      const cols = Math.max(1, Math.floor((w - 2) / 2.6));
-      const cx = 1.4 + (centerI % cols) * 2.6 + iw / 2;
-      const cz = 2.4 + Math.floor(centerI / cols) * 2.2;
-      out.push({ ...k, x: Math.min(w - 1, cx), z: Math.min(d - 2.6, cz), rot: 0, w: iw, d: id });
-      centerI++;
+      center.push(k);
     }
+  }
+  // Centre : devant la zone d'accès des meubles du fond (point d'accès à 0,75 m + dégagement
+  // de l'icône), et jamais dans l'allée de la porte.
+  const backFront = out.filter((it) => Math.abs(it.rot) < 0.01).reduce((m, it) => Math.max(m, it.z + it.d / 2), 0);
+  const z0 = Math.max(2.4, backFront + CENTER_CLEARANCE);
+  const allColumns = Math.max(1, Math.floor((w - 2) / 2.6));
+  const columns: number[] = [];
+  for (let c = 0; c < allColumns; c++) {
+    const x = 1.4 + c * 2.6;
+    const inAisle = x + 1.2 > w / 2 - 0.9 && x < w / 2 + 0.9;
+    if (!inAisle || allColumns === 1) columns.push(x);
+  }
+  if (columns.length === 0) columns.push(1.4);
+  for (const k of center) {
+    const [iw, id] = SIZES[k.kind];
+    const cx = columns[centerI % columns.length]! + iw / 2;
+    const cz = z0 + Math.floor(centerI / columns.length) * 2.2;
+    out.push({ ...k, x: Math.min(w - 1, cx), z: Math.min(d - 2.6, cz), rot: 0, w: iw, d: id });
+    centerI++;
   }
   return out;
 }
+
+/** Dégagement (m) entre le fond d'un meuble mural et les objets du centre. */
+const CENTER_CLEARANCE = 1.9;
 
 function frontOf(it: InteriorItem): { x: number; z: number } {
   // Point d'accès devant l'objet, côté pièce.
@@ -642,8 +663,14 @@ export function buildInterior(spec: InteriorSpec): BuiltInterior {
   rug.receiveShadow = true;
   if (!spec.outdoor) group.add(rug);
   if (spec.floor !== 'beton') {
-    const pot = itemMesh({ id: 'deco_plante', kind: 'plante', label: '', icon: '', x: w - 0.6, z: d - 0.7, rot: 0, w: 0.6, d: 0.6 }, rnd);
-    group.add(pot);
+    // Plante de décor : premier angle libre, loin des points d'interaction (icônes) et des meubles.
+    const corners: [number, number][] = [[w - 0.6, d - 0.7], [0.6, d - 0.7], [w - 0.6, 0.6], [0.6, 0.6]];
+    const free = corners.find(([x, z]) => spec.hotspots.every((h) => Math.hypot(h.x - x, h.z - z) > 2.2)
+      && spec.items.every((it) => Math.abs(it.x - x) > it.w / 2 + 0.4 || Math.abs(it.z - z) > it.d / 2 + 0.4));
+    if (free) {
+      const pot = itemMesh({ id: 'deco_plante', kind: 'plante', label: '', icon: '', x: free[0], z: free[1], rot: 0, w: 0.6, d: 0.6 }, rnd);
+      group.add(pot);
+    }
   }
 
   // Grille de collision (cases de 50 cm).
