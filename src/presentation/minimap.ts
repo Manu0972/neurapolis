@@ -154,6 +154,8 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, size: number, w: Worl
     ctx.fill();
     ctx.stroke();
   }
+  drawHome(ctx, half, pos, scale);
+  drawMissionMarker(ctx, half, pos, scale);
   // Joueur : flèche orientée.
   ctx.translate(half, half);
   ctx.rotate(-heading);
@@ -175,10 +177,20 @@ export function drawMinimap(ctx: CanvasRenderingContext2D, size: number, w: Worl
   ctx.beginPath();
   ctx.arc(half, half, half - 2, 0, Math.PI * 2);
   ctx.stroke();
-  ctx.fillStyle = '#f9ecd0';
-  ctx.font = '700 11px system-ui, sans-serif';
+  // Boussole : pastille « N » lisible (la mini-carte est orientée nord en haut).
+  ctx.fillStyle = '#4a3220';
+  ctx.strokeStyle = '#ffd98a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(half, 20, 15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#ffd98a';
+  ctx.font = '800 20px system-ui, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('N', half, 13);
+  ctx.textBaseline = 'middle';
+  ctx.fillText('N', half, 21);
+  ctx.textBaseline = 'alphabetic';
 }
 
 /** Grand plan de la ville avec légende des repères (touche M). */
@@ -282,4 +294,93 @@ export function renderCityMap(w: WorldState, pos: { x: number; z: number }): HTM
   legend.textContent = '● jaune : lieux · ● vert : tes commerces ouverts (orange : fermés) · ● jaune vif : cartons à retirer · cercle blanc : toi';
   wrap.appendChild(legend);
   return wrap;
+}
+
+// ---------- Repère de mission (vague 5) ----------
+// Drapeau (mât + fanion + halo) et flèche de bord quand la cible sort du cadre : idée reprise de
+// CubeGO (MiniMap.drawMarker, © 2024 Portalyze, licence MIT), redessinée aux couleurs de la DA.
+let missionMarker: { x: number; y: number } | null = null;
+/** Cible de la mission active (tuile), ou null. */
+export function setMissionMarker(t: { x: number; y: number } | null): void {
+  missionMarker = t;
+}
+
+function drawMissionMarker(ctx: CanvasRenderingContext2D, half: number, pos: { x: number; z: number }, scale: number): void {
+  if (!missionMarker) return;
+  const mx = half + (missionMarker.x + 0.5 - pos.x) * scale;
+  const my = half + (missionMarker.y + 0.5 - pos.z) * scale;
+  const dx = mx - half;
+  const dy = my - half;
+  const d = Math.hypot(dx, dy);
+  const r = half - 30;
+  ctx.save();
+  if (d <= r) {
+    ctx.translate(mx, my);
+    ctx.scale(1.7, 1.7);
+    // Halo, mât, fanion or.
+    ctx.fillStyle = 'rgba(255, 217, 138, 0.28)';
+    ctx.beginPath();
+    ctx.arc(0, -14, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#2a1a14';
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -26); ctx.stroke();
+    ctx.strokeStyle = '#f9ecd0';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -26); ctx.stroke();
+    ctx.fillStyle = '#ffd98a';
+    ctx.strokeStyle = '#2a1a14';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(1, -26); ctx.lineTo(17, -19.5); ctx.lineTo(1, -13);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#c25a40';
+    ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, Math.PI * 2); ctx.fill();
+  } else {
+    // Flèche collée au bord, pointée vers la cible.
+    const a = Math.atan2(dy, dx);
+    const ex = half + Math.cos(a) * r;
+    const ey = half + Math.sin(a) * r;
+    ctx.translate(ex, ey);
+    ctx.rotate(a);
+    ctx.scale(1.7, 1.7);
+    ctx.fillStyle = 'rgba(255, 217, 138, 0.3)';
+    ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffd98a';
+    ctx.strokeStyle = '#2a1a14';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(13, 0); ctx.lineTo(-8, -10); ctx.lineTo(-3, 0); ctx.lineTo(-8, 10);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** Icône « maison » permanente : chez toi (Cité des Roses, bâtiment A), collée au bord si loin. */
+function drawHome(ctx: CanvasRenderingContext2D, half: number, pos: { x: number; z: number }, scale: number): void {
+  const a = PLACE_ANCHORS.maison;
+  let hx = half + (a.x + 0.5 - pos.x) * scale;
+  let hy = half + (a.y + 0.5 - pos.z) * scale;
+  const d = Math.hypot(hx - half, hy - half);
+  const r = half - 24;
+  if (d > r) { hx = half + (hx - half) * r / d; hy = half + (hy - half) * r / d; }
+  ctx.save();
+  ctx.translate(hx, hy);
+  ctx.fillStyle = '#f9ecd0';
+  ctx.strokeStyle = '#2a1a14';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, 15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#c25a40';
+  ctx.beginPath();
+  ctx.moveTo(-9, -1); ctx.lineTo(0, -9); ctx.lineTo(9, -1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#6b4a2f';
+  ctx.fillRect(-6, -1, 12, 9);
+  ctx.fillStyle = '#ffd98a';
+  ctx.fillRect(-2, 3, 4, 5);
+  ctx.restore();
 }
