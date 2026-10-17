@@ -93,3 +93,21 @@ export function fermerSansChoisir(w: WorldState, f: FenetreAuto): 'reportee' | '
   }
   return 'abandonnee';
 }
+
+/**
+ * Prise en main (vague 5) : pendant tout le chapitre 1, aucune fenêtre non scénarisée (arrivée
+ * d'un fantôme, dilemme, vie du collège, rencontre, dîner) ne s'ouvre seule. Elles attendent :
+ * la simulation continue, seule leur présentation est différée.
+ */
+export function fenetresCalmes(w: WorldState): boolean {
+  return w.campaign.currentChapter === 1 && !w.campaign.completedChapters.includes(1);
+}
+
+/** Écart minimal (ticks) entre deux fenêtres automatiques. */
+export const ECART_FENETRES = 6;
+/** Au chapitre 2, elles reviennent une par demi-journée de jeu au plus (dévoilement progressif). */
+export const ECART_FENETRES_CHAPITRE2 = TICKS_PER_DAY / 2;
+
+export function ecartFenetres(w: WorldState): number {
+  return w.campaign.currentChapter === 2 ? ECART_FENETRES_CHAPITRE2 : ECART_FENETRES;
+}

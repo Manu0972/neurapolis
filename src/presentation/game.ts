@@ -94,9 +94,11 @@ import { BUS_LINES, BUS_STOPS, BUS_STOP_BY_ID } from '../data/city/transit';
 import { createGhostBar } from './ghost-bar';
 import { createAppTutor } from './ghost-tutor';
 import { createGuide } from './guide-ui';
+import { createMissionUi } from './mission-ui';
+import { HOME_VISIT_FLAG } from '../simulation/missions';
 import { RIVAL_STRATEGY_LABELS, euros } from './labels';
 import { createNewsToaster, openSurpriseModal } from './news-ui';
-import { arriveesAProposer, ecoleAProposer, fenetreEncoreEnAttente, fermerSansChoisir, surpriseAProposer, type FenetreAuto } from '../simulation/fenetres';
+import { arriveesAProposer, ecartFenetres, ecoleAProposer, fenetreEncoreEnAttente, fenetresCalmes, fermerSansChoisir, surpriseAProposer, type FenetreAuto } from '../simulation/fenetres';
 import { isSilenced, lessonWarnings, rewindOffer, sacrificeCandidates } from '../simulation/rewind';
 import { recordDay } from '../saves/chronicle';
 import { openRewindModal } from './rewind-ui';
@@ -161,6 +163,18 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   const ghostBar = createGhostBar(root, () => world, () => modalOpen);
   // Prise en main (ASC-3) : l'étape suivante sous la carte de chapitre, les applications présentées par un fantôme.
   const guide = createGuide(ui.campaignCardEl, { openApp: (app) => openPhoneUi(app), openMap: () => openCityMap() });
+  // Missions façon GTA (vague 5) : bandeau, balise, flèche, action directe (src/presentation/mission-ui.ts).
+  const mission = createMissionUi({
+    root, campaignCard: ui.campaignCardEl,
+    inside: () => !!renderer3D?.inInterior, modalOpen: () => modalOpen,
+    beacon: (t) => renderer3D?.setMissionBeacon(t),
+    screenPos: (cw, ch) => renderer3D?.missionScreenPos(cw, ch) ?? null,
+    openNpcDialogue: (id) => openNpcDialogue(id), openConcurrence: () => openConcurrence(), openUrbanDebate: () => openUrbanDebate(),
+    enterPlace: (place) => { if (!enterPlace(place)) openPlacePanel(place); },
+    openSkipMenu: () => openSkipMenu(),
+    spendTaskTime: (m, l) => spendTaskTime(m, l), toast: (t, ok) => toast(t, ok),
+    celebrate: (chapter) => (chapter ? audio.playChapterComplete() : audio.playUiClick()),
+  });
   const appTutor = createAppTutor(root, { busy: () => modalOpen, openApp: (app) => openPhoneUi(app) });
   let lastTipText = '';
   // Notifications façon téléphone pour le fil d'infos ; un clic ouvre l'application « Infos ».
@@ -542,6 +556,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       buses: () => renderer3D?.busPositions ?? [],
       /** Place le joueur devant un lieu (QA uniquement). */
       goto: (place: PlaceId) => { const a = PLACE_ANCHORS[place]; world.player.pos.x = a.x; world.player.pos.y = a.y; },
+      /** Étape de mission affichée, et téléportation sur sa cible (QA uniquement). */
+      mission: () => mission.current(),
+      missionGoto: () => { const t = mission.current()?.target; if (t) { world.player.pos.x = t.x; world.player.pos.y = t.y; } },
       /** Mémoire graphique (géométries, textures) et coût du rendu. */
       gpu: () => renderer3D?.gpuInfo,
       /** Appels de dessin par sous-groupe de la scène (QA performance). */
@@ -961,7 +978,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   /** Choisit l'astuce utile à cet instant (une à la fois, chacune une seule fois). */
   function syncTips(): void {
-    if (modalOpen) return;
+    if (modalOpen || fenetresCalmes(world)) return;
     const e = world.economy;
     const bizs = Object.values(e?.businesses ?? {});
     if (renderer3D?.inInterior) {
@@ -1018,6 +1035,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const spec = placeInteriorSpec(place, roomId, extras, world.player.firstName || undefined);
     if (!spec) return false;
     renderer3D.enterInterior(spec, world);
+    if (place === 'maison') world.seen[HOME_VISIT_FLAG] = true; // mission « Rentre chez toi »
     if (place === 'epicerie') audio.playDoorBell();
     currentLocation = place === 'friche' ? 'atelier' : (place as AmbientLocation);
     audio.updateAmbient(currentLocation, minutesOfDay(world.time.tick) / 60, world.district.meteo);
@@ -1237,6 +1255,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       }
       return `${renderer3D.interiorSpec?.title ?? ''} · approche-toi d’un objet (icône) pour agir`;
     }
+    const mis = mission.actionHere(world);
+    if (mis) return mis.label;
     const eco = economyActionHere();
     if (eco) return eco.label;
     const lmNear = landmarkAdjacent(world);
@@ -1247,7 +1267,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (place) return `E — Entrer : ${PLACE_BY_ID[place]?.name ?? place}`;
     const near = npcsNearby(world, 2);
     if (near.length > 0) return `E — Parler à ${NPC_BY_ID[near[0]?.id ?? '']?.name ?? 'quelqu’un'}`;
-    return '';
+    return mission.actionAnywhere(world)?.label ?? '';
   }
 
   function interact(): void {
@@ -1260,6 +1280,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       if (nearNpc) openNpcDialogue(nearNpc);
       return;
     }
+    const mis = mission.actionHere(world);
+    if (mis) { mis.run(); return; }
     const eco = economyActionHere();
     if (eco) {
       const before = world.player.money;
@@ -3098,7 +3120,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
     // Multijoueur : un invité qui rattrape l'horloge de l'hôte n'est pas interrompu en route.
     const catchingUp = !!mp?.followsHost && (mp.hostTick ?? 0) - world.time.tick > 6;
-    const quietOk = world.time.tick - lastAutoModalTick >= 6 && !catchingUp;
+    // Chapitre 1 : aucune fenêtre non scénarisée ; ensuite elles reviennent peu à peu (simulation/fenetres.ts).
+    const calme = fenetresCalmes(world);
+    const quietOk = world.time.tick - lastAutoModalTick >= ecartFenetres(world) && !catchingUp && !calme;
     if (!modalOpen) {
       // Épilogue prêt : ouverture de l'écran de conclusion de la campagne
       if (world.campaign.completedChapters.includes(5) && !world.seen['epilogue_modal_shown']) {
@@ -3134,7 +3158,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           // Sortie de cours : la vie du collège s'invite (fermée deux fois : refusée).
           autoWindow = ecole;
           openSchoolEventModal({ world, showModal, closeModal, toast }, (ghost, text) => ghostBar.push({ ghost, text, pop: true, mood: 'calme' }));
-        } else if (!catchingUp && pendingDinner(world) && world.family?.pendingDinner !== dinnerShownId && isHome(world) && !world.player.asleep) {
+        } else if (!catchingUp && !calme && pendingDinner(world) && world.family?.pendingDinner !== dinnerShownId && isHome(world) && !world.player.asleep) {
           // Le dîner : Nora et Thierry attendent une réponse.
           dinnerShownId = world.family?.pendingDinner ?? '';
           openDinnerModal({ world, showModal, closeModal, toast });
@@ -3363,8 +3387,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       syncTips();
       syncStallCrowds();
       guide.sync(world);
+      mission.sync(world);
       appTutor.sync(world);
     }
+    mission.frame(world, window.innerWidth, window.innerHeight);
     if (hudFrame % 2 === 0 && ui.minimapCtx) {
       const pose = playerPose();
       drawMinimap(ui.minimapCtx, 360, world, pose, pose.heading, renderer3D?.cameraYaw ?? 0);

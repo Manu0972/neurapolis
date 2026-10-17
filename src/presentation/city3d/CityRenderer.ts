@@ -442,7 +442,84 @@ export class CityRenderer {
     }
   }
 
+  // ---------- Balise de mission (vague 5) : une colonne douce au-dessus de la cible ----------
+  private missionBeacon: THREE.Group | null = null;
+  private missionTarget: { x: number; y: number; npc?: string } | null = null;
+
+  /** Place la balise de mission sur une tuile (ou sur un PNJ, qu'elle suit), ou la retire (null). */
+  setMissionBeacon(t: { x: number; y: number; npc?: string } | null): void {
+    this.missionTarget = t;
+    if (!t) { if (this.missionBeacon) this.missionBeacon.visible = false; return; }
+    if (!this.missionBeacon) {
+      // Palette de la DA : or chaud (#ffd98a) et brun, transparence douce — pas de néon.
+      const g = new THREE.Group();
+      const beam = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.45, 0.8, 22, 20, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0xffd98a, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide }),
+      );
+      beam.position.y = 11;
+      const core = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.12, 22, 8, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0xfff1c8, transparent: true, opacity: 0.45, depthWrite: false }),
+      );
+      core.position.y = 11;
+      const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.2, 4), new THREE.MeshBasicMaterial({ color: 0xffd98a }));
+      arrow.rotation.x = Math.PI;
+      arrow.userData.bob = true;
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.9, 1.25, 40),
+        new THREE.MeshBasicMaterial({ color: 0xffd98a, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }),
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.15;
+      ring.userData.pulse = true;
+      g.add(beam, core, arrow, ring);
+      g.renderOrder = 5;
+      this.missionBeacon = g;
+    }
+    if (!this.missionBeacon.parent) this.scene.add(this.missionBeacon);
+    this.missionBeacon.visible = true;
+    this.placeMissionBeacon();
+  }
+
+  /** Position monde de la cible (le PNJ tel qu'il est dessiné, sinon le centre de la tuile). */
+  private missionWorldPos(): { x: number; z: number } | null {
+    const t = this.missionTarget;
+    if (!t) return null;
+    const v = t.npc ? this.npcs.get(t.npc) : undefined;
+    return v ? { x: v.x, z: v.z } : { x: t.x + 0.5, z: t.y + 0.5 };
+  }
+
+  private placeMissionBeacon(): void {
+    const b = this.missionBeacon;
+    const p = this.missionWorldPos();
+    if (!b || !p) return;
+    b.position.set(p.x, groundHeightAt(p.x, p.z), p.z);
+    const t = performance.now() / 1000;
+    // De près, la colonne masquerait la porte : on ne garde que l'anneau et la flèche.
+    const near = Math.hypot(this.body.x - p.x, this.body.z - p.z) < 6;
+    b.children[0]!.visible = !near;
+    b.children[1]!.visible = !near;
+    for (const c of b.children) {
+      if (c.userData.bob) { c.position.y = 3.6 + Math.sin(t * 2.2) * 0.3; c.rotation.y = t * 1.4; }
+      if (c.userData.pulse) { const s = 1 + 0.12 * Math.sin(t * 3); c.scale.set(s, s, s); }
+    }
+  }
+
+  /**
+   * Projection écran (pixels CSS du canevas) de la cible de mission, pour la flèche de bord
+   * d'écran. `behind` : la cible est derrière la caméra. null : pas de cible ou intérieur.
+   */
+  missionScreenPos(cw: number, ch: number): { x: number; y: number; behind: boolean } | null {
+    const p = this.missionWorldPos();
+    if (!p || this.inInterior) return null;
+    const v = new THREE.Vector3(p.x, groundHeightAt(p.x, p.z) + 2, p.z).project(this.camera);
+    const behind = v.z > 1;
+    return { x: ((behind ? -v.x : v.x) + 1) / 2 * cw, y: (1 - (behind ? -v.y : v.y)) / 2 * ch, behind };
+  }
+
   private animateWaypoints(): void {
+    this.placeMissionBeacon();
     const t = performance.now() / 1000;
     for (const g of this.waypointGroup.children) {
       for (const c of g.children) {
