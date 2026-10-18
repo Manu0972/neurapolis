@@ -19,6 +19,8 @@ import {
 } from '../../core/types';
 import { buildCityScene, groundHeightAt, type CityScene } from './cityScene';
 import { createSkyDome, dayPhase, skyAt } from './sky';
+import { WINDOW_UNIFORMS } from './windows';
+import { windowLitFraction } from './windowsPlan';
 import { createAmbient, type Ambient } from './ambient';
 import { CROWD_LOD, createCharacter, type Character3D } from './simpleCharacter';
 import { setRiggedLodFocus, startRiggedCharacters } from './rigged/library';
@@ -599,6 +601,8 @@ export class CityRenderer {
     this.rim.update(this.camera, new THREE.Vector3(this.body.x, 1, this.body.z), s.rimColor, s.rimIntensity);
     // Vitrines, fenêtres et lampadaires s'allument dès le crépuscule (avant la nuit noire).
     for (const { mat, strength } of this.city.nightMaterials) mat.emissiveIntensity = s.lamps * strength;
+    // Fenêtres des maisons et immeubles Kenney : même allumage, puis les logements s'éteignent la nuit.
+    WINDOW_UNIFORMS.uWinFrac.value = windowLitFraction(hour, rainy ? 1 : world.district.meteo === 'nuages' ? 0.5 : 0);
     // En HDR (post-traitement), le halo additif ressort davantage : on le tempère.
     for (const g of this.city.glowSprites) (g.material as THREE.SpriteMaterial).opacity = s.lamps * (this.postfx?.hdr ? 0.3 : 0.85);
     // Lampadaires proches éclairés par de vraies lumières (les autres par leur halo).

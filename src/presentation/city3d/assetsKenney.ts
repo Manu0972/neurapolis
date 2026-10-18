@@ -9,6 +9,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { assetUrl } from '../asset-loader';
 import type { Size3 } from './assetsPlan';
+import { loadPhoto } from './assetsPolyhaven';
+import { patchKenneyWindows, setRoofPhoto } from './windows';
+import { assignDoorHeights, assignWindowIds } from './windowsPlan';
 
 export type KenneyKit = 'commercial' | 'suburban';
 
@@ -35,7 +38,8 @@ export function kenneyMaterial(kit: KenneyKit): THREE.MeshStandardMaterial {
   });
   m.onBeforeCompile = (shader) => {
     // Palette de la DA : couleurs du kit désaturées d'un quart, réchauffées par `color`.
-    shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+    // `extra` : enduit, pied de mur, tuiles et fenêtres (windows.ts), dans le même bloc.
+    patchKenneyWindows(shader, (extra) => `
 {
   vec3 kc = diffuseColor.rgb;
   float kl = dot(kc, vec3(0.299, 0.587, 0.114));
@@ -46,11 +50,13 @@ export function kenneyMaterial(kit: KenneyKit): THREE.MeshStandardMaterial {
   kc = mix(kc, vec3(0.13, 0.15, 0.18) * (0.6 + 1.6 * kl), kb);
   kl = dot(kc, vec3(0.299, 0.587, 0.114));
   diffuseColor.rgb = mix(vec3(kl), kc, 0.75);
+${extra}
 }`);
   };
-  m.customProgramCacheKey = () => 'kenney-palette-v2';
+  m.customProgramCacheKey = () => 'kenney-palette-v3-fenetres';
   const map = kitMaps.get(kit);
   if (map) m.map = map;
+  void loadPhoto('tuiles').then((p) => { if (p) setRoofPhoto(p.map, p.mean); });
   kitMaterials.set(kit, m);
   return m;
 }
@@ -80,6 +86,11 @@ export function loadKenneyModel(kit: KenneyKit, name: string): Promise<KenneyMod
       return null;
     }
     const geometry = parts[0]!;
+    const wid = assignWindowIds(geometry.attributes.position!.array, geometry.attributes.uv!.array, geometry.index?.array ?? null, kit, name);
+    const door = assignDoorHeights(geometry.attributes.position!.array, geometry.attributes.uv!.array, kit);
+    const winData = new Float32Array(wid.length * 2);
+    for (let i = 0; i < wid.length; i++) { winData[i * 2] = wid[i]!; winData[i * 2 + 1] = door[i]!; }
+    geometry.setAttribute('aWin', new THREE.BufferAttribute(winData, 2));
     geometry.computeBoundingBox();
     const bb = geometry.boundingBox!;
     geometry.translate(0, -bb.min.y, 0);
