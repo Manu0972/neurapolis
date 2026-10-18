@@ -14,8 +14,9 @@ import { CHUNK, chunkify, type CityChunk } from './chunks';
 import { buildCityBuildings } from './cityBuildings';
 import {
   asphaltTexture, cobbleTexture, dirtTexture, glowTexture, grassTexture, gravelTexture, parkingTexture,
-  playgroundTexture, sidewalkTexture, skylineTexture, visualRng,
+  groundBumpTexture, playgroundTexture, sidewalkTexture, skylineTexture, visualRng,
 } from './textures';
+import { enhanceFacadeMaterial, enhanceGroundMaterial, shapeCrownGeometry, type GroundKind } from './materials';
 
 export const SURFACE_HEIGHT: Record<Surface, number> = {
   chaussee: 0, passage: 0, parking: 0.02,
@@ -106,21 +107,26 @@ function wall(g: GeoBuilder, x0: number, z0: number, x1: number, z1: number, y0:
 // ---------- Sols ----------
 
 function groundMaterials(): Record<Surface, THREE.MeshStandardMaterial | null> {
-  const m = (map: THREE.Texture, rough = 0.95, color = '#ffffff'): THREE.MeshStandardMaterial =>
-    new THREE.MeshStandardMaterial({ map, roughness: rough, metalness: 0, color });
-  const side = m(sidewalkTexture(), 0.9);
+  // Relief procédural, flaques sous la pluie et variation lente de teinte (materials.ts).
+  const m = (map: THREE.Texture, rough = 0.95, color = '#ffffff', kind: GroundKind = 'dur', bump?: THREE.Texture, bumpScale = 1): THREE.MeshStandardMaterial => {
+    const mat = new THREE.MeshStandardMaterial({ map, roughness: rough, metalness: 0, color });
+    enhanceGroundMaterial(mat, kind, bump, bumpScale);
+    return mat;
+  };
+  const side = m(sidewalkTexture(), 0.9, '#ffffff', 'dur', groundBumpTexture('dalles'), 1.2);
+  const asphalt = m(asphaltTexture(), 0.88, '#ffffff', 'dur', groundBumpTexture('asphalte'), 0.6);
   return {
-    chaussee: m(asphaltTexture(), 0.88),
-    passage: m(asphaltTexture(), 0.88),
-    parking: m(parkingTexture(), 0.9),
+    chaussee: asphalt,
+    passage: asphalt,
+    parking: m(parkingTexture(), 0.9, '#ffffff', 'dur', groundBumpTexture('asphalte'), 0.6),
     trottoir: side,
     batiment: side,
-    cour: m(cobbleTexture(), 0.95, '#cfc6b8'),
-    pave: m(cobbleTexture(), 0.92),
-    herbe: m(grassTexture(), 1),
-    aire_jeux: m(playgroundTexture(), 0.95),
-    terre: m(dirtTexture(), 1),
-    gravier: m(gravelTexture(), 1),
+    cour: m(cobbleTexture(), 0.95, '#cfc6b8', 'dur', groundBumpTexture('paves'), 1.6),
+    pave: m(cobbleTexture(), 0.92, '#ffffff', 'dur', groundBumpTexture('paves'), 1.6),
+    herbe: m(grassTexture(), 1, '#ffffff', 'herbe', groundBumpTexture('herbe'), 0.8),
+    aire_jeux: m(playgroundTexture(), 0.95, '#ffffff', 'meuble', groundBumpTexture('grain'), 0.4),
+    terre: m(dirtTexture(), 1, '#ffffff', 'meuble', groundBumpTexture('grain'), 0.9),
+    gravier: m(gravelTexture(), 1, '#ffffff', 'meuble', groundBumpTexture('grain'), 1.1),
     eau: null, // l'eau a son propre maillage
   };
 }
@@ -394,7 +400,7 @@ function buildProps(group: THREE.Group, disposables: { dispose(): void }[], nigh
   }
 
   const trunkGeo = new THREE.CylinderGeometry(0.16, 0.24, 3.4, 7).translate(0, 1.7, 0);
-  const crownGeo = new THREE.IcosahedronGeometry(1, 1);
+  const crownGeo = shapeCrownGeometry(new THREE.IcosahedronGeometry(1, 1), 3);
   const poleGeo = new THREE.CylinderGeometry(0.07, 0.1, 4.6, 6).translate(0, 2.3, 0);
   const headGeo = new THREE.CylinderGeometry(0.28, 0.12, 0.35, 8);
   const benchGeo = benchGeometry();
@@ -403,7 +409,7 @@ function buildProps(group: THREE.Group, disposables: { dispose(): void }[], nigh
   const stallPoleGeo = new THREE.CylinderGeometry(0.04, 0.04, 2.35, 6).translate(0, 1.17, 0);
   const stallGoodsGeo = new THREE.BoxGeometry(0.42, 0.16, 0.32).translate(0, 0.08, 0);
   const barkMat = new THREE.MeshStandardMaterial({ color: '#5b4231', roughness: 1 });
-  const leafMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9, flatShading: true });
+  const leafMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9, flatShading: true, vertexColors: true });
   const metalMat = new THREE.MeshStandardMaterial({ color: '#2f3a36', roughness: 0.5, metalness: 0.6 });
   const bulbMat = new THREE.MeshStandardMaterial({ color: '#fff1d0', emissive: new THREE.Color('#ffc46b'), emissiveIntensity: 0, roughness: 0.4 });
   const woodMat = new THREE.MeshStandardMaterial({ color: '#8a5a3a', roughness: 0.8 });
@@ -589,6 +595,7 @@ export function buildCityScene(): CityScene {
   buildMarkings(group, disposables);
   lap('marquages');
   const city = buildCityBuildings();
+  enhanceFacadeMaterial(city.facadeMaterial);
   for (const m of [...city.meshes, ...city.decor]) group.add(m);
   nightMaterials.push({ mat: city.facadeMaterial, strength: 1.1 }, { mat: city.signs.material, strength: 0.35 });
   const meshes = city.meshes;

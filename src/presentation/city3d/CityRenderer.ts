@@ -18,7 +18,7 @@ import {
   type PlayerAppearance,
 } from '../../core/types';
 import { buildCityScene, groundHeightAt, type CityScene } from './cityScene';
-import { createSkyDome, skyAt } from './sky';
+import { createSkyDome, dayPhase, skyAt } from './sky';
 import { createAmbient, type Ambient } from './ambient';
 import { CROWD_LOD, createCharacter, type Character3D } from './simpleCharacter';
 import { setRiggedLodFocus, startRiggedCharacters } from './rigged/library';
@@ -28,6 +28,10 @@ import { INTERIOR_CELL, buildInterior, nearestHotspot, type BuiltInterior, type 
 import { updateChunkVisibility } from './chunks';
 import { createBarriers, type Barriers } from './barriers';
 import { createMarketLife, type MarketLife } from './marketLife';
+import { QUALITY_PRESETS, detectedQuality, chooseQuality, getQualityPref, onQualityPref, readGpuCaps, resolveQuality, type GpuCaps, type QualityLevel, type QualityPreset } from './quality';
+import { PostFx } from './postfx';
+import { configureSunShadow, createContactShadows, createRimLight, frameSunShadow } from './lighting';
+import { CITY_UNIFORMS } from './materials';
 
 /** Autre joueur (multijoueur) vu dans la ville. */
 export interface RemoteAvatar {
@@ -66,6 +70,8 @@ interface NpcView {
 }
 
 const NPC_SPEED_MIN = 1.4;
+/** Manteaux de la foule : bois, brique, olive, ardoise, prune, moutarde (pas de néon). */
+const CROWD_COATS = ['#5a6b7a', '#7a5a4a', '#3f4f3f', '#a0522d', '#6b4e71', '#8a6a3a', '#4f5d6e', '#9a5b4b', '#5e6b4a', '#b08850'];
 
 function hash(s: string): number {
   let h = 2166136261;
@@ -165,6 +171,14 @@ export class CityRenderer {
   private sun = new THREE.DirectionalLight('#fff4e0', 2.5);
   private lampLights: THREE.PointLight[] = [];
   private lampRefresh = 0;
+  // Finition du rendu (vague 8) : qualité, post-traitement, contre-jour, ombres de contact.
+  private gpuCaps: GpuCaps = {};
+  private qualityLevel: QualityLevel = 'moyen';
+  private preset: QualityPreset = QUALITY_PRESETS.moyen;
+  private postfx?: PostFx;
+  private rim = createRimLight();
+  private contact = createContactShadows(48);
+  private wet = 0;
   private player?: Character3D;
   private playerKey = '';
   private body: BodyState = { x: 0, z: 0, heading: Math.PI, speed: 0 };
@@ -202,6 +216,8 @@ export class CityRenderer {
       this.renderer.shadowMap.type = THREE.PCFShadowMap;
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+      this.gpuCaps = readGpuCaps(this.renderer.getContext());
+      detectedQuality.level = chooseQuality(this.gpuCaps);
       ok = true;
     } catch (err) {
       console.warn('WebGL indisponible, rendu 3D désactivé.', err);
@@ -213,6 +229,8 @@ export class CityRenderer {
       this.onContextLost?.();
     });
     this.setupScene();
+    this.applyQuality(resolveQuality(getQualityPref(), this.gpuCaps));
+    onQualityPref((p) => this.applyQuality(resolveQuality(p, this.gpuCaps)));
     this.attachControls();
     // Personnages riggés du studio (public/personnages/, hors Git) : sans manifeste, rien ne change.
     void startRiggedCharacters();
@@ -281,14 +299,12 @@ export class CityRenderer {
     this.scene.add(this.sky.mesh);
     this.scene.add(this.hemi);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
-    const sc = this.sun.shadow.camera;
-    sc.left = -45; sc.right = 45; sc.top = 45; sc.bottom = -45; sc.near = 1; sc.far = 400;
-    this.sun.shadow.bias = -0.0004;
-    this.sun.shadow.normalBias = 0.03;
+    configureSunShadow(this.sun, 2048, 45, true);
     this.scene.add(this.sun, this.sun.target);
+    this.scene.add(this.rim.light, this.rim.light.target);
+    this.scene.add(this.contact.mesh);
     this.scene.fog = new THREE.Fog('#cfe2f0', 70, 460);
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
       const l = new THREE.PointLight('#ffc27a', 0, 16, 1.6);
       this.lampLights.push(l);
       this.scene.add(l);
@@ -415,12 +431,17 @@ export class CityRenderer {
       const chars = this.stallCrowds.get(key) ?? [];
       while (chars.length < Math.min(5, s.count)) {
         const i = chars.length;
+        // Foule variée : taille, carrure et teinte de manteau tirées de l'identifiant (palette chaude de la DA).
+        const hv = hash(`etal${key}_${i}`);
         const ch = createCharacter({
           appearance: npcAppearance(`etal${key}_${i}`),
-          heightM: i % 3 === 0 ? 1.4 : 1.6 + (i % 2) * 0.12,
-          bodyColor: ['#5a6b7a', '#7a5a4a', '#3f4f3f', '#a0522d', '#6b4e71'][i % 5],
+          heightM: (i % 3 === 0 ? 1.4 : 1.6 + (i % 2) * 0.12) * (0.96 + (hv % 9) / 100),
+          bodyColor: CROWD_COATS[hv % CROWD_COATS.length],
           detail: 'low',
         });
+        const girth = 0.94 + ((hv >>> 8) % 13) / 100;
+        ch.root.scale.x *= girth;
+        ch.root.scale.z *= girth;
         // En file devant l'étal (côté sud), légèrement décalés.
         const x = s.x + 0.5 + (i % 2 === 0 ? -0.5 : 0.5) * (1 + Math.floor(i / 2) * 0.3);
         const z = s.y + 1.6 + Math.floor(i / 2) * 0.9;
@@ -563,14 +584,23 @@ export class CityRenderer {
     this.sun.color.copy(s.sunColor);
     this.sun.intensity = s.sunIntensity;
     const focus = new THREE.Vector3(this.body.x, 0, this.body.z);
-    this.sun.position.copy(focus).addScaledVector(s.sunDir, 150);
-    this.sun.target.position.copy(focus);
-    (this.scene.fog as THREE.Fog).color.copy(s.fogColor);
+    // Ombre cadrée sur le joueur, alignée sur les texels (pas de scintillement en marchant).
+    frameSunShadow(this.sun, focus, s.sunDir, 150);
+    const fog = this.scene.fog as THREE.Fog;
+    fog.color.copy(s.fogColor);
+    fog.near = s.fogNear;
+    fog.far = s.fogFar;
     const rainy = world.district.meteo === 'pluie';
-    (this.scene.fog as THREE.Fog).far = rainy ? 230 : 460;
     this.renderer.toneMappingExposure = s.exposure;
-    for (const { mat, strength } of this.city.nightMaterials) mat.emissiveIntensity = s.night * strength;
-    for (const g of this.city.glowSprites) (g.material as THREE.SpriteMaterial).opacity = s.night * 0.85;
+    // Sol mouillé : il sèche lentement après la pluie.
+    this.wet += (s.wet - this.wet) * Math.min(1, dt * (s.wet > this.wet ? 0.5 : 0.05));
+    CITY_UNIFORMS.uWet.value = this.wet;
+    CITY_UNIFORMS.uWetTint.value.copy(s.skyHorizon).lerp(s.skyTop, 0.3);
+    this.rim.update(this.camera, new THREE.Vector3(this.body.x, 1, this.body.z), s.rimColor, s.rimIntensity);
+    // Vitrines, fenêtres et lampadaires s'allument dès le crépuscule (avant la nuit noire).
+    for (const { mat, strength } of this.city.nightMaterials) mat.emissiveIntensity = s.lamps * strength;
+    // En HDR (post-traitement), le halo additif ressort davantage : on le tempère.
+    for (const g of this.city.glowSprites) (g.material as THREE.SpriteMaterial).opacity = s.lamps * (this.postfx?.hdr ? 0.3 : 0.85);
     // Lampadaires proches éclairés par de vraies lumières (les autres par leur halo).
     this.lampRefresh -= dt;
     if (this.lampRefresh <= 0) {
@@ -580,7 +610,10 @@ export class CityRenderer {
         .slice(0, this.lampLights.length);
       this.lampLights.forEach((l, i) => { const p = near[i]; if (p) l.position.copy(p); });
     }
-    for (const l of this.lampLights) l.intensity = s.night * 22;
+    // Le jour, les lumières des lampadaires sont retirées (éteintes, elles coûtaient quand même
+    // un calcul par pixel) ; elles reviennent au crépuscule.
+    const lampsOn = s.lamps > 0.01;
+    this.lampLights.forEach((l, i) => { l.visible = lampsOn && i < this.preset.lampLights; l.intensity = s.lamps * 22; });
     // Eau qui ondule doucement.
     (this.city.water.material as THREE.MeshStandardMaterial).color.setHSL(0.53, 0.3, 0.32 + Math.sin(performance.now() / 1300) * 0.015 - s.night * 0.15);
 
@@ -603,8 +636,9 @@ export class CityRenderer {
     }
 
     this.updateCamera(dt, cw, ch);
+    this.updateContactShadows(s.contactShadow);
     try {
-      this.renderer.render(this.scene, this.camera);
+      this.renderScene(this.scene, s);
     } catch (err) {
       console.warn('Rendu 3D interrompu.', err);
       this.onContextLost?.();
@@ -840,7 +874,8 @@ export class CityRenderer {
       this.camera.updateProjectionMatrix();
     }
     const size = this.renderer!.getSize(new THREE.Vector2());
-    if (size.x !== w || size.y !== h) this.renderer!.setSize(w, h, false);
+    // Le canevas peut avoir été redimensionné ailleurs (ui.resizeCanvas) : on recale sa densité de pixels.
+    if (size.x !== w || size.y !== h || this.canvas.width !== Math.floor(w * this.renderer!.getPixelRatio())) this.renderer!.setSize(w, h, false);
   }
   private lastCamClip?: number;
 
@@ -1064,14 +1099,70 @@ export class CityRenderer {
     const h = Math.max(1, ch);
     if (this.camera.aspect !== w / h) { this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); }
     const size = this.renderer!.getSize(new THREE.Vector2());
-    if (size.x !== w || size.y !== h) this.renderer!.setSize(w, h, false);
+    if (size.x !== w || size.y !== h || this.canvas.width !== Math.floor(w * this.renderer!.getPixelRatio())) this.renderer!.setSize(w, h, false);
     this.renderer!.toneMappingExposure = 1.05;
+    // Lumière du jour par la fenêtre selon l'heure et la météo.
+    const ph = dayPhase(minutesOfDay(world.time.tick) / 60);
+    const overcast = world.district.meteo === 'pluie' ? 0.6 : world.district.meteo === 'nuages' ? 0.3 : 0;
+    it.setDaylight?.((1 - ph.night) * (1 - overcast), ph.golden);
     try {
-      this.renderer!.render(this.interiorScene, this.camera);
+      this.renderScene(this.interiorScene, null);
     } catch (err) {
       console.warn('Rendu intérieur interrompu.', err);
       this.onContextLost?.();
     }
+  }
+
+  /** Applique un niveau de qualité : densité de pixels, ombres, post-traitement, lumières, relief. */
+  applyQuality(level: QualityLevel): void {
+    const r = this.renderer;
+    if (!r) return;
+    this.qualityLevel = level;
+    this.preset = QUALITY_PRESETS[level];
+    r.setPixelRatio(Math.min(this.preset.maxPixelRatio, window.devicePixelRatio || 1));
+    configureSunShadow(this.sun, this.preset.shadowMap, this.preset.shadowExtent, this.preset.softShadows);
+    this.postfx?.dispose();
+    this.postfx = this.preset.postfx !== 'aucun' ? new PostFx(r, this.preset) : undefined;
+    CITY_UNIFORMS.uRelief.value = this.preset.relief ? 1 : 0;
+    (globalThis as { __renderQuality?: string }).__renderQuality = level;
+  }
+  get quality(): QualityLevel { return this.qualityLevel; }
+
+  /** Rendu final : avec le post-traitement si la qualité le permet, sinon direct. */
+  private renderScene(scene: THREE.Scene, s: ReturnType<typeof skyAt> | null): void {
+    if (this.postfx) {
+      // Les compteurs (appels de dessin, triangles) couvrent toutes les passes de l'image.
+      const info = this.renderer!.info;
+      info.reset();
+      info.autoReset = false;
+      this.postfx.render(scene, this.camera, s
+        ? { bloom: s.bloom, vignette: s.vignette, warmth: s.warmth }
+        : { bloom: 0.12, vignette: 0.24, warmth: 0.05 });
+      info.autoReset = true;
+    } else {
+      this.renderer!.render(scene, this.camera);
+    }
+  }
+
+  /** Ombres de contact sous le joueur et les personnages proches (les plus proches d'abord). */
+  private contactPts: { x: number; y: number; z: number; r: number; d: number }[] = [];
+  private updateContactShadows(opacity: number): void {
+    const pts = this.contactPts;
+    pts.length = 0;
+    const bx = this.body.x;
+    const bz = this.body.z;
+    const add = (o: THREE.Object3D | undefined, r: number): void => {
+      if (!o || !o.visible || !o.parent) return;
+      const p = o.position;
+      const d = (p.x - bx) * (p.x - bx) + (p.z - bz) * (p.z - bz);
+      if (d < 45 * 45) pts.push({ x: p.x, y: p.y, z: p.z, r, d });
+    };
+    add(this.player?.root, this.riding ? 0.75 : 0.42);
+    for (const v of this.npcs.values()) add(v.ch.root, 0.42);
+    for (const v of this.remoteViews.values()) add(v.ch.root, 0.42);
+    for (const chars of this.stallCrowds.values()) for (const c of chars) add(c.root, 0.4);
+    if (pts.length > 48) pts.sort((a, b) => a.d - b.d);
+    this.contact.update(pts, opacity);
   }
 
   /**
@@ -1136,6 +1227,8 @@ export class CityRenderer {
     this.city?.dispose();
     this.player?.dispose();
     for (const v of this.npcs.values()) { v.ch.dispose(); v.tag.removeFromParent(); }
+    this.postfx?.dispose();
+    this.contact.dispose();
     this.renderer?.dispose();
   }
 }
