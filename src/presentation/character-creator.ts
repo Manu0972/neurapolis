@@ -404,7 +404,9 @@ export function mountCharacterCreation(
   if (preview3d) {
     // Le vrai personnage du jeu, qui tourne ; on le fait pivoter en glissant.
     avatarBox.replaceChildren(preview3d.canvas);
-    avatarBox.style.cssText = 'margin:0 auto 0.75rem auto;max-width:240px;';
+    // Plus la pastille ronde de 72 px (c'était elle qui rognait l'aperçu et dessinait l'anneau orange).
+    avatarBox.className = 'preview-avatar-stage';
+    avatarBox.style.cssText = '';
   }
   previewCard.appendChild(avatarBox);
 
@@ -548,8 +550,8 @@ export function mountCharacterCreation(
     preview3d?.setAppearance(appearance, gender, heightForAge(12));
     const avatarBoxEl = document.getElementById('preview-avatar');
     if (avatarBoxEl) {
-      avatarBoxEl.style.borderColor = OUTFIT_COLOR_INFO[appearance.outfitColor].hex;
-      const cvs = avatarBoxEl.querySelector('canvas');
+      const cvs = preview3d ? null : avatarBoxEl.querySelector('canvas');
+      if (!preview3d) avatarBoxEl.style.borderColor = OUTFIT_COLOR_INFO[appearance.outfitColor].hex;
       if (cvs) {
         const cCtx = cvs.getContext('2d');
         if (cCtx) {
@@ -921,6 +923,10 @@ function ensureCreatorStyles(): void {
       position: sticky;
       top: 1rem;
       box-shadow: 0 4px 12px rgba(42, 26, 20, 0.08);
+    }
+    .preview-avatar-stage {
+      margin: 0 auto 0.75rem auto;
+      max-width: 240px;
     }
     .preview-avatar-box {
       width: 72px;
