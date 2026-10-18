@@ -116,7 +116,10 @@ export async function mountE2E(root: HTMLElement): Promise<void> {
   (window as unknown as { __NEURAPOLIS_E2E__: unknown }).__NEURAPOLIS_E2E__ = { ok, steps };
   const panel = document.createElement('div');
   panel.className = 'e2e-report';
-  panel.innerHTML = `<b>${ok ? '✅ E2E réussi' : '❌ E2E en échec'}</b> — ${steps.filter((s) => s.ok).length}/${steps.length} étapes`;
+  const statusB = document.createElement('b');
+  statusB.textContent = ok ? '✅ E2E réussi' : '❌ E2E en échec';
+  panel.appendChild(statusB);
+  panel.appendChild(document.createTextNode(` — ${steps.filter((s) => s.ok).length}/${steps.length} étapes`));
   const list = document.createElement('ol');
   for (const s of steps) {
     const li = document.createElement('li');
