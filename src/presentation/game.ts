@@ -605,13 +605,21 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (ok) audio.playUiClick();
   }
 
-  function openPhoneUi(app: PhoneApp = 'ascension', focus?: { businessId?: string; unitId?: string }): void {
+  function openPhoneUi(app: PhoneApp = 'accueil', focus?: { businessId?: string; unitId?: string }): void {
     openPhone({
       world,
       showModal,
       closeModal,
       toast,
       onChange: () => { syncSigns(); updateHud(ui, world, promptText()); },
+      step: () => mission.current(),
+      openPanel: (id) => {
+        if (id === 'plan') openCityMap();
+        else if (id === 'famille') openFamilyPanel({ world, showModal, closeModal, toast });
+        else if (id === 'conseil') openConseil();
+        else if (id === 'relations') openRelations();
+        else { const more = document.querySelector<HTMLButtonElement>('.mb-more'); if (more?.textContent === 'Détails') more.click(); }
+      },
     }, app, focus);
   }
 

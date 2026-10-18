@@ -26,8 +26,11 @@ import { renderInfosApp } from './news-ui';
 import { isAppOpen, unlockOf } from '../simulation/unlocks';
 import { APP_TUTORIALS } from '../data/tutorials';
 import { shouldPresent, tutorCard } from './ghost-tutor';
+import { homeIcons, homeOf } from './phone-home';
+import { missionLine, type MissionStep } from '../simulation/missions';
+import { pendingDinner } from '../simulation/family';
 
-export type PhoneApp = 'ascension' | 'infos' | 'immobilier' | 'commerces' | 'commandes' | 'emploi' | 'banque' | 'depenses';
+export type PhoneApp = 'accueil' | 'plan' | 'mission' | 'messages' | 'argent' | 'affaires' | 'ascension' | 'infos' | 'immobilier' | 'commerces' | 'commandes' | 'emploi' | 'banque' | 'depenses';
 
 export interface PhoneContext {
   world: WorldState;
@@ -35,18 +38,24 @@ export interface PhoneContext {
   closeModal(): void;
   toast(text: string, ok: boolean): void;
   onChange(): void;
+  /** Étape de mission en cours (pour l'accueil). */
+  step?: () => MissionStep | null;
+  /** Ouvre un panneau du jeu (le téléphone est fermé d'abord). */
+  openPanel?: (id: 'plan' | 'mission' | 'famille' | 'conseil' | 'relations') => void;
 }
 
 const APPS: { id: PhoneApp; icon: string; label: string }[] = [
-  { id: 'ascension', icon: '🚀', label: 'Ascension' },
-  { id: 'infos', icon: '📰', label: 'Infos' },
-  { id: 'immobilier', icon: '🏢', label: 'Immobilier' },
-  { id: 'commerces', icon: '🏪', label: 'Commerces' },
   { id: 'commandes', icon: '📦', label: 'Commandes' },
+  { id: 'commerces', icon: '🏪', label: 'Commerces' },
+  { id: 'immobilier', icon: '🏢', label: 'Immobilier' },
   { id: 'emploi', icon: '👥', label: 'Emploi' },
   { id: 'banque', icon: '🏦', label: 'Banque' },
-  { id: 'depenses', icon: '🛍️', label: 'Dépenses' },
 ];
+const TITLES: Record<string, string> = {
+  accueil: 'Téléphone', mission: 'Mission', messages: 'Messages', argent: 'Argent', affaires: 'Affaires',
+  ascension: 'Ascension', infos: 'Actualités', depenses: 'Dépenses', commandes: 'Commandes', commerces: 'Commerces',
+  immobilier: 'Immobilier', emploi: 'Emploi', banque: 'Banque',
+};
 
 const eur = (v: number): string => `${v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 
@@ -64,7 +73,7 @@ function stat(label: string, value: string, tone: '' | 'good' | 'bad' = ''): HTM
   return box;
 }
 
-export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?: { businessId?: string; unitId?: string }): void {
+export function openPhone(ctx: PhoneContext, app: PhoneApp = 'accueil', focus?: { businessId?: string; unitId?: string }): void {
   const w = ctx.world;
   ensureEconomy(w);
   let current: PhoneApp = app;
@@ -75,10 +84,7 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?
   let replay: PhoneApp | undefined;
 
   const root = el('div', 'phone');
-  const tabs = el('nav', 'ph-tabs');
   const screen = el('div', 'ph-screen');
-  root.appendChild(tabs);
-  root.appendChild(screen);
 
   const act = (r: EconomyResult): void => {
     ctx.toast(r.message, r.ok);
@@ -87,42 +93,51 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?
   };
 
   function render(): void {
-    tabs.replaceChildren();
     // Sur place, devant un local (touche E), l'annonce s'ouvre toujours : c'est en y allant qu'on apprend.
-    const openHere = (id: PhoneApp): boolean => id === 'depenses' || isAppOpen(w, id) || (id === 'immobilier' && !!focus?.unitId);
-    for (const a of APPS) {
-      const open = openHere(a.id);
-      const tb = el('button', `ph-tab${a.id === current ? ' active' : ''}${open ? '' : ' locked'}`, `${open ? a.icon : '🔒'} ${a.label}`);
-      if (!open) tb.title = (a.id === 'depenses' ? undefined : unlockOf(a.id))?.how ?? '';
-      tb.type = 'button';
-      tb.addEventListener('click', () => { current = a.id; render(); });
-      tabs.appendChild(tb);
+    const openHere = (id: PhoneApp): boolean => id === 'depenses' || isAppOpen(w, id as never) || (id === 'immobilier' && !!focus?.unitId);
+    if (current === 'affaires') current = openHere('commerces') ? 'commerces' : 'commandes';
+    const group = homeOf(current);
+    // En-tête fixe : Retour (toujours à gauche), titre, fermer.
+    root.replaceChildren();
+    const bar = el('div', 'phx-bar');
+    if (current === 'accueil') bar.appendChild(el('span', 'phx-bar-ico', '📱'));
+    else bar.appendChild(button('‹ Retour', () => { current = 'accueil'; replay = undefined; render(); }, 'ph-back'));
+    bar.appendChild(el('span', 'phx-bar-title', TITLES[current] ?? 'Téléphone'));
+    bar.appendChild(button('✕', () => ctx.closeModal(), 'ph-close'));
+    root.append(bar, screen);
+    screen.replaceChildren();
+    if (current === 'accueil') { renderHome(); return; }
+    if (current === 'mission') { renderMission(); return; }
+    if (current === 'messages') { renderMessages(); return; }
+    if (current === 'argent') { renderArgent(); return; }
+    if (group === 'affaires') {
+      const chips = el('nav', 'ph-tabs');
+      for (const a of APPS) {
+        if (!openHere(a.id)) continue;
+        const tb = el('button', `ph-tab${a.id === current ? ' active' : ''}`, `${a.icon} ${a.label}`);
+        tb.type = 'button';
+        tb.addEventListener('click', () => { current = a.id; render(); });
+        chips.appendChild(tb);
+      }
+      screen.appendChild(chips);
+      const head = el('div', 'ph-wallet');
+      head.appendChild(stat('Sur toi', eur(w.player.money), w.player.money < 0 ? 'bad' : ''));
+      head.appendChild(stat('Caisses', eur(Object.values(w.economy!.businesses).reduce((s, b) => s + b.cash, 0))));
+      head.appendChild(stat('Dans tes bras', `${carriedUnits(w.economy!)} / ${w.economy!.carryCapacity}`));
+      screen.appendChild(head);
     }
     if (APP_TUTORIALS[current] && openHere(current)) {
-      const help = el('button', 'ph-tab ph-help', '❔');
+      const help = el('button', 'ph-help', '❔ Revoir la présentation');
       help.type = 'button';
-      help.title = 'Revoir la présentation de cette application par son fantôme';
       help.addEventListener('click', () => { replay = current; render(); });
-      tabs.appendChild(help);
+      screen.appendChild(help);
     }
-    screen.replaceChildren();
-    const head = el('div', 'ph-wallet');
-    head.appendChild(stat('Argent sur toi', eur(w.player.money), w.player.money < 0 ? 'bad' : ''));
-    const e = w.economy!;
-    head.appendChild(stat('Caisses', eur(Object.values(e.businesses).reduce((s, b) => s + b.cash, 0))));
-    // Dettes : prêts de la caisse coopérative + emprunts de lancement de l'Ascension.
-    const ascDebts = ascensionDebts(w);
-    const debtTotal = e.loans.reduce((s, l) => s + l.remaining, 0) + ascDebts.reduce((s, d) => s + d.remaining, 0);
-    head.appendChild(stat('Dettes', eur(debtTotal), debtTotal > 0 ? 'bad' : ''));
-    head.appendChild(stat('Dans tes bras', `${carriedUnits(e)} / ${e.carryCapacity}`));
-    screen.appendChild(head);
-    // Application pas encore méritée : on dit comment l'obtenir.
+    // Application pas encore méritée (lien direct) : on dit comment l'obtenir.
     if (!openHere(current)) {
-      const u = current === 'depenses' ? undefined : unlockOf(current);
+      const u = unlockOf(current as never);
       const card = el('div', 'ph-card locked-app');
-      card.appendChild(el('div', 'ph-card-title', `🔒 ${APPS.find((x) => x.id === current)?.label ?? ''}`));
+      card.appendChild(el('div', 'ph-card-title', `🔒 ${TITLES[current] ?? ''}`));
       card.appendChild(el('p', 'ph-note', `Pas encore. ${u?.how ?? ''}`));
-      card.appendChild(el('p', 'ph-note', 'Tu découvriras cette application en avançant ; une de tes voix te l’expliquera.'));
       screen.appendChild(card);
       return;
     }
@@ -138,6 +153,74 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?
     if (current === 'depenses') renderDepenses();
     if (current === 'infos') renderInfosApp(w, screen);
     if (current === 'ascension') renderAscensionApp(ctx, screen, render, () => openPhone(ctx, 'ascension'));
+  }
+
+  // ----- Accueil et applications simples -----
+  function renderHome(): void {
+    const grid = el('div', 'ph-home');
+    for (const ic of homeIcons(w, ctx.step?.() ?? null)) {
+      const b = el('button', 'ph-icon');
+      b.type = 'button';
+      b.appendChild(el('span', 'ph-icon-art', ic.icon));
+      b.appendChild(el('span', 'ph-icon-name', ic.label));
+      if (ic.badge > 0) b.appendChild(el('span', 'ph-badge', String(ic.badge)));
+      b.addEventListener('click', () => {
+        if (ic.id === 'plan' && ctx.openPanel) { ctx.closeModal(); ctx.openPanel('plan'); return; }
+        current = ic.id;
+        render();
+      });
+      grid.appendChild(b);
+    }
+    screen.appendChild(grid);
+  }
+
+  function renderMission(): void {
+    const st = ctx.step?.() ?? null;
+    const card = el('div', 'ph-card');
+    card.appendChild(el('div', 'ph-card-title', st ? missionLine(st) : 'Pas de mission pour l’instant.'));
+    card.appendChild(el('p', 'ph-note', st ? 'C’est ton objectif du moment : suis la flèche et la balise.' : 'Profite de la ville, une nouvelle étape viendra.'));
+    card.appendChild(button('Détails du chapitre', () => { ctx.closeModal(); ctx.openPanel?.('mission'); }, 'ph-btn primary'));
+    screen.appendChild(card);
+  }
+
+  function renderMessages(): void {
+    const dinner = pendingDinner(w);
+    const close = (id: 'famille' | 'conseil' | 'relations') => () => { ctx.closeModal(); ctx.openPanel?.(id); };
+    const rows: { icon: string; name: string; line: string; badge?: boolean; run: () => void }[] = [
+      { icon: '🏠', name: 'Famille', line: dinner ? 'On t’attend pour le dîner.' : w.family?.convocation ? 'Convocation de l’école.' : 'Rien de neuf à la maison.', badge: !!dinner || !!w.family?.convocation, run: close('famille') },
+      { icon: '👻', name: 'Les voix', line: 'Tes conseillers du passé.', run: close('conseil') },
+      { icon: '🧑', name: 'Voisins et amis', line: 'Qui tu connais en ville.', run: close('relations') },
+      { icon: '📰', name: 'Actualités', line: 'Ce qui bouge dans le pays.', run: () => { current = 'infos'; render(); } },
+    ];
+    const list = el('div', 'ph-list');
+    for (const r of rows) {
+      const b = el('button', 'ph-conv');
+      b.type = 'button';
+      b.appendChild(el('span', 'ph-conv-ico', r.icon));
+      const col = el('span', 'ph-conv-col');
+      col.append(el('b', '', r.name), el('small', '', r.line));
+      b.appendChild(col);
+      if (r.badge) b.appendChild(el('span', 'ph-badge', '1'));
+      b.addEventListener('click', r.run);
+      list.appendChild(b);
+    }
+    screen.appendChild(list);
+  }
+
+  function renderArgent(): void {
+    const e = w.economy!;
+    const ascDebts = ascensionDebts(w);
+    const debtTotal = e.loans.reduce((s, l) => s + l.remaining, 0) + ascDebts.reduce((s, d) => s + d.remaining, 0);
+    const daily = e.loans.reduce((s, l) => s + l.dailyPayment, 0) + ascDebts.reduce((s, d) => s + d.dailyRepay + d.dailyInterest, 0);
+    const head = el('div', 'ph-wallet');
+    head.appendChild(stat('Argent sur toi', eur(w.player.money), w.player.money < 0 ? 'bad' : ''));
+    head.appendChild(stat('Dettes', eur(debtTotal), debtTotal > 0 ? 'bad' : ''));
+    screen.appendChild(head);
+    screen.appendChild(el('p', 'ph-note', daily > 0 ? `Chaque jour, il sort ${eur(daily)} pour rembourser.` : 'Aucun remboursement à venir.'));
+    const acts = el('div', 'ph-actions');
+    acts.appendChild(button('🛍️ Dépenses', () => { current = 'depenses'; render(); }, 'ph-btn primary'));
+    if (isAppOpen(w, 'banque')) acts.appendChild(button('🏦 Banque et prêts', () => { current = 'banque'; render(); }));
+    screen.appendChild(acts);
   }
 
   // ----- Immobilier -----
@@ -365,7 +448,7 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?
     const max = Math.max(1, ...days.map((d) => d.revenue));
     for (const d of days) {
       const profit = d.revenue - d.costOfGoods - d.wages - d.rent - d.other;
-      const col = el('div', 'ph-bar');
+      const col = el('div', 'phx-bar');
       col.title = `Jour ${d.day} : CA ${eur(d.revenue)}, résultat ${eur(profit)}`;
       const fill = el('div', `ph-bar-fill ${profit >= 0 ? 'good' : 'bad'}`);
       fill.style.height = `${Math.max(4, (d.revenue / max) * 100)}%`;
@@ -555,5 +638,5 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'ascension', focus?
   }
 
   render();
-  ctx.showModal('📱 Téléphone', 'Gère tes affaires, où que tu sois', root, true);
+  ctx.showModal('📱 Téléphone', '', root, false);
 }

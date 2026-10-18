@@ -975,3 +975,37 @@ canvas.map-canvas-3d { image-rendering: auto; touch-action: none; }
 @media (max-height: 680px) and (pointer: fine) {
   .hud2-minimap { left: auto; right: 12px; }
 }
+
+/* ===== Téléphone refondu (vague 6) : cadre vertical, accueil à grosses icônes ===== */
+.modal-panel:has(.phone) {
+  width: min(400px, calc(100vw - 24px)); max-height: calc(100vh - 20px); padding: 12px 12px 14px;
+  border: 3px solid var(--line); border-radius: 30px; background: #7a5233;
+  box-shadow: 0 10px 0 #2a1a14, 0 18px 30px rgba(0, 0, 0, 0.5);
+  animation: ph-open 0.22s ease-out;
+}
+@keyframes ph-open { from { transform: translateY(40px) scale(0.94); opacity: 0; } to { transform: none; opacity: 1; } }
+.modal-panel:has(.phone) .modal-head { display: none; }
+.phone { gap: 8px; background: #f3e3c0; color: #3a2416; border: 2px solid var(--line); border-radius: 20px; padding: 10px; max-height: calc(100vh - 70px); min-height: min(460px, calc(100vh - 90px)); }
+.phx-bar { display: flex; align-items: center; gap: 8px; border-bottom: 2px solid var(--line); padding-bottom: 6px; }
+.phx-bar-title { flex: 1; font-weight: 800; font-size: 16px; text-align: center; }
+.phx-bar-ico { min-width: 74px; font-size: 18px; }
+.ph-back, .ph-close { border: 2px solid var(--line); background: #e2c48f; color: #3a2416; border-radius: 10px; font-weight: 800; padding: 5px 10px; cursor: pointer; min-width: 74px; font-size: 13px; }
+.ph-close { min-width: 0; }
+.phone .ph-screen { flex: 1; }
+.phone .ph-card, .phone .ph-stat { background: #ead3a4; border: 1px solid var(--line); color: #3a2416; }
+.phone .ph-tab, .phone .ph-btn, .phone .ph-chip, .phone .ph-mini { background: #e2c48f; color: #3a2416; border: 2px solid var(--line); }
+.phone .ph-tab.active, .phone .ph-btn.primary, .phone .ph-chip.active { background: #b5703a; color: #fff6dd; }
+.phone .ph-input, .phone .ph-qty { color: #3a2416; }
+.ph-help { align-self: flex-start; border: 0; background: none; color: #7a4a22; font-size: 12px; text-decoration: underline; cursor: pointer; }
+.ph-home { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 6px 2px; }
+.ph-icon { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 6px 10px; border: 3px solid var(--line); border-radius: 18px; background: #e2c48f; color: #3a2416; cursor: pointer; transition: transform 0.1s; }
+.ph-icon:hover { transform: translateY(-2px); background: #f0d6a0; }
+.ph-icon-art { font-size: 40px; line-height: 1; }
+.ph-icon-name { font-weight: 800; font-size: 15px; }
+.ph-badge { position: absolute; top: -7px; right: -7px; min-width: 22px; height: 22px; border-radius: 11px; background: #c0392b; color: #fff6dd; border: 2px solid var(--line); font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.ph-conv { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 2px solid var(--line); border-radius: 14px; background: #ead3a4; color: #3a2416; cursor: pointer; text-align: left; }
+.ph-conv:hover { background: #f0d6a0; }
+.ph-conv-ico { font-size: 26px; }
+.ph-conv-col { display: flex; flex-direction: column; }
+.ph-conv-col small { opacity: 0.8; }
+.ph-conv .ph-badge { top: 50%; right: 10px; transform: translateY(-50%); }
