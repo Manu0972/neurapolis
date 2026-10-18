@@ -6,7 +6,7 @@
 import { createWorld } from '../core/store';
 import { runTicks, tickWorld } from '../simulation/engine';
 import { tryMove } from '../simulation/movement';
-import { npcsNearby, placeAtAdjacent } from '../simulation/interact';
+import { nearPlace, npcsNearby, placeAtAdjacent } from '../simulation/interact';
 import { applyPlaceAction } from '../simulation/places';
 import { dialogueTopics, npcLine, replyDialogue } from '../simulation/dialogue';
 import { npcsAt } from '../simulation/npc';
@@ -76,10 +76,10 @@ import { streetNameAt, unitAt } from '../data/map';
 import { COMPETITOR_BY_UNIT } from '../data/city/competitors';
 import { drawMinimap, renderCityMap, setPlayerMarkers } from './minimap';
 import { PENDING_LOAD_KEY, deleteSlot, exportSave, importSave, saveToSlot, slotSummary } from '../saves/persist';
-import { businessInteriorSpec, destinationSpec, landmarkSpec, placeHasInterior, placeInteriorSpec } from './city3d/interior3d';
+import { businessInteriorSpec, destinationSpec, indoorRooms, landmarkSpec, placeHasInterior, placeInteriorSpec } from './city3d/interior3d';
 import { activityBlocker, doLandmarkActivity, landmarkAdjacent } from '../simulation/landmarks';
 import { LANDMARK_BY_ID, type LandmarkDef } from '../data/city/landmarks';
-import { useFurniture } from '../simulation/interior_actions';
+import { furnitureActionLabel, useFurniture } from '../simulation/interior_actions';
 import { JOB, inShift, startShift } from '../simulation/jobs';
 import { hhmmOfTick } from '../core/clock';
 import { appeal } from '../simulation/economy';
@@ -113,7 +113,7 @@ import { searchSecret, secretHere } from '../simulation/secrets';
 import { IDEA_BY_ID } from '../data/ascension/ideas';
 import { attendClass, classWindow, ensureFamily, isHome, isInClass, pendingDinner } from '../simulation/family';
 import { mostUrgentTip } from '../simulation/ghost_tips';
-import { CITY, PLACE_ANCHORS } from '../data/map';
+import { CITY, PLACE_ANCHORS, isWalkable } from '../data/map';
 import * as economyApi from '../simulation/economy';
 import { openDetailedInteriorModal } from './interiors';
 import { tileAt } from '../data/map';
@@ -157,6 +157,8 @@ const REL_DIMS: ReadonlyArray<keyof Rel4> = ['amitie', 'confiance', 'respect', '
 
 export function startGame(root: HTMLElement, initialWorld: WorldState = createWorld()): void {
   const world: WorldState = initialWorld;
+  // Sauvegarde d'avant un remaniement de la carte : un joueur coincé dans un mur revient devant chez lui.
+  if (!isWalkable(world.player.pos.x, world.player.pos.y)) world.player.pos = { ...PLACE_ANCHORS.maison };
   root.replaceChildren();
   const ui = buildUi(root);
   // Barre des fantômes : leurs têtes en haut de l'écran, qui bougent quand ils veulent parler.
@@ -554,6 +556,14 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       layout: (id: string) => startLayoutEdit(id),
       ride: (on: boolean) => renderer3D?.setRiding(on),
       buses: () => renderer3D?.busPositions ?? [],
+      /** Intérieur courant : pièce, points d'interaction, pose ; `at` y déplace le joueur (QA uniquement). */
+      interior: (at?: { x: number; z: number }) => {
+        if (!renderer3D?.inInterior) return null;
+        if (at) Object.assign((renderer3D as unknown as { body: { x: number; z: number } }).body, at);
+        const sp = renderer3D.interiorSpec;
+        return { title: sp?.title, room: sp?.roomId, w: sp?.w, d: sp?.d, pose: renderer3D.playerPose, near: renderer3D.interiorHotspot?.id ?? null, prompt: promptText(), hotspots: sp?.hotspots.map((h) => ({ id: h.id, kind: h.kind, x: +h.x.toFixed(2), z: +h.z.toFixed(2), label: h.label })) };
+      },
+      enter: (place: PlaceId, room?: string) => enterPlace(place, room),
       /** Place le joueur devant un lieu (QA uniquement). */
       goto: (place: PlaceId) => { const a = PLACE_ANCHORS[place]; world.player.pos.x = a.x; world.player.pos.y = a.y; },
       /** Étape de mission affichée, et téléportation sur sa cible (QA uniquement). */
@@ -648,7 +658,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       };
     }
     const session = classWindow(world);
-    if (session && placeAtAdjacent(world) === 'college') {
+    if (session && nearPlace(world, 'college')) {
       return { label: `E — Aller en cours (${session === 'matin' ? '8 h 30 – 12 h' : '13 h 30 – 16 h 30'})`, run: goToClass };
     }
     const e = ensureEconomy(world);
@@ -1036,11 +1046,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     audio.playDoorBell();
   }
 
-  function enterPlace(place: PlaceId, roomId?: string): boolean {
+  function enterPlace(place: PlaceId, roomId?: string, fromRoom?: string): boolean {
     if (!renderer3D || !use3D || !placeHasInterior(place)) return false;
     // La chambre-QG : tableau des plans et derniers objets gagnés.
-    const extras = place === 'maison' && (roomId ?? 'chambre') === 'chambre' ? bedroomExtras(world) : [];
-    const spec = placeInteriorSpec(place, roomId, extras, world.player.firstName || undefined);
+    const extras = place === 'maison' && (roomId ?? indoorRooms(place)[0]) === 'chambre' ? bedroomExtras(world) : [];
+    const spec = placeInteriorSpec(place, roomId, extras, world.player.firstName || undefined, fromRoom);
     if (!spec) return false;
     renderer3D.enterInterior(spec, world);
     if (place === 'maison') world.seen[HOME_VISIT_FLAG] = true; // mission « Rentre chez toi »
@@ -1212,7 +1222,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (h.kind === 'travail') {
       return { label, run: () => { const r = startShift(world); toast(r.message, r.ok); } };
     }
-    if (h.kind === 'piece' && spec.placeId) return { label, run: () => { enterPlace(spec.placeId!, h.target); } };
+    if (h.kind === 'piece' && spec.placeId) return { label, run: () => { enterPlace(spec.placeId!, h.target, spec.roomId); audio.playFootstep('parquet'); } };
     if (h.kind === 'gestion' && spec.businessId) return { label, run: () => openPhoneUi('commerces', { businessId: spec.businessId }) };
     if (h.kind === 'decharger' && spec.businessId) {
       return {
@@ -1227,14 +1237,15 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (h.kind === 'mobilier' && spec.placeId && h.target) {
       const place = spec.placeId;
       const target = h.target;
+      const dyn = furnitureActionLabel(world, place, target);
       return {
-        label,
+        label: dyn ? `E — ${dyn}` : label,
         run: () => {
           const r = useFurniture(world, place, target);
           if (r.special === 'open_workshop') { openWorkshopModal(); return; }
           if (r.special === 'open_debate') { openUrbanDebate(); return; }
           toast(r.message, r.ok);
-          if (r.ok) spendTaskTime(TASK_MINUTES.meuble, label.replace(/^E — /, ''));
+          if (r.ok && r.minutes !== 0) spendTaskTime(r.minutes ?? TASK_MINUTES.meuble, (dyn ?? label).replace(/^E — /, '').split(' (')[0]!);
           updateHud(ui, world, promptText());
         },
       };
@@ -3372,7 +3383,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       const reminder = session ? `${dayIndexOf(world.time.tick)}:${session}` : '';
       if (session && reminder !== classReminderKey && !world.player.asleep) {
         classReminderKey = reminder;
-        const far = placeAtAdjacent(world) !== 'college';
+        const far = !nearPlace(world, 'college');
         const voice = ghostBar.roster().find((g) => !isSilenced(world, g));
         if (far && voice) ghostBar.push({ ghost: voice, pop: session === 'matin', mood: 'calme', text: `Les cours ${session === 'matin' ? 'du matin commencent à 8 h 30' : 'de l’après-midi commencent à 13 h 30'}. Va au collège, ou assume l’absence : ${ensureFamily(world).arrangement ? 'ta convention en couvre deux par semaine.' : 'tes parents seront prévenus.'}` });
       }

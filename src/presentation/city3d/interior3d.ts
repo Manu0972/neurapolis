@@ -14,7 +14,8 @@ import { visualRng } from './textures';
 
 export type ItemKind =
   | 'lit' | 'bureau' | 'etagere' | 'fenetre' | 'frigo' | 'canape' | 'table' | 'radio' | 'tableau'
-  | 'comptoir' | 'rayon' | 'etabli' | 'machine' | 'ferraille' | 'plante' | 'caisse_bois' | 'machine_cafe' | 'pupitre';
+  | 'comptoir' | 'rayon' | 'etabli' | 'machine' | 'ferraille' | 'plante' | 'caisse_bois' | 'machine_cafe' | 'pupitre'
+  | 'escalier' | 'tele' | 'cuisiniere' | 'douche' | 'lavabo' | 'malle' | 'casier';
 
 export interface InteriorItem {
   id: string;
@@ -68,6 +69,8 @@ export interface InteriorSpec {
   businessId?: string;
   /** Lieu remarquable de la grande carte (src/data/city/landmarks.ts). */
   landmarkId?: string;
+  /** Point d'arrivée (pièce atteinte par un passage : devant ce passage). Défaut : sur le seuil. */
+  spawn?: { x: number; z: number; heading: number };
 }
 
 export interface BuiltInterior {
@@ -89,11 +92,13 @@ const SIZES: Record<ItemKind, [number, number]> = {
   lit: [1.6, 2.1], bureau: [1.5, 0.8], etagere: [1.8, 0.45], fenetre: [1.6, 0.2], frigo: [0.9, 0.75], canape: [2.1, 0.9],
   table: [1.6, 1.0], radio: [0.6, 0.5], tableau: [3.2, 0.15], comptoir: [2.4, 0.8], rayon: [2.0, 0.6], etabli: [2.2, 0.9],
   machine: [1.2, 1.2], ferraille: [1.8, 1.6], plante: [0.6, 0.6], caisse_bois: [1.0, 1.0], machine_cafe: [0.9, 0.6], pupitre: [1.1, 0.7],
+  escalier: [1.0, 2.4], tele: [1.4, 0.5], cuisiniere: [1.8, 0.65], douche: [1.0, 1.0], lavabo: [0.8, 0.5], malle: [1.1, 0.6], casier: [2.0, 0.5],
 };
 
 /** Devine la forme 3D d'un meuble de données à partir de son identifiant. */
 export function kindForFurnitureId(id: string): ItemKind {
   const m: [RegExp, ItemKind][] = [
+    [/^tele$/, 'tele'], [/cuisiniere/, 'cuisiniere'], [/douche/, 'douche'], [/lavabo/, 'lavabo'], [/malle/, 'malle'], [/casier/, 'casier'],
     [/lit|canap/, 'lit'], [/bureau_prof|bureau/, 'bureau'], [/pupitre/, 'pupitre'], [/biblio|panneau|registre/, 'etagere'],
     [/fenetre/, 'fenetre'], [/frigo/, 'frigo'], [/table/, 'table'], [/radio/, 'radio'], [/tableau/, 'tableau'],
     [/caisse|comptoir|etal/, 'comptoir'], [/rayon|bocal|palette|vrac/, 'rayon'], [/etabli|diagnostic|banc_diag/, 'etabli'],
@@ -111,23 +116,38 @@ const fixKind = (id: string): ItemKind => (/canap/.test(id) ? 'canape' : kindFor
  * Les objets du centre commencent APRÈS la zone d'accès des meubles du fond (point d'accès +
  * icône) : avant, une plante posée au centre cachait les icônes du lit et du bureau.
  */
-function arrange(kinds: { id: string; kind: ItemKind; label: string; icon: string }[], w: number, d: number): InteriorItem[] {
+const WALLISH = new Set<ItemKind>(['fenetre', 'tableau', 'etagere', 'rayon', 'lit', 'frigo', 'etabli', 'bureau', 'tele', 'cuisiniere', 'douche', 'lavabo', 'casier']);
+
+function arrange(
+  kinds: { id: string; kind: ItemKind; label: string; icon: string }[], w: number, d: number,
+  opts: { keepRightFree?: boolean; clearBack?: boolean } = {},
+): InteriorItem[] {
+  const keepRightFree = !!opts.keepRightFree;
   const out: InteriorItem[] = [];
   let backX = 0.8;
   let leftZ = 1.2;
   let rightZ = 1.2;
   let centerI = 0;
   const center: { id: string; kind: ItemKind; label: string; icon: string }[] = [];
+  // Murs latéraux (option clearBack) : on commence après la zone d'accès des meubles du fond, pour
+  // que deux points d'interaction ne se recouvrent pas (le tableau des plans masquait le lit).
+  const sideStart = (): number => out.filter((it) => Math.abs(it.rot) < 0.01).reduce((m, it) => Math.max(m, it.z + it.d / 2 + 1.3), 1.2);
   for (const k of kinds) {
     const [iw, id] = SIZES[k.kind];
-    const wallish = k.kind === 'fenetre' || k.kind === 'tableau' || k.kind === 'etagere' || k.kind === 'rayon' || k.kind === 'lit' || k.kind === 'frigo' || k.kind === 'etabli' || k.kind === 'bureau';
+    const wallish = WALLISH.has(k.kind);
     if (wallish && backX + iw <= w - 0.6) {
       out.push({ ...k, x: backX + iw / 2, z: 0.15 + id / 2, rot: 0, w: iw, d: id });
       backX += iw + 0.5;
-    } else if (wallish && leftZ + iw <= d - 2.2) {
+    } else if (wallish && opts.clearBack && sideStart() + iw <= d - 2.2 && (leftZ = Math.max(leftZ, sideStart())) + iw <= d - 2.2) {
       out.push({ ...k, x: 0.15 + id / 2, z: leftZ + iw / 2, rot: -Math.PI / 2, w: id, d: iw });
       leftZ += iw + 0.5;
-    } else if (wallish && rightZ + iw <= d - 2.2) {
+    } else if (wallish && opts.clearBack && !keepRightFree && (rightZ = Math.max(rightZ, sideStart())) + iw <= d - 2.2) {
+      out.push({ ...k, x: w - 0.15 - id / 2, z: rightZ + iw / 2, rot: Math.PI / 2, w: id, d: iw });
+      rightZ += iw + 0.5;
+    } else if (wallish && !opts.clearBack && leftZ + iw <= d - 2.2) {
+      out.push({ ...k, x: 0.15 + id / 2, z: leftZ + iw / 2, rot: -Math.PI / 2, w: id, d: iw });
+      leftZ += iw + 0.5;
+    } else if (wallish && !opts.clearBack && !keepRightFree && rightZ + iw <= d - 2.2) {
       out.push({ ...k, x: w - 0.15 - id / 2, z: rightZ + iw / 2, rot: Math.PI / 2, w: id, d: iw });
       rightZ += iw + 0.5;
     } else {
@@ -190,34 +210,79 @@ export function indoorRooms(place: PlaceId): string[] {
 /** Objets en plus dans une pièce (chambre-QG : tableau des plans, objets gagnés). */
 export interface ExtraItem { id: string; kind: ItemKind; label: string; icon: string; hotspot: 'plan' | 'objet' | 'armoire' }
 
-export function placeInteriorSpec(place: PlaceId, roomId?: string, extras: ExtraItem[] = [], ownerName?: string): InteriorSpec | null {
-  const style = PLACE_ROOM_STYLE[place];
+/** Pièces dont la taille, le sol ou les murs diffèrent du reste du lieu. */
+const ROOM_STYLE: Record<string, Partial<{ floor: InteriorSpec['floor']; wall: string; w: number; d: number }>> = {
+  'maison:salon': { w: 11, d: 8 },
+  'maison:chambre': { w: 11, d: 9 },
+  'maison:cuisine': { floor: 'carrelage', wall: '#f1e6c8', w: 8, d: 7 },
+  'maison:salle_de_bain': { floor: 'carrelage', wall: '#d6e6ea', w: 7, d: 6 },
+  'maison:grenier': { wall: '#b89a76', w: 10, d: 7 },
+  'college:hall': { floor: 'carrelage', wall: '#e6e2d0', w: 12, d: 9 },
+  'college:cantine': { floor: 'carrelage', wall: '#f0dcc0', w: 12, d: 9 },
+};
+
+/**
+ * Pièce d'un lieu en 3D. `fromRoom` : pièce d'où l'on arrive (on apparaît alors devant le passage
+ * qui y ramène, en haut de l'escalier ou derrière la porte, plutôt que sur le seuil d'entrée).
+ */
+export function placeInteriorSpec(place: PlaceId, roomId?: string, extras: ExtraItem[] = [], ownerName?: string, fromRoom?: string): InteriorSpec | null {
+  const base0 = PLACE_ROOM_STYLE[place];
   const def = INTERIOR_PLACES[place];
-  if (!style || !def) return null;
+  if (!base0 || !def) return null;
   const rooms = indoorRooms(place);
   const rid = roomId && rooms.includes(roomId) ? roomId : rooms[0];
   const room = def.rooms.find((r) => r.id === rid);
   if (!room) return null;
+  const style = { ...base0, ...ROOM_STYLE[`${place}:${rid}`] };
+  const links = (room.links ?? rooms.filter((r) => r !== rid).map((r) => ({ to: r, label: `Aller : ${def.rooms.find((x) => x.id === r)!.name}`, icon: '➡️', stairs: false })))
+    .filter((l) => rooms.includes(l.to));
+  const hasExit = room.exit !== false;
+  const stairsRight = links.some((l) => l.stairs);
   const base = room.furniture.map((f) => ({ id: f.id, kind: fixKind(f.id), label: f.name, icon: f.icon }));
-  const items = arrange([...base, ...extras.map(({ id, kind, label, icon }) => ({ id, kind, label, icon }))], style.w, style.d);
+  const items = arrange([...base, ...extras.map(({ id, kind, label, icon }) => ({ id, kind, label, icon }))], style.w, style.d, { keepRightFree: stairsRight, clearBack: true });
   const extraById = new Map(extras.map((e) => [e.id, e]));
   const hotspots: Hotspot[] = items.map((it) => {
     const ex = extraById.get(it.id);
-    if (ex) return { id: it.id, label: ex.hotspot === 'plan' ? `${it.label} — préparer tes plans` : ex.hotspot === 'armoire' ? `${it.label} — changer d’apparence` : `${it.label} — regarder`, icon: it.icon, ...frontOf(it), kind: ex.hotspot, target: it.id };
+    if (ex) return { id: it.id, label: ex.hotspot === 'plan' ? `${it.label} — préparer tes plans` : ex.hotspot === 'armoire' ? `${it.label} — changer de tenue` : `${it.label} — regarder`, icon: it.icon, ...frontOf(it), kind: ex.hotspot, target: it.id };
     return { id: it.id, label: `${it.label} — ${room.furniture.find((f) => f.id === it.id)?.actionLabel ?? ''}`, icon: it.icon, ...frontOf(it), kind: 'mobilier', target: it.id };
   });
-  hotspots.push({ id: 'sortie', label: 'Sortir', icon: '🚪', x: style.w / 2, z: style.d - 0.6, kind: 'sortie' });
-  if (place === 'epicerie' && rid === rooms[0]) {
-    hotspots.push({ id: 'travail', label: 'Proposer ton aide à Mme Bertin (petit boulot, 4,50 €/h)', icon: '🧺', x: 1.2, z: style.d - 2.4, kind: 'travail' });
-  }
-  const others = rooms.filter((r) => r !== rid);
-  others.forEach((r, i) => {
-    const rr = def.rooms.find((x) => x.id === r)!;
-    hotspots.push({ id: `piece_${r}`, label: `Aller : ${rr.name}`, icon: '➡️', x: i % 2 === 0 ? style.w - 0.6 : 0.6, z: style.d - 2.2, kind: 'piece', target: r });
-  });
   const npcSlots = items.slice(0, 4).map((it) => ({ ...frontOf(it), face: Math.PI }));
+  const { w, d } = style;
+  const door = { x: w / 2, z: d - 0.6 };
+  if (hasExit) hotspots.push({ id: 'sortie', label: place === 'maison' ? 'Sortir de chez toi (palier, bâtiment A)' : `Sortir — ${def.title}`, icon: '🚪', ...door, kind: 'sortie' });
+  if (place === 'epicerie' && rid === rooms[0]) {
+    hotspots.push({ id: 'travail', label: 'Proposer ton aide à Mme Bertin (petit boulot, 4,50 €/h)', icon: '🧺', x: 1.2, z: d - 2.4, kind: 'travail' });
+  }
+  // Passages : sans porte d'entrée, le premier passage prend la place de la porte (en bas de la
+  // pièce) ; l'escalier longe le mur de droite ; les autres passages occupent les coins avant.
+  const side = stairsRight ? [{ x: 0.7, z: d - 1.6 }, { x: 0.7, z: d - 3.6 }] : [{ x: w - 0.7, z: d - 1.6 }, { x: 0.7, z: d - 1.6 }, { x: 0.7, z: d - 3.6 }];
+  const ordered = [...links].sort((a, b) => Number(!!b.stairs) - Number(!!a.stairs));
+  let doorFree = !hasExit;
+  for (const l of ordered) {
+    let pos: { x: number; z: number };
+    if (l.stairs) {
+      pos = { x: w - 0.7, z: d - 1.6 };
+      items.push({ id: `escalier_${l.to}`, kind: 'escalier', label: 'Escalier', icon: '', x: w - 0.6, z: d - 3.3, rot: 0, w: 1.0, d: 2.4 });
+    } else if (doorFree && l === links[0]) {
+      pos = door;
+      doorFree = false;
+    } else {
+      pos = side.shift() ?? { x: w / 2, z: d - 2.4 };
+    }
+    hotspots.push({ id: `piece_${l.to}`, label: l.label, icon: l.icon, ...pos, kind: 'piece', target: l.to });
+  }
+  // Arrivée : devant le passage qui ramène à la pièce d'où l'on vient, sinon un pas après le seuil
+  // (hors de portée de la porte, pour qu'un second appui sur E ne fasse pas ressortir aussitôt).
+  const back = fromRoom ? hotspots.find((h) => h.kind === 'piece' && h.target === fromRoom) : undefined;
+  const spawn = back
+    ? { x: back.x + (w / 2 - back.x) * 0.25, z: Math.max(1, back.z - 1.4), heading: 0 }
+    : { x: w / 2, z: d - 2.0, heading: 0 };
   const roomName = ownerName ? room.name.replace('Camille', ownerName) : room.name;
-  return { key: `${place}:${rid}:${extras.map((e) => e.id).join(',')}`, title: `${def.title} — ${roomName}`, ...style, items, hotspots, npcSlots, placeId: place, roomId: rid };
+  return {
+    key: `${place}:${rid}:${extras.map((e) => e.id).join(',')}`,
+    title: `${def.title} — ${roomName}${room.floor ? ` (${room.floor})` : ''}`,
+    ...style, items, hotspots, npcSlots, placeId: place, roomId: rid, spawn,
+  };
 }
 
 const CAT_KIND: Record<string, ItemKind> = {
@@ -537,6 +602,78 @@ function itemMesh(it: InteriorItem, rnd: () => number): THREE.Group {
       g.add(leaves);
       break;
     }
+    case 'escalier': {
+      // Volée de marches qui monte vers le fond (z négatif), avec sa rampe.
+      const steps = 9;
+      for (let i = 0; i < steps; i++) {
+        const h = 0.2 * (i + 1);
+        const st = box(0.95, h, 2.4 / steps, wood, h / 2);
+        st.position.z = 1.2 - (i + 0.5) * (2.4 / steps);
+        g.add(st);
+      }
+      const rail = box(0.05, 0.05, 2.6, '#3b2a20', 1.3);
+      rail.position.x = -0.5;
+      rail.rotation.x = Math.atan2(1.8, 2.4);
+      g.add(rail);
+      break;
+    }
+    case 'tele': {
+      g.add(box(1.3, 0.5, 0.45, wood, 0.25));
+      const screen = box(1.1, 0.65, 0.06, '#1c1f24', 0.85);
+      g.add(screen);
+      const glow = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.55), new THREE.MeshStandardMaterial({ color: '#4a7ab0', emissive: new THREE.Color('#5a8ac8'), emissiveIntensity: 0.7 }));
+      glow.position.set(0, 0.85, 0.035);
+      g.add(glow);
+      break;
+    }
+    case 'cuisiniere': {
+      g.add(box(1.8, 0.9, 0.62, '#e8e2d6', 0.45));
+      for (const x of [-0.55, -0.15]) for (const z of [-0.12, 0.14]) {
+        const plate = box(0.22, 0.02, 0.22, '#2a2a2a', 0.91);
+        plate.position.set(x, 0.91, z);
+        g.add(plate);
+      }
+      const sink = box(0.5, 0.03, 0.36, '#b8c4cc', 0.91);
+      sink.position.x = 0.5;
+      g.add(sink);
+      break;
+    }
+    case 'douche': {
+      g.add(box(0.95, 0.12, 0.95, '#f4f4f0', 0.06));
+      const glass = new THREE.Mesh(new THREE.BoxGeometry(0.02, 1.9, 0.95), new THREE.MeshStandardMaterial({ color: '#cfe6f5', transparent: true, opacity: 0.35 }));
+      glass.position.set(0.47, 1.05, 0);
+      g.add(glass);
+      const head = box(0.2, 0.04, 0.2, '#b8c4cc', 2.0);
+      head.position.z = -0.3;
+      g.add(head);
+      break;
+    }
+    case 'lavabo': {
+      g.add(box(0.6, 0.8, 0.45, '#f4f4f0', 0.4));
+      const mirror = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.7), new THREE.MeshStandardMaterial({ color: '#dfeaf0', metalness: 0.6, roughness: 0.15 }));
+      mirror.position.set(0, 1.5, -0.2);
+      g.add(mirror);
+      break;
+    }
+    case 'malle': {
+      g.add(box(1.05, 0.55, 0.58, '#6b4a2f', 0.28));
+      const lid = box(1.08, 0.08, 0.6, '#4a3020', 0.6);
+      g.add(lid);
+      for (const x of [-0.35, 0.35]) {
+        const strap = box(0.06, 0.6, 0.6, '#b08a4a', 0.3);
+        strap.position.x = x;
+        g.add(strap);
+      }
+      break;
+    }
+    case 'casier': {
+      for (let k = 0; k < 4; k++) {
+        const c = box(0.48, 1.8, 0.45, ['#4f6a8a', '#c25a40', '#4f7a3a', '#e0b04a'][k]!, 0.9);
+        c.position.x = -0.75 + k * 0.5;
+        g.add(c);
+      }
+      break;
+    }
     default:
       g.add(box(0.9, 0.9, 0.9, '#9a7a52', 0.45));
   }
@@ -700,7 +837,7 @@ export function buildInterior(spec: InteriorSpec): BuiltInterior {
     spec,
     group,
     walkable,
-    spawn: { x: w / 2, z: d - 1.7, heading: 0 },
+    spawn: spec.spawn ?? { x: w / 2, z: d - 1.7, heading: 0 },
     walls,
     dispose(): void {
       group.traverse((o) => {

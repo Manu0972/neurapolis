@@ -188,7 +188,7 @@ describe('Intérieurs Détaillés & Mobilier Interactif', () => {
     });
 
     expect(modalShown).toBe(true);
-    expect(modalTitle).toBe('Maison de Camille');
+    expect(modalTitle).toBe('Chez toi');
     expect(modalContent).not.toBeNull();
 
     // Recherche et clic sur le bouton d'action du premier meuble (Lit douillet - sieste)
