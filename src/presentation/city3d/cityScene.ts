@@ -16,7 +16,10 @@ import {
   asphaltTexture, cobbleTexture, dirtTexture, glowTexture, grassTexture, gravelTexture, parkingTexture,
   groundBumpTexture, playgroundTexture, sidewalkTexture, skylineTexture, visualRng,
 } from './textures';
-import { enhanceFacadeMaterial, enhanceGroundMaterial, shapeCrownGeometry, type GroundKind } from './materials';
+import { applyGroundPhoto, enhanceFacadeMaterial, enhanceGroundMaterial, setFacadePhoto, shapeCrownGeometry, type GroundKind } from './materials';
+import { isGenericHouse, textureVariation, varyUv } from './assetsPlan';
+import { loadPhoto } from './assetsPolyhaven';
+import { buildKenneyDecor } from './skyline';
 
 export const SURFACE_HEIGHT: Record<Surface, number> = {
   chaussee: 0, passage: 0, parking: 0.02,
@@ -145,7 +148,12 @@ function buildGround(group: THREE.Group, disposables: { dispose(): void }[]): TH
   const emit = (r: Rect, z1: number): void => {
     if (r.s === 'eau') return;
     const h = SURFACE_HEIGHT[r.s];
-    get(r.s).quad(V(r.x0, h, z1), V(r.x1, h, z1), V(r.x1, h, r.z0), V(r.x0, h, r.z0), [r.x0, -z1, r.x1, -z1, r.x1, -r.z0, r.x0, -r.z0]);
+    // Variation par bloc de 128 m (décalage entier en mètres, miroir) : la répétition des
+    // textures ne s'aligne pas d'un bloc à l'autre. Un rectangle ne franchit jamais un bloc.
+    const tv = textureVariation(Math.floor(r.x0 / CHUNK), Math.floor(r.z0 / CHUNK));
+    const off = { ...tv, du: Math.round(tv.du * 12) / 12, dv: Math.round(tv.dv * 12) / 12 };
+    const uv = (x: number, z: number): [number, number] => varyUv(x, -z, off, 12);
+    get(r.s).quad(V(r.x0, h, z1), V(r.x1, h, z1), V(r.x1, h, r.z0), V(r.x0, h, r.z0), [...uv(r.x0, z1), ...uv(r.x1, z1), ...uv(r.x1, r.z0), ...uv(r.x0, r.z0)]);
   };
   let open = new Map<string, Rect>();
   for (let z = 0; z < CITY_H; z++) {
@@ -232,6 +240,20 @@ function buildGround(group: THREE.Group, disposables: { dispose(): void }[]): TH
   }
   for (const m of Object.values(mats)) if (m) disposables.push(m);
   disposables.push(curbMat, quayMat);
+  // Photos Poly Haven (asynchrones) : trottoirs en briques, places et cours pavées. Teintes
+  // ramenées vers la palette (crème, brun) ; tant qu'elles n'ont pas chargé, sols procéduraux.
+  void loadPhoto('briquesSol').then((p) => {
+    if (!p) return;
+    const side = mats.trottoir!;
+    applyGroundPhoto(side, p, 1 / 2.2, '#ab9784', 0.8, 0.9);
+    disposables.push(side.map!, side.normalMap!);
+  });
+  void loadPhoto('paves').then((p) => {
+    if (!p) return;
+    applyGroundPhoto(mats.pave!, p, 1 / 2.6, '#b6a891', 0.75, 1.1);
+    applyGroundPhoto(mats.cour!, p, 1 / 2.6, '#9d917f', 0.6, 1.1);
+    disposables.push(mats.pave!.map!, mats.pave!.normalMap!, mats.cour!.map!, mats.cour!.normalMap!);
+  });
 
   // Eau du canal et du bassin : plan légèrement transparent, animé par la présentation.
   const waterMat = new THREE.MeshStandardMaterial({ color: '#3f6f7a', roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.88 });
@@ -594,11 +616,21 @@ export function buildCityScene(): CityScene {
   lap('sol');
   buildMarkings(group, disposables);
   lap('marquages');
-  const city = buildCityBuildings();
-  enhanceFacadeMaterial(city.facadeMaterial);
-  for (const m of [...city.meshes, ...city.decor]) group.add(m);
-  nightMaterials.push({ mat: city.facadeMaterial, strength: 1.1 }, { mat: city.signs.material, strength: 0.35 });
+  // Les pavillons génériques sont construits à part : ils s'effacent devant les maisons Kenney
+  // quand celles-ci ont chargé (et restent en place sinon).
+  const city = buildCityBuildings((b) => !isGenericHouse(b));
+  const pavs = buildCityBuildings(isGenericHouse);
+  for (const c of [city, pavs]) {
+    enhanceFacadeMaterial(c.facadeMaterial);
+    for (const m of [...c.meshes, ...c.decor]) group.add(m);
+    nightMaterials.push({ mat: c.facadeMaterial, strength: 1.1 }, { mat: c.signs.material, strength: 0.35 });
+  }
+  const pavMeshes: THREE.Object3D[] = [...pavs.meshes, ...pavs.decor];
   const meshes = city.meshes;
+  // Photos des murs aveugles, pignons et toits (uniformes partagés par toutes les façades).
+  for (const [id, kind] of [['tuiles', 'tuiles'], ['brique', 'brique'], ['enduit', 'enduit']] as const) {
+    void loadPhoto(id).then((p) => { if (p) setFacadePhoto(kind, p.map, p.normal, p.mean); });
+  }
   lap('batiments');
   (globalThis as { __cityStats?: unknown }).__cityStats = city.stats;
   const { lamps, glows } = buildProps(group, disposables, nightMaterials);
@@ -615,6 +647,20 @@ export function buildCityScene(): CityScene {
   const { chunks, remapped } = chunkify(group, keep);
   (globalThis as { __cityChunkMs?: number }).__cityChunkMs = Math.round(performance.now() - tChunk);
   const buildingMeshes = meshes.flatMap((m) => remapped.get(m) ?? [m]);
+  // Modèles Kenney (asynchrones) : ceinture lointaine, tours à l'horizon, maisons des lotissements.
+  const skylineGroup = new THREE.Group();
+  skylineGroup.name = 'décor Kenney';
+  group.add(skylineGroup);
+  const kenney = buildKenneyDecor({
+    skylineGroup,
+    chunks,
+    houses: CITY.buildings.filter(isGenericHouse),
+    houseMeshes: pavMeshes,
+    groundAt: groundHeightAt,
+    cityW: CITY_W,
+    cityH: CITY_H,
+  });
+  (globalThis as { __kenneyReady?: Promise<unknown> }).__kenneyReady = kenney.ready;
 
   return {
     group,
@@ -628,8 +674,10 @@ export function buildCityScene(): CityScene {
       city.setUnitSign(unitId, text, color);
     },
     dispose(): void {
+      kenney.dispose();
       for (const d of disposables) d.dispose();
       city.dispose();
+      pavs.dispose();
     },
   };
 }
