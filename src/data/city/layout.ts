@@ -147,7 +147,7 @@ export interface CityLayout {
 
 const VX = [0, 82, 164, 246, 322, 406] as const;
 const HY = [0, 80, 160, 242] as const;
-const V_NAMES = ['Rue des Houillères', 'Rue Ambroise-Croizat', 'Rue de la Verrerie', 'Rue Louise-Michel', "Boulevard de l'Est", 'Rue du Laminoir'];
+const V_NAMES = ['Rue des Houillères', 'Rue Ambroise-Croizat', 'Rue de la Verrerie', 'Rue Louise-Michel', "Boulevard de l’Est", 'Rue du Laminoir'];
 const H_NAMES = ['Rue de la Mine', 'Avenue Jean-Jaurès', 'Rue des Forges', 'Quai de la Malterie'];
 const ROAD_BOTTOM = HY[3] + ROAD_W; // 250
 
@@ -223,6 +223,11 @@ function streetTraffic(street: string): number {
 }
 
 // ---------- Construction ----------
+
+/** « Avenue Jean-Jaurès » → « avenue Jean-Jaurès » : dans une adresse, le générique de voie prend une minuscule. */
+export function nomDansAdresse(rue: string): string {
+  return rue.replace(/^(Rue|Avenue|Boulevard|Allée|Chemin|Route|Quai|Place|Impasse|Passage|Cours) /, (m) => m.toLowerCase());
+}
 
 export function buildCityLayout(): CityLayout {
   const roads: CityRoad[] = [];
@@ -307,7 +312,7 @@ export function buildCityLayout(): CityLayout {
     const traffic = streetTraffic(street);
     units.push({
       id,
-      address: `${num} ${street}`,
+      address: `${num} ${nomDansAdresse(street)}`,
       street,
       district: b.district,
       sizeM2,
@@ -471,7 +476,7 @@ export function buildCityLayout(): CityLayout {
   {
     const b = B(1, 0);
     zones.push({ kind: 'herbe', x: b.x + 3, y: b.y + 3, w: b.w - 6, h: b.h - 6, walkable: true });
-    special({ id: 'barre_a', x: b.x + 6, y: b.y + 8, w: 60, d: 12, floors: 5, style: 'hlm', roof: 'deux_pans', front: 'n', label: 'Chez toi · Cité des Roses, bâtiment A', place: 'maison', doorAt: 0.42 });
+    special({ id: 'barre_a', x: b.x + 6, y: b.y + 8, w: 60, d: 12, floors: 5, style: 'hlm', roof: 'deux_pans', front: 'n', label: 'Chez toi — Cité des Roses, bâtiment A', place: 'maison', doorAt: 0.42 });
     special({ id: 'barre_b', x: b.x + 6, y: b.y + 32, w: 12, d: 32, floors: 6, style: 'hlm', roof: 'plat', front: 'e', label: 'Bâtiment B' });
     special({ id: 'tour_c', x: b.x + 46, y: b.y + 34, w: 18, d: 18, floors: 10, style: 'hlm', roof: 'plat', front: 'w', label: 'Tour C' });
     zones.push({ kind: 'aire_jeux', x: b.x + 26, y: b.y + 36, w: 14, h: 12, walkable: true });
@@ -608,7 +613,7 @@ export function buildCityLayout(): CityLayout {
   {
     const b = east[1]!;
     zones.push({ kind: 'gravier', x: b.x + 3, y: b.y + 3, w: b.w - 6, h: b.h - 6, walkable: true });
-    special({ id: 'laminoir', x: b.x + 6, y: b.y + 14, w: b.w - 12, d: 40, floors: 4, style: 'industriel', roof: 'sheds', front: 'n', label: 'Taret Laminage' });
+    special({ id: 'laminoir', x: b.x + 6, y: b.y + 14, w: b.w - 12, d: 40, floors: 4, style: 'industriel', roof: 'sheds', front: 'n', label: 'Laminoir Taret' });
     props.push({ kind: 'cheminee', x: b.x + b.w - 8, y: b.y + 60, blocks: true });
     props.push({ kind: 'grue', x: b.x + 10, y: b.y + 62, blocks: true });
     streetFurniture(b, ['n', 'w']);
@@ -656,11 +661,13 @@ export function buildCityLayout(): CityLayout {
 
   // Îlots : nord-est (3 rangées) puis sud (11 rangées), colonne par colonne.
   const areaOfBlock = (x: number, y: number): CityArea => CITY_AREAS.find((a) => x >= a.x && x < a.x + a.w && y >= a.y && y < a.y + a.h)!;
+  const nbParQuartier: Record<string, number> = {};
   const newBlock = (x0: number, x1: number, y0: number, y1: number, id: string): CityBlock => {
     const area = areaOfBlock(x0 + 1, y0 + 1);
     const x = x0 + ROAD_W;
     const y = y0 + ROAD_W;
-    return { id, name: `${area.name} ${id.slice(1)}`, district: area.district, x, y, w: x1 - x, h: y1 - y };
+    const rang = (nbParQuartier[area.id] = (nbParQuartier[area.id] ?? 0) + 1);
+    return { id, name: `${area.name}, îlot n° ${rang}`, district: area.district, x, y, w: x1 - x, h: y1 - y };
   };
   const newBlocks: CityBlock[] = [];
   for (let c = 0; c < EAST_VX.length - 1 + 1; c++) {
@@ -827,8 +834,8 @@ export function buildCityLayout(): CityLayout {
     // Brasserie de la Malterie : la fabrique qui a donné son nom au canal.
     s0002: (b) => { special({ id: 'brasserie_malterie', x: b.x + 6, y: b.y + 6, w: b.w - 12, d: 28, floors: 3, style: 'brique', roof: 'sheds', front: 'n', label: 'Brasserie de la Malterie' }); zones.push({ kind: 'pave', x: b.x + 6, y: b.y + 38, w: b.w - 12, h: b.h - 44, walkable: true }); },
     // Allée des Grossistes (zone HyperVal).
-    e102: (b) => entrepots(b, ['Grossiste Malterie Boissons', 'Cash Fruits du Taret']),
-    e103: (b) => entrepots(b, ['Allée des Grossistes — Frais', 'Dépôt Papeterie Vallée']),
+    e102: (b) => entrepots(b, ['Grossiste en boissons de la Malterie', 'Cash fruits du Taret']),
+    e103: (b) => entrepots(b, ['Allée des Grossistes — produits frais', 'Dépôt papeterie de la Vallée']),
   };
 
   // Un compteur de locaux par quartier (les quartiers alternent dans le parcours des îlots) ;

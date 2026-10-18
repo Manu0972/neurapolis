@@ -875,7 +875,7 @@ export const RESIDENTS: readonly ResidentDef[] = [
         sector: 'finance',
       },
       {
-        text: "Une vieille boîte en fer avec le carnet de notes de 1974 est cachée sous la place du marché.",
+        text: "Une vieille boîte en fer avec le carnet de notes de 1974 est cachée sous la place du Marché.",
         secretId: 'carnet_1974',
       },
     ],

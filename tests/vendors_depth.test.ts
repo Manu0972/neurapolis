@@ -3,7 +3,7 @@ import { createWorld } from '../src/core/store';
 import { buyVendorSpecialGood, ensureVendorsState, getVendorDiscountRate, recordVendorTrade } from '../src/simulation/vendors';
 import { VENDOR_DEFS } from '../src/data/vendors';
 
-describe('Marchands & Niveaux de Relation (Tiers)', () => {
+describe('Marchands et niveaux de relation (Tiers)', () => {
   it('initialise correctement l’état des marchands avec Palier 0 et 0% de remise', () => {
     const w = createWorld();
     const vendors = ensureVendorsState(w);

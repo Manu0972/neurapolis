@@ -1,25 +1,25 @@
 /**
- * NEURAPOLIS — Quartier : Le Canal & Les Docks Désaffectés
+ * NEURAPOLIS — Quartier : Le Canal et les docks désaffectés
  * Spécification détaillée (Survey 2 §3.1, ORIGINAL_REQUEST.md R1).
  */
 import type { ExtendedDistrictDef } from './types';
 
 export const DOCKS_DISTRICT: ExtendedDistrictDef = {
   id: 'docks',
-  name: 'Le Canal & Les Docks Désaffectés',
+  name: 'Le Canal et les docks désaffectés',
   description:
     'Ancien port fluvial sur le défluent du Val jadis voué au déchargement du charbon de l’usine Taret. Réoccupé spontanément par une communauté flottante de péniches associatives, de torréfacteurs insoumis et de pêcheurs contemplatifs.',
   ambientKelvin: 1800,
   pois: [
-    'Péniche L’Égalité Flottante',
-    'Hangar 4 & Quai aux Épices',
-    'Pont Tournant & Banc des Pêcheurs',
+    'Péniche « L’Égalité flottante »',
+    'Hangar 4 et quai aux épices',
+    'Pont tournant et banc des pêcheurs',
     'Écluse des Écureuils',
   ],
   poiDetails: [
     {
       id: 'peniche_egalite',
-      name: 'Péniche L’Égalité Flottante',
+      name: 'Péniche « L’Égalité flottante »',
       description: 'Chaland automoteur de 38 mètres en acier riveté, reconverti en café associatif, bibliothèque de prêt libre et agora flottante au ras de l’eau.',
       atmosphere: 'Bois ciré, clapotis continu de l’eau contre la tôle, vapeur de café filtre et effluves d’encre de journaux polycopiés.',
       systemicRole: 'Point de ralliement associatif, débats de quartier, repos à fatigue modérée.',
@@ -27,7 +27,7 @@ export const DOCKS_DISTRICT: ExtendedDistrictDef = {
     },
     {
       id: 'hangar_4',
-      name: 'Hangar 4 & Quai aux Épices',
+      name: 'Hangar 4 et quai aux épices',
       description: 'Ancien entrepôt douanier à verrière patinée où le Capitaine Yannick entrepose et torréfie des sacs de café en grains bio et d’agrumes acheminés sans traceurs numériques.',
       atmosphere: 'Parfum envoûtant de grains de café torréfiés au feu de bois, sacs de jute empilés, poussière dorée dans les rais de lumière ambrée.',
       systemicRole: 'Hub d’approvisionnement en gros (matières premières alimentaires à bas coût logistique).',
@@ -35,7 +35,7 @@ export const DOCKS_DISTRICT: ExtendedDistrictDef = {
     },
     {
       id: 'pont_tournant',
-      name: 'Pont Tournant & Banc des Pêcheurs',
+      name: 'Pont tournant et banc des pêcheurs',
       description: 'Ouvrage ferroviaire du XIXe siècle figé à demi-ouvert au-dessus des eaux calmes, devenu le repaire de Barnabé et de ses lignes à friture.',
       atmosphere: 'Rouille protectrice cuivrée, grincement doux au vent du nord, silence contemplatif troué par les ronds dans l’eau.',
       systemicRole: 'Zone de détente mentale, dialogue philosophique avec les aînés du fleuve.',

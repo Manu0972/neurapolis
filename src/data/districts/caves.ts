@@ -1,25 +1,25 @@
 /**
- * NEURAPOLIS — Quartier : Les Souterrains & Caves Voûtées
+ * NEURAPOLIS — Quartier : Les souterrains et caves voûtées
  * Spécification détaillée (Survey 2 §3.4, ORIGINAL_REQUEST.md R1).
  */
 import type { ExtendedDistrictDef } from './types';
 
 export const CAVES_DISTRICT: ExtendedDistrictDef = {
   id: 'caves',
-  name: 'Les Souterrains & Caves Voûtées',
+  name: 'Les souterrains et caves voûtées',
   description:
     'Réseau séculaire de carrières de calcaire blanc, caves de garde à vin et galeries de refuge creusées sous la cité. Reliant secrètement école, épicerie, friche et quais, ce monde de l’ombre abrite marché nocturne, champignonnière et fresques visionnaires.',
   ambientKelvin: 1800,
   pois: [
-    'Galerie des Échanges Clandestins',
+    'Galerie des échanges clandestins',
     'Champignonnière du Puits',
     'Carrefour des Quatre-Vents',
-    'Fresque des Prophéties',
+    'Fresque des prophéties',
   ],
   poiDetails: [
     {
       id: 'galerie_echanges',
-      name: 'Galerie des Échanges Clandestins',
+      name: 'Galerie des échanges clandestins',
       description: 'Longue voûte romane de 40 mètres où s’organise à la tombée de la nuit un marché d’entraide échappant aux radars fiscaux et aux caméras : troc de semences, livres de seconde main, conserves et outillage ancien.',
       atmosphere: 'Lumière tremblotante des lanternes à bougie posées dans les anfractuosités du calcaire, voix chuchotées, salpêtre étincelant comme de la poussière d’étoiles.',
       systemicRole: 'Marché nocturne alternatif permettant de vendre des produits hors-taxe et d’acheter des denrées rares.',
@@ -43,7 +43,7 @@ export const CAVES_DISTRICT: ExtendedDistrictDef = {
     },
     {
       id: 'fresque_propheties',
-      name: 'Fresque des Prophéties',
+      name: 'Fresque des prophéties',
       description: 'Pan de calcaire blanc de 15 mètres de long où Louison peint à la cire d’abeille et aux pigments d’argile des allégories énigmatiques qui préfigurent les crises et opportunités économiques de la ville.',
       atmosphere: 'Pénombre mystique, effluves d’huile de lin et de térébenthine, pigments ocre et indigo vibrant sous la lueur d’une lampe frontale jaune.',
       systemicRole: 'Oracle économique diégétique : consulter la fresque permet d’anticiper les variations de prix et événements à venir.',

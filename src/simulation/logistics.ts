@@ -117,7 +117,7 @@ export function createInitialLogisticsState(): SoftLogisticsState {
   const initialRelays: Record<string, RelayPoint> = {
     relais_bertin: {
       id: 'relais_bertin',
-      name: 'Épicerie des Roses (Mme Bertin)',
+      name: 'Épicerie Bertin',
       location: 'epicerie',
       hostName: 'Mme Bertin',
       capacitySlots: 15,

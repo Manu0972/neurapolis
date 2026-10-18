@@ -17,7 +17,7 @@ export const STAND_CONFIG = {
   sessionMinutes: 60,    // session de vente : 1 h (récré ou place)
   courseFee: 2,          // € par course rendue à l'épicerie
   courseMinutes: 20,
-  sessionPlaces: ['college', 'place'] as const, // récré ou place du marché
+  sessionPlaces: ['college', 'place'] as const, // récré ou place du Marché
   recruitSkill: 'communication' as const,       // contrat M3 : convaincre = communication ≥ 2
   recruitMinLevel: 2,
   recruitables: ['noah', 'lina'] as const,      // l'équipe du contrat

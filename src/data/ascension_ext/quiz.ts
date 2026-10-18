@@ -566,7 +566,7 @@ export const QUIZZES: readonly ConceptQuiz[] = [
     conceptId: 'cout_fixe_variable',
     questions: [
       {
-        q: 'Lequel de ces postes représente un coût fixe pour ton stand de crêpes sur la place du marché ?',
+        q: 'Lequel de ces postes représente un coût fixe pour ton stand de crêpes sur la place du Marché ?',
         choices: [
           'La redevance mensuelle d’emplacement versée à la mairie pour occuper le pavé',
           'La quantité de farine et de lait achetée le matin même pour la pâte',

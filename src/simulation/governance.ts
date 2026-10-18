@@ -332,7 +332,7 @@ export function createInitialGovernanceState(customEnvelope = DEFAULT_ANNUAL_ENV
     districts: {
       roses: {
         districtId: 'roses',
-        name: 'Place des Roses & Centre Ancien',
+        name: 'La Cité des Roses et le centre ancien',
         description: 'Cœur historique de Val-Ferrand, abritant l’épicerie Bertin, le collège et le Stand.',
         unlocked: true,
         unlockedDay: 0,
@@ -352,7 +352,7 @@ export function createInitialGovernanceState(customEnvelope = DEFAULT_ANNUAL_ENV
       },
       docks: {
         districtId: 'docks',
-        name: 'Le Canal & Les Docks Désaffectés',
+        name: 'Le Canal et les docks désaffectés',
         description: 'Ancien port fluvial, berges moussues, péniches associatives et contrebande douce de café équitable.',
         unlocked: false,
         requirements: {
@@ -390,7 +390,7 @@ export function createInitialGovernanceState(customEnvelope = DEFAULT_ANNUAL_ENV
       },
       bassin: {
         districtId: 'bassin',
-        name: 'Le Bassin Industriel Nord',
+        name: 'Le Bassin industriel Nord',
         description: 'Usines de briques reconverties, fablabs d’artisanat lourd, recycleries et friche Taret.',
         unlocked: false,
         requirements: {
@@ -410,7 +410,7 @@ export function createInitialGovernanceState(customEnvelope = DEFAULT_ANNUAL_ENV
       },
       caves: {
         districtId: 'caves',
-        name: 'Les Souterrains & Caves Voûtées',
+        name: 'Les souterrains et caves voûtées',
         description: 'Passages secrets maçonnés reliant l’école, l’épicerie et les caves, marché clandestin de graines rares.',
         unlocked: false,
         requirements: {
@@ -430,7 +430,7 @@ export function createInitialGovernanceState(customEnvelope = DEFAULT_ANNUAL_ENV
       },
       tramway: {
         districtId: 'tramway',
-        name: 'Ligne de Tramway / TER & Pôle d’Échange',
+        name: 'La ligne de tramway (TER) et le pôle d’échange',
         description: 'Porte d’entrée ferroviaire de la métropole, navetteurs, fret vélo-cargo et transit rapide.',
         unlocked: false,
         requirements: {

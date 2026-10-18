@@ -1,25 +1,25 @@
 /**
- * NEURAPOLIS — Quartier : Le Bassin Industriel Nord
+ * NEURAPOLIS — Quartier : Le Bassin industriel Nord
  * Spécification détaillée (Survey 2 §3.3, ORIGINAL_REQUEST.md R1).
  */
 import type { ExtendedDistrictDef } from './types';
 
 export const BASSIN_DISTRICT: ExtendedDistrictDef = {
   id: 'bassin',
-  name: 'Le Bassin Industriel Nord',
+  name: 'Le Bassin industriel Nord',
   description:
     'Ancien ensemble de fonderies et forges lourdes à sheds de briques rouges et charpentes métalliques rivetées. Reconverti en écosystème d’artisanat lourd autogéré, de valorisation de ferraille et de production énergétique citoyenne.',
   ambientKelvin: 1800,
   pois: [
-    'La Forge Commune',
+    'La forge commune',
     'Parc Recup’Métal',
-    'Chaufferie Citoyenne Biomasse',
-    'Hangar Rétrofit 2-Roues',
+    'Chaufferie citoyenne à biomasse',
+    'Hangar rétrofit deux-roues',
   ],
   poiDetails: [
     {
       id: 'forge_commune',
-      name: 'La Forge Commune',
+      name: 'La forge commune',
       description: 'Nef industrielle monumentale de 60 mètres où résonnent les coups d’enclume, équipée de marteaux-pilons réhabilités, de postes de soudure TIG et de tours mécaniques partagés.',
       atmosphere: 'Lueur incandescente des foyers à charbon projetant des halos rougeoyants sur les murs de brique suintant la suie, odeur de fer chauffé et d’huile de lin.',
       systemicRole: 'Atelier de fabrication lourde : production de remorques, présentoirs métalliques et renforts de stands.',
@@ -35,7 +35,7 @@ export const BASSIN_DISTRICT: ExtendedDistrictDef = {
     },
     {
       id: 'chaufferie_biomasse',
-      name: 'Chaufferie Citoyenne Biomasse',
+      name: 'Chaufferie citoyenne à biomasse',
       description: 'Centrale thermique collective alimentée par les chutes de bois des menuiseries locales et le broyat végétal des parcs, chauffant les ateliers et les écoles mitoyennes.',
       atmosphere: 'Chaleur enveloppante, grondement sourd et régulier du foyer à vis sans fin, parfum résineux de pin broyé et de sciure de chêne.',
       systemicRole: 'Infrastructure d’énergie partagée garantissant le confort thermique des ateliers sans dépendance au gaz importé.',
@@ -43,7 +43,7 @@ export const BASSIN_DISTRICT: ExtendedDistrictDef = {
     },
     {
       id: 'retrofit_2roues',
-      name: 'Hangar Rétrofit 2-Roues',
+      name: 'Hangar rétrofit deux-roues',
       description: 'Atelier mécanique spécialisé dans la greffe de moteurs électriques recyclés et batteries reconditionnées sur des cadres de triporteurs, vélos-cargos et vieilles mobylettes.',
       atmosphere: 'Odeur d’électrolyte, bruit sec des clés dynamométriques à cliquet, alignement de batteries lithium étiquetées avec soin.',
       systemicRole: 'Entretien et modernisation de la flotte de logistique douce (triporteurs de distribution de produits locaux).',

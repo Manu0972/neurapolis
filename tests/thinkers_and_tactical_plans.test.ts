@@ -153,7 +153,7 @@ describe('R3 — Branches Tactiques des Plans d’Action Stratégiques', () => {
     expect(bBertin?.marginBonus).toBe(0.15);
 
     const bDocks = planA?.tacticalBranches?.find((b) => b.id === 'branche_docks_volume');
-    expect(bDocks?.label).toContain('Grossiste Fluvial des Docks');
+    expect(bDocks?.label).toContain('Grossiste fluvial des docks');
     expect(bDocks?.costModifier).toBe(-0.25);
   });
 

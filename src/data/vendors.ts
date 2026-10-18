@@ -37,7 +37,7 @@ export interface VendorDef {
 export const VENDOR_DEFS: Record<VendorId, VendorDef> = {
   bertin: {
     id: 'bertin',
-    name: 'Mme Bertin (Épicerie des Roses)',
+    name: 'Mme Bertin (épicerie)',
     npcId: 'bertin',
     role: 'Épicière historique du quartier',
     location: 'epicerie',
@@ -86,7 +86,7 @@ export const VENDOR_DEFS: Record<VendorId, VendorDef> = {
   },
   karim: {
     id: 'karim',
-    name: 'Karim (Récup & Atelier Friche)',
+    name: 'Karim (atelier de la Friche)',
     npcId: 'karim',
     role: 'Bricoleur et recycleur de génie',
     location: 'friche',
@@ -131,7 +131,7 @@ export const VENDOR_DEFS: Record<VendorId, VendorDef> = {
   },
   friche_scrap: {
     id: 'friche_scrap',
-    name: 'La Recyclerie Industrielle',
+    name: 'La recyclerie industrielle',
     role: 'Collectif de ferrailleurs et réemploi',
     location: 'friche',
     description: 'Dépôt solidaire de matières premières de réemploi (bois, métaux, composants).',
@@ -154,7 +154,7 @@ export const VENDOR_DEFS: Record<VendorId, VendorDef> = {
   },
   docks_grossiste: {
     id: 'docks_grossiste',
-    name: 'Grossiste Fluvial des Docks',
+    name: 'Grossiste fluvial des docks',
     role: 'Centrale d’importation et logistique lourde',
     location: 'docks',
     description: 'Péniches et entrepôts connectant la métropole régionale. Idéal pour passer à l’échelle.',
@@ -177,7 +177,7 @@ export const VENDOR_DEFS: Record<VendorId, VendorDef> = {
   },
   tramway_express: {
     id: 'tramway_express',
-    name: 'Comptoir Logistique Tramway',
+    name: 'Comptoir logistique du tramway',
     role: 'Hub de correspondances rapides',
     location: 'tramway',
     description: 'Gare marchande et relais de fret léger reliant tous les quartiers de la ville.',

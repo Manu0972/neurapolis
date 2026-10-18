@@ -21,7 +21,7 @@ export const INITIAL_RIVALS: Record<RivalId, RivalState> = {
   },
   distributeur_college: {
     id: 'distributeur_college',
-    name: 'Distributeur Automatique Selecta Collège',
+    name: 'Distributeur automatique Selecta du collège',
     place: 'college',
     marketShare: 55,
     price: 1.50,

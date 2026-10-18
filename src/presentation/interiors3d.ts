@@ -396,7 +396,7 @@ function buildThematicFurniture(
   // ─────────────────────────────────────────────────────────────
   else if (placeId === 'epicerie') {
     if (roomId === 'magasin') {
-      // 1. Caisse Enregistreuse Rétro (id: 'caisse')
+      // 1. Caisse enregistreuse rétro (id: 'caisse')
       const caisse = new THREE.Group();
       caisse.position.set(-2.0, 0, -1.8);
       const comptoir = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.9, 2.0), matWoodDark);
@@ -411,7 +411,7 @@ function buildThematicFurniture(
       roomGroup.add(caisse);
       furnitureMeshes.set('caisse', caisse);
 
-      // 2. Rayon Maraîcher Frais (id: 'rayonnage_frais')
+      // 2. Rayon maraîcher frais (id: 'rayonnage_frais')
       const rayon = new THREE.Group();
       rayon.position.set(2.0, 0, -2.4);
       const etal = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.8, 1.2), matWood);
@@ -445,7 +445,7 @@ function buildThematicFurniture(
       roomGroup.add(palette);
       furnitureMeshes.set('palette_stock', palette);
 
-      // 2. Livre de Comptes Fournisseurs (id: 'registre_fournisseurs')
+      // 2. Livre de comptes fournisseurs (id: 'registre_fournisseurs')
       const registre = new THREE.Group();
       registre.position.set(2.0, 0, -2.0);
       const pupitreMetal = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.1, 0.8), matMetal);
