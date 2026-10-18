@@ -52,48 +52,49 @@ export const GHOST_ACCESSORY: Readonly<Record<string, string>> = {
   hobbes: 'couronne', taylor: 'chrono', ford: 'casquette', schumpeter: 'eclair',
 };
 
-const S = `stroke="${INK}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"`;
+/** Contour encré (épaisseur au choix). */
+const sw = (w = 2.5): string => `stroke="${INK}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
 
 /** Dessin de l'accessoire (coordonnées du viewBox 100 × 100). */
 function accessory(kind: string, accent: string): string {
   switch (kind) {
     case 'perruque': return ['36,15,10', '50,11,10', '64,15,10', '20,36,8', '17,49,8', '80,36,8', '83,49,8']
-      .map((c) => { const [x, y, r] = c.split(','); return `<circle cx="${x}" cy="${y}" r="${r}" fill="#f3ead8" ${S}/>`; }).join('')
-      + `<path d="M74 58 q6 4 4 10" fill="none" ${S}/><circle cx="78" cy="70" r="3" fill="${accent}" ${S}/>`;
-    case 'barbe': return `<path d="M24 64 Q22 90 38 90 Q44 96 50 92 Q56 96 62 90 Q78 90 76 64 Q70 72 62 70 Q56 74 50 71 Q44 74 38 70 Q30 72 24 64 Z" fill="#ece4d6" ${S}/>`
-      + `<circle cx="22" cy="34" r="8" fill="#ece4d6" ${S}/><circle cx="78" cy="34" r="8" fill="#ece4d6" ${S}/>`;
-    case 'melon': return `<path d="M32 19 Q32 1 50 1 Q68 1 68 19 Z" fill="#3a2a30" ${S}/><ellipse cx="50" cy="19" rx="25" ry="4.5" fill="#3a2a30" ${S}/>`
+      .map((c) => { const [x, y, r] = c.split(','); return `<circle cx="${x}" cy="${y}" r="${r}" fill="#f3ead8" ${sw()}/>`; }).join('')
+      + `<path d="M74 58 q6 4 4 10" fill="none" ${sw()}/><circle cx="78" cy="70" r="3" fill="${accent}" ${sw()}/>`;
+    case 'barbe': return `<path d="M24 64 Q22 90 38 90 Q44 96 50 92 Q56 96 62 90 Q78 90 76 64 Q70 72 62 70 Q56 74 50 71 Q44 74 38 70 Q30 72 24 64 Z" fill="#ece4d6" ${sw()}/>`
+      + `<circle cx="22" cy="34" r="8" fill="#ece4d6" ${sw()}/><circle cx="78" cy="34" r="8" fill="#ece4d6" ${sw()}/>`;
+    case 'melon': return `<path d="M32 19 Q32 1 50 1 Q68 1 68 19 Z" fill="#3a2a30" ${sw()}/><ellipse cx="50" cy="19" rx="25" ry="4.5" fill="#3a2a30" ${sw()}/>`
       + `<path d="M34 14 H66" stroke="${accent}" stroke-width="3"/>`
-      + `<path d="M41 59 Q45 55 50 58.5 Q55 55 59 59 Q55 61.5 50 60 Q45 61.5 41 59 Z" fill="#6b4a2f" ${S} stroke-width="1.5"/>`;
-    case 'lunettes': return `<circle cx="37" cy="51" r="10" fill="rgba(255,255,255,0.18)" ${S} stroke-width="2.2"/><circle cx="63" cy="51" r="10" fill="rgba(255,255,255,0.18)" ${S} stroke-width="2.2"/><path d="M47 50 Q50 47 53 50" fill="none" ${S} stroke-width="2"/>`
-      + `<path d="M50 80 L40 74 L40 86 Z M50 80 L60 74 L60 86 Z" fill="${accent}" ${S} stroke-width="2"/><circle cx="50" cy="80" r="2.6" fill="${accent}" ${S} stroke-width="1.6"/>`;
-    case 'lunettes_carrees': return `<rect x="26" y="43" width="22" height="16" rx="4" fill="rgba(255,255,255,0.15)" ${S} stroke-width="3"/><rect x="52" y="43" width="22" height="16" rx="4" fill="rgba(255,255,255,0.15)" ${S} stroke-width="3"/><path d="M48 50 H52" ${S}/>`;
+      + `<path d="M41 59 Q45 55 50 58.5 Q55 55 59 59 Q55 61.5 50 60 Q45 61.5 41 59 Z" fill="#6b4a2f" ${sw(1.5)}/>`;
+    case 'lunettes': return `<circle cx="37" cy="51" r="10" fill="rgba(255,255,255,0.18)" ${sw(2.2)}/><circle cx="63" cy="51" r="10" fill="rgba(255,255,255,0.18)" ${sw(2.2)}/><path d="M47 50 Q50 47 53 50" fill="none" ${sw(2)}/>`
+      + `<path d="M50 80 L40 74 L40 86 Z M50 80 L60 74 L60 86 Z" fill="${accent}" ${sw(2)}/><circle cx="50" cy="80" r="2.6" fill="${accent}" ${sw(1.6)}/>`;
+    case 'lunettes_carrees': return `<rect x="26" y="43" width="22" height="16" rx="4" fill="rgba(255,255,255,0.15)" ${sw(3)}/><rect x="52" y="43" width="22" height="16" rx="4" fill="rgba(255,255,255,0.15)" ${sw(3)}/><path d="M48 50 H52" ${sw()}/>`;
     case 'pousse': return `<path d="M50 15 Q49 6 52 1" fill="none" stroke="#4f7a3a" stroke-width="3" stroke-linecap="round"/>`
-      + `<path d="M51 6 Q40 -2 34 6 Q42 12 51 6 Z" fill="#8fc46a" ${S} stroke-width="2"/><path d="M52 4 Q62 -4 69 4 Q60 10 52 4 Z" fill="#8fc46a" ${S} stroke-width="2"/>`;
-    case 'haut_de_forme': return `<rect x="35" y="-6" width="30" height="22" rx="2" fill="#3a2a30" ${S}/><rect x="35" y="9" width="30" height="5" fill="${accent}"/><rect x="25" y="14" width="50" height="6" rx="3" fill="#3a2a30" ${S}/>`;
-    case 'livre': return `<rect x="66" y="66" width="20" height="16" rx="2" fill="#8a5a3a" transform="rotate(-12 76 74)" ${S}/><path d="M68 70 H82" stroke="${accent}" stroke-width="2.5" transform="rotate(-12 76 74)"/>`
-      + `<circle cx="37" cy="51" r="8" fill="none" ${S} stroke-width="1.8"/><circle cx="63" cy="51" r="8" fill="none" ${S} stroke-width="1.8"/><path d="M45 50 H55" ${S} stroke-width="1.8"/>`;
-    case 'plume': return `<path d="M72 26 Q92 2 96 4 Q90 24 74 32 Z" fill="${CREAM}" ${S} stroke-width="2"/><path d="M74 31 L90 9" fill="none" stroke="${accent}" stroke-width="2"/>`;
+      + `<path d="M51 6 Q40 -2 34 6 Q42 12 51 6 Z" fill="#8fc46a" ${sw(2)}/><path d="M52 4 Q62 -4 69 4 Q60 10 52 4 Z" fill="#8fc46a" ${sw(2)}/>`;
+    case 'haut_de_forme': return `<rect x="35" y="-6" width="30" height="22" rx="2" fill="#3a2a30" ${sw()}/><rect x="35" y="9" width="30" height="5" fill="${accent}"/><rect x="25" y="14" width="50" height="6" rx="3" fill="#3a2a30" ${sw()}/>`;
+    case 'livre': return `<rect x="66" y="66" width="20" height="16" rx="2" fill="#8a5a3a" transform="rotate(-12 76 74)" ${sw()}/><path d="M68 70 H82" stroke="${accent}" stroke-width="2.5" transform="rotate(-12 76 74)"/>`
+      + `<circle cx="37" cy="51" r="8" fill="none" ${sw(1.8)}/><circle cx="63" cy="51" r="8" fill="none" ${sw(1.8)}/><path d="M45 50 H55" ${sw(1.8)}/>`;
+    case 'plume': return `<path d="M72 26 Q92 2 96 4 Q90 24 74 32 Z" fill="${CREAM}" ${sw(2)}/><path d="M74 31 L90 9" fill="none" stroke="${accent}" stroke-width="2"/>`;
     case 'laurier': return [-1, 1].map((s) => [0, 1, 2].map((i) => {
       const x = 50 + s * (10 + i * 10); const y = 13 + i * 4;
-      return `<ellipse cx="${x}" cy="${y}" rx="6" ry="3.4" fill="#8fc46a" transform="rotate(${s * (20 + i * 12)} ${x} ${y})" ${S} stroke-width="1.8"/>`;
+      return `<ellipse cx="${x}" cy="${y}" rx="6" ry="3.4" fill="#8fc46a" transform="rotate(${s * (20 + i * 12)} ${x} ${y})" ${sw(1.8)}/>`;
     }).join('')).join('');
-    case 'toque': return `<path d="M26 22 Q26 4 50 4 Q76 4 78 16 Q82 22 74 22 Q50 14 26 22 Z" fill="#c25a40" ${S}/>`;
-    case 'casque': return `<path d="M24 24 Q24 4 50 4 Q76 4 76 24 Z" fill="#e8b84a" ${S}/><rect x="18" y="22" width="64" height="6" rx="3" fill="#e8b84a" ${S}/><path d="M50 4 V22" stroke="${INK}" stroke-width="2"/>`;
-    case 'coeur': return `<path d="M80 12 C80 6 88 5 89 11 C90 5 98 6 97 12 C97 18 89 22 88.5 25 C88 22 80 18 80 12 Z" fill="#c25a40" ${S} stroke-width="2"/>`;
-    case 'bonnet': return `<path d="M26 26 Q26 2 50 2 Q74 2 74 26 Z" fill="${accent}" ${S}/><rect x="23" y="20" width="54" height="9" rx="4" fill="${pastel(accent, 0.25)}" ${S}/><circle cx="50" cy="0" r="6" fill="${CREAM}" ${S}/>`;
-    case 'antenne': return `<path d="M50 15 V3" ${S}/><ellipse cx="50" cy="-1" rx="9" ry="6" fill="${CREAM}" ${S} stroke-width="2"/><circle cx="50" cy="-1" r="3" fill="${accent}" stroke="${INK}" stroke-width="1.4"/>`;
-    case 'fiole': return `<path d="M82 56 V64 L76 78 Q75 84 82 84 H92 Q99 84 98 78 L92 64 V56 Z" fill="${CREAM}" ${S} stroke-width="2"/><path d="M78 74 H96 L98 79 Q98 84 92 84 H82 Q75 84 77 79 Z" fill="${accent}"/><rect x="80" y="52" width="14" height="5" rx="2" fill="#8a5a3a" ${S} stroke-width="1.6"/>`;
-    case 'note': return `<path d="M84 6 V24" ${S}/><path d="M84 6 Q92 8 94 14" fill="none" ${S}/><ellipse cx="80" cy="25" rx="5" ry="4" fill="${accent}" ${S} stroke-width="2"/>`;
+    case 'toque': return `<path d="M26 22 Q26 4 50 4 Q76 4 78 16 Q82 22 74 22 Q50 14 26 22 Z" fill="#c25a40" ${sw()}/>`;
+    case 'casque': return `<path d="M24 24 Q24 4 50 4 Q76 4 76 24 Z" fill="#e8b84a" ${sw()}/><rect x="18" y="22" width="64" height="6" rx="3" fill="#e8b84a" ${sw()}/><path d="M50 4 V22" stroke="${INK}" stroke-width="2"/>`;
+    case 'coeur': return `<path d="M80 12 C80 6 88 5 89 11 C90 5 98 6 97 12 C97 18 89 22 88.5 25 C88 22 80 18 80 12 Z" fill="#c25a40" ${sw(2)}/>`;
+    case 'bonnet': return `<path d="M26 26 Q26 2 50 2 Q74 2 74 26 Z" fill="${accent}" ${sw()}/><rect x="23" y="20" width="54" height="9" rx="4" fill="${pastel(accent, 0.25)}" ${sw()}/><circle cx="50" cy="0" r="6" fill="${CREAM}" ${sw()}/>`;
+    case 'antenne': return `<path d="M50 15 V3" ${sw()}/><ellipse cx="50" cy="-1" rx="9" ry="6" fill="${CREAM}" ${sw(2)}/><circle cx="50" cy="-1" r="3" fill="${accent}" stroke="${INK}" stroke-width="1.4"/>`;
+    case 'fiole': return `<path d="M82 56 V64 L76 78 Q75 84 82 84 H92 Q99 84 98 78 L92 64 V56 Z" fill="${CREAM}" ${sw(2)}/><path d="M78 74 H96 L98 79 Q98 84 92 84 H82 Q75 84 77 79 Z" fill="${accent}"/><rect x="80" y="52" width="14" height="5" rx="2" fill="#8a5a3a" ${sw(1.6)}/>`;
+    case 'note': return `<path d="M84 6 V24" ${sw()}/><path d="M84 6 Q92 8 94 14" fill="none" ${sw()}/><ellipse cx="80" cy="25" rx="5" ry="4" fill="${accent}" ${sw(2)}/>`;
     case 'donut': return `<ellipse cx="50" cy="4" rx="17" ry="6" fill="none" stroke="#d9a066" stroke-width="7"/><ellipse cx="50" cy="3" rx="17" ry="5.5" fill="none" stroke="#f2a7b8" stroke-width="3.5"/>`
       + `<ellipse cx="50" cy="4" rx="20.5" ry="9.5" fill="none" stroke="${INK}" stroke-width="1.6"/>`;
-    case 'echarpe': return `<path d="M20 66 Q50 78 80 66 L80 74 Q50 86 20 74 Z" fill="${accent}" ${S}/><path d="M64 76 L70 94 L60 94 L56 78 Z" fill="${accent}" ${S}/>`;
-    case 'mortier': return `<path d="M50 -2 L82 8 L50 18 L18 8 Z" fill="#3a2a30" ${S}/><path d="M32 12 V20 Q50 26 68 20 V12" fill="#3a2a30" ${S}/><path d="M50 8 L80 10 V24" fill="none" stroke="${accent}" stroke-width="2.5"/><circle cx="80" cy="26" r="3" fill="${accent}"/>`;
-    case 'couronne': return `<path d="M30 20 L28 2 L39 12 L50 0 L61 12 L72 2 L70 20 Z" fill="#ffd98a" ${S}/><circle cx="50" cy="13" r="3" fill="#c25a40" ${S} stroke-width="1.4"/>`;
-    case 'chrono': return `<circle cx="86" cy="18" r="11" fill="${CREAM}" ${S}/><path d="M86 18 V11 M86 18 L91 21" ${S} stroke-width="2"/><rect x="83" y="3" width="6" height="4" rx="1" fill="${accent}" ${S} stroke-width="1.6"/>`;
-    case 'casquette': return `<path d="M26 22 Q28 6 52 6 Q72 7 74 18 L86 22 Q62 27 26 22 Z" fill="#8a5a3a" ${S}/>`;
-    case 'eclair': return `<path d="M88 0 L76 20 H86 L80 36 L96 12 H86 L92 0 Z" fill="#ffd98a" ${S} stroke-width="2"/>`;
-    default: return `<path d="M86 4 L89 13 L98 16 L89 19 L86 28 L83 19 L74 16 L83 13 Z" fill="#ffd98a" ${S} stroke-width="1.8"/>`;
+    case 'echarpe': return `<path d="M20 66 Q50 78 80 66 L80 74 Q50 86 20 74 Z" fill="${accent}" ${sw()}/><path d="M64 76 L70 94 L60 94 L56 78 Z" fill="${accent}" ${sw()}/>`;
+    case 'mortier': return `<path d="M50 -2 L82 8 L50 18 L18 8 Z" fill="#3a2a30" ${sw()}/><path d="M32 12 V20 Q50 26 68 20 V12" fill="#3a2a30" ${sw()}/><path d="M50 8 L80 10 V24" fill="none" stroke="${accent}" stroke-width="2.5"/><circle cx="80" cy="26" r="3" fill="${accent}"/>`;
+    case 'couronne': return `<path d="M30 20 L28 2 L39 12 L50 0 L61 12 L72 2 L70 20 Z" fill="#ffd98a" ${sw()}/><circle cx="50" cy="13" r="3" fill="#c25a40" ${sw(1.4)}/>`;
+    case 'chrono': return `<circle cx="86" cy="18" r="11" fill="${CREAM}" ${sw()}/><path d="M86 18 V11 M86 18 L91 21" ${sw(2)}/><rect x="83" y="3" width="6" height="4" rx="1" fill="${accent}" ${sw(1.6)}/>`;
+    case 'casquette': return `<path d="M26 22 Q28 6 52 6 Q72 7 74 18 L86 22 Q62 27 26 22 Z" fill="#8a5a3a" ${sw()}/>`;
+    case 'eclair': return `<path d="M88 0 L76 20 H86 L80 36 L96 12 H86 L92 0 Z" fill="#ffd98a" ${sw(2)}/>`;
+    default: return `<path d="M86 4 L89 13 L98 16 L89 19 L86 28 L83 19 L74 16 L83 13 Z" fill="#ffd98a" ${sw(1.8)}/>`;
   }
 }
 
@@ -123,25 +124,28 @@ function blinkDelay(id: string): number {
 }
 
 /** Le dessin SVG d'un fantôme (chaîne pure ; sert aussi de texture à la cinématique). */
-export function ghostSvgMarkup(id: string, mood: GhostMood = 'calme', size = 64, opts: { translucent?: boolean } = {}): string {
+export function ghostSvgMarkup(
+  id: string, mood: GhostMood = 'calme', size = 64,
+  opts: { translucent?: boolean; standalone?: boolean; open?: boolean } = {},
+): string {
   const m = thinkerMeta(id);
   const body = pastel(m.color);
   const kind = GHOST_ACCESSORY[id] ?? 'etoile';
   const op = opts.translucent ? ' opacity="0.86"' : '';
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -8 100 108" width="${size}" height="${size}" class="ghost-svg gk" data-mood="${mood}" data-ghost="${id}" role="img" aria-label="${m.name.replace(/"/g, '')}" style="--gk-blink:${blinkDelay(id)}s">`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -8 100 108" width="${size}" height="${size}" class="ghost-svg gk${opts.open ? ' gk-open' : ''}" data-mood="${mood}" data-ghost="${id}" role="img" aria-label="${m.name.replace(/"/g, '')}" style="--gk-blink:${blinkDelay(id)}s">`
+    + (opts.standalone ? `<style>${STATE_CSS}</style>` : '')
     + `<ellipse cx="50" cy="97" rx="24" ry="3.6" fill="#2c2540" opacity="0.22"/>`
     + `<g class="gk-bob"${op}>`
-    + `<ellipse cx="15" cy="62" rx="6" ry="8" fill="${body}" ${S} transform="rotate(-20 15 62)"/><ellipse cx="85" cy="62" rx="6" ry="8" fill="${body}" ${S} transform="rotate(20 85 62)"/>`
-    + `<path d="${BODY}" fill="${body}" ${S} stroke-width="3"/>`
+    + `<ellipse cx="15" cy="62" rx="6" ry="8" fill="${body}" ${sw()} transform="rotate(-20 15 62)"/><ellipse cx="85" cy="62" rx="6" ry="8" fill="${body}" ${sw()} transform="rotate(20 85 62)"/>`
+    + `<path d="${BODY}" fill="${body}" ${sw(3)}/>`
     + `<path d="M26 40 Q30 25 44 21" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity="0.55"/>`
     + faceMarkup()
     + accessory(kind, m.color)
     + `</g></svg>`;
 }
 
-/** Feuille de style des fantômes, injectée une fois (pas de conflit avec style.css). */
-const GHOST_CSS = `
-.gk { overflow: visible; }
+/** Règles d'état (quel visage montrer) : servent dans la page et dans un SVG autonome. */
+const STATE_CSS = `
 .gk .gk-eyes-happy, .gk .gk-eyes-sleep, .gk .gk-brows, .gk .gk-sweat, .gk .gk-mouth-open, .gk .gk-mouth-worry, .gk .gk-zz { display: none; }
 .gk[data-mood="joie"] .gk-eyes-open, .gk[data-mood="dort"] .gk-eyes-open { display: none; }
 .gk[data-mood="joie"] .gk-eyes-happy, .gk[data-mood="dort"] .gk-eyes-sleep, .gk[data-mood="dort"] .gk-zz { display: inline; }
@@ -149,6 +153,11 @@ const GHOST_CSS = `
 .gk[data-mood="alerte"] .gk-mouth-closed { display: none; }
 .gk.gk-open .gk-mouth-closed, .gk.gk-open .gk-mouth-worry { display: none; }
 .gk.gk-open .gk-mouth-open { display: inline; }
+`;
+
+/** Feuille de style des fantômes dans la page (états + petites animations), injectée une fois. */
+const GHOST_CSS = STATE_CSS + `
+.gk { overflow: visible; }
 .gk .gk-bob { transform-box: view-box; transform-origin: 50% 95%; animation: gk-float 3.4s ease-in-out infinite; }
 .gk.gk-talk .gk-bob { animation: gk-hop 0.42s ease-in-out infinite; }
 .gk .gk-eye { transform-box: fill-box; transform-origin: center; animation: gk-blink 5s infinite; animation-delay: var(--gk-blink, 0s); }
@@ -239,7 +248,7 @@ export function duoAvatar(aId: string, bId: string, mood: GhostMood = 'calme', s
     + `<ellipse cx="50" cy="97" rx="24" ry="3.6" fill="#2c2540" opacity="0.22"/>`
     + `<g class="gk-bob">`
     + `<path d="${BODY}" fill="${pastel(a.color)}" clip-path="url(#${id}l)"/><path d="${BODY}" fill="${pastel(b.color)}" clip-path="url(#${id}r)"/>`
-    + `<path d="${BODY}" fill="none" ${S} stroke-width="3"/>`
+    + `<path d="${BODY}" fill="none" ${sw(3)}/>`
     + `<path d="M50 16 V86" stroke="${CREAM}" stroke-width="1.6" stroke-dasharray="4 3"/>`
     + faceMarkup()
     + `<g clip-path="url(#${id}l)">${accessory(GHOST_ACCESSORY[aId] ?? 'etoile', a.color)}</g>`

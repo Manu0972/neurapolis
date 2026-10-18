@@ -41,7 +41,7 @@ const BAR_CSS = `
 .ghost-bar { top: 44px; gap: 6px; padding: 4px 12px; border-radius: 22px; }
 .ghost-bar .ghost-head .gk { width: clamp(46px, 6.4vw, ${HEAD_PX}px); height: auto; display: block; }
 .ghost-bar .ghost-head.talking .gk { filter: drop-shadow(0 0 6px #fff7c2); }
-.ghost-pop, .ghost-panel { top: clamp(100px, calc(52px + 6.4vw), 128px); }
+.ghost-pop, .ghost-panel { top: calc(70px + clamp(46px, 6.4vw, ${HEAD_PX}px)); }
 .ghost-pop { width: min(560px, calc(100vw - 32px)); align-items: center; gap: 10px; }
 .ghost-pop .ghost-pop-art { animation: none; }
 .ghost-pop .ghost-pop-art .gk { width: clamp(80px, 11vw, ${POP_PX}px); height: auto; display: block; }
