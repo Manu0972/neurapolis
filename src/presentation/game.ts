@@ -107,7 +107,7 @@ import { bedroomExtras, openPlanner, openShelf, type PlanCtx } from './plan-ui';
 import { openDuelModal } from './ascension-ui';
 import { buildAppearanceEditor } from './appearance-editor';
 import { createAvatarPreview } from './avatar-preview3d';
-import { openNotebooks, openUnreadBeat, playOrigin } from './story-ui';
+import { chapterEndDue, openNotebooks, openUnreadBeat, openingDue, playChapterEnd, playOpening } from './story-ui';
 import { ensureRoom, planChecklist } from '../simulation/room';
 import { searchSecret, secretHere } from '../simulation/secrets';
 import { IDEA_BY_ID } from '../data/ascension/ideas';
@@ -181,11 +181,13 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   const newsToaster = createNewsToaster(root, () => openPhoneUi('infos'));
   let surpriseRetryTick = 0;
   // Nouvelle partie : la nuit de la Maison du Peuple, avant tout le reste. Le jeu attend.
-  if (!world.story?.originDone) {
+  // Vague 7 : cinématique 3D (bibliothèque), puis pensées du personnage et première voix (story-ui.ts).
+  const cineHooks = { music: (t: string | null) => audio.setMusicScene(t), onCue: (c: string) => { if (c === 'voix') audio.playGhostArrival(); } };
+  if (openingDue(world)) {
     // Différé : l'état de l'interface (modalOpen…) est déclaré plus bas dans startGame.
     queueMicrotask(() => {
       modalOpen = true;
-      playOrigin(root, world, () => { modalOpen = false; });
+      playOpening(root, world, cineHooks, () => { modalOpen = false; });
     });
   }
   // Chronique : un instantané chaque matin pour un éventuel retour en arrière.
@@ -544,6 +546,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     /** Leviers de QA (tests E2E) : mêmes chemins que le clavier, sans attendre une image. */
     qa: {
       interact: () => interact(),
+      /** Ouvre la conversation avec un PNJ (QA uniquement). */
+      talk: (id: NpcId) => openNpcDialogue(id),
       prompt: () => promptText(),
       phone: (app?: PhoneApp) => openPhoneUi(app),
       units: () => Object.values(UNIT_BY_ID).map((u) => ({ id: u.id, door: u.door, address: u.address })),
@@ -3091,7 +3095,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const quietOk = world.time.tick - lastAutoModalTick >= ecartFenetres(world) && !catchingUp && !calme;
     if (!modalOpen) {
       // Épilogue prêt : ouverture de l'écran de conclusion de la campagne
-      if (world.campaign.completedChapters.includes(5) && !world.seen['epilogue_modal_shown']) {
+      if (chapterEndDue(world) && !catchingUp) {
+        // Fin du chapitre 1 : courte cinématique sur les toits (story-ui.ts).
+        modalOpen = true;
+        if (!playChapterEnd(root, world, cineHooks, () => { modalOpen = false; })) modalOpen = false;
+      } else if (world.campaign.completedChapters.includes(5) && !world.seen['epilogue_modal_shown']) {
         world.seen['epilogue_modal_shown'] = true;
         audio.playChapterComplete();
         openEpilogueModal();

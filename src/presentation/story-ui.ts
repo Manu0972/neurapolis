@@ -10,6 +10,67 @@ import { ensureStory, finishOrigin, markRead, personalize } from '../simulation/
 import { secretsList } from '../simulation/secrets';
 import { ghostAvatar, thinkerMeta } from './ghost-avatar';
 import { el } from './ui';
+import { heightForAge } from './city3d/bodyScale';
+import { playCinematic } from './cinematic/player';
+import { CHAPTER1_END_CINEMATIC, ORIGIN_CINEMATIC, type Cue } from './cinematic/plan';
+import { playThoughts } from './cinematic/thoughts';
+import {
+  CHAPTER1_END_FLAG, OPENING_THOUGHTS, OPENING_THOUGHTS_FLAG, OPENING_VOICE,
+} from '../data/story_cinematics';
+
+export interface CinematicHooks {
+  /** Musique imposée pendant une cinématique (titre de scène), puis null. */
+  music?(scene: string | null): void;
+  /** Bruitages aux repères (éclair, voix…). */
+  onCue?(cue: Cue): void;
+}
+
+/** Les pensées d'ouverture restent à montrer (nouvelle partie, chapitre 1 pas encore lancé). */
+export function thoughtsDue(w: WorldState): boolean {
+  return !w.seen[OPENING_THOUGHTS_FLAG] && w.campaign.currentChapter === 1
+    && !w.campaign.completedChapters.includes(1) && !w.project?.active;
+}
+
+/** Une ouverture (cinématique et/ou pensées) est à jouer au lancement de la partie. */
+export function openingDue(w: WorldState): boolean {
+  return !w.story?.originDone || thoughtsDue(w);
+}
+
+function cineOpts(w: WorldState, hooks: CinematicHooks) {
+  return {
+    appearance: w.player.appearance, gender: w.player.gender, heightM: heightForAge(w.player.age), age: w.player.age,
+    text: (s: string) => personalize(w, s), music: hooks.music, onCue: hooks.onCue,
+  };
+}
+
+/**
+ * Ouverture d'une nouvelle partie : la cinématique de la nuit de la Maison du Peuple (moteur 3D),
+ * fondu vers le matin, puis les pensées du personnage et la première voix. Sans WebGL : la
+ * version texte (playOrigin). Vue une seule fois par sauvegarde (story.originDone + w.seen).
+ */
+export function playOpening(host: HTMLElement, w: WorldState, hooks: CinematicHooks, done: () => void): void {
+  const thoughts = (): void => {
+    if (!thoughtsDue(w)) { done(); return; }
+    playThoughts(host, {
+      thoughts: OPENING_THOUGHTS.map((t) => personalize(w, t)),
+      voice: { ghost: OPENING_VOICE.ghost, text: personalize(w, OPENING_VOICE.text) },
+    }, () => { w.seen[OPENING_THOUGHTS_FLAG] = true; done(); });
+  };
+  if (w.story?.originDone) { thoughts(); return; }
+  const ok = playCinematic(host, ORIGIN_CINEMATIC, cineOpts(w, hooks), () => { finishOrigin(w); thoughts(); });
+  if (!ok) playOrigin(host, w, thoughts);
+}
+
+/** La cinématique de fin du chapitre 1 est à jouer (une fois, juste après le chapitre 1). */
+export function chapterEndDue(w: WorldState): boolean {
+  return w.campaign.completedChapters.includes(1) && w.campaign.currentChapter <= 2 && !w.seen[CHAPTER1_END_FLAG];
+}
+
+/** Fin du chapitre 1 (≈ 15 s, sur les toits). Retourne faux sans WebGL (rien à attendre). */
+export function playChapterEnd(host: HTMLElement, w: WorldState, hooks: CinematicHooks, done: () => void): boolean {
+  w.seen[CHAPTER1_END_FLAG] = true;
+  return playCinematic(host, CHAPTER1_END_CINEMATIC, cineOpts(w, hooks), done);
+}
 
 export interface StoryCtx {
   world: WorldState;
