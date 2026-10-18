@@ -11,6 +11,7 @@ import { NEED_LABELS } from '../data/places';
 import { SAVE_LABEL } from '../data/texts';
 import { getCampaignProgressSummary } from '../simulation/campaign';
 import { GHOST_DEFS_BY_ID } from '../data/ghosts/registry';
+import { qualitySelectEl } from './city3d/quality';
 
 export const NEED_IDS: readonly NeedId[] = ['fatigue', 'faim', 'stress', 'moral'];
 
@@ -263,6 +264,7 @@ export function buildUi(root: HTMLElement): UiRefs {
   menuDrawer.appendChild(navEl);
   menuDrawer.appendChild(el('div', 'hud2-drawer-title', 'Caméra et son'));
   menuDrawer.appendChild(cameraToolbarEl);
+  menuDrawer.appendChild(qualitySelectEl());
   menuDrawer.appendChild(el('p', 'hud2-help', 'ZQSD / WASD : marcher · Maj : courir · B : vélo · clic glissé : tourner la caméra · molette : zoom · E : interagir · P : téléphone · M : plan'));
   menuBtn.addEventListener('click', () => menuDrawer.classList.toggle('hidden'));
   root.appendChild(menuDrawer);

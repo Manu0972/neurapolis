@@ -10,7 +10,7 @@ import type { BusinessState } from '../../core/economy_types';
 import { INTERIOR_PLACES } from '../../data/interiors';
 import { FURNITURE_BY_ID } from '../../data/economy';
 import { UNIT_BY_ID, furnitureFootprint, shopRoomSize, storageCapacity, stockUnits } from '../../simulation/economy';
-import { visualRng } from './textures';
+import { contactShadowTexture, plasterTexture, visualRng } from './textures';
 
 export type ItemKind =
   | 'lit' | 'bureau' | 'etagere' | 'fenetre' | 'frigo' | 'canape' | 'table' | 'radio' | 'tableau'
@@ -80,6 +80,8 @@ export interface BuiltInterior {
   walkable(cx: number, cz: number): boolean;
   spawn: { x: number; z: number; heading: number };
   walls: { mesh: THREE.Mesh; normal: THREE.Vector3 }[];
+  /** Lumière du jour par les fenêtres : 0 (nuit) → 1 (plein jour), `golden` teinte le soir. */
+  setDaylight?(day: number, golden: number): void;
   dispose(): void;
 }
 
@@ -689,14 +691,17 @@ export function buildInterior(spec: InteriorSpec): BuiltInterior {
   const { w, d } = spec;
 
   const floorTex = floorTexture(spec.floor);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.85 }));
+  // Relief du sol tiré de sa propre texture (joints de parquet, de carrelage).
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ map: floorTex, bumpMap: floorTex, bumpScale: 0.9, roughness: 0.85 }));
   floor.rotation.x = -Math.PI / 2;
   floor.position.set(w / 2, 0, d / 2);
   floorTex.repeat.set(w / 2, d / 2);
   floor.receiveShadow = true;
   group.add(floor);
 
-  const wallMat = new THREE.MeshStandardMaterial({ color: spec.wall, roughness: 0.95, side: THREE.DoubleSide });
+  // Enduit : grain léger, plinthe et angle du plafond un peu assombris (occlusion peinte).
+  const plaster = plasterTexture();
+  const wallMat = new THREE.MeshStandardMaterial({ color: spec.wall, map: plaster, bumpMap: plaster, bumpScale: 0.35, roughness: 0.95, side: THREE.DoubleSide });
   const walls: BuiltInterior['walls'] = [];
   // En plein air, les « murs » sont des façades de deux étages qui ferment la place.
   const wallH = spec.outdoor ? 6.4 : WALL_H;
@@ -730,7 +735,18 @@ export function buildInterior(spec: InteriorSpec): BuiltInterior {
   mat.position.set(w / 2, 0.01, d - 0.6);
   group.add(mat);
 
+  // Ombres de contact douces sous le mobilier posé au sol.
+  const contactMat = new THREE.MeshBasicMaterial({ color: '#2a1c14', alphaMap: contactShadowTexture(), transparent: true, opacity: 0.4, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+  const contactGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   for (const it of spec.items) {
+    if (it.kind !== 'fenetre' && it.kind !== 'tableau') {
+      const c = new THREE.Mesh(contactGeo, contactMat);
+      c.position.set(it.x, 0.012, it.z);
+      c.rotation.y = it.rot;
+      c.scale.set(it.w * 1.2 + 0.25, 1, it.d * 1.2 + 0.25);
+      c.renderOrder = 1;
+      group.add(c);
+    }
     group.add(itemMesh(it, rnd));
     if (it.highlight) {
       // Liseré doré et socle lumineux autour du meuble sélectionné.
@@ -770,11 +786,15 @@ export function buildInterior(spec: InteriorSpec): BuiltInterior {
       }
     }
   }
-  // Éclairage intérieur chaud.
-  const hemi = new THREE.HemisphereLight('#fff1d8', '#6b5a48', 0.9);
+  // Éclairage intérieur chaud : ciel de pièce crème, rebond du parquet brun.
+  const hemi = new THREE.HemisphereLight('#fff0d6', '#7a5a40', 0.95);
   group.add(hemi);
-  const lamp = new THREE.PointLight('#ffd39a', 30, 18, 1.5);
-  lamp.position.set(w / 2, wallH - 0.2, d / 2);
+  // Plafonnier : un projecteur large vers le bas (une seule passe d'ombre, contre six pour une
+  // lumière ponctuelle) et une pénombre douce.
+  const lamp = new THREE.SpotLight('#ffcf94', 70, 24, 1.4, 0.9, 1.3);
+  lamp.position.set(w / 2, wallH - 0.15, d / 2);
+  lamp.target.position.set(w / 2, 0, d / 2);
+  group.add(lamp.target);
   if (spec.outdoor) {
     hemi.intensity = 1.6;
     lamp.intensity = 0;
@@ -789,10 +809,51 @@ export function buildInterior(spec: InteriorSpec): BuiltInterior {
   }
   lamp.castShadow = true;
   lamp.shadow.mapSize.set(1024, 1024);
+  lamp.shadow.radius = 3;
+  lamp.shadow.bias = -0.0006;
   group.add(lamp);
   const fill = new THREE.PointLight('#ffe6c4', 10, 14, 1.8);
   fill.position.set(w * 0.25, wallH - 0.3, d * 0.3);
   group.add(fill);
+  // Lumière du jour par la première fenêtre : rayon oblique, tache claire au sol, voile lumineux.
+  const win = spec.outdoor ? undefined : spec.items.find((it) => it.kind === 'fenetre');
+  let setDaylight: BuiltInterior['setDaylight'];
+  if (win) {
+    const out = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), win.rot);
+    const sunIn = new THREE.DirectionalLight('#fff0d8', 0);
+    sunIn.position.set(win.x + out.x * 5, 5.5, win.z + out.z * 5);
+    sunIn.target.position.set(win.x - out.x * 2.2, 0, win.z - out.z * 2.2);
+    sunIn.castShadow = true;
+    sunIn.shadow.mapSize.set(1024, 1024);
+    sunIn.shadow.radius = 3;
+    const sc = sunIn.shadow.camera;
+    sc.left = -Math.max(w, d); sc.right = Math.max(w, d); sc.top = Math.max(w, d); sc.bottom = -Math.max(w, d);
+    sc.near = 0.5; sc.far = 20;
+    group.add(sunIn, sunIn.target);
+    const patchMat = new THREE.MeshBasicMaterial({ color: '#ffe2b0', alphaMap: contactShadowTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+    const patch = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 2.4).rotateX(-Math.PI / 2), patchMat);
+    patch.position.set(win.x - out.x * 1.6, 0.014, win.z - out.z * 1.6);
+    patch.rotation.y = win.rot;
+    group.add(patch);
+    // Voile du rayon : un plan incliné de la fenêtre vers la tache au sol, à peine visible.
+    const shaftMat = new THREE.MeshBasicMaterial({ color: '#fff0d0', alphaMap: contactShadowTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    const shaft = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2.2), shaftMat);
+    shaft.position.set(win.x - out.x * 0.85, 1.0, win.z - out.z * 0.85);
+    shaft.rotation.set(0, win.rot, 0);
+    shaft.rotateX(-0.75);
+    group.add(shaft);
+    const cool = new THREE.Color('#fff0d8');
+    const warm = new THREE.Color('#ffb877');
+    setDaylight = (day, golden): void => {
+      sunIn.intensity = day * 2.4;
+      sunIn.color.copy(cool).lerp(warm, golden);
+      patchMat.color.copy(sunIn.color);
+      patchMat.opacity = day * 0.28;
+      shaftMat.opacity = day * 0.08;
+      sunIn.visible = day > 0.02;
+    };
+    setDaylight(1, 0);
+  }
   // Habillage : tapis central et plante dans un angle libre.
   const rug = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(3.2, w * 0.4), Math.min(2.2, d * 0.3)), new THREE.MeshStandardMaterial({ color: spec.floor === 'beton' ? '#5a5f66' : '#a4533b', roughness: 1 }));
   rug.rotation.x = -Math.PI / 2;
@@ -839,6 +900,7 @@ export function buildInterior(spec: InteriorSpec): BuiltInterior {
     walkable,
     spawn: spec.spawn ?? { x: w / 2, z: d - 1.7, heading: 0 },
     walls,
+    setDaylight,
     dispose(): void {
       group.traverse((o) => {
         // Lumières à ombre : leur carte d'ombre est une texture de rendu à libérer.
