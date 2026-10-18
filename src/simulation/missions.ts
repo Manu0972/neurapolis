@@ -181,7 +181,7 @@ function teamStep(w: WorldState, ch: number, r: number, wanted: number): Mission
     return goThenDo(w, ch, r, `c${ch}:discuter`, pnj(w, friend), `Rejoins ${name} pour discuter du stand`, {
       kind: 'parler', icon: '💬', text: `Discute avec ${name} pour le convaincre`,
       count: { done: Math.min(need, skill?.xp ?? 0), total: need, unit: 'pts de communication' },
-      detail: 'Réponds « Et si on faisait ça ensemble ? » ou « Ça me fait plaisir de te parler ! ».',
+      detail: 'Choisis un sujet, puis une réponse 🤝 motivée ou 😊 chaleureuse : elles font progresser ta communication.',
       action: { do: 'parler', label: `Parler à ${name}`, npc: friend },
     });
   }

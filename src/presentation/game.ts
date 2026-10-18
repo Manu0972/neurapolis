@@ -8,7 +8,8 @@ import { runTicks, tickWorld } from '../simulation/engine';
 import { tryMove } from '../simulation/movement';
 import { nearPlace, npcsNearby, placeAtAdjacent } from '../simulation/interact';
 import { applyPlaceAction } from '../simulation/places';
-import { dialogueTopics, npcLine, replyDialogue } from '../simulation/dialogue';
+import { openConversation } from './dialogue-ui';
+import { REL_LABELS } from '../data/dialogue';
 import { npcsAt } from '../simulation/npc';
 import { performGatedAction } from '../simulation/actions';
 import { skillProgress } from '../simulation/skills';
@@ -41,7 +42,6 @@ import { allianceDesOmbres } from '../simulation/antagonists';
 import { calculateMarketShares, counterStrategyDaysRemaining, executeCounterStrategy, getAvailableCounterStrategies, isCounterStrategyActive } from '../simulation/rival';
 import { PLACE_BY_ID } from '../data/places';
 import { NPC_BY_ID, NPCS } from '../data/npcs';
-import { DIALOGUE_REPLIES, REL_LABELS } from '../data/dialogue';
 import { GATED_ACTIONS, GATED_ACTION_BY_ID, SKILLS_LABELS } from '../data/actions';
 import { EXPLANATION_SOURCES, NOTIONS } from '../data/notions';
 import { GHOST_DEFS_BY_ID } from '../data/ghosts/registry';
@@ -107,7 +107,7 @@ import { bedroomExtras, openPlanner, openShelf, type PlanCtx } from './plan-ui';
 import { openDuelModal } from './ascension-ui';
 import { buildAppearanceEditor } from './appearance-editor';
 import { createAvatarPreview } from './avatar-preview3d';
-import { openNotebooks, openUnreadBeat, playOrigin } from './story-ui';
+import { chapterEndDue, openNotebooks, openUnreadBeat, openingDue, playChapterEnd, playOpening } from './story-ui';
 import { ensureRoom, planChecklist } from '../simulation/room';
 import { searchSecret, secretHere } from '../simulation/secrets';
 import { IDEA_BY_ID } from '../data/ascension/ideas';
@@ -183,11 +183,17 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   const newsToaster = createNewsToaster(root, () => openPhoneUi('infos'));
   let surpriseRetryTick = 0;
   // Nouvelle partie : la nuit de la Maison du Peuple, avant tout le reste. Le jeu attend.
-  if (!world.story?.originDone) {
+  // Vague 7 : cinématique 3D (bibliothèque), puis pensées du personnage et première voix (story-ui.ts).
+  const cineHooks = { music: (t: string | null) => audio.setMusicScene(t), onCue: (c: string) => { if (c === 'voix') audio.playGhostArrival(); } };
+  if (openingDue(world)) {
     // Différé : l'état de l'interface (modalOpen…) est déclaré plus bas dans startGame.
     queueMicrotask(() => {
       modalOpen = true;
-      playOrigin(root, world, () => { modalOpen = false; });
+      playOpening(root, world, cineHooks, () => {
+        modalOpen = false;
+        // Ouverture vue : on l'enregistre tout de suite (sinon elle rejouerait à la reprise).
+        try { if (!mp?.connected) saveToSlot('auto', world); } catch { /* stockage indisponible */ }
+      });
     });
   }
   // Chronique : un instantané chaque matin pour un éventuel retour en arrière.
@@ -546,6 +552,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     /** Leviers de QA (tests E2E) : mêmes chemins que le clavier, sans attendre une image. */
     qa: {
       interact: () => interact(),
+      /** Ouvre la conversation avec un PNJ (QA uniquement). */
+      talk: (id: NpcId) => openNpcDialogue(id),
       prompt: () => promptText(),
       phone: (app?: PhoneApp) => openPhoneUi(app),
       units: () => Object.values(UNIT_BY_ID).map((u) => ({ id: u.id, door: u.door, address: u.address })),
@@ -1388,55 +1396,13 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   }
 
   function openNpcDialogue(id: NpcId): void {
-    const def = NPC_BY_ID[id];
-    if (!def) return;
+    // Conversation complète (src/presentation/dialogue-ui.ts) : sujets, réponses, réactions, au revoir.
     renderer3D?.setTalkingNpc(id);
-    const body = el('div', 'panel-body');
-    const head = el('div', 'avatar-row');
-    head.appendChild(avatarElement(`pnj:${def.id}`, def.color, def.name, 48));
-    const col = el('div', 'avatar-col');
-    col.appendChild(el('span', 'rel-name', def.name));
-    col.appendChild(el('div', 'rel-role', def.role));
-    head.appendChild(col);
-    body.appendChild(head);
-    const lineBox = el('p', 'dialog-line', 'De quoi on parle ?');
-    body.appendChild(lineBox);
-
-    const topicRow = el('div', 'topic-row');
-    for (const topic of dialogueTopics(id)) {
-      const btn = el('button', 'btn btn-topic', topic.charAt(0).toUpperCase() + topic.slice(1));
-      btn.addEventListener('click', () => {
-        lineBox.textContent = npcLine(world, id, topic) ?? '…';
-        showReplies();
-      });
-      topicRow.appendChild(btn);
-    }
-    body.appendChild(el('h3', 'panel-sub', 'De quoi parler ?'));
-    body.appendChild(topicRow);
-
-    const replyRow = el('div', 'reply-row');
-    body.appendChild(replyRow);
-
-    function showReplies(): void {
-      replyRow.replaceChildren();
-      for (const reply of DIALOGUE_REPLIES) {
-        const btn = el('button', 'btn btn-reply', reply.label);
-        btn.addEventListener('click', () => {
-          const res = replyDialogue(world, id, reply.id);
-          spendTaskTime(TASK_MINUTES.parler, `Discussion avec ${def?.name ?? 'quelqu’un'}`);
-          const effects = Object.entries(res.applied)
-            .map(([k, d]) => `${REL_LABELS[k as keyof typeof REL_LABELS]} ${d > 0 ? '+' : ''}${d}`);
-          lineBox.textContent =
-            res.text + (effects.length > 0 ? `  →  ${effects.join(', ')}` : '');
-          replyRow.replaceChildren();
-          const bye = el('button', 'btn', 'Fermer');
-          bye.addEventListener('click', closeModal);
-          replyRow.appendChild(bye);
-        });
-        replyRow.appendChild(btn);
-      }
-    }
-    showModal(def.name, def.role, body);
+    openConversation({
+      world, showModal, closeModal,
+      spendTime: (label) => spendTaskTime(TASK_MINUTES.parler, label),
+      onChange: () => updateHud(ui, world, promptText()),
+    }, id);
   }
 
   // ---------- Écrans M3 : personnage, relations, journal ----------
@@ -3144,7 +3110,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const quietOk = world.time.tick - lastAutoModalTick >= ecartFenetres(world) && !catchingUp && !calme;
     if (!modalOpen) {
       // Épilogue prêt : ouverture de l'écran de conclusion de la campagne
-      if (world.campaign.completedChapters.includes(5) && !world.seen['epilogue_modal_shown']) {
+      if (chapterEndDue(world) && !catchingUp) {
+        // Fin du chapitre 1 : courte cinématique sur les toits (story-ui.ts).
+        modalOpen = true;
+        if (!playChapterEnd(root, world, cineHooks, () => { modalOpen = false; })) modalOpen = false;
+      } else if (world.campaign.completedChapters.includes(5) && !world.seen['epilogue_modal_shown']) {
         world.seen['epilogue_modal_shown'] = true;
         audio.playChapterComplete();
         openEpilogueModal();

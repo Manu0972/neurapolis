@@ -8,7 +8,7 @@ import type { WorldState } from '../core/types';
 import { adviceFor } from '../simulation/ghost_tips';
 import { isSilenced } from '../simulation/rewind';
 import { dayIndexOf } from '../core/clock';
-import { ghostAvatar, thinkerMeta, type GhostMood } from './ghost-avatar';
+import { ghostAvatar, speak, thinkerMeta, type GhostMood } from './ghost-avatar';
 import { el } from './ui';
 
 export interface Whisper {
@@ -31,9 +31,36 @@ export interface GhostBar {
 
 const MAX_HEADS = 9;
 const POP_MS = 9000;
+/** Tailles (vague 7) : assez grands pour être lus sans zoomer. */
+const HEAD_PX = 68;
+const POP_PX = 112;
+const PANEL_PX = 96;
+
+/** Mise en page de la barre agrandie (injectée : n'entre pas en conflit avec style.css). */
+const BAR_CSS = `
+.ghost-bar { top: 44px; gap: 6px; padding: 4px 12px; border-radius: 22px; }
+.ghost-bar .ghost-head .gk { width: clamp(46px, 6.4vw, ${HEAD_PX}px); height: auto; display: block; }
+.ghost-bar .ghost-head.talking .gk { filter: drop-shadow(0 0 6px #fff7c2); }
+.ghost-pop, .ghost-panel { top: calc(70px + clamp(46px, 6.4vw, ${HEAD_PX}px)); }
+.ghost-pop { width: min(560px, calc(100vw - 32px)); align-items: center; gap: 10px; }
+.ghost-pop .ghost-pop-art { animation: none; }
+.ghost-pop .ghost-pop-art .gk { width: clamp(80px, 11vw, ${POP_PX}px); height: auto; display: block; }
+.ghost-pop .ghost-pop-text { font-size: 15px; min-height: 2.8em; }
+.ghost-panel .ghost-panel-head .gk { width: clamp(72px, 10vw, ${PANEL_PX}px); height: auto; }
+`;
+let barCssDone = false;
+function ensureBarCss(): void {
+  if (barCssDone) return;
+  barCssDone = true;
+  const st = document.createElement('style');
+  st.dataset.owner = 'ghost-bar';
+  st.textContent = BAR_CSS;
+  document.head.appendChild(st);
+}
 const POP_COOLDOWN_MS = 12000;
 
 export function createGhostBar(host: HTMLElement, getWorld: () => WorldState, isBusy: () => boolean): GhostBar {
+  ensureBarCss();
   const root = el('div', 'ghost-bar');
   root.setAttribute('role', 'toolbar');
   root.setAttribute('aria-label', 'Tes fantômes');
@@ -88,7 +115,7 @@ export function createGhostBar(host: HTMLElement, getWorld: () => WorldState, is
         const b = el('button', 'ghost-head');
         b.type = 'button';
         b.title = `${m.name} — clique pour l’écouter`;
-        b.appendChild(ghostAvatar(id, asleep.has(id) ? 'dort' : 'calme', 36));
+        b.appendChild(ghostAvatar(id, asleep.has(id) ? 'dort' : 'calme', HEAD_PX));
         b.appendChild(el('span', 'ghost-badge', ''));
         b.addEventListener('click', () => openPanel(id));
         heads.set(id, b);
@@ -117,11 +144,16 @@ export function createGhostBar(host: HTMLElement, getWorld: () => WorldState, is
     pop.replaceChildren();
     pop.style.setProperty('--gc', m.color);
     const art = el('div', 'ghost-pop-art');
-    art.appendChild(ghostAvatar(w.ghost, w.mood ?? 'calme', 64));
+    const face = ghostAvatar(w.ghost, w.mood ?? 'calme', POP_PX);
+    art.appendChild(face);
     pop.appendChild(art);
     const bubble = el('div', 'ghost-pop-bubble');
     bubble.appendChild(el('div', 'ghost-pop-name', m.name));
-    bubble.appendChild(el('p', 'ghost-pop-text', w.text));
+    const said = el('p', 'ghost-pop-text', '');
+    bubble.appendChild(said);
+    // Le fantôme parle : le texte s'écrit, la bouche suit ; un clic sur la bulle termine.
+    const skipTalk = speak(face, said, w.text);
+    said.addEventListener('click', skipTalk);
     const row = el('div', 'ghost-pop-actions');
     if (w.action) {
       const a = el('button', 'ph-btn primary', w.action.label);
@@ -137,7 +169,7 @@ export function createGhostBar(host: HTMLElement, getWorld: () => WorldState, is
     pop.appendChild(bubble);
     pop.classList.remove('hidden');
     heads.get(w.ghost)?.classList.add('talking');
-    popTimer = window.setTimeout(() => { heads.get(w.ghost)?.classList.remove('talking'); hidePop(); }, POP_MS);
+    popTimer = window.setTimeout(() => { heads.get(w.ghost)?.classList.remove('talking'); hidePop(); }, Math.max(POP_MS, 5000 + w.text.length * 45));
   }
 
   function read(w: Whisper): void {
@@ -156,7 +188,8 @@ export function createGhostBar(host: HTMLElement, getWorld: () => WorldState, is
     panel.replaceChildren();
     panel.style.setProperty('--gc', m.color);
     const head = el('div', 'ghost-panel-head');
-    head.appendChild(ghostAvatar(id, 'joie', 52));
+    const face = ghostAvatar(id, 'joie', PANEL_PX);
+    head.appendChild(face);
     head.appendChild(el('div', 'ghost-pop-name', m.name));
     const close = el('button', 'ghost-panel-close', '✕');
     close.type = 'button';
@@ -188,7 +221,8 @@ export function createGhostBar(host: HTMLElement, getWorld: () => WorldState, is
     const answer = el('p', 'ghost-pop-text ghost-answer', '');
     ask.addEventListener('click', () => {
       const t = adviceFor(world, id);
-      answer.textContent = t ? t.text : `${m.name} t’observe en silence. Rien ne l’inquiète pour l’instant.`;
+      face.setAttribute('data-mood', t && t.weight >= 3 ? 'alerte' : 'calme');
+      speak(face, answer, t ? t.text : `${m.name} t’observe en silence. Rien ne l’inquiète pour l’instant.`);
     });
     panel.appendChild(ask);
     panel.appendChild(answer);
