@@ -168,7 +168,7 @@ describe('Musique — chef d’orchestre (temporisation, anti va-et-vient)', () 
   });
 
   it('fenêtres reconnues à leur titre', () => {
-    expect(moodForModal('Le Grand Débat de Val-Ferrand')).toBe('climax');
+    expect(moodForModal('Le grand débat de Val-Ferrand')).toBe('climax');
     expect(moodForModal('L’Héritage de Val-Ferrand')).toBe('climax');
     expect(moodForModal('Fusion — Smith-Ostrom')).toBe('climax');
     expect(moodForModal('🏫 Convocation')).toBe('tension');

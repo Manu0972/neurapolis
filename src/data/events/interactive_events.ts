@@ -57,9 +57,9 @@ export const INTERACTIVE_EVENTS: InteractiveEventDef[] = [
     category: 'canal_faune',
     title: 'L’Invasion Pacifique mais Encombrante des Canards',
     prompt:
-      'Une cinquantaine de canards colverts du canal ont débarqué sur la place du marché, bloquant les étals et caquetant joyeusement sur les pavés.',
+      'Une cinquantaine de canards colverts du canal ont débarqué sur la place du Marché, bloquant les étals et caquetant joyeusement sur les pavés.',
     narrativeText:
-      'Une cinquantaine de canards colverts du canal ont débarqué sur la place du marché, bloquant les étals et caquetant joyeusement sur les pavés.',
+      'Une cinquantaine de canards colverts du canal ont débarqué sur la place du Marché, bloquant les étals et caquetant joyeusement sur les pavés.',
     condition: (w) => w.district.vitaliteEpicerie >= 40,
     triggerCondition: (w) => w.district.vitaliteEpicerie >= 40,
     choices: [

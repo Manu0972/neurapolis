@@ -67,7 +67,7 @@ export const PLACES: PlaceDef[] = [
   },
   {
     id: 'place',
-    name: 'Place du marché',
+    name: 'Place du Marché',
     description: 'Le cœur du quartier. On y croise tout le monde, et tout le monde y sait tout.',
     actions: [
       { id: 'flaner', label: 'Flâner sur la place', needs: { stress: -5, moral: 5 } },

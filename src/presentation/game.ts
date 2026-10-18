@@ -1595,7 +1595,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const body = el('div', 'panel-body');
 
     // Section 1 : Plans d'action
-    body.appendChild(el('h3', 'panel-sub', `Plans d’Action Stratégiques (Palier : ${ap.expansionLevel.toUpperCase()})`));
+    body.appendChild(el('h3', 'panel-sub', `Plans d’action stratégiques (palier : ${ap.expansionLevel.toUpperCase()})`));
     for (const plan of Object.values(ap.plans)) {
       const card = el('div', 'ghost-detail');
       if (plan.active) card.style.borderColor = 'var(--or)';
@@ -1609,7 +1609,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       if (plan.tacticalBranches && plan.tacticalBranches.length > 0) {
         const branchBox = el('div', 'tactical-branches-box');
         branchBox.style.cssText = 'margin:10px 0;padding:8px 10px;background:rgba(255,255,255,0.03);border:1px dashed var(--line);border-radius:8px;';
-        branchBox.appendChild(el('h4', 'stat-label', '✦ Arbitrage Tactique & Approvisionnement :'));
+        branchBox.appendChild(el('h4', 'stat-label', '✦ Arbitrage tactique et approvisionnement :'));
 
         const branchGrid = el('div', 'tactical-branch-grid');
         branchGrid.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;';
@@ -1695,7 +1695,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
 
     // Section 2 : Cartographie du Territoire (9 nœuds interactifs & liaisons de flux)
-    body.appendChild(el('h3', 'panel-sub', 'Cartographie Interactive & Concessions Territoriales'));
+    body.appendChild(el('h3', 'panel-sub', 'Carte interactive et concessions territoriales'));
 
     const nodeCoords: Record<TerritorialZoneId, { x: number; y: number }> = {
       roses: { x: 310, y: 170 },
@@ -1859,7 +1859,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
 
     // Liste des entreprises
-    body.appendChild(el('h3', 'panel-sub', 'Portefeuille d’Activités & Attribution des Rôles'));
+    body.appendChild(el('h3', 'panel-sub', 'Portefeuille d’activités et attribution des rôles'));
     const candidateNpcs: Array<{ id: string; name: string }> = [
       { id: 'noah', name: 'Noah' },
       { id: 'lina', name: 'Lina' },
@@ -1939,7 +1939,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       card.appendChild(perkBox);
 
       if (def.specialGoods.length > 0) {
-        card.appendChild(el('h4', 'journal-title', 'Articles & Concessions Spéciales :'));
+        card.appendChild(el('h4', 'journal-title', 'Articles et concessions spéciales :'));
         for (const good of def.specialGoods) {
           const gRow = el('div', 'stat-row');
           const discountedPrice = (good.cost * (1 - rel.discountRate)).toFixed(2);
@@ -1962,7 +1962,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       body.appendChild(card);
     }
 
-    showModal('Marchands & Niveaux de Relation', 'fidélité · remises · stocks exclusifs', body, true);
+    showModal('Marchands et niveaux de relation', 'fidélité · remises · stocks exclusifs', body, true);
   }
 
   function openActualitesChocs(): void {
@@ -1985,7 +1985,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     currentCard.appendChild(testShockBtn);
     body.appendChild(currentCard);
 
-    body.appendChild(el('h3', 'panel-sub', 'Fil des Dépêches Économiques'));
+    body.appendChild(el('h3', 'panel-sub', 'Fil des dépêches économiques'));
     const feedList = el('div', 'journal-list');
     for (const item of mn.feed) {
       const art = el('article', 'journal-entry');
@@ -1996,7 +1996,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
     body.appendChild(feedList);
 
-    showModal('Actualités & Chocs Macroéconomiques', 'presse · tendances de marché · opportunités', body, true);
+    showModal('Actualités et chocs macroéconomiques', 'presse · tendances de marché · opportunités', body, true);
   }
 
   function openEtudesFamille(): void {
@@ -2092,7 +2092,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
     body.appendChild(actRow);
 
-    showModal('Conseiller Fantôme Kawaii', 'dialogue rapide & orientation stratégique', body);
+    showModal('Conseiller fantôme kawaii', 'dialogue rapide & orientation stratégique', body);
   }
 
   function openStreetEncounterModal(): void {
@@ -2338,7 +2338,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         body.appendChild(card);
       }
     }
-    showModal('Le Grand Débat de Val-Ferrand', 'choix d’aménagement · coûts et conséquences', body, true);
+    showModal('Le grand débat de Val-Ferrand', 'choix d’aménagement · coûts et conséquences', body, true);
   }
 
   function openEpilogueModal(customEpilogue?: EpilogueResult): void {

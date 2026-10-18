@@ -97,7 +97,7 @@ describe('missions en étapes', () => {
     w.player.pos = { ...PLACE_ANCHORS.place };
     const s = currentMission(w)!;
     expect(s.action?.do).toBe('tenir_stand');
-    expect(missionLine(s)).toBe('Tiens ton stand sur la place du marché (0/3 ventes)');
+    expect(missionLine(s)).toBe('Tiens ton stand sur la place du Marché (0/3 ventes)');
     w.flags['ventes'] = 2;
     expect(currentMission(w)!.count).toEqual({ done: 2, total: 3, unit: 'ventes' });
   });

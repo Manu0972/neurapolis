@@ -57,7 +57,7 @@ export const ROSES_DISTRICT: ExtendedDistrictDef = {
   transitions: {
     vers_docks: { targetDistrict: 'docks', targetPoi: 'Écluse des Écureuils' },
     vers_hauts: { targetDistrict: 'hauts', targetPoi: 'Passerelle des Alizés' },
-    vers_bassin: { targetDistrict: 'bassin', targetPoi: 'La Forge Commune' },
+    vers_bassin: { targetDistrict: 'bassin', targetPoi: 'La forge commune' },
     vers_caves: { targetDistrict: 'caves', targetPoi: 'Carrefour des Quatre-Vents' },
     vers_tram: { targetDistrict: 'tramway', targetPoi: 'Parvis de la Gare' },
   },

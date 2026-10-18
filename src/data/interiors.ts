@@ -334,14 +334,14 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
     rooms: [
       {
         id: 'magasin',
-        name: 'Espace de Vente & Étalages',
+        name: 'Espace de vente et étalages',
         description: 'Rayons chaleureux bordés de cagettes en bois, bocaux artisanaux et senteurs d’épices.',
         ambientSound: 'epicerie',
         surfaceType: 'parquet',
         furniture: [
           {
             id: 'caisse',
-            name: 'Caisse Enregistreuse Rétro',
+            name: 'Caisse enregistreuse rétro',
             icon: '🪙',
             description: 'Mme Bertin y tient scrupuleusement le journal de caisse.',
             actionLabel: 'Acheter un goûter vitaminé (1.00 €)',
@@ -355,7 +355,7 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
           },
           {
             id: 'rayonnage_frais',
-            name: 'Rayon Maraîcher Frais',
+            name: 'Rayon maraîcher frais',
             icon: '🥬',
             description: 'Fruits et légumes de saison approvisionnés auprès des producteurs de la région.',
             actionLabel: 'Acheter des pommes fraîches (0.80 €)',
@@ -367,7 +367,7 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
           },
           {
             id: 'bocal_vrac',
-            name: 'Meuble de Vente en Vrac',
+            name: 'Meuble de vente en vrac',
             icon: '🫙',
             description: 'Silos de graines, légumineuses et fruits secs sans emballage superflu.',
             actionLabel: 'Prendre un sachet de fruits secs (1.20 €)',
@@ -381,14 +381,14 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
       },
       {
         id: 'reserve',
-        name: 'Réserve & Gestion des Stocks',
+        name: 'Réserve et gestion des stocks',
         description: 'Palettes étiquetées, étagères métalliques et registre des fournisseurs locaux.',
         ambientSound: 'epicerie',
         surfaceType: 'pave',
         furniture: [
           {
             id: 'palette_stock',
-            name: 'Palettes d’Arrivage',
+            name: 'Palettes d’arrivage',
             icon: '📦',
             description: 'Cartons de produits en attente d’inventaire et de mise en rayon.',
             actionLabel: 'Aider Mme Bertin à inventorier le stock',
@@ -402,7 +402,7 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
           },
           {
             id: 'registre_fournisseurs',
-            name: 'Livre de Comptes Fournisseurs',
+            name: 'Livre de comptes fournisseurs',
             icon: '📖',
             description: 'Factures, bons de livraison et calcul des marges de solidarité.',
             actionLabel: 'Étudier la structure des coûts d’achat',
@@ -419,21 +419,21 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
   },
   friche: {
     placeId: 'friche',
-    title: 'Friche & Atelier Coopératif Taret',
+    title: 'Friche Taret',
     rooms: [
       {
         id: 'atelier_principal',
-        name: 'Atelier de Réparation & Prototypage',
+        name: 'Atelier de réparation et prototypage',
         description: 'Établis en chêne massif, fers à souder chauds, étaux et outillage partagé sous verrière.',
         ambientSound: 'atelier',
         surfaceType: 'parquet',
         furniture: [
           {
             id: 'etabli',
-            name: 'Établi de Réparation (Karim)',
+            name: 'Établi de réparation (Karim)',
             icon: '🛠️',
             description: 'L’établi central où Karim redonne vie à l’électronique et aux appareils mécaniques.',
-            actionLabel: 'Ouvrir l’Atelier de Réparation',
+            actionLabel: 'Ouvrir l’atelier de réparation',
             actionId: 'atelier',
             surface: 'parquet',
             sound: 'click',
@@ -441,7 +441,7 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
           },
           {
             id: 'tour_mecanique',
-            name: 'Tour & Machine d’usinage',
+            name: 'Tour et machine d’usinage',
             icon: '⚙️',
             description: 'Machine robuste pour rectifier et façonner les pièces de rechange introuvables.',
             actionLabel: 'Usiner une pièce de rechange',
@@ -454,7 +454,7 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
           },
           {
             id: 'panneau_outils',
-            name: 'Panneau d’Outils Communs',
+            name: 'Panneau d’outils communs',
             icon: '🔧',
             description: 'Tournevis isolés, clés plates, pinces et multimètres classés avec méthode.',
             actionLabel: 'Entretenir et calibrer l’outillage',
@@ -469,14 +469,14 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
       },
       {
         id: 'hangar_recup',
-        name: 'Hangar de Récupération & Recyclage',
+        name: 'Hangar de récupération et recyclage',
         description: 'Grands bacs de tri de composants, moteurs récupérés et bobines de câblage.',
         ambientSound: 'atelier',
         surfaceType: 'terre',
         furniture: [
           {
             id: 'tas_ferraille',
-            name: 'Bacs de Composants Sauvés',
+            name: 'Bacs de composants sauvés',
             icon: '🧲',
             description: 'Circuits imprimés, condensateurs et engrenages prêts pour une seconde vie.',
             actionLabel: 'Fouiller et récupérer des composants utiles',
@@ -489,7 +489,7 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
           },
           {
             id: 'banc_diagnostic',
-            name: 'Banc de Test & Diagnostic',
+            name: 'Banc de test et diagnostic',
             icon: '🔬',
             description: 'Oscilloscope et alimentations régulées pour détecter les pannes complexes.',
             actionLabel: 'Tester un circuit défaillant',
@@ -510,14 +510,14 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
     rooms: [
       {
         id: 'allees',
-        name: 'Allées Ombragées & Pelouses',
+        name: 'Allées ombragées et pelouses',
         description: 'Vieux platanes, pelouses vertes accueillantes et le murmure apaisant de la fontaine.',
         ambientSound: 'parc',
         surfaceType: 'herbe',
         furniture: [
           {
             id: 'banc_anciens',
-            name: 'Banc des Anciens',
+            name: 'Banc des anciens',
             icon: '🌳',
             description: 'Sous les platanes centenaires, les retraités partagent la mémoire du quartier.',
             actionLabel: 'Écouter les récits des anciens',
@@ -530,7 +530,7 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
           },
           {
             id: 'fontaine_parc',
-            name: 'Fontaine en Pierre',
+            name: 'Fontaine en pierre',
             icon: '⛲',
             description: 'Eau claire et rafraîchissante, prisée des passants et des oiseaux.',
             actionLabel: 'Se rafraîchir à la fontaine',
@@ -543,14 +543,14 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
       },
       {
         id: 'kiosque',
-        name: 'Kiosque à Musique & Rampe',
+        name: 'Kiosque à musique et rampe',
         description: 'Structure en fer forgé où les jeunes s’entraînent au skate et à la musique de rue.',
         ambientSound: 'parc',
         surfaceType: 'pave',
         furniture: [
           {
             id: 'rampe_skate',
-            name: 'Rampe de Skate de Noah',
+            name: 'Rampe de skate de Noah',
             icon: '🛹',
             description: 'Module de glisse auto-construit avec des planches de récupération de la friche.',
             actionLabel: 'Tenter une figure avec Noah',
@@ -563,7 +563,7 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
           },
           {
             id: 'estrade_kiosque',
-            name: 'Estrade du Kiosque',
+            name: 'Estrade du kiosque',
             icon: '🎸',
             description: 'Scène ouverte aux concerts associatifs et réunions de quartier sous les étoiles.',
             actionLabel: 'Jouer quelques accords',
@@ -584,14 +584,14 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
     rooms: [
       {
         id: 'halle',
-        name: 'Halle Couverte & Marché',
+        name: 'Halle couverte et marché',
         description: 'Grands étals sous charpente métallique, effervescence des échanges et senteurs de terroir.',
         ambientSound: 'place',
         surfaceType: 'pave',
         furniture: [
           {
             id: 'etal_marche',
-            name: 'Étal des Producteurs',
+            name: 'Étal des producteurs',
             icon: '🧺',
             description: 'Fromages, pains au levain et miels artisanaux vendus en direct.',
             actionLabel: 'Flâner entre les étals',
@@ -602,7 +602,7 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
           },
           {
             id: 'panneau_annonces',
-            name: 'Panneau d’Affichage Citoyen',
+            name: 'Panneau d’affichage citoyen',
             icon: '📌',
             description: 'Offres d’entraide, troc de services et ordres du jour des assemblées.',
             actionLabel: 'Lire les initiatives du quartier',
@@ -617,17 +617,17 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
       },
       {
         id: 'tribune',
-        name: 'Tribune & Assemblée Populaire',
+        name: 'Tribune et assemblée populaire',
         description: 'L’espace du débat démocratique : micro ouvert, bancs en hémicycle et urnes transparentes.',
         ambientSound: 'place',
         surfaceType: 'pave',
         furniture: [
           {
             id: 'estrade_debat',
-            name: 'Estrade de Prise de Parole',
+            name: 'Estrade de prise de parole',
             icon: '🏛️',
             description: 'L’estrade où les citoyens confrontent leurs visions du futur urbain.',
-            actionLabel: 'Participer au Grand Débat Citoyen',
+            actionLabel: 'Participer au grand débat citoyen',
             actionId: 'debat',
             surface: 'pave',
             sound: 'ghost',
@@ -635,7 +635,7 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
           },
           {
             id: 'urne_citoyenne',
-            name: 'Urne des Vœux & Budgets Participatifs',
+            name: 'Urne des vœux et budgets participatifs',
             icon: '🗳️',
             description: 'Dépôt des votes citoyens pour les aménagements durables.',
             actionLabel: 'Consulter les votes en cours',

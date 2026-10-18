@@ -297,7 +297,7 @@ export const NPCS_EXPANDED: ExpandedNpcDef[] = [
     routine: [
       { from: '07:00', to: '08:20', place: 'maison', activity: 'lit les flux d’actualités' },
       { from: '08:20', to: '16:40', place: 'college', activity: 'cours et interviews à la récré' },
-      { from: '16:40', to: '19:00', place: 'place', activity: 'mène l’enquête sur la place du marché', weekends: true },
+      { from: '16:40', to: '19:00', place: 'place', activity: 'mène l’enquête sur la place du Marché', weekends: true },
     ],
     dialoguePharesi: {
       accueil: [

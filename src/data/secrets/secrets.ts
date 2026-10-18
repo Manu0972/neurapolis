@@ -123,7 +123,7 @@ export const SECRETS: readonly SecretDef[] = [
   {
     id: 'wagon_postal_gare',
     title: 'Le wagon postal abandonné de l’Est',
-    where: { street: "Boulevard de l'Est", hint: 'derrière le grillage du faisceau de voies de garage' },
+    where: { street: "Boulevard de l’Est", hint: 'derrière le grillage du faisceau de voies de garage' },
     when: { hour: [18, 22] },
     requires: { tier: 3 },
     clue: 'Un cheminot retraité raconte qu’un wagon postal dort sur les voies de garage du Boulevard de l’Est depuis le dernier tri nocturne de 1996.',

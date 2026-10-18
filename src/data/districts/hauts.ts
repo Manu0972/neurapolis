@@ -11,7 +11,7 @@ export const HAUTS_DISTRICT: ExtendedDistrictDef = {
     'Plateau calcaire surplombant la cuvette industrielle. Ancienne cité-dortoir des années 1960 dont les toits-terrasses ont été conquis par les résidents pour implanter serres citoyennes, ruches, micro-éoliennes et l’antenne de la radio pirate locale.',
   ambientKelvin: 1800,
   pois: [
-    'Toits Panoramiques & Serres',
+    'Toits panoramiques et serres',
     'Studio Radio Val-Libre 107.4',
     'Passerelle des Alizés',
     'Belvédère des Éoliennes',
@@ -19,7 +19,7 @@ export const HAUTS_DISTRICT: ExtendedDistrictDef = {
   poiDetails: [
     {
       id: 'toits_panoramiques',
-      name: 'Toits Panoramiques & Serres',
+      name: 'Toits panoramiques et serres',
       description: 'Labyrinthe suspendu de toitures végétalisées reliées par des caillebotis de bois, abritant 200 m² de bacs de menthe, tomates anciennes et ruches urbaines.',
       atmosphere: 'Vent vif de crête, bourdonnement des abeilles industrieuses, odeur de terreau tiède et de thym sauvage sous le plein soleil.',
       systemicRole: 'Production maraîchère perchée, cueillette d’aromates pour infusions et tisanes de Bertin.',

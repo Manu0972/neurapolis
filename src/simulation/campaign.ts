@@ -654,7 +654,7 @@ export function campaignNextHint(w: WorldState): string | null {
     const conseil = (w.flags['chapitre4ConseilMobilise'] ?? 0) > 0;
     const debat = (w.flags['chapitre4DebatCitoyen'] ?? 0) > 0;
     return !conseil ? '→ ☰ Concurrence : mobilise le Conseil (2 voix actives)'
-      : !debat ? (age < 15 ? '⏳ le débat de la place aura lieu à tes 15 ans' : '→ ☰ Concurrence ou place du marché : choisis l’aménagement')
+      : !debat ? (age < 15 ? '⏳ le débat de la place aura lieu à tes 15 ans' : '→ ☰ Concurrence ou place du Marché : choisis l’aménagement')
         : !chapter4QuarterBacked(w) ? `→ montre ton soutien : courses pour l’épicerie ${chapter4Support(w)}/${CHAPTER4_SUPPORT}` : null;
   }
   if (ch === 5) {

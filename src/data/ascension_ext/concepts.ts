@@ -89,6 +89,6 @@ export const EXTRA_CONCEPTS: readonly EconConcept[] = [
     name: 'Le dumping',
     thinker: 'Joan Robinson',
     summary: 'Vendre délibérément à perte pendant plusieurs mois pour asphyxier ses concurrents locaux avant de relever ses tarifs une fois le monopole conquis.',
-    example: 'Le supermarché bradait le pain à 20 centimes jusqu’à ce que le fournil artisanal de la place du marché soit contraint de fermer boutique.',
+    example: 'Le supermarché bradait le pain à 20 centimes jusqu’à ce que le fournil artisanal de la place du Marché soit contraint de fermer boutique.',
   },
 ];

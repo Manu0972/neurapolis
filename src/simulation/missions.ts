@@ -153,7 +153,7 @@ function stockStep(w: WorldState, ch: number, r: number): MissionStep {
 function sellStep(w: WorldState, ch: number, r: number, count?: MissionStep['count'], detail?: string): MissionStep {
   if (!w.project?.active || w.project.stock <= 0) return stockStep(w, ch, r);
   return goThenDo(w, ch, r + 2, `c${ch}:vente`, lieu('place'), `Va sur la ${placeName('place').toLowerCase()} pour tenir ton stand`, {
-    kind: 'faire', icon: '🧁', text: 'Tiens ton stand sur la place du marché', count, detail,
+    kind: 'faire', icon: '🧁', text: 'Tiens ton stand sur la place du Marché', count, detail,
     action: { do: 'tenir_stand', label: 'Tenir le stand (1 h)' },
   });
 }
@@ -195,7 +195,7 @@ function teamStep(w: WorldState, ch: number, r: number, wanted: number): Mission
 function counterStep(w: WorldState, ch: number, r: number): MissionStep {
   const cheapest = Math.min(...COUNTER_STRATEGIES.map((s) => s.costMoney));
   const dispo = (w.project?.balance ?? 0) + w.player.money;
-  return goThenDo(w, ch, r, `c${ch}:riposte`, lieu('place'), 'Va sur la place du marché, face au drive', {
+  return goThenDo(w, ch, r, `c${ch}:riposte`, lieu('place'), 'Va sur la place du Marché, face au drive', {
     kind: 'faire', icon: '⚔️', text: 'Lance une contre-offensive contre le drive',
     detail: dispo < cheapest ? `Il faut au moins ${cheapest} € (caisse du stand puis ta poche) : vends encore un peu.` : 'Payée par la caisse du stand, puis ta poche.',
     action: { do: 'contre_offensive', label: 'Choisir une contre-offensive' },
@@ -280,7 +280,7 @@ function chapterStep(w: WorldState): MissionStep | null {
           action: { do: 'passer_temps', label: 'Passer le temps' },
         };
       }
-      return goThenDo(w, 4, 10, 'c4:debat', lieu('place'), 'Va sur la place du marché pour le grand débat', {
+      return goThenDo(w, 4, 10, 'c4:debat', lieu('place'), 'Va sur la place du Marché pour le grand débat', {
         kind: 'faire', icon: '🗳️', text: 'Choisis l’aménagement de la place',
         action: { do: 'debat', label: 'Participer au grand débat' },
       });
@@ -356,7 +356,7 @@ export function currentMission(w: WorldState, ctx: MissionContext = {}): Mission
   return step;
 }
 
-/** Texte complet du bandeau : « Tiens ton stand sur la place du marché (1/3 ventes) ». */
+/** Texte complet du bandeau : « Tiens ton stand sur la place du Marché (1/3 ventes) ». */
 export function missionLine(s: MissionStep): string {
   return s.count ? `${s.text} (${s.count.done}/${s.count.total} ${s.count.unit})` : s.text;
 }

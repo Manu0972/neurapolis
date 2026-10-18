@@ -52,7 +52,7 @@ export const INITIAL_ACTION_PLANS: ActionPlanTemplate[] = [
       },
       {
         id: 'branche_docks_volume',
-        label: 'Grossiste Fluvial des Docks',
+        label: 'Grossiste fluvial des docks',
         description: 'Achat groupé en gros volume sur les péniches du canal : coûts d’achat réduits mais transport plus lourd.',
         modifierSummary: 'Coût d’achat -25 %, Risque météo fluvial, volume doublé',
         costModifier: -0.25,
@@ -131,7 +131,7 @@ export const INITIAL_ACTION_PLANS: ActionPlanTemplate[] = [
     ghostInsight: 'Schumpeter : « L’innovateur ne s’arrête jamais à son pré carré. La destruction créatrice exige de conquérir de nouveaux espaces. »',
     steps: [
       { id: 'step_debloquer_tramway', label: 'Débloquer le nœud territorial Tramway & Gare' },
-      { id: 'step_comptoir_tramway', label: 'Atteindre le Tier 1 au Comptoir Logistique Tramway' },
+      { id: 'step_comptoir_tramway', label: 'Atteindre le Tier 1 au Comptoir logistique du tramway' },
       { id: 'step_tresorerie_expansion', label: 'Disposer d’une trésorerie d’au moins 80 €' },
     ],
     unlockedDay: 5,
@@ -161,7 +161,7 @@ export const INITIAL_ACTION_PLANS: ActionPlanTemplate[] = [
     ghostAdvisorId: 'keynes',
     ghostInsight: 'Keynes : « Quand la demande locale est saturée, il faut stimuler les flux macroéconomiques et investir dans les grandes infrastructures. »',
     steps: [
-      { id: 'step_debloquer_docks', label: 'Sécuriser un partenariat avec le Grossiste Fluvial des Docks' },
+      { id: 'step_debloquer_docks', label: 'Sécuriser un partenariat avec le Grossiste fluvial des docks' },
       { id: 'step_concession_regionale', label: 'Payer la concession régionale d’exploitation' },
       { id: 'step_chiffre_affaires_cible', label: 'Générer plus de 150 € de chiffre d’affaires cumulé' },
     ],

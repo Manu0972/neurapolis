@@ -40,7 +40,7 @@ export interface DistrictArchitecturalConcept {
 export const DISTRICT_ARCHITECTURAL_CONCEPTS: Record<FacadeKind, DistrictArchitecturalConcept> = {
   roses: {
     id: 'roses',
-    districtName: 'Place des Roses',
+    districtName: 'Place du Marché',
     dominantMaterials: ['Crépi calcaire chaud', 'Tuiles terracotta', 'Ferronnerie sombre'],
     architecturalStyle: 'Cité-jardin populaire du début XXe siècle, arcades et venelles piétonnes',
     ambientLightingKelvin: 1800,
@@ -56,7 +56,7 @@ export const DISTRICT_ARCHITECTURAL_CONCEPTS: Record<FacadeKind, DistrictArchite
   },
   friche: {
     id: 'friche',
-    districtName: 'La Friche Taret & Ateliers',
+    districtName: 'La Friche Taret et ses ateliers',
     dominantMaterials: ['Brique rouge industrielle patinée', 'Verrières à croisillons métalliques', 'Charpente chêne'],
     architecturalStyle: 'Architecture industrielle fin XIXe reconvertie en tiers-lieu autogéré',
     ambientLightingKelvin: 2200,
@@ -72,7 +72,7 @@ export const DISTRICT_ARCHITECTURAL_CONCEPTS: Record<FacadeKind, DistrictArchite
   },
   docks: {
     id: 'docks',
-    districtName: 'Le Canal & Docks Désaffectés',
+    districtName: 'Le Canal et les docks désaffectés',
     dominantMaterials: ['Palplanches et pieux de bois goudronné', 'Bardage métallique rouillé', 'Bollards fonte'],
     architecturalStyle: 'Port fluvial industriel reconverti en zone associative et logistique douce',
     ambientLightingKelvin: 1900,
@@ -88,7 +88,7 @@ export const DISTRICT_ARCHITECTURAL_CONCEPTS: Record<FacadeKind, DistrictArchite
   },
   bassin: {
     id: 'bassin',
-    districtName: 'Bassin Industriel Nord',
+    districtName: 'Bassin industriel Nord',
     dominantMaterials: ['Sheds en briques sombres', 'Profilés IPN en acier riveté', 'Verre armé opaque'],
     architecturalStyle: 'Grandes nefs manufacturières reconverties en fablabs et centrales solaires',
     ambientLightingKelvin: 2100,
@@ -96,7 +96,7 @@ export const DISTRICT_ARCHITECTURAL_CONCEPTS: Record<FacadeKind, DistrictArchite
   },
   souterrains: {
     id: 'souterrains',
-    districtName: 'Les Souterrains & Caves Voûtées',
+    districtName: 'Les souterrains et caves voûtées',
     dominantMaterials: ['Calcaire rustique taillé', 'Mortier de chaux', 'Tonneaux et traverses de chêne'],
     architecturalStyle: 'Caves séculaires et galeries de carriers communicantes sous la cité',
     ambientLightingKelvin: 1600,
@@ -294,7 +294,7 @@ function drawEpicerieBertin(
   ctx.fillRect(crateX + 4 * u, crateY - 2 * u, 2 * u, 3 * u);
 }
 
-/* ── 2. La Friche Taret & Ateliers ─────────────────────────────── */
+/* ── 2. La Friche Taret et ses ateliers ─────────────────────────────── */
 
 function drawFricheTaret(
   ctx: CanvasRenderingContext2D,
@@ -521,7 +521,7 @@ function drawHautsValFerrand(
   ctx.fillRect(x + 28 * u, topY + 6 * u, 8 * u, 8 * u);
 }
 
-/* ── 5. Bassin Industriel Nord ─────────────────────────────────── */
+/* ── 5. Bassin industriel Nord ─────────────────────────────────── */
 
 function drawBassinIndustriel(
   ctx: CanvasRenderingContext2D,
@@ -568,7 +568,7 @@ function drawBassinIndustriel(
   ctx.fillRect(x, y - 4 * u, w, u);
 }
 
-/* ── 6. Souterrains & Caves Voûtées ────────────────────────────── */
+/* ── 6. Souterrains et caves voûtées ────────────────────────────── */
 
 function drawSouterrainsCaves(
   ctx: CanvasRenderingContext2D,
