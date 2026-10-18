@@ -7,3 +7,8 @@
 **Vulnerability:** Path boundary checks constructed via `ROOT + sep` fail when `ROOT` already includes a trailing separator (e.g. `dist/`), evaluating `file.startsWith('dist//')` to `false` for valid requests and resulting in false-positive 403 Forbidden errors or unintended bypasses.
 **Learning:** `path.resolve()` strips trailing separators on paths except for root directories, but user arguments or computed directory strings might retain them.
 **Prevention:** Normalize root prefix paths with `const rootWithSep = ROOT.endsWith(sep) ? ROOT : ROOT + sep;` before performing `startsWith` containment validation.
+
+## 2026-03-31 - Array Object Confusion in JSON Save Migration Checks
+**Vulnerability:** `typeof raw !== 'object' || raw === null` evaluates to `false` for Array JSON inputs (`[]`), allowing imported array payloads to bypass object type checks in `migrateSave` and undergo state migrations that attach properties directly to Array instances.
+**Learning:** In JS, `typeof []` is `'object'`. Unvalidated JSON arrays parsed as objects can cause type confusion and runtime errors when state functions expect plain record objects.
+**Prevention:** Always include `Array.isArray(obj)` check when validating plain record objects received from `JSON.parse`.
