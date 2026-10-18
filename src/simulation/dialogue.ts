@@ -7,7 +7,7 @@ import type { NpcId, Rel4, WorldState } from '../core/types';
 import { rngPick } from '../core/rng';
 import { NPC_BY_ID } from '../data/npcs';
 import {
-  DEFAULT_TOPIC_REPLIES, DIALOGUE_REPLIES, GENERIC_REACTIONS, NPC_GOODBYES, NPC_REACTIONS, TONE_ICONS, TOPIC_LABELS, TOPIC_REPLIES,
+  DEFAULT_TOPIC_REPLIES, DIALOGUE_REPLIES, GENERIC_REACTIONS, NPC_GOODBYES, NPC_REACTIONS, REPEAT_REACTIONS, TONE_ICONS, TOPIC_LABELS, TOPIC_REPLIES,
   type DialogueTone,
 } from '../data/dialogue';
 import { addXp } from './skills';
@@ -77,12 +77,14 @@ export interface Conversation {
   topic: string | null;
   /** La conversation est terminée (au revoir dit). */
   ended: boolean;
+  /** Tons déjà employés (pour varier les réactions). */
+  tones: string[];
 }
 
 export interface ConversationChoice { id: string; label: string }
 
 export function startConversation(npcId: NpcId): Conversation {
-  return { npcId, asked: [], topic: null, ended: false };
+  return { npcId, asked: [], topic: null, ended: false, tones: [] };
 }
 
 /** Nom affiché d'un sujet. */
@@ -129,7 +131,10 @@ export function answerTopic(w: WorldState, c: Conversation, tone: string): Answe
   if (!opt) return null;
   const res = replyDialogue(w, c.npcId, opt.tone);
   c.topic = null;
-  const reaction = personalize(w, NPC_REACTIONS[c.npcId]?.[opt.tone as DialogueTone] ?? GENERIC_REACTIONS[opt.tone]);
+  const repeat = c.tones.includes(opt.tone);
+  c.tones.push(opt.tone);
+  const first = NPC_REACTIONS[c.npcId]?.[opt.tone as DialogueTone] ?? GENERIC_REACTIONS[opt.tone];
+  const reaction = personalize(w, repeat ? REPEAT_REACTIONS[opt.tone] : first);
   return { said: opt.label, reaction, applied: res.applied, next: conversationMenu(c).length > 0 ? 'menu' : 'fin' };
 }
 

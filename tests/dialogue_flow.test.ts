@@ -15,7 +15,7 @@ function explore(npcId: string, seed: number): { paths: number; maxSteps: number
   let paths = 0;
   let maxSteps = 0;
   const walk = (asked: string[], steps: number): void => {
-    const w = createWorld(seed);
+    const w = createWorld({ seed });
     const c: Conversation = startConversation(npcId as never);
     for (const a of asked) { askTopic(w, c, a); answerTopic(w, c, TOPIC_REPLIES[a]?.[0]?.tone ?? 'chaleureux'); }
     const menu = conversationMenu(c);
@@ -29,7 +29,7 @@ function explore(npcId: string, seed: number): { paths: number; maxSteps: number
       return;
     }
     for (const t of menu) {
-      const w2 = createWorld(seed);
+      const w2 = createWorld({ seed });
       const c2 = startConversation(npcId as never);
       for (const a of asked) { askTopic(w2, c2, a); answerTopic(w2, c2, TOPIC_REPLIES[a]?.[0]?.tone ?? 'chaleureux'); }
       const r = askTopic(w2, c2, t.id);
@@ -40,7 +40,7 @@ function explore(npcId: string, seed: number): { paths: number; maxSteps: number
       expect(conversationMenu(c2)).toEqual([]);
       expect(askTopic(w2, c2, t.id)).toBeNull();
       for (const rep of r!.replies) {
-        const w3 = createWorld(seed);
+        const w3 = createWorld({ seed });
         const c3 = startConversation(npcId as never);
         for (const a of asked) { askTopic(w3, c3, a); answerTopic(w3, c3, TOPIC_REPLIES[a]?.[0]?.tone ?? 'chaleureux'); }
         askTopic(w3, c3, t.id);
@@ -76,7 +76,7 @@ describe('conversations : chaque sujet aboutit', () => {
   });
 
   it('Noah : Accueil → réponse → réaction → retour au menu sans le sujet déjà abordé', () => {
-    const w = createWorld(3);
+    const w = createWorld({ seed: 3 });
     const c = startConversation('noah');
     expect(conversationMenu(c).map((m) => m.id)).toEqual(['accueil', 'projet', 'argent']);
     const r = askTopic(w, c, 'accueil')!;
@@ -93,7 +93,7 @@ describe('conversations : chaque sujet aboutit', () => {
   });
 
   it('une réponse inventée ou hors sujet ne casse rien', () => {
-    const w = createWorld(3);
+    const w = createWorld({ seed: 3 });
     const c = startConversation('lina');
     expect(answerTopic(w, c, 'chaleureux')).toBeNull();
     askTopic(w, c, 'ecole');

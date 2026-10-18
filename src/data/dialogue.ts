@@ -185,6 +185,14 @@ export const GENERIC_REACTIONS: Record<DialogueTone, string> = {
   taquin: '« Toi alors… »',
 };
 
+/** Même ton deux fois dans la conversation : une réaction différente (pas de perroquet). */
+export const REPEAT_REACTIONS: Record<DialogueTone, string> = {
+  chaleureux: 'Un vrai sourire. « Décidément, t’es de bonne humeur aujourd’hui ! »',
+  curieux: '« T’en poses, des questions ! Mais c’est bien, ça veut dire que tu réfléchis. »',
+  motive: '« Toi, t’as de la suite dans les idées. Ok, on en reparle sérieusement. »',
+  taquin: '« Encore ? Tu cherches la bagarre ou quoi ? » Un petit rire quand même.',
+};
+
 /** Au revoir de chaque PNJ (fin claire de la conversation). */
 export const NPC_GOODBYES: Record<string, string> = {
   noah: '« À plus ! Passe au parc après les cours. »',
