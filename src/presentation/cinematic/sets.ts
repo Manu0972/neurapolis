@@ -247,6 +247,19 @@ function buildLibrary(plan: CinematicPlan, opts: SetOptions): CineSet {
   ceiling.position.set(0, 4.2, 1.2);
   ceiling.target.position.set(0, 0, 1.4);
   scene.add(ceiling, ceiling.target);
+  // Veilleuses le long de l'allée (s'éteignent avec le courant).
+  const sconces: THREE.PointLight[] = [];
+  for (const z of [-7.5, -4.5, -1.5]) {
+    for (const side of [-1, 1]) {
+      const l = new THREE.PointLight('#ffcf8a', 2.2, 4.5, 1.6);
+      l.position.set(side * 1.9, 3.3, z);
+      scene.add(l);
+      sconces.push(l);
+    }
+    const bulbS = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshBasicMaterial({ color: '#ffe2a0' }));
+    bulbS.position.set(0, 3.9, z);
+    scene.add(bulbS);
+  }
   const coneMat = new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0.045, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
   const cone = new THREE.Mesh(new THREE.ConeGeometry(1.5, 4.2, 32, 1, true), coneMat);
   cone.position.set(0, 2.1, 1.3);
@@ -282,24 +295,52 @@ function buildLibrary(plan: CinematicPlan, opts: SetOptions): CineSet {
   scene.add(kid.root);
   const flash = new THREE.SpotLight('#fff1cf', 0, 4, 0.45, 0.5, 1.2);
   flash.position.set(0.25, 0.9, 1.25);
-  flash.target.position.set(0.35, 0, 0.9);
+  flash.target.position.set(0.42, 0, 0.78);
   scene.add(flash, flash.target);
 
+  // Le carnet de Lucien, ouvert : couverture rouge, pages couvertes d'une écriture penchée.
+  const NB = { x: 0.42, z: 0.78 };
+  const pageCanvas = document.createElement('canvas');
+  pageCanvas.width = 128;
+  pageCanvas.height = 160;
+  const pg = pageCanvas.getContext('2d')!;
+  pg.fillStyle = '#f3e6c8';
+  pg.fillRect(0, 0, 128, 160);
+  pg.strokeStyle = '#5a3a24';
+  pg.lineWidth = 1.4;
+  for (let y = 18; y < 150; y += 11) {
+    pg.beginPath();
+    let x = 10;
+    pg.moveTo(x, y);
+    while (x < 116) { x += 4 + rnd() * 5; pg.lineTo(x, y + (rnd() - 0.5) * 3); }
+    pg.stroke();
+  }
+  const pageTex = new THREE.CanvasTexture(pageCanvas);
+  pageTex.colorSpace = THREE.SRGBColorSpace;
+  const pageMat = new THREE.MeshStandardMaterial({ map: pageTex, emissive: '#ffe2a0', emissiveMap: pageTex, emissiveIntensity: 0, roughness: 0.9 });
+  disposables.push(pageTex, pageMat);
   const notebook = new THREE.Group();
-  const cover = box(0.22, 0.025, 0.3, '#7a2f2a', 0.7);
-  const pages = box(0.2, 0.012, 0.28, '#efe2c4', 0.9);
-  pages.position.y = 0.018;
-  notebook.add(cover, pages);
-  notebook.position.set(0.35, 0.014, 0.95);
-  notebook.rotation.y = 0.4;
+  const cover = box(0.46, 0.02, 0.32, '#7a2f2a', 0.6);
+  notebook.add(cover);
+  for (const side of [-1, 1]) {
+    const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.012, 0.29), pageMat);
+    leaf.position.set(side * 0.112, 0.022, 0);
+    leaf.rotation.z = side * -0.08;
+    notebook.add(leaf);
+  }
+  const band = box(0.02, 0.025, 0.32, '#c9a24a', 0.4);
+  band.position.y = 0.012;
+  notebook.add(band);
+  notebook.position.set(NB.x, 0.012, NB.z);
+  notebook.rotation.y = 0.5;
   notebook.visible = false;
   scene.add(notebook);
   const glowTex = radialTexture('rgba(255,226,150,0.95)');
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-  glow.position.set(0.35, 0.12, 0.95);
+  glow.position.set(NB.x, 0.12, NB.z);
   scene.add(glow);
   const glowLight = new THREE.PointLight('#ffd98a', 0, 5, 1.5);
-  glowLight.position.set(0.35, 0.35, 0.95);
+  glowLight.position.set(NB.x, 0.35, NB.z);
   scene.add(glowLight);
   const sparkN = 160;
   const sparkPos = new Float32Array(sparkN * 3);
@@ -318,7 +359,7 @@ function buildLibrary(plan: CinematicPlan, opts: SetOptions): CineSet {
     const a = rnd() * Math.PI * 2;
     const r = 0.35 + rnd() * 1.1;
     const to = new THREE.Vector3(-0.6 + Math.cos(a) * r * 0.9, 0.03 + rnd() * 0.06, 1.3 + Math.sin(a) * r * 0.7);
-    if (Math.hypot(to.x - 0.35, to.z - 0.95) < 0.22) to.x -= 0.4;
+    if (Math.hypot(to.x - NB.x, to.z - NB.z) < 0.42 || Math.hypot(to.x, to.z - 1.45) < 0.3) to.x -= 0.9;
     b.visible = false;
     scene.add(b);
     fallen.push({ mesh: b, from: 1.4 + rnd() * 1.4, to, rot: new THREE.Euler(rnd() * 0.3, rnd() * Math.PI, rnd() * 0.3), delay: rnd() * 0.7 });
@@ -340,6 +381,7 @@ function buildLibrary(plan: CinematicPlan, opts: SetOptions): CineSet {
     const powerOn = eclair === null || eclair < 0.4 || (eclair < 0.9 && Math.sin(eclair * 60) > 0.2);
     const lit = powerOn ? 1 : 0;
     deskLight.intensity = 6 * lit;
+    for (const l of sconces) l.intensity = 2.2 * lit;
     (bulb.material as THREE.MeshBasicMaterial).color.set(powerOn ? '#ffe2a0' : '#3a2e22');
     ceiling.intensity = 30 * lit;
     coneMat.opacity = 0.045 * lit;
@@ -379,12 +421,13 @@ function buildLibrary(plan: CinematicPlan, opts: SetOptions): CineSet {
     (glow.material as THREE.SpriteMaterial).opacity = gl;
     glow.scale.setScalar(0.5 + g1 * 1.6);
     glowLight.intensity = gl * 9;
+    pageMat.emissiveIntensity = gl * 0.9;
     sparkMat.opacity = g1 * 0.9;
     for (let i = 0; i < sparkN; i += 1) {
       const [a, b, c] = sparkSeed[i]!;
       const life = ((t * (0.25 + a * 0.3) + b) % 1);
       const r = 0.05 + life * (0.3 + c * 0.6);
-      sparkPos.set([0.35 + Math.cos(a * 40 + life * 3) * r, 0.05 + life * 2.2, 0.95 + Math.sin(a * 40 + life * 3) * r], i * 3);
+      sparkPos.set([NB.x + Math.cos(a * 40 + life * 3) * r, 0.05 + life * 2.2, NB.z + Math.sin(a * 40 + life * 3) * r], i * 3);
     }
     sparkGeo.attributes.position!.needsUpdate = true;
 

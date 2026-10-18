@@ -187,7 +187,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     // Différé : l'état de l'interface (modalOpen…) est déclaré plus bas dans startGame.
     queueMicrotask(() => {
       modalOpen = true;
-      playOpening(root, world, cineHooks, () => { modalOpen = false; });
+      playOpening(root, world, cineHooks, () => {
+        modalOpen = false;
+        // Ouverture vue : on l'enregistre tout de suite (sinon elle rejouerait à la reprise).
+        try { if (!mp?.connected) saveToSlot('auto', world); } catch { /* stockage indisponible */ }
+      });
     });
   }
   // Chronique : un instantané chaque matin pour un éventuel retour en arrière.
