@@ -41,12 +41,19 @@ const server = createServer((req, res) => {
   } else {
     let rel;
     try { rel = normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, ''); } catch { res.writeHead(400).end(); return; }
+    if (rel.includes('\0')) { res.writeHead(400).end(); return; }
     file = join(ROOT, rel || 'index.html');
-    if (!file.startsWith(ROOT + sep) && file !== ROOT) { res.writeHead(403).end(); return; }
+    const rootWithSep = ROOT.endsWith(sep) ? ROOT : ROOT + sep;
+    if (!file.startsWith(rootWithSep) && file !== ROOT) { res.writeHead(403).end(); return; }
     if (existsSync(file) && statSync(file).isDirectory()) file = join(file, 'index.html');
   }
   if (!existsSync(file)) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }).end('Introuvable'); return; }
-  res.writeHead(200, { 'content-type': MIME[extname(file).toLowerCase()] ?? 'application/octet-stream', 'cache-control': 'no-cache' });
+  res.writeHead(200, {
+    'content-type': MIME[extname(file).toLowerCase()] ?? 'application/octet-stream',
+    'cache-control': 'no-cache',
+    'x-content-type-options': 'nosniff',
+    'x-frame-options': 'SAMEORIGIN',
+  });
   createReadStream(file).pipe(res);
 });
 
