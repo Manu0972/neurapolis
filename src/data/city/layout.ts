@@ -250,10 +250,10 @@ export function buildCityLayout(): CityLayout {
 
   const BLOCK_DEFS: { name: string; district: CityDistrict }[][] = [
     [
-      { name: 'Îlot du Collège', district: 'centre' },
+      { name: 'Îlot des Tilleuls', district: 'centre' },
       { name: 'Îlot Bertin', district: 'centre' },
       { name: 'Îlot de la Maison du Peuple', district: 'centre' },
-      { name: 'Îlot des Tilleuls', district: 'gare' },
+      { name: 'Îlot du Collège', district: 'gare' },
     ],
     [
       { name: 'Cité des Roses', district: 'roses' },
@@ -328,8 +328,9 @@ export function buildCityLayout(): CityLayout {
    */
   function perimeter(
     b: CityBlock,
-    opts: { faces?: Face[]; shops?: Face[]; depth?: number; floors?: [number, number]; styles?: FacadeStyle[]; skip?: (x: number, y: number, w: number, d: number) => boolean },
+    opts: { faces?: Face[]; shops?: Face[]; depth?: number; floors?: [number, number]; styles?: FacadeStyle[]; skip?: (x: number, y: number, w: number, d: number) => boolean; maxShops?: number },
   ): void {
+    let shopsLeft = opts.maxShops ?? Infinity;
     const faces = opts.faces ?? ['n', 's', 'e', 'w'];
     const D = opts.depth ?? 12;
     const [fMin, fMax] = opts.floors ?? [3, 5];
@@ -368,7 +369,7 @@ export function buildCityLayout(): CityLayout {
         };
         const door = doorOn(building, f, 0.5);
         building.doors.push(door);
-        if (opts.shops?.includes(f)) addUnit(b, building, door, streetOf(b, f));
+        if (opts.shops?.includes(f) && shopsLeft-- > 0) addUnit(b, building, door, streetOf(b, f));
         else door.residential = true;
         buildings.push(building);
       }
@@ -422,14 +423,6 @@ export function buildCityLayout(): CityLayout {
   }
 
   // ===== Ligne nord =====
-  // Collège du Taret : grand bâtiment face à l'avenue, cour et gymnase derrière.
-  {
-    const b = B(0, 0);
-    perimeter(b, { faces: ['n'], styles: ['brique', 'enduit_creme'], floors: [3, 4] });
-    special({ id: 'college', x: b.x + 6, y: b.y + b.h - 3 - 22, w: b.w - 12, d: 22, floors: 3, style: 'ecole', roof: 'deux_pans', front: 's', label: 'Collège du Taret', place: 'college' });
-    zones.push({ kind: 'pave', x: b.x + 6, y: b.y + 18, w: b.w - 12, h: b.h - 3 - 22 - 18, walkable: false });
-    streetFurniture(b);
-  }
   // Îlot Bertin : l'épicerie et des locaux sur l'avenue.
   {
     const b = B(0, 1);
@@ -453,19 +446,32 @@ export function buildCityLayout(): CityLayout {
     zones.push({ kind: 'herbe', x: b.x + 8, y: b.y + 18, w: 56, h: b.h - 3 - 20 - 18, walkable: false });
     streetFurniture(b);
   }
-  // Îlot des Tilleuls : immeubles de rapport, commerces sur l'avenue.
+  // Îlot des Tilleuls : immeubles de rapport, commerces sur l'avenue, juste en face de la Cité des
+  // Roses. (Le collège occupait cet îlot, à 20 m de la porte du joueur : il est maintenant au bout
+  // de l'avenue, à ~270 m à pied. L'îlot est construit à la même place dans l'ordre des locaux
+  // pour que leurs identifiants « local_NN » ne changent pas.)
+  {
+    const b = B(0, 0);
+    perimeter(b, { shops: ['s', 'w'], styles: ['pierre', 'enduit_creme', 'enduit_rose'], floors: [4, 6], maxShops: 8 });
+    streetFurniture(b);
+  }
+  // Collège Jean-Moulin : grand bâtiment face à l'avenue Jean-Jaurès, cour et gymnase derrière.
+  // Depuis la Cité des Roses : tout droit par l'avenue, environ 270 m (trois à quatre minutes à pied).
   {
     const b = B(0, 3);
-    perimeter(b, { shops: ['s', 'w'], styles: ['pierre', 'enduit_creme', 'enduit_rose'], floors: [4, 6] });
+    perimeter(b, { faces: ['n'], styles: ['brique', 'enduit_creme'], floors: [3, 4] });
+    special({ id: 'college', x: b.x + 6, y: b.y + b.h - 3 - 22, w: b.w - 12, d: 22, floors: 3, style: 'ecole', roof: 'deux_pans', front: 's', label: 'Collège Jean-Moulin', place: 'college' });
+    zones.push({ kind: 'pave', x: b.x + 6, y: b.y + 18, w: b.w - 12, h: b.h - 3 - 22 - 18, walkable: false });
     streetFurniture(b);
   }
 
   // ===== Ligne centrale =====
-  // Cité des Roses : barres et tour de 1965, pelouses, aire de jeux. Le joueur habite la barre A.
+  // Cité des Roses : barres et tour de 1965, pelouses, aire de jeux. Le joueur habite la barre A
+  // (duplex au dernier étage, sous le toit à deux pans : d'où le grenier).
   {
     const b = B(1, 0);
     zones.push({ kind: 'herbe', x: b.x + 3, y: b.y + 3, w: b.w - 6, h: b.h - 6, walkable: true });
-    special({ id: 'barre_a', x: b.x + 6, y: b.y + 8, w: 60, d: 12, floors: 5, style: 'hlm', roof: 'plat', front: 'n', label: 'Cité des Roses — Bâtiment A', place: 'maison', doorAt: 0.42 });
+    special({ id: 'barre_a', x: b.x + 6, y: b.y + 8, w: 60, d: 12, floors: 5, style: 'hlm', roof: 'deux_pans', front: 'n', label: 'Chez toi · Cité des Roses, bâtiment A', place: 'maison', doorAt: 0.42 });
     special({ id: 'barre_b', x: b.x + 6, y: b.y + 32, w: 12, d: 32, floors: 6, style: 'hlm', roof: 'plat', front: 'e', label: 'Bâtiment B' });
     special({ id: 'tour_c', x: b.x + 46, y: b.y + 34, w: 18, d: 18, floors: 10, style: 'hlm', roof: 'plat', front: 'w', label: 'Tour C' });
     zones.push({ kind: 'aire_jeux', x: b.x + 26, y: b.y + 36, w: 14, h: 12, walkable: true });

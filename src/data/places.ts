@@ -24,8 +24,8 @@ export interface PlaceDef {
 export const PLACES: PlaceDef[] = [
   {
     id: 'maison',
-    name: 'Chez toi',
-    description: 'Ton appartement, rue des Roses. Le frigo, ton lit, et le calme pour réfléchir.',
+    name: 'Chez toi — Cité des Roses, appartement 51',
+    description: 'Ton duplex au dernier étage du bâtiment A : l’entrée, le salon et la cuisine en bas ; ta chambre et la salle de bain en haut ; le grenier sous le toit.',
     actions: [
       { id: 'gouter', label: 'Manger un en-cas', needs: { faim: -20 } },
       { id: 'sieste', label: 'Faire une sieste', needs: { fatigue: -20, faim: 5 } },
