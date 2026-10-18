@@ -8,9 +8,10 @@
  */
 import * as THREE from 'three';
 import type { CityBuilding, Face } from '../../data/city/layout';
-import { fitScale, hash01, pickModel, skylinePlan, SKYLINE_TOWERS, LOW_DETAIL_BUILDINGS, SUBURBAN_HOUSES, type Placement } from './assetsPlan';
+import { fitScale, pickModel, skylinePlan, SKYLINE_TOWERS, LOW_DETAIL_BUILDINGS, SUBURBAN_HOUSES, type Placement } from './assetsPlan';
 import { kenneyMaterial, loadKenneyModels, type KenneyModel } from './assetsKenney';
 import { chunkAt, type CityChunk } from './chunks';
+import { lotSeed } from './windowsPlan';
 
 export interface KenneyDecor {
   /** Résolu quand tout ce qui pouvait l'être est en place (QA). */
@@ -23,16 +24,24 @@ export function headingFor(front: Face): number {
   return front === 'n' ? Math.PI : front === 'e' ? Math.PI / 2 : front === 'w' ? -Math.PI / 2 : 0;
 }
 
-function instancedFrom(model: KenneyModel, mat: THREE.Material, mats: THREE.Matrix4[], colors: THREE.Color[] | null, shadow: boolean): THREE.InstancedMesh {
+function instancedFrom(model: KenneyModel, mat: THREE.Material, mats: THREE.Matrix4[], colors: THREE.Color[], shadow: boolean): THREE.InstancedMesh {
   const im = new THREE.InstancedMesh(model.geometry, mat, mats.length);
   mats.forEach((m, i) => im.setMatrixAt(i, m));
-  if (colors) colors.forEach((c, i) => im.setColorAt(i, c));
+  colors.forEach((c, i) => im.setColorAt(i, c));
   im.instanceMatrix.needsUpdate = true;
   im.castShadow = shadow;
   im.receiveShadow = true;
   im.computeBoundingSphere();
   im.name = `kenney ${model.name}`;
   return im;
+}
+
+/**
+ * Données du lot portées par la couleur d'instance (windows.ts) : rouge = graine du lot (24 bits),
+ * vert = échelle horizontale, bleu = échelle verticale (pour des fenêtres en mètres et déterministes).
+ */
+function lotData(x: number, z: number, sx: number, sy: number): THREE.Color {
+  return new THREE.Color(lotSeed(x, z), sx, sy);
 }
 
 /** Matrice d'un placement lointain : largeur visée, hauteur visée dans des proportions sûres. */
@@ -66,18 +75,23 @@ export function buildKenneyDecor(opts: {
   const skyline = loadKenneyModels('commercial', [...LOW_DETAIL_BUILDINGS, ...SKYLINE_TOWERS]).then((models) => {
     if (disposed || models.size === 0) return 0;
     const avail = new Set(models.keys());
-    const per = new Map<string, THREE.Matrix4[]>();
+    const per = new Map<string, { mats: THREE.Matrix4[]; cols: THREE.Color[] }>();
     let n = 0;
     for (const p of skylinePlan(opts.cityW, opts.cityH)) {
       const family = (LOW_DETAIL_BUILDINGS as readonly string[]).includes(p.model) ? LOW_DETAIL_BUILDINGS : SKYLINE_TOWERS;
       const name = avail.has(p.model) ? p.model : pickModel(3, p.x, p.z, family, avail);
       if (!name) continue;
-      (per.get(name) ?? per.set(name, []).get(name)!).push(farMatrix(p, models.get(name)!));
+      const m = models.get(name)!;
+      const e = per.get(name) ?? per.set(name, { mats: [], cols: [] }).get(name)!;
+      const mat4 = farMatrix(p, m);
+      e.mats.push(mat4);
+      const sc = new THREE.Vector3().setFromMatrixScale(mat4);
+      e.cols.push(lotData(p.x, p.z, sc.x, sc.y));
       n++;
     }
     const mat = kenneyMaterial('commercial');
-    for (const [name, list] of per) {
-      const im = instancedFrom(models.get(name)!, mat, list, null, false);
+    for (const [name, e] of per) {
+      const im = instancedFrom(models.get(name)!, mat, e.mats, e.cols, false);
       im.receiveShadow = false;
       opts.skylineGroup.add(im);
       created.push(im);
@@ -106,9 +120,8 @@ export function buildKenneyDecor(opts: {
         new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), headingFor(b.front)),
         new THREE.Vector3(s, s, s),
       );
-      // Légère variation de teinte d'une maison à l'autre (plus chaude ou plus pâle).
-      const k = 0.9 + hash01(5, b.x, b.y) * 0.16;
-      const col = new THREE.Color(k, k * (0.97 + hash01(6, b.x, b.y) * 0.04), k * (0.92 + hash01(7, b.x, b.y) * 0.06));
+      // Données du lot (graine des fenêtres, échelle) ; la teinte d'enduit vient du shader.
+      const col = lotData(cx, cz, s, s);
       let byModel = per.get(chunk);
       if (!byModel) { byModel = new Map(); per.set(chunk, byModel); }
       let e = byModel.get(name);
