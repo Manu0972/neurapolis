@@ -337,7 +337,7 @@ export const NPCS_EXPANDED: ExpandedNpcDef[] = [
       'Validation académique des notions philosophiques et économiques découvertes par Camille ; arbitrage moral des décisions.',
     routine: [
       { from: '08:00', to: '12:00', place: 'college', activity: 'donne cours de lettres et éducation civique' },
-      { from: '13:00', to: '17:00', place: 'college', activity: 'corrige les copies et reçoit les parents', weekends: true },
+      { from: '13:00', to: '17:00', place: 'college', activity: 'corrige les copies et reçoit les parents' },
     ],
     dialoguePharesi: {
       accueil: [

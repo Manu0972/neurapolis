@@ -13,22 +13,28 @@ const toMin = (hhmm: string): number => {
   return (h ?? 0) * 60 + (m ?? 0);
 };
 
-function slotFor(def: NpcDef, minutes: number, schoolDay: boolean): RoutineSlot | undefined {
-  return def.routine.find(
-    (s) => toMin(s.from) <= minutes && minutes < toMin(s.to) && (schoolDay || s.weekends === true),
-  );
+import { isVacances } from '../core/clock';
+
+function slotFor(def: NpcDef, minutes: number, schoolDay: boolean, weekday: number, vacances: boolean): RoutineSlot | undefined {
+  const isWednesdayPm = schoolDay && weekday === 3 && minutes >= 13 * 60 + 30;
+  return def.routine.find((s) => {
+    if (s.place === 'college' && (vacances || !schoolDay || isWednesdayPm)) return false;
+    return toMin(s.from) <= minutes && minutes < toMin(s.to) && (schoolDay || s.weekends === true);
+  });
 }
 
 export function npcTick(w: WorldState): void {
   const day = dayIndexOf(w.time.tick);
   const minutes = minutesOfDay(w.time.tick);
   const school = isSchoolDay(day);
-  const weekend = dateOf(day).weekday === 0 || dateOf(day).weekday === 6;
+  const dateInfo = dateOf(day);
+  const vacances = isVacances(day);
+  const weekend = dateInfo.weekday === 0 || dateInfo.weekday === 6;
 
   for (const def of NPCS) {
     const st: NpcState | undefined = w.npcs[def.id];
     if (!st) continue;
-    const slot = slotFor(def, minutes, school);
+    const slot = slotFor(def, minutes, school, dateInfo.weekday, vacances);
     if (slot) {
       st.place = slot.place;
       st.activity = slot.activity;

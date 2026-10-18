@@ -124,7 +124,7 @@ export const NPCS: NpcDef[] = [
     color: '#8a9bb8',
     routine: [
       { from: '08:00', to: '12:00', place: 'college', activity: 'enseigne' },
-      { from: '13:00', to: '17:00', place: 'college', activity: 'corrige et prépare', weekends: true },
+      { from: '13:00', to: '17:00', place: 'college', activity: 'corrige et prépare' },
     ],
     topics: {
       cours: ['Intéressant, ton problème de partage. Égalité, équité, incitation : trois justices différentes.',
