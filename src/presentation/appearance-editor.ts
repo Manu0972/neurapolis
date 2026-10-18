@@ -195,8 +195,6 @@ function ensureEditorStyles(): void {
   .ae-pill.locked { opacity: 0.5; cursor: not-allowed; }
   .ae-tab:focus-visible, .ae-swatch:focus-visible, .ae-pill:focus-visible { outline: 3px solid #f48c5d; outline-offset: 2px; }
   .ae-range { width: 100%; accent-color: #3c2a20; }
-  .avatar-preview-canvas { width: 100%; max-width: 240px; aspect-ratio: 4 / 5; height: auto; display: block; margin: 0 auto; cursor: grab; border-radius: 16px; background: radial-gradient(ellipse at 50% 40%, #fff7e6 0%, #e9d9bc 100%); }
-  .avatar-preview-canvas:active { cursor: grabbing; }
   @media (prefers-reduced-motion: reduce) { .ae-swatch { transition: none; } }
   `;
   document.head.appendChild(css);
