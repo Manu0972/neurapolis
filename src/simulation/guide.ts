@@ -9,7 +9,7 @@ import { dateOf, dayIndexOf, isSchoolDay, minutesOfDay } from '../core/clock';
 import { IDEAS, IDEA_BY_ID, TIERS } from '../data/ascension/ideas';
 import { ensureAscension, ideaStatus, rescueAmount, tierChecks } from './ascension';
 import { classWindow, isInClass } from './family';
-import { placeAtAdjacent } from './interact';
+import { nearPlace } from './interact';
 import { campaignNextHint } from './campaign';
 import { shiftWindowOpen } from './jobs';
 
@@ -76,7 +76,7 @@ export function nextStep(w: WorldState): GuideStep | null {
   }
 
   const session = classWindow(w);
-  if (session && placeAtAdjacent(w) !== 'college') {
+  if (session && !nearPlace(w, 'college')) {
     return { id: 'cours', icon: '📚', text: `Cours ${session === 'matin' ? 'à 8 h 30' : 'à 13 h 30'} : va au collège Jean-Moulin (E devant l’entrée).`, action: 'carte' };
   }
 

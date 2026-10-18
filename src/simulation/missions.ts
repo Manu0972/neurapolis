@@ -21,7 +21,7 @@ import {
   chapterObjectivesMet,
 } from './campaign';
 import { classWindow, isInClass } from './family';
-import { placeAtAdjacent } from './interact';
+import { nearPlace, placeAtAdjacent } from './interact';
 import { npcPosition } from './npc';
 import { coutStock } from './project';
 import { totalXpForLevel } from './skills';
@@ -326,7 +326,7 @@ export function currentMission(w: WorldState, ctx: MissionContext = {}): Mission
     };
   }
   const session = classWindow(w);
-  if (session && placeAtAdjacent(w) === 'college') {
+  if (session && nearPlace(w, 'college')) {
     return {
       id: `cours:${session}:entrer`, chapter: ch, rank: -1, kind: 'faire', icon: '📚',
       text: 'Entre en cours : appuie sur E devant le collège',
