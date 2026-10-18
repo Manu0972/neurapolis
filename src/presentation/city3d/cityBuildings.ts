@@ -136,7 +136,11 @@ export interface CityBuildings {
 
 const SIGN_COLORS = ['#7a3b2a', '#2f4f3f', '#2c3f5e', '#6b4a1f', '#4a2f4f'];
 
-export function buildCityBuildings(): CityBuildings {
+/**
+ * `only` : ne construit que les bâtiments retenus (les autres comptent quand même comme voisins
+ * pour les murs mitoyens). Sert à isoler les pavillons génériques, remplaçables par des modèles.
+ */
+export function buildCityBuildings(only?: (b: CityBuilding) => boolean): CityBuildings {
   const facadeMaterial = createFacadeMaterial();
   const T = (key: string): AtlasTile => atlasTile(key);
   const buildings = CITY.buildings;
@@ -171,13 +175,14 @@ export function buildCityBuildings(): CityBuildings {
     return c;
   };
 
-  const signCount = buildings.filter((b) => b.label || b.unitId).length;
+  const signCount = buildings.filter((b) => (b.label || b.unitId) && (!only || only(b))).length;
   const signs = new SignAtlas(signCount);
   const units = new Map<string, UnitView>();
   let quads = 0;
   const eps = (px: number): number => 0.5 / px;
 
   buildings.forEach((b, bi) => {
+    if (only && !only(b)) return;
     const v = variantFor(b);
     const seed = hashString(b.id);
     const blk = blockOf(b.x + b.w / 2, b.y + b.d / 2);

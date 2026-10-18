@@ -183,6 +183,12 @@ export function chunkify(group: THREE.Group, keep: Set<THREE.Object3D>): { chunk
   return { chunks: [...chunks.values()], remapped };
 }
 
+/** Bloc qui contient le point (x, z), s'il existe (ajouts asynchrones : modèles chargés après coup). */
+export function chunkAt(chunks: readonly CityChunk[], x: number, z: number): CityChunk | undefined {
+  const key = keyOf(x, z);
+  return chunks.find((c) => c.key === key);
+}
+
 /** Masque les blocs au-delà de `radius` mètres de la caméra (le brouillard les cache déjà). */
 export function updateChunkVisibility(chunks: readonly CityChunk[], camX: number, camZ: number, radius: number): void {
   const r = radius + CHUNK * 0.75;
