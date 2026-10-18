@@ -35,6 +35,12 @@ export interface CharacterSpec {
    * Sans manifeste, ou sans modèle prévu pour cette clé, rien ne change : personnage procédural.
    */
   rig?: RigRequest;
+  /**
+   * Recolorage du modèle riggé d'après `appearance` : `joueur` = peau + cheveux + tenue ;
+   * `tenue` = seulement la tenue, et seulement si le modèle est tiré au sort (un PNJ à modèle
+   * attitré garde ses couleurs de studio).
+   */
+  rigRecolor?: 'joueur' | 'tenue';
 }
 
 export interface Character3D {
@@ -43,6 +49,8 @@ export interface Character3D {
   setHeading(radians: number): void;
   /** Activité à l'arrêt (assis, parler) ; seuls les personnages riggés l'animent. */
   setActivity?(activity: CharacterActivity): void;
+  /** Change les teintes d'un modèle riggé à chaud (aperçu du créateur) ; sans effet sur le procédural. */
+  setRecolor?(spec: { skin?: string; hair?: string; outfit?: string } | undefined): void;
   /**
    * Niveau de détail : au loin, la silhouette entière devient UN seul maillage figé (couleurs
    * par sommet) — un appel de dessin au lieu d'une trentaine. De près, rien ne change.
@@ -155,7 +163,17 @@ function outfitLook(a: PlayerAppearance, override?: string, legOverride?: string
 /** Personnage du jeu : modèle riggé si le manifeste en prévoit un pour `spec.rig`, sinon procédural. */
 export function createCharacter(spec: CharacterSpec): Character3D {
   if (spec.rig) {
-    const rigged = createRiggedCharacter({ rig: spec.rig, heightM: spec.heightM }, () => createProceduralCharacter(spec));
+    const a = { ...DEFAULT_PLAYER_APPEARANCE, ...spec.appearance };
+    const outfit = spec.bodyColor ?? OUTFIT_COLOR_INFO[a.outfitColor]?.hex;
+    const rigged = createRiggedCharacter(
+      {
+        rig: spec.rig,
+        heightM: spec.heightM,
+        recolor: spec.rigRecolor === 'joueur' ? { skin: SKIN_TONE_INFO[a.skinTone]?.hex, hair: HAIR_COLOR_INFO[a.hairColor]?.hex, outfit } : undefined,
+        recolorWhenAuto: spec.rigRecolor === 'tenue' ? { outfit } : undefined,
+      },
+      () => createProceduralCharacter(spec),
+    );
     if (rigged) return rigged;
   }
   return createProceduralCharacter(spec);

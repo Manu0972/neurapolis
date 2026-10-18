@@ -3317,7 +3317,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         residentFigures = residentsPresent(world)
           .filter((r) => Math.abs(r.x - px) < 140 && Math.abs(r.y - py) < 140)
           .map((r) => ({
-            id: `habitant:${r.def.id}`, name: r.def.name, heightM: heightForAge(r.def.age), x: r.x + 0.5, z: r.y + 0.5, h: (r.def.id.length % 4) * (Math.PI / 2), s: 0,
+            id: `habitant:${r.def.id}`, name: r.def.name, heightM: heightForAge(r.def.age, r.def.id), age: r.def.age, x: r.x + 0.5, z: r.y + 0.5, h: (r.def.id.length % 4) * (Math.PI / 2), s: 0,
             appearance: randomAppearance(r.def.id.split('').reduce((a, c) => a * 31 + c.charCodeAt(0), 7) >>> 0, r.def.age, 3),
             label: { text: r.def.name, color: '#d8ecff', bg: 'rgba(20,40,70,0.82)' },
           }));

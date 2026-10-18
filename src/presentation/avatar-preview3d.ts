@@ -2,6 +2,7 @@
  * Aperçu 3D du personnage (création, armoire) : le vrai modèle du jeu, qui tourne lentement
  * sur un socle ; on peut le faire pivoter en glissant. Repli : renvoie null sans WebGL.
  */
+import { playerRigModel } from './city3d/rigged/playerModel';
 import * as THREE from 'three';
 import type { PlayerAppearance, PlayerGender } from '../core/types';
 import { createCharacter, type Character3D } from './city3d/simpleCharacter';
@@ -80,7 +81,8 @@ export function createAvatarPreview(width = 240, height = 300): AvatarPreview | 
     canvas,
     setAppearance(a, gender, heightM = 1.52): void {
       ch?.dispose();
-      ch = createCharacter({ appearance: a, gender, heightM });
+      const model = playerRigModel();
+      ch = createCharacter({ appearance: a, gender, heightM, rig: model ? { key: 'joueur', role: 'joueur', age: 12, model } : undefined, rigRecolor: 'joueur' });
       ch.root.traverse((o) => { o.castShadow = true; });
       // Face au joueur tout de suite (sans attendre l'animation).
       ch.setHeading(Math.PI + yaw);

@@ -9,6 +9,7 @@
  * - Chaque modèle est chargé une fois ; les instances sont des clones de squelette
  *   (`SkeletonUtils.clone`) qui partagent géométrie, matériau et texture.
  */
+import { buildRecolorMask, type RecolorMask } from './recolor';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { NPC_BY_ID } from '../../../data/npcs';
@@ -125,6 +126,8 @@ export interface RigAsset {
   minY: number;
   /** Bassin du modèle / bassin du mannequin UAL : longueur relative des foulées. */
   legScale: number;
+  /** Masque de recolorage, calculé à la première demande (`null` : texture illisible). */
+  mask?: RecolorMask | null;
 }
 
 const assets = new Map<string, RigAsset | null>();
@@ -182,6 +185,12 @@ function prepareAsset(entry: RigModelEntry, template: THREE.Object3D, lib: ClipL
   const height = Math.max(0.1, box.max.y - box.min.y);
   const ref = lib.restPelvis.length();
   return { entry, template, clips, height, minY: box.min.y, legScale: ref > 1e-6 ? pelvis.position.length() / ref : 1 };
+}
+
+/** Masque de recolorage du modèle (calculé une fois, mis en cache). */
+export function maskOf(asset: RigAsset): RecolorMask | null {
+  if (asset.mask === undefined) asset.mask = buildRecolorMask(asset.template);
+  return asset.mask;
 }
 
 // ---------- Point de vue (niveau de détail) et mesures ----------

@@ -4,6 +4,8 @@
  * le rappel `onPlayerTile`, que la boucle de jeu relie à la simulation (`moveToTile`).
  * Voir docs/VISION.md §5.
  */
+import { heightForAge } from './bodyScale';
+import { playerRigModel } from './rigged/playerModel';
 import * as THREE from 'three';
 import type { NpcId, PlayerGender, WorldState } from '../../core/types';
 import { minutesOfDay } from '../../core/clock';
@@ -34,6 +36,8 @@ export interface RemoteAvatar {
   appearance: PlayerAppearance;
   gender?: PlayerGender;
   heightM: number;
+  /** Âge connu (habitants) : choix du modèle par tranche d'âge. */
+  age?: number;
   x: number;
   z: number;
   h: number;
@@ -80,11 +84,7 @@ function npcAppearance(id: string): PlayerAppearance {
   };
 }
 
-/** Taille selon l'âge : environ 1,52 m à 12 ans, jusqu'à 1,75 m adulte. */
-export function heightForAge(age: number): number {
-  if (age >= 18) return 1.72;
-  return Math.min(1.75, 1.52 + Math.max(0, age - 12) * 0.035);
-}
+export { heightForAge };
 
 function textSprite(text: string, color = '#fbf3e2', bg = 'rgba(42,26,20,0.78)'): THREE.Sprite {
   const c = document.createElement('canvas');
@@ -616,7 +616,7 @@ export class CityRenderer {
     const key = JSON.stringify(p.appearance) + p.age;
     if (!this.player || key !== this.playerKey) {
       this.player?.dispose();
-      this.player = createCharacter({ appearance: p.appearance, gender: p.gender, heightM: heightForAge(p.age), rig: { key: 'joueur', role: 'joueur' } });
+      this.player = createCharacter({ appearance: p.appearance, gender: p.gender, heightM: heightForAge(p.age), rig: { key: 'joueur', role: 'joueur', age: p.age, model: playerRigModel() }, rigRecolor: 'joueur' });
       this.scene.add(this.player.root);
       this.playerKey = key;
     }
@@ -668,9 +668,10 @@ export class CityRenderer {
       if (!v) {
         const ch = createCharacter({
           appearance: npcAppearance(id),
-          heightM: heightForAge(def?.age ?? 30),
+          heightM: heightForAge(def?.age ?? 30, id),
           bodyColor: def?.color,
           rig: { key: id, age: def?.age ?? 30 },
+          rigRecolor: 'tenue',
         });
         this.scene.add(ch.root);
         const tag = textSprite(def?.name ?? id);
@@ -928,7 +929,7 @@ export class CityRenderer {
         : Object.values(world.npcs).filter((n) => n.place === spec.placeId && n.activity !== 'dort');
       present.slice(0, spec.npcSlots.length).forEach((n, i) => {
         const def = NPC_BY_ID[n.id];
-        const ch = createCharacter({ appearance: npcAppearance(n.id), heightM: heightForAge(def?.age ?? 30), bodyColor: def?.color, rig: { key: n.id, age: def?.age ?? 30 } });
+        const ch = createCharacter({ appearance: npcAppearance(n.id), heightM: heightForAge(def?.age ?? 30, n.id), bodyColor: def?.color, rig: { key: n.id, age: def?.age ?? 30 }, rigRecolor: 'tenue' });
         const slot = spec.npcSlots[i]!;
         ch.root.position.set(slot.x, 0, slot.z);
         ch.setHeading(slot.face);
@@ -1103,7 +1104,7 @@ export class CityRenderer {
       }
       if (!v) {
         // Habitants (étiquette) : modèle riggé possible ; autres joueurs : leur apparence, toujours procédurale.
-        const ch = createCharacter({ appearance: r.appearance, gender: r.gender, heightM: r.heightM, rig: r.label ? { key: r.id } : undefined });
+        const ch = createCharacter({ appearance: r.appearance, gender: r.gender, heightM: r.heightM, rig: r.label ? { key: r.id, age: r.age } : undefined, rigRecolor: 'tenue' });
         const tag = r.label ? textSprite(r.label.text, r.label.color, r.label.bg) : textSprite(`🎮 ${r.name}`, '#ffe08a', 'rgba(60,36,10,0.85)');
         this.scene.add(ch.root, tag);
         v = { ch, tag, x: r.x, z: r.z, key };

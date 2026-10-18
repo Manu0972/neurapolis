@@ -13,11 +13,13 @@
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { Character3D } from '../simpleCharacter';
-import { animInterval, chooseClip, gaitRate, nextGait, type CharacterActivity, type Gait, type RigClip } from './animState';
+import { animInterval, chooseClip, locoBlend, LOCO_SPEC, movingAmount, nextGait, RIG_CLIPS, smoothSpeed, type CharacterActivity, type Gait, type RigClip } from './animState';
 import { hash32, modelFor, type RigRequest } from './manifest';
-import { loadRigAsset, lodDistance, rigAssetIfLoaded, rigCounters, riggedManifest, riggedState, startRiggedCharacters, type RigAsset } from './library';
+import { applyRecolor, type RecolorHandle } from './recolor';
+import type { RecolorSpec } from './recolorLogic';
+import { maskOf, loadRigAsset, lodDistance, rigAssetIfLoaded, rigCounters, riggedManifest, riggedState, startRiggedCharacters, type RigAsset } from './library';
 
-const LOCOMOTION: ReadonlySet<RigClip> = new Set(['walk', 'jog', 'run']);
+const LOCO_NAMES = ['walk', 'jog', 'run'] as const;
 
 /** Squelette cloné, mixeur et poids des clips d'un personnage. */
 class RigInstance {
@@ -29,11 +31,19 @@ class RigInstance {
   private gait: Gait = 'idle';
   private current: RigClip = 'idle';
   private acc = 0;
+  /** Phase du pas (0 à 1), partagée par marche / petite course / course. */
+  private phase: number;
   /** Foulée relative au mannequin UAL, à la taille affichée. */
   readonly legScale: number;
 
-  constructor(asset: RigAsset, heightM: number, seed: number) {
+  private recolor: RecolorHandle | null = null;
+
+  constructor(asset: RigAsset, heightM: number, seed: number, recolor?: RecolorSpec) {
     this.model = cloneSkinned(asset.template);
+    if (recolor) {
+      const mask = maskOf(asset);
+      if (mask) { this.recolor = applyRecolor(this.model, mask); this.recolor.set(recolor); }
+    }
     const s = heightM / asset.height;
     // Le studio exporte face à +Z ; le jeu attend un personnage tourné vers −Z.
     this.pivot.rotation.y = Math.PI;
@@ -41,12 +51,15 @@ class RigInstance {
     this.pivot.position.y = -asset.minY * s;
     this.pivot.add(this.model);
     this.legScale = asset.legScale * s;
+    this.phase = (seed % 997) / 997;
     this.mixer = new THREE.AnimationMixer(this.model);
     for (const [name, clip] of asset.clips) {
       const a = this.mixer.clipAction(clip);
       a.play();
       // Phase propre à chacun : une foule n'ondule pas à l'unisson.
       a.time = ((seed % 997) / 997) * clip.duration;
+      // Marche / courses : le temps est posé à la main (phase commune), pas avancé par le mixeur.
+      if ((LOCO_NAMES as readonly string[]).includes(name)) a.timeScale = 0;
       a.setEffectiveWeight(name === 'idle' ? 1 : 0);
       this.actions.set(name, a);
       this.weights.set(name, name === 'idle' ? 1 : 0);
@@ -58,41 +71,56 @@ class RigInstance {
 
   update(dt: number, speed: number, activity: CharacterActivity, visible: boolean, distance: number): void {
     // Assis (à vélo, sur un siège) : on reste assis même si le support avance.
-    const gait = activity === 'sit' ? 'idle' : nextGait(this.gait, speed, this.legScale);
-    let target = chooseClip(gait, activity);
-    if (!this.actions.has(target)) target = 'idle';
-    if (target !== this.current) {
-      // Changement d'allure : la nouvelle reprend la foulée au même point du cycle.
-      const from = this.actions.get(this.current);
-      const to = this.actions.get(target);
-      if (from && to && LOCOMOTION.has(this.current) && LOCOMOTION.has(target)) {
-        const d0 = from.getClip().duration || 1;
-        to.time = ((from.time % d0) / d0) * to.getClip().duration;
-      }
-      this.current = target;
-    }
-    this.gait = gait;
-    const act = this.actions.get(this.current);
-    if (act && LOCOMOTION.has(this.current)) act.timeScale = gaitRate(gait, speed, this.legScale);
-    // Fondus enchaînés : plus lents pour s'asseoir.
-    const fade = this.current === 'sit' ? 0.45 : 0.22;
+    const sitting = activity === 'sit';
+    const m = sitting ? 0 : movingAmount(speed);
+    const blend = locoBlend(sitting ? 0 : speed, this.legScale);
+    this.gait = nextGait(this.gait, sitting ? 0 : speed, this.legScale);
+    // Cible de poids : repos (ou activité) × (1 − marche) ; marche / petite course / course fondues.
+    const rest = chooseClip('idle', sitting ? 'sit' : activity);
+    const target = new Map<RigClip, number>();
+    for (const n of RIG_CLIPS) target.set(n, 0);
+    target.set(this.actions.has(rest) ? rest : 'idle', 1 - m);
+    for (const n of LOCO_NAMES) if (this.actions.has(n)) target.set(n, (target.get(n) ?? 0) + m * blend[n]);
+    // Clip « affiché » (QA) : le plus lourd.
+    let best: RigClip = 'idle';
+    let bw = -1;
+    for (const [n, w] of target) if (w > bw) { bw = w; best = n; }
+    this.current = best;
+    // Fondus : plus lents pour s'asseoir, rapides pour partir ou s'arrêter.
+    const fade = best === 'sit' ? 0.45 : 0.16;
     const step = dt / fade;
+    let sum = 0;
     for (const [name, a] of this.actions) {
       const w = this.weights.get(name) ?? 0;
-      const want = name === this.current ? 1 : 0;
+      const want = target.get(name) ?? 0;
       const nw = w + Math.max(-step, Math.min(step, want - w));
       if (nw !== w) { this.weights.set(name, nw); a.setEffectiveWeight(nw); }
+      sum += nw;
     }
+    // Les poids restent normalisés (somme 1) : pas de pose « à moitié » pendant un fondu.
+    if (sum > 1e-4 && Math.abs(sum - 1) > 0.02) for (const [name, a] of this.actions) a.setEffectiveWeight((this.weights.get(name) ?? 0) / sum);
     if (!visible) { rigCounters.skippedUpdates++; return; }
     this.acc += dt;
     if (this.acc >= animInterval(distance)) {
-      this.mixer.update(Math.min(this.acc, 0.5));
+      const el = Math.min(this.acc, 0.5);
+      // Phase de pas commune : avance à la cadence qui colle le pied d'appui au sol.
+      if (m > 0.01) this.phase = (this.phase + blend.cadence * el) % 1;
+      for (const n of LOCO_NAMES) {
+        const a = this.actions.get(n);
+        if (!a) continue;
+        const spec = LOCO_SPEC[n];
+        a.time = (((this.phase + spec.phase) % 1) + 1) % 1 * a.getClip().duration;
+      }
+      this.mixer.update(el);
       this.acc = 0;
       rigCounters.mixerUpdates++;
     } else rigCounters.skippedUpdates++;
   }
 
+  setRecolor(spec: RecolorSpec | undefined): void { this.recolor?.set(spec); }
+
   dispose(): void {
+    this.recolor?.dispose();
     this.mixer.stopAllAction();
     this.mixer.uncacheRoot(this.model);
     this.model.traverse((o) => { (o as THREE.SkinnedMesh).skeleton?.dispose(); });
@@ -103,6 +131,10 @@ class RigInstance {
 export interface RiggedSpec {
   rig: RigRequest;
   heightM?: number;
+  /** Teintes peau / cheveux / tenue (modèles recolorables uniquement). */
+  recolor?: RecolorSpec;
+  /** Teintes appliquées seulement si le modèle est tiré au sort (pas attitré à ce personnage). */
+  recolorWhenAuto?: RecolorSpec;
 }
 
 /** Personnage riggé si le manifeste en prévoit un pour lui (ou s'il se charge encore) ; sinon `null`. */
@@ -146,11 +178,13 @@ class HybridCharacter implements Character3D {
   private activity: CharacterActivity = 'auto';
   private readonly req: RigRequest;
   private readonly heightM: number;
+  private recolor: RecolorSpec | undefined;
 
-  constructor(spec: RiggedSpec, private readonly fallback: () => Character3D) {
+  constructor(private readonly spec: RiggedSpec, private readonly fallback: () => Character3D) {
     this.root.name = 'personnage_rigge';
     live.add(this);
     this.heightM = spec.heightM ?? 1.7;
+    this.recolor = spec.recolor;
     this.req = { ...spec.rig, heightM: spec.rig.heightM ?? this.heightM };
     const entry = riggedState() === 'ready' ? modelFor(riggedManifest(), this.req) : null;
     const asset = entry ? rigAssetIfLoaded(entry.id) : undefined;
@@ -176,7 +210,8 @@ class HybridCharacter implements Character3D {
   }
 
   private attach(asset: RigAsset): void {
-    this.rig = new RigInstance(asset, this.heightM, hash32(this.req.key));
+    const rc = this.recolor ?? (asset.entry.auto ? this.spec.recolorWhenAuto : undefined);
+    this.rig = new RigInstance(asset, this.heightM, hash32(this.req.key), rc);
     this.root.add(this.rig.pivot);
     rigCounters.instances++;
     if (this.proc) {
@@ -190,6 +225,11 @@ class HybridCharacter implements Character3D {
     if (!Number.isFinite(r)) return;
     this.heading = r;
     this.proc?.setHeading(r);
+  }
+
+  setRecolor(spec: RecolorSpec | undefined): void {
+    this.recolor = spec;
+    this.rig?.setRecolor(spec);
   }
 
   setActivity(activity: CharacterActivity): void {
@@ -209,7 +249,7 @@ class HybridCharacter implements Character3D {
       return;
     }
     if (!this.rig) return;
-    this.speedS = smooth(this.speedS, v, 9, dt);
+    this.speedS = smoothSpeed(this.speedS, v, dt);
     const walk = Math.min(1, this.speedS / 1.3);
     let dh = this.heading - this.shown;
     while (dh > Math.PI) dh -= Math.PI * 2;

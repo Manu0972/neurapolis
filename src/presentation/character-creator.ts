@@ -35,7 +35,10 @@ import {
 import { drawCamille } from './assets/characters/camille';
 import { DEFAULT_PLAYER_APPEARANCE } from '../core/types';
 import { buildAppearanceEditor } from './appearance-editor';
+import { heightForAge } from './city3d/bodyScale';
 import { createAvatarPreview } from './avatar-preview3d';
+import { playerRigModel, setPlayerRigModel } from './city3d/rigged/playerModel';
+import { loadRigAsset, startRiggedCharacters } from './city3d/rigged/library';
 
 export interface CharacterCreatorOptions {
   initialCustomization?: Partial<PlayerCustomization>;
@@ -343,6 +346,36 @@ export function mountCharacterCreation(
   });
   appearanceSection.appendChild(editor.root);
 
+  // Modèle 3D détaillé (facultatif) : peau, cheveux et couleur de tenue sont recolorés dessus.
+  const modelBox = document.createElement('div');
+  modelBox.className = 'creator-model-box';
+  modelBox.hidden = true;
+  void startRiggedCharacters().then((m) => {
+    const choices = m?.models.filter((x) => x.ageClass === 'ado') ?? [];
+    if (!m || choices.length === 0) return;
+    const label = document.createElement('label');
+    label.textContent = 'Modèle 3D du personnage ';
+    const sel = document.createElement('select');
+    sel.add(new Option('Personnage dessiné (tous les réglages)', 'dessin'));
+    choices.forEach((c, i) => sel.add(new Option(`Silhouette détaillée ${i + 1} (peau, cheveux, tenue)`, c.id)));
+    sel.value = playerRigModel() ?? 'dessin';
+    sel.addEventListener('change', () => {
+      setPlayerRigModel(sel.value === 'dessin' ? undefined : sel.value);
+      updatePreview();
+    });
+    const note = document.createElement('small');
+    note.textContent = 'Sur une silhouette détaillée, coupe, lunettes et accessoires ne s’appliquent pas : seuls la peau, les cheveux et la couleur du haut changent.';
+    note.style.display = 'block';
+    label.appendChild(sel);
+    modelBox.append(label, note);
+    modelBox.hidden = false;
+    // Précharge le modèle choisi pour que l'aperçu le montre aussitôt.
+    const cur = playerRigModel();
+    const entry = choices.find((c) => c.id === cur);
+    if (entry) void loadRigAsset(entry).then(() => updatePreview());
+  });
+  appearanceSection.appendChild(modelBox);
+
   formColumn.appendChild(appearanceSection);
   bodyGrid.appendChild(formColumn);
 
@@ -512,7 +545,7 @@ export function mountCharacterCreation(
     }
 
     // Rendu dynamique du sprite pixel-art sur le mini Canvas
-    preview3d?.setAppearance(appearance, gender, 1.52);
+    preview3d?.setAppearance(appearance, gender, heightForAge(12));
     const avatarBoxEl = document.getElementById('preview-avatar');
     if (avatarBoxEl) {
       avatarBoxEl.style.borderColor = OUTFIT_COLOR_INFO[appearance.outfitColor].hex;
