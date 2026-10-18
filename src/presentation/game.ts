@@ -8,7 +8,8 @@ import { runTicks, tickWorld } from '../simulation/engine';
 import { tryMove } from '../simulation/movement';
 import { npcsNearby, placeAtAdjacent } from '../simulation/interact';
 import { applyPlaceAction } from '../simulation/places';
-import { dialogueTopics, npcLine, replyDialogue } from '../simulation/dialogue';
+import { openConversation } from './dialogue-ui';
+import { REL_LABELS } from '../data/dialogue';
 import { npcsAt } from '../simulation/npc';
 import { performGatedAction } from '../simulation/actions';
 import { skillProgress } from '../simulation/skills';
@@ -41,7 +42,6 @@ import { allianceDesOmbres } from '../simulation/antagonists';
 import { calculateMarketShares, counterStrategyDaysRemaining, executeCounterStrategy, getAvailableCounterStrategies, isCounterStrategyActive } from '../simulation/rival';
 import { PLACE_BY_ID } from '../data/places';
 import { NPC_BY_ID, NPCS } from '../data/npcs';
-import { DIALOGUE_REPLIES, REL_LABELS } from '../data/dialogue';
 import { GATED_ACTIONS, GATED_ACTION_BY_ID, SKILLS_LABELS } from '../data/actions';
 import { EXPLANATION_SOURCES, NOTIONS } from '../data/notions';
 import { GHOST_DEFS_BY_ID } from '../data/ghosts/registry';
@@ -1377,55 +1377,13 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   }
 
   function openNpcDialogue(id: NpcId): void {
-    const def = NPC_BY_ID[id];
-    if (!def) return;
+    // Conversation complète (src/presentation/dialogue-ui.ts) : sujets, réponses, réactions, au revoir.
     renderer3D?.setTalkingNpc(id);
-    const body = el('div', 'panel-body');
-    const head = el('div', 'avatar-row');
-    head.appendChild(avatarElement(`pnj:${def.id}`, def.color, def.name, 48));
-    const col = el('div', 'avatar-col');
-    col.appendChild(el('span', 'rel-name', def.name));
-    col.appendChild(el('div', 'rel-role', def.role));
-    head.appendChild(col);
-    body.appendChild(head);
-    const lineBox = el('p', 'dialog-line', 'De quoi on parle ?');
-    body.appendChild(lineBox);
-
-    const topicRow = el('div', 'topic-row');
-    for (const topic of dialogueTopics(id)) {
-      const btn = el('button', 'btn btn-topic', topic.charAt(0).toUpperCase() + topic.slice(1));
-      btn.addEventListener('click', () => {
-        lineBox.textContent = npcLine(world, id, topic) ?? '…';
-        showReplies();
-      });
-      topicRow.appendChild(btn);
-    }
-    body.appendChild(el('h3', 'panel-sub', 'De quoi parler ?'));
-    body.appendChild(topicRow);
-
-    const replyRow = el('div', 'reply-row');
-    body.appendChild(replyRow);
-
-    function showReplies(): void {
-      replyRow.replaceChildren();
-      for (const reply of DIALOGUE_REPLIES) {
-        const btn = el('button', 'btn btn-reply', reply.label);
-        btn.addEventListener('click', () => {
-          const res = replyDialogue(world, id, reply.id);
-          spendTaskTime(TASK_MINUTES.parler, `Discussion avec ${def?.name ?? 'quelqu’un'}`);
-          const effects = Object.entries(res.applied)
-            .map(([k, d]) => `${REL_LABELS[k as keyof typeof REL_LABELS]} ${d > 0 ? '+' : ''}${d}`);
-          lineBox.textContent =
-            res.text + (effects.length > 0 ? `  →  ${effects.join(', ')}` : '');
-          replyRow.replaceChildren();
-          const bye = el('button', 'btn', 'Fermer');
-          bye.addEventListener('click', closeModal);
-          replyRow.appendChild(bye);
-        });
-        replyRow.appendChild(btn);
-      }
-    }
-    showModal(def.name, def.role, body);
+    openConversation({
+      world, showModal, closeModal,
+      spendTime: (label) => spendTaskTime(TASK_MINUTES.parler, label),
+      onChange: () => updateHud(ui, world, promptText()),
+    }, id);
   }
 
   // ---------- Écrans M3 : personnage, relations, journal ----------
