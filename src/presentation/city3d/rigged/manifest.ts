@@ -11,10 +11,19 @@
  *  - un objet : `{ "personnages": [...], "attributions": { "noah": "lycéen_3", "karim": null },
  *    "joueur": "camille_2", "repartition": 0.5 }`.
  * Champs facultatifs d'un modèle : `pnj` (ids attitrés), `age` ou `categorie`
- * (`enfant` | `ado` | `adulte`), `auto` (participe à la répartition automatique).
+ * (`enfant` | `ado` | `jeune` | `adulte` | `aine`), `auto` (participe à la répartition automatique).
  */
 
-export type AgeClass = 'enfant' | 'ado' | 'adulte';
+export type AgeClass = 'enfant' | 'ado' | 'jeune' | 'adulte' | 'aine';
+
+/** Tranches de repli (dans l'ordre) quand aucun modèle n'existe pour la tranche voulue : jamais un enfant en adulte. */
+export const AGE_FALLBACK: Record<AgeClass, readonly AgeClass[]> = {
+  enfant: ['enfant'],
+  ado: ['ado', 'jeune'],
+  jeune: ['jeune', 'adulte', 'ado'],
+  adulte: ['adulte', 'jeune', 'aine'],
+  aine: ['aine', 'adulte'],
+};
 
 export interface RigModelEntry {
   id: string;
@@ -47,6 +56,8 @@ export interface RigRequest {
   age?: number;
   /** Taille voulue (m) : sert à deviner la tranche d'âge quand l'âge est inconnu. */
   heightM?: number;
+  /** Modèle imposé (choix du joueur dans le créateur) ; ignoré s'il n'existe pas. */
+  model?: string;
 }
 
 export const MANIFEST_URL = 'personnages/index.json';
@@ -67,7 +78,7 @@ export function baseIdOf(modelId: string): string {
 }
 
 export function ageClassOf(age?: number, heightM?: number): AgeClass {
-  if (typeof age === 'number' && Number.isFinite(age)) return age < 11 ? 'enfant' : age < 18 ? 'ado' : 'adulte';
+  if (typeof age === 'number' && Number.isFinite(age)) return age < 11 ? 'enfant' : age < 18 ? 'ado' : age < 30 ? 'jeune' : age < 65 ? 'adulte' : 'aine';
   // Tailles du jeu : ~1,52 m à 12 ans, ~1,70 m à 17 ans, 1,72 m adulte (heightForAge).
   if (typeof heightM === 'number' && Number.isFinite(heightM)) return heightM < 1.45 ? 'enfant' : heightM < 1.715 ? 'ado' : 'adulte';
   return 'adulte';
@@ -75,11 +86,13 @@ export function ageClassOf(age?: number, heightM?: number): AgeClass {
 
 function inferAgeClass(raw: Record<string, unknown>, id: string): AgeClass {
   const cat = raw['categorie'];
-  if (cat === 'enfant' || cat === 'ado' || cat === 'adulte') return cat;
+  if (cat === 'enfant' || cat === 'ado' || cat === 'jeune' || cat === 'adulte' || cat === 'aine') return cat;
   if (typeof raw['age'] === 'number') return ageClassOf(raw['age']);
   const s = id.toLowerCase();
   if (/enfant/.test(s)) return 'enfant';
-  if (/jeune|ado|eleve|élève|college|collège|lyceen|lycéen/.test(s)) return 'ado';
+  if (/a[iî]n[eé]/.test(s)) return 'aine';
+  if (/jeune/.test(s)) return 'jeune';
+  if (/ado|eleve|élève|college|collège|lyceen|lycéen/.test(s)) return 'ado';
   return 'adulte';
 }
 
@@ -149,13 +162,18 @@ export function parseManifest(raw: unknown, knownIds: readonly string[] = []): R
  */
 export function modelFor(manifest: RigManifest | null, req: RigRequest): RigModelEntry | null {
   if (!manifest || manifest.models.length === 0) return null;
+  if (req.model && manifest.models.some((m) => m.id === req.model)) return manifest.models.find((m) => m.id === req.model)!;
   const byId = (id: string | undefined | null): RigModelEntry | null => (id ? manifest.models.find((m) => m.id === id) ?? null : null);
   if (Object.prototype.hasOwnProperty.call(manifest.attributions, req.key)) return byId(manifest.attributions[req.key]);
   if (req.role === 'joueur' || req.key === 'joueur') return byId(manifest.joueur);
   const own = manifest.models.find((m) => m.pnj.includes(req.key));
   if (own) return own;
   const cls = ageClassOf(req.age, req.heightM);
-  const pool = manifest.models.filter((m) => m.auto && m.ageClass === cls);
+  let pool: RigModelEntry[] = [];
+  for (const c of AGE_FALLBACK[cls]) {
+    pool = manifest.models.filter((m) => m.auto && m.ageClass === c);
+    if (pool.length > 0) break;
+  }
   if (pool.length === 0) return null;
   const h = hash32(`rig:${req.key}`);
   if ((h % 10000) / 10000 >= manifest.repartition) return null;
