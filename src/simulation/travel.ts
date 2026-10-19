@@ -172,7 +172,7 @@ export function doTravelActivity(w: WorldState, id: string): { ok: boolean; mess
   if (!isOnSite(w)) return { ok: false, message: 'Le temps file : attends d’être sur place.' };
   if (travelSlotsLeft(w) <= 0) return { ok: false, message: 'Ton séjour touche à sa fin : il est temps de reprendre le train.' };
   if (activityDoneThisTrip(w, id)) return { ok: false, message: 'Déjà fait pendant ce séjour.' };
-  if (a.cost > 0 && w.player.money < a.cost) return { ok: false, message: `Il faut ${a.cost} € (tu as ${w.player.money.toFixed(2)} €).` };
+  if (a.cost > 0 && w.player.money < a.cost) return { ok: false, message: `Il faut ${a.cost} € (tu as ${w.player.money.toFixed(2).replace('.', ',')} €).` };
   const clamp = (v: number): number => Math.max(0, Math.min(100, v));
   w.player.money = Math.round((w.player.money - a.cost) * 100) / 100;
   if (a.skill && a.xp) addXp(w, a.skill, a.xp);
@@ -231,7 +231,7 @@ export function canTravel(w: WorldState, id: string): { ok: boolean; message: st
   if (isTraveling(w)) return { ok: false, message: 'Tu es déjà en voyage.' };
   const day = dayIndexOf(w.time.tick);
   if (w.player.age < 18 && !isVacances(day)) return { ok: false, message: 'Avant 18 ans, on part pendant les vacances scolaires.' };
-  if (w.player.money < d.cost) return { ok: false, message: `Le voyage coûte ${d.cost} € (tu as ${w.player.money.toFixed(2)} €).` };
+  if (w.player.money < d.cost) return { ok: false, message: `Le voyage coûte ${d.cost} € (tu as ${w.player.money.toFixed(2).replace('.', ',')} €).` };
   return { ok: true, message: '' };
 }
 

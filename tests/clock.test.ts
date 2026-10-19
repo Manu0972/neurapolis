@@ -28,7 +28,7 @@ describe('horloge — 3 journées complètes', () => {
     const d = dateOf(0);
     expect(d.iso).toBe('2020-09-01');
     expect(d.weekday).toBe(2); // mardi
-    expect(d.label).toBe('mardi 1 septembre 2020');
+    expect(d.label).toBe('mardi 1er septembre 2020');
   });
 
   it('les jours 0-1-2 s\'enchaînent mardi → mercredi → jeudi', () => {

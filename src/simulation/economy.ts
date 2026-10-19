@@ -187,19 +187,19 @@ export function signLease(w: WorldState, unitId: string): EconomyResult {
   const own = !!e.owned?.[unitId];
   const rent = own ? 0 : marketRent(w, u);
   const deposit = round2(rent * DEPOSIT_DAYS);
-  if (w.player.money < deposit) return ko(`Il faut ${deposit.toFixed(2)} € de dépôt de garantie (${DEPOSIT_DAYS} jours de loyer). Tu as ${w.player.money.toFixed(2)} €.`);
+  if (w.player.money < deposit) return ko(`Il faut ${deposit.toFixed(2).replace('.', ',')} € de dépôt de garantie (${DEPOSIT_DAYS} jours de loyer). Tu as ${w.player.money.toFixed(2).replace('.', ',')} €.`);
   w.player.money = round2(w.player.money - deposit);
   e.leases[unitId] = { unitId, startDay: today(w), rentPerDay: rent, deposit, coSigner: el.coSigner, arrears: 0 };
   pushEvent(w, {
     type: 'opportunite',
     title: `Bail signé : ${u.address}`,
-    text: `${u.sizeM2} m², ${rent.toFixed(2)} € par jour. Dépôt de garantie versé : ${deposit.toFixed(2)} €.${el.coSigner ? ' Tes parents ont co-signé.' : ''}`,
+    text: `${u.sizeM2} m², ${rent.toFixed(2).replace('.', ',')} € par jour. Dépôt de garantie versé : ${deposit.toFixed(2).replace('.', ',')} €.${el.coSigner ? ' Tes parents ont co-signé.' : ''}`,
     causes: [
       { facteur: 'trafic devant la vitrine', seuil: `${u.footTraffic} passants/h`, poids: 2 },
-      { facteur: 'loyer de marché', seuil: `${rent.toFixed(2)} €/jour`, poids: 2 },
+      { facteur: 'loyer de marché', seuil: `${rent.toFixed(2).replace('.', ',')} €/jour`, poids: 2 },
     ],
   });
-  return ok(`Bail signé pour ${u.address}. Dépôt de ${deposit.toFixed(2)} € versé.`);
+  return ok(`Bail signé pour ${u.address}. Dépôt de ${deposit.toFixed(2).replace('.', ',')} € versé.`);
 }
 
 /** Rend un local : le stock est perdu, le mobilier revendu à 30 %, le dépôt rendu s'il n'y a pas d'impayé. */
@@ -224,7 +224,7 @@ export function endLease(w: WorldState, unitId: string, reason: 'volontaire' | '
   w.player.money = round2(w.player.money + refund);
   return ok(reason === 'expulsion'
     ? `Expulsion : loyers impayés. Le local ${UNIT_BY_ID[unitId]?.address ?? ''} est repris.`
-    : `Local rendu. Tu récupères ${refund.toFixed(2)} €.`);
+    : `Local rendu. Tu récupères ${refund.toFixed(2).replace('.', ',')} €.`);
 }
 
 // ---------- Propriété des murs ----------
@@ -250,7 +250,7 @@ export function buyProperty(w: WorldState, unitId: string): EconomyResult {
   if (COMPETITOR_BY_UNIT[unitId]) return ko('Ce local appartient à son commerçant et n’est pas à vendre.');
   if (e.owned?.[unitId]) return ko('Tu possèdes déjà ces murs.');
   const price = propertyPrice(w, u);
-  if (w.player.money < price) return ko(`Il faut ${price.toLocaleString('fr-FR')} € (tu as ${w.player.money.toFixed(2)} €). La banque peut t’aider.`);
+  if (w.player.money < price) return ko(`Il faut ${price.toLocaleString('fr-FR')} € (tu as ${w.player.money.toFixed(2).replace('.', ',')} €). La banque peut t’aider.`);
   w.player.money = round2(w.player.money - price);
   e.owned = { ...(e.owned ?? {}), [unitId]: { unitId, price, boughtDay: today(w), tenant: null } };
   // Plus de loyer à payer pour son propre commerce : le bail est soldé et le dépôt rendu.
@@ -283,7 +283,7 @@ export function rentOutProperty(w: WorldState, unitId: string): EconomyResult {
   const names = ['Atelier Lumière', 'Le Comptoir du Taret', 'Mode & Retouches', 'Pizzeria du Canal', 'Cycles Express', 'La Bonne Graine'];
   const name = names[Math.floor(econRand(w, 'locataire', unitId, today(w)) * names.length)]!;
   p.tenant = { name, rentPerDay: round2(marketRent(w, u) * 0.95) };
-  return ok(`${name} s’installe : ${p.tenant.rentPerDay.toFixed(2)} € de loyer par jour.`);
+  return ok(`${name} s’installe : ${p.tenant.rentPerDay.toFixed(2).replace('.', ',')} € de loyer par jour.`);
 }
 
 export function sellProperty(w: WorldState, unitId: string): EconomyResult {
@@ -356,7 +356,7 @@ export function transferCash(w: WorldState, bizId: string, amount: number): Econ
   if (a < 0 && b.cash < -a) return ko('La caisse ne contient pas assez.');
   w.player.money = round2(w.player.money - a);
   post(b, w, a > 0 ? 'Apport du propriétaire' : 'Retrait du propriétaire', a);
-  return ok(a > 0 ? `${a.toFixed(2)} € versés dans la caisse.` : `${(-a).toFixed(2)} € retirés de la caisse.`);
+  return ok(a > 0 ? `${a.toFixed(2).replace('.', ',')} € versés dans la caisse.` : `${(-a).toFixed(2).replace('.', ',')} € retirés de la caisse.`);
 }
 
 export function usedFloor(b: BusinessState): number {
@@ -370,7 +370,7 @@ export function buyFurniture(w: WorldState, bizId: string, furnitureId: string):
   const u = UNIT_BY_ID[b.unitId]!;
   if (u.buildingId.startsWith('etal_')) return ko('L’étal est déjà équipé.');
   if (usedFloor(b) + f.footprintM2 > u.sizeM2 * FLOOR_USE) return ko(`Plus de place au sol (${usedFloor(b).toFixed(1)} / ${(u.sizeM2 * FLOOR_USE).toFixed(1)} m² utilisables).`);
-  if (b.cash < f.cost) return ko(`La caisse doit contenir ${f.cost} € (elle a ${b.cash.toFixed(2)} €). Verse de l’argent d’abord.`);
+  if (b.cash < f.cost) return ko(`La caisse doit contenir ${f.cost} € (elle a ${b.cash.toFixed(2).replace('.', ',')} €). Verse de l’argent d’abord.`);
   post(b, w, `Achat : ${f.name}`, -f.cost);
   b.today.other = round2(b.today.other + f.cost);
   b.furniture.push(f.id);
@@ -395,7 +395,7 @@ export function sellFurniture(w: WorldState, bizId: string, index: number): Econ
   const back = round2((f?.cost ?? 0) * 0.3);
   post(b, w, `Revente : ${f?.name ?? 'meuble'}`, back);
   clampStockToCapacity(b);
-  return ok(`Meuble revendu ${back.toFixed(2)} €.`);
+  return ok(`Meuble revendu ${back.toFixed(2).replace('.', ',')} €.`);
 }
 
 // ---------- Aménagement ----------
@@ -510,7 +510,7 @@ export function setPrice(w: WorldState, bizId: string, productId: string, price:
   if (!b || !p) return ko('Commerce ou produit inconnu.');
   if (!Number.isFinite(price) || price <= 0) return ko('Prix invalide.');
   b.prices[productId] = round2(clamp(price, 0.05, p.retailRef * 10));
-  return ok(`${p.name} : ${b.prices[productId]!.toFixed(2)} €.`);
+  return ok(`${p.name} : ${b.prices[productId]!.toFixed(2).replace('.', ',')} €.`);
 }
 
 export function priceOf(b: BusinessState, productId: string): number {
@@ -579,9 +579,9 @@ export function orderStock(w: WorldState, bizId: string, wholesalerId: string, l
   const mult = (g.id === 'g_bertin_depannage' ? g.priceMult - bertinLoyaltyDiscount(w) : g.priceMult) - travelSupplierDiscount(w) + multiSupplierDelta(w);
   const priced = clean.map((l) => ({ ...l, unitCost: round2(PRODUCT_BY_ID[l.productId]!.wholesaleBase * mult) }));
   const goods = round2(priced.reduce((s, l) => s + l.unitCost * l.qty, 0));
-  if (goods < g.minOrder) return ko(`Commande minimale chez ${g.name} : ${g.minOrder} € (ta commande : ${goods.toFixed(2)} €).`);
+  if (goods < g.minOrder) return ko(`Commande minimale chez ${g.name} : ${g.minOrder} € (ta commande : ${goods.toFixed(2).replace('.', ',')} €).`);
   const total = round2(goods + g.deliveryFee);
-  if (b.cash < total) return ko(`La caisse doit contenir ${total.toFixed(2)} € (elle a ${b.cash.toFixed(2)} €).`);
+  if (b.cash < total) return ko(`La caisse doit contenir ${total.toFixed(2).replace('.', ',')} € (elle a ${b.cash.toFixed(2).replace('.', ',')} €).`);
   post(b, w, `Commande ${g.name}`, -total);
   const day = today(w);
   const order: PendingOrder = {
@@ -591,8 +591,8 @@ export function orderStock(w: WorldState, bizId: string, wholesalerId: string, l
   e.orders.push(order);
   const units = priced.reduce((s, l) => s + l.qty, 0);
   return ok(order.status === 'a_retirer'
-    ? `Commande payée (${total.toFixed(2)} €). ${units} unités t’attendent chez ${g.name} : va les chercher.`
-    : `Commande payée (${total.toFixed(2)} €). Livraison prévue dans ${g.deliveryDays} jour(s).`);
+    ? `Commande payée (${total.toFixed(2).replace('.', ',')} €). ${units} unités t’attendent chez ${g.name} : va les chercher.`
+    : `Commande payée (${total.toFixed(2).replace('.', ',')} €). Livraison prévue dans ${g.deliveryDays} jour(s).`);
 }
 
 /** Tuile devant le point de retrait d'un fournisseur. */
@@ -716,7 +716,7 @@ export function hire(w: WorldState, employeeId: string, bizId: string): EconomyR
   emp.hiredDay = today(w);
   b.employeeIds.push(emp.id);
   e.jobMarket.candidateIds = e.jobMarket.candidateIds.filter((id) => id !== emp.id);
-  return ok(`${emp.name} rejoint ${b.name} (${emp.wage.toFixed(2)} €/h).`);
+  return ok(`${emp.name} rejoint ${b.name} (${emp.wage.toFixed(2).replace('.', ',')} €/h).`);
 }
 
 export function fire(w: WorldState, employeeId: string): EconomyResult {
@@ -734,7 +734,7 @@ export function setWage(w: WorldState, employeeId: string, wage: number): Econom
   if (!emp) return ko('Employé inconnu.');
   if (wage < 10.15) return ko('Le salaire horaire ne peut pas être sous le SMIC (10,15 €).');
   emp.wage = round2(wage);
-  return ok(`${emp.name} : ${emp.wage.toFixed(2)} €/h.`);
+  return ok(`${emp.name} : ${emp.wage.toFixed(2).replace('.', ',')} €/h.`);
 }
 
 // ---------- Banque ----------
@@ -770,10 +770,10 @@ export function takeLoan(w: WorldState, amount: number, termDays = 120): Economy
   pushEvent(w, {
     type: 'systeme',
     title: `Prêt de ${a} €`,
-    text: `${n} jours à ${offer.ratePct} % par an : ${daily.toFixed(2)} € prélevés chaque jour.`,
+    text: `${n} jours à ${offer.ratePct} % par an : ${daily.toFixed(2).replace('.', ',')} € prélevés chaque jour.`,
     causes: [{ facteur: 'emprunt', seuil: `${a} €`, poids: 2 }],
   });
-  return ok(`Prêt accordé : ${a} €, remboursement ${daily.toFixed(2)} €/jour.`);
+  return ok(`Prêt accordé : ${a} €, remboursement ${daily.toFixed(2).replace('.', ',')} €/jour.`);
 }
 
 export function repayLoan(w: WorldState, loanId: string, amount: number): EconomyResult {
@@ -785,7 +785,7 @@ export function repayLoan(w: WorldState, loanId: string, amount: number): Econom
   w.player.money = round2(w.player.money - a);
   l.remaining = round2(l.remaining - a);
   if (l.remaining <= 0.01) e.loans = e.loans.filter((x) => x !== l);
-  return ok(`${a.toFixed(2)} € remboursés.`);
+  return ok(`${a.toFixed(2).replace('.', ',')} € remboursés.`);
 }
 
 // ---------- Marketing ----------
@@ -802,11 +802,11 @@ export function runMarketing(w: WorldState, bizId: string, channel: string, days
   if (!b || !c) return ko('Commerce ou campagne inconnus.');
   const d = Math.max(c.minDays, Math.round(days));
   const cost = round2(c.costPerDay * d);
-  if (b.cash < cost) return ko(`La caisse doit contenir ${cost.toFixed(2)} €.`);
+  if (b.cash < cost) return ko(`La caisse doit contenir ${cost.toFixed(2).replace('.', ',')} €.`);
   post(b, w, `Publicité : ${c.name}`, -cost);
   b.today.other = round2(b.today.other + cost);
   b.marketing[channel] = (b.marketing[channel] ?? 0) + d;
-  return ok(`${c.name} : ${d} jours (${cost.toFixed(2)} €).`);
+  return ok(`${c.name} : ${d} jours (${cost.toFixed(2).replace('.', ',')} €).`);
 }
 
 // ---------- Simulation : heures et jours ----------
@@ -1158,7 +1158,7 @@ export function economyDay(w: WorldState, closedDay: number): Notification[] {
         pushEvent(w, {
           type: 'consequence',
           title: `Bilan du jour — ${b.name}`,
-          text: `${b.today.customers} clients, ${b.today.unitsSold} articles, CA ${b.today.revenue.toFixed(2)} €, résultat ${margin >= 0 ? '+' : ''}${margin.toFixed(2)} €.`,
+          text: `${b.today.customers} clients, ${b.today.unitsSold} articles, CA ${b.today.revenue.toFixed(2).replace('.', ',')} €, résultat ${margin >= 0 ? '+' : ''}${margin.toFixed(2).replace('.', ',')} €.`,
           causes: [
             { facteur: 'passants devant la vitrine', seuil: `${b.today.passersby}`, poids: 2 },
             { facteur: 'clients perdus (attente, rupture, prix)', seuil: `${b.today.lost}`, poids: b.today.lost > b.today.customers ? 3 : 1 },
@@ -1183,7 +1183,7 @@ export function economyDay(w: WorldState, closedDay: number): Notification[] {
     } else {
       l.remaining = round2(l.remaining + interest + 2); // frais de retard
       w.player.reputation = clamp(w.player.reputation - 1, 0, 100);
-      out.push(notify('alerte', `Échéance de prêt impayée : ${pay.toFixed(2)} € manquants (frais de 2 €).`));
+      out.push(notify('alerte', `Échéance de prêt impayée : ${pay.toFixed(2).replace('.', ',')} € manquants (frais de 2 €).`));
     }
     if (l.remaining <= 0.01) {
       e.loans = e.loans.filter((x) => x !== l);

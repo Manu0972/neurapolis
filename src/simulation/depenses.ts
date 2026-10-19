@@ -70,7 +70,7 @@ export function depenseStatus(w: WorldState, id: DepenseId): { ok: boolean; rais
     const left = d.everyDays - (day - last);
     return { ok: false, raison: d.everyDays === 1 ? 'Déjà fait aujourd’hui.' : `Encore ${left} jour${left > 1 ? 's' : ''} avant d’y retourner.` };
   }
-  if (w.player.money < d.price) return { ok: false, raison: `Il te faut ${d.price.toLocaleString('fr-FR')} € (tu as ${w.player.money.toFixed(2)} €).` };
+  if (w.player.money < d.price) return { ok: false, raison: `Il te faut ${d.price.toLocaleString('fr-FR')} € (tu as ${w.player.money.toFixed(2).replace('.', ',')} €).` };
   return { ok: true, raison: '' };
 }
 

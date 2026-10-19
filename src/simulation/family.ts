@@ -482,7 +482,7 @@ export const EMERGENCY_GAP_DAYS = 14;
 export function emergencyHelpStatus(w: WorldState): { available: boolean; amount: number; reason: string } {
   const day = dayIndexOf(w.time.tick);
   const last = (w.flags['aideParents'] ?? 0) - 1;
-  if (w.player.money >= EMERGENCY_BELOW) return { available: false, amount: 0, reason: `Tu as encore ${w.player.money.toFixed(2)} €.` };
+  if (w.player.money >= EMERGENCY_BELOW) return { available: false, amount: 0, reason: `Tu as encore ${w.player.money.toFixed(2).replace('.', ',')} €.` };
   if (last >= 0 && day - last < EMERGENCY_GAP_DAYS) return { available: false, amount: 0, reason: `Ils t’ont déjà dépanné·e il y a ${day - last} jour(s). Encore ${EMERGENCY_GAP_DAYS - (day - last)} jour(s).` };
   const trust = familyTrust(w);
   if (trust < 35) return { available: false, amount: 0, reason: `Confiance trop basse (${Math.round(trust)}/100) : « Commence par revenir à l’heure et aller en cours. »` };

@@ -412,9 +412,12 @@ export function updateHud(ui: UiRefs, w: WorldState, prompt: string): void {
     cache.weather = weatherStr;
   }
   const eco = w.economy;
-  const bizStr = eco && Object.keys(eco.businesses).length > 0
+  // La caisse du stand (ventes) n'est pas dans ta poche : on l'affiche pour ne pas croire à 0 €.
+  const standStr = w.project?.active ? `🧁 Caisse du stand : ${w.project.balance.toFixed(2).replace('.', ',')} €` : '';
+  const ecoStr = eco && Object.keys(eco.businesses).length > 0
     ? `🏪 ${Object.keys(eco.businesses).length} commerce(s) · caisses ${Object.values(eco.businesses).reduce((t, b) => t + b.cash, 0).toFixed(0)} €${eco.carried.length ? ` · 📦 ${eco.carried.reduce((t, c) => t + c.qty, 0)} u.` : ''}`
     : '';
+  const bizStr = [standStr, ecoStr].filter(Boolean).join(' · ');
   if (cache.biz !== bizStr) {
     ui.bizEl.textContent = bizStr;
     ui.bizEl.classList.toggle('hidden', bizStr === '');

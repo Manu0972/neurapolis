@@ -101,7 +101,7 @@ export function resolveEconomicHazard(
   if (w.player.money < hazard.costToResolve) {
     return {
       ok: false,
-      message: `Fonds insuffisants pour régler la situation (${hazard.costToResolve} € requis, tu as ${w.player.money.toFixed(2)} €).`,
+      message: `Fonds insuffisants pour régler la situation (${hazard.costToResolve} € requis, tu as ${w.player.money.toFixed(2).replace('.', ',')} €).`,
     };
   }
 
@@ -158,7 +158,7 @@ export function multiVenturesDayTick(w: WorldState): Notification[] {
     if (playerGain > 0) {
       w.player.money += playerGain;
       if (playerGain >= 2) {
-        notifs.push(notify('bien', `Rendement des filières déléguées : +${playerGain.toFixed(2)} € nets perçus aujourd’hui.`));
+        notifs.push(notify('bien', `Rendement des filières déléguées : +${playerGain.toFixed(2).replace('.', ',')} € nets perçus aujourd’hui.`));
       }
     }
   }

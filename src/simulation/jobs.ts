@@ -83,7 +83,7 @@ export function jobTick(w: WorldState): Notification[] {
     addXp(w, 'organisation', 1);
     const done = w.flags['jobShiftsDone'];
     const total = JOB.payPerHour * (JOB.shiftTicks / 6);
-    out.push(notify('info', `Fin du service : ${total.toFixed(2)} € gagnés. Mme Bertin te fait de plus en plus confiance.`));
+    out.push(notify('info', `Fin du service : ${total.toFixed(2).replace('.', ',')} € gagnés. Mme Bertin te fait de plus en plus confiance.`));
     if (done === JOB.loyaltyShifts) {
       pushEvent(w, {
         type: 'opportunite',

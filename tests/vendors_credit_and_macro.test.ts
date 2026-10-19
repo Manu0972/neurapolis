@@ -121,7 +121,7 @@ describe('Économie, Crédit Marchand & Chocs Macroéconomiques', () => {
     const borrowEvent = w.events.find((e) => e.id.startsWith('vendor_borrow_bertin'));
     expect(borrowEvent).toBeDefined();
     expect(borrowEvent?.title).toContain('Crédit marchand');
-    expect(borrowEvent?.text).toContain('18.50 €');
+    expect(borrowEvent?.text).toContain('18,50 €');
     expect(borrowEvent?.causes.length).toBeGreaterThan(0);
   });
 

@@ -20,7 +20,7 @@ import {
   CHAPTER4_SUPPORT, chapter1Sales, chapter1Team, chapter3Help, chapter4QuarterBacked, chapter4Support,
   chapterObjectivesMet,
 } from './campaign';
-import { classWindow, isInClass } from './family';
+import { classWindow, isInClass, SESSIONS } from './family';
 import { nearPlace, placeAtAdjacent } from './interact';
 import { npcPosition } from './npc';
 import { coutStock } from './project';
@@ -144,7 +144,7 @@ function stockStep(w: WorldState, ch: number, r: number): MissionStep {
   }
   return goThenDo(w, ch, r, `c${ch}:stock`, lieu('epicerie'), `Va à l’${placeName('epicerie')} acheter du stock`, {
     kind: 'faire', icon: '📦', text: `Achète ton stock de goûters chez Mme Bertin (${cost} €)`,
-    detail: p?.active ? undefined : 'Ton Stand des Roses ouvre avec ce premier achat.',
+    detail: p?.active ? undefined : 'Acheter des goûters en gros pour les revendre un peu plus cher sur la place : ton petit commerce, le Stand des Roses, démarre avec ce premier achat.',
     action: { do: 'acheter_stock', label: `Acheter du stock (${cost} €)` },
   });
 }
@@ -152,7 +152,7 @@ function stockStep(w: WorldState, ch: number, r: number): MissionStep {
 /** Tenir le stand sur la place (avec le stock en préalable). */
 function sellStep(w: WorldState, ch: number, r: number, count?: MissionStep['count'], detail?: string): MissionStep {
   if (!w.project?.active || w.project.stock <= 0) return stockStep(w, ch, r);
-  return goThenDo(w, ch, r + 2, `c${ch}:vente`, lieu('place'), `Va sur la ${placeName('place').toLowerCase()} pour tenir ton stand`, {
+  return goThenDo(w, ch, r + 2, `c${ch}:vente`, lieu('place'), `Va sur la ${placeName('place').replace(/^Place/, 'place')} pour tenir ton stand`, {
     kind: 'faire', icon: '🧁', text: 'Tiens ton stand sur la place du Marché', count, detail,
     action: { do: 'tenir_stand', label: 'Tenir le stand (1 h)' },
   });
@@ -238,7 +238,7 @@ function chapterStep(w: WorldState): MissionStep | null {
     if ((w.flags['chapitre2ConversationCoopSamir'] ?? 0) <= 0) {
       return goThenDo(w, 2, 1, 'c2:samir', pnj(w, 'samir'), 'Rejoins Samir (Friche le matin, place l’après-midi)', {
         kind: 'parler', icon: '💬', text: 'Parle de la coopérative avec Samir',
-        detail: 'Choisis le sujet « Coop ».',
+        detail: 'Choisis le sujet « 🤝 La coop ».',
         action: { do: 'parler', label: 'Parler à Samir', npc: 'samir' },
       });
     }
@@ -248,6 +248,7 @@ function chapterStep(w: WorldState): MissionStep | null {
       return {
         id: 'c2:regles', chapter: 2, rank: 20, kind: 'faire', icon: '📜',
         text: 'Adopte des règles partagées avec ton équipe',
+        detail: 'Rôles, partage de la caisse, horaires : décidez ensemble. Appuie sur E quand personne n’est à côté de toi.',
         action: { do: 'regles', label: 'Adopter les règles partagées' },
       };
     }
@@ -329,14 +330,19 @@ export function currentMission(w: WorldState, ctx: MissionContext = {}): Mission
   if (session && nearPlace(w, 'college')) {
     return {
       id: `cours:${session}:entrer`, chapter: ch, rank: -1, kind: 'faire', icon: '📚',
-      text: 'Entre en cours : appuie sur E devant le collège',
+      text: 'Entre en cours : appuie sur E devant le collège (ou dans le hall)',
       detail: 'Ta mission reprendra après les cours.', target: lieu('college'),
     };
   }
   if (session) {
+    const start = session === 'matin' ? '8 h 30' : '13 h 30';
+    // Déjà commencé : on le dit (« commencent à 8 h 30 » à 11 h, c'est trompeur).
+    const late = minutesOfDay(w.time.tick) > SESSIONS[session].start;
     return {
       id: `cours:${session}`, chapter: ch, rank: -1, kind: 'aller', icon: '📚',
-      text: `Va au collège : les cours commencent à ${session === 'matin' ? '8 h 30' : '13 h 30'}`,
+      text: late
+        ? `Va au collège : tu es en retard, le cours a commencé à ${start}`
+        : `Va au collège : les cours commencent à ${start}`,
       detail: 'Entre au collège avec E. Ta mission reprendra après les cours.', target: lieu('college'),
     };
   }

@@ -544,6 +544,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   // et depuis les tests E2E. Lecture/écriture directe = leviers de QA, jamais du gameplay.
   (window as unknown as { __NEURAPOLIS__: unknown }).__NEURAPOLIS__ = {
     world,
+    /** Moteur de rendu 3D (QA : caméra, corps du joueur). */
+    get r3d() { return renderer3D; },
     /** Session multijoueur (QA). */
     get mp() { return mp; },
     /** Capture du rendu 3D (QA) : fonctionne même fenêtre masquée. */
@@ -646,10 +648,20 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   /** Action économique possible ici (déchargement, retrait, porte de local), la plus prioritaire d'abord. */
   /** Rejoindre sa classe : la séance passe en accéléré, avec un moment de classe. */
+  /** Invite « aller en cours » quand on est déjà dans le collège pendant la fenêtre d'un cours. */
+  function classInsideCollege(): string | null {
+    if (renderer3D?.interiorSpec?.placeId !== 'college') return null;
+    const session = classWindow(world);
+    return session ? `E — Aller en cours (${session === 'matin' ? '8 h 30 – 12 h' : '13 h 30 – 16 h 30'})` : null;
+  }
+
   function goToClass(): void {
     const r = attendClass(world);
     toast(r.message, r.ok);
-    if (r.ok && renderer3D?.inInterior) exitInterior();
+    if (!r.ok || !renderer3D?.inInterior) return;
+    // Déjà dans le collège : on file en salle 204 (et non sur le trottoir) ; ailleurs, on sort.
+    if (renderer3D.interiorSpec?.placeId === 'college') { if (renderer3D.interiorSpec.roomId !== 'classe') enterPlace('college', 'classe'); }
+    else exitInterior();
   }
 
   function economyActionHere(): { label: string; run: () => void } | null {
@@ -802,7 +814,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     if (!from) return;
     const body = el('div', 'panel-body');
     const fare = busFare(world);
-    body.appendChild(el('p', 'panel-desc', `Ticket : ${fare.toFixed(2)} €${world.player.age < 18 ? ' (tarif jeune)' : ''}, correspondance comprise. Service de ${BUS_HOURS[0]} h à ${BUS_HOURS[1]} h. Les bus tournent en boucle ; on change de ligne à la Gare, au Laminoir ou à Forges – Louise-Michel.`));
+    body.appendChild(el('p', 'panel-desc', `Ticket : ${fare.toFixed(2).replace('.', ',')} €${world.player.age < 18 ? ' (tarif jeune)' : ''}, correspondance comprise. Service de ${BUS_HOURS[0]} h à ${BUS_HOURS[1]} h. Les bus tournent en boucle ; on change de ligne à la Gare, au Laminoir ou à Forges – Louise-Michel.`));
     if (!busRunning(world)) body.appendChild(el('p', 'ph-note', 'Plus de bus à cette heure-ci : il faudra marcher (ou pédaler).'));
     // Lignes de l'arrêt d'abord, puis les autres (accessibles avec une correspondance).
     const order = [...BUS_LINES].sort((a, b) => Number(!from.lines.includes(a.id)) - Number(!from.lines.includes(b.id)));
@@ -824,7 +836,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         card.appendChild(el('div', 'ph-card-title', `${gate.open ? '🚌' : '🔒'} ${s.name}`));
         const via = route?.transfer ? ` · correspondance à ${BUS_STOP_BY_ID[route.transfer]!.name}` : '';
         card.appendChild(el('p', 'ph-note', gate.open ? `environ ${(route?.ticks ?? 0) * 10} min · ligne ${route?.lines.join(' puis ') ?? '?'}${via}` : gate.reason));
-        const btn = el('button', 'ph-btn primary', gate.open ? `Monter (${fare.toFixed(2)} €)` : 'Fermé');
+        const btn = el('button', 'ph-btn primary', gate.open ? `Monter (${fare.toFixed(2).replace('.', ',')} €)` : 'Fermé');
         btn.disabled = !gate.open || !route || !busRunning(world) || world.player.money < fare;
         btn.addEventListener('click', () => {
           const r = takeBus(world, id);
@@ -1255,6 +1267,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           toast(r.message, r.ok);
           if (r.ok && r.minutes !== 0) spendTaskTime(r.minutes ?? TASK_MINUTES.meuble, (dyn ?? label).replace(/^E — /, '').split(' (')[0]!);
           updateHud(ui, world, promptText());
+          // « Faire le point sur le budget familial » : on montre vraiment le budget de la famille.
+          if (r.ok && place === 'maison' && target === 'table') openFamilyPanel({ world, showModal, closeModal, toast }, { budget: true });
         },
       };
     }
@@ -1277,6 +1291,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       if (inside) return inside.label;
       const nearNpc = interiorNpcNear();
       if (nearNpc) return `E — Parler à ${NPC_BY_ID[nearNpc]?.name ?? 'quelqu’un'}`;
+      const classHere = classInsideCollege();
+      if (classHere) return classHere;
       if (renderer3D.interiorSpec?.destinationId) {
         return `${renderer3D.interiorSpec.title} · ${travelSlotsLeft(world)} demi-journée(s) sur place · approche-toi d’une icône pour agir`;
       }
@@ -1304,7 +1320,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       const inside = interiorActionHere();
       if (inside) { inside.run(); return; }
       const nearNpc = interiorNpcNear();
-      if (nearNpc) openNpcDialogue(nearNpc);
+      if (nearNpc) { openNpcDialogue(nearNpc); return; }
+      // Dans le collège à l'heure des cours : E y va, sans ressortir chercher la porte.
+      if (classInsideCollege()) goToClass();
       return;
     }
     const mis = mission.actionHere(world);
@@ -1348,7 +1366,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
     const near = npcsNearby(world, 2);
     const first = near[0];
-    if (first) openNpcDialogue(first.id);
+    if (first) { openNpcDialogue(first.id); return; }
+    // Étape sans lieu (adopter les règles…) : l'invite l'annonce, E doit la faire.
+    mission.actionAnywhere(world)?.run();
   }
 
   function showModal(title: string, sub: string, body: HTMLElement, wide = false): void {
@@ -1375,6 +1395,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     renderer3D?.setTalkingNpc(null);
     ui.modalEl.replaceChildren();
     ui.modalEl.classList.add('hidden');
+    // L'étape de mission suit tout de suite (sinon E relance l'action d'avant pendant ½ seconde).
+    mission.sync(world);
   }
 
   function openPlacePanel(place: PlaceId): void {
@@ -1930,7 +1952,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       card.appendChild(head);
       card.appendChild(el('p', 'panel-desc', def.description));
       card.appendChild(el('p', 'panel-note',
-        `Dépensé cumulé : ${rel.spentTotal.toFixed(2)} € · ${rel.tradeCount} transactions · Remise accordée : ${Math.round(rel.discountRate * 100)} %`));
+        `Dépensé cumulé : ${rel.spentTotal.toFixed(2).replace('.', ',')} € · ${rel.tradeCount} transactions · Remise accordée : ${Math.round(rel.discountRate * 100)} %`));
 
       const perkBox = el('div', 'journal-list');
       for (const perk of rel.unlockedPerks) {
@@ -2100,7 +2122,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const body = el('div', 'panel-body');
     body.appendChild(el('p', 'panel-desc', sr.lastEncounterDialogue || 'Un habitant du quartier t’interpelle dans la rue avec enthousiasme !'));
     const choices = el('div', 'reply-row');
-    const acceptBtn = el('button', 'btn btn-action', 'Vendre 3 sachets de biscuits (+6.00 €)');
+    const acceptBtn = el('button', 'btn btn-action', 'Vendre 3 sachets de biscuits (+6,00 €)');
     acceptBtn.addEventListener('click', () => {
       const res = handleStreetEncounterChoice(world, true);
       closeModal();
@@ -2218,7 +2240,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
       box.appendChild(el('h4', 'journal-title', `${rival.name} (${placeName})`));
       box.appendChild(el('p', 'panel-desc',
-        `Prix rival : ${rival.price.toFixed(2)} € · Stratégie : ${RIVAL_STRATEGY_LABELS[rival.strategy] ?? rival.strategy} · Agressivité : ${rival.aggressiveness}/100`));
+        `Prix rival : ${rival.price.toFixed(2).replace('.', ',')} € · Stratégie : ${RIVAL_STRATEGY_LABELS[rival.strategy] ?? rival.strategy} · Agressivité : ${rival.aggressiveness}/100`));
 
       const lastClosed = rival.marketObservation.lastClosed;
       if (lastClosed) {
@@ -2324,7 +2346,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           `Coût ${choice.cost} € · Épicerie ${choice.effects.vitaliteEpicerie >= 0 ? '+' : ''}${choice.effects.vitaliteEpicerie} · Parc ${choice.effects.frequentationParc >= 0 ? '+' : ''}${choice.effects.frequentationParc} · Confiance +${choice.effects.confianceQuartier} · Réputation +${choice.effects.reputation}`));
         const choose = el('button', 'btn btn-action', 'Soutenir ce projet');
         choose.disabled = world.player.money < choice.cost;
-        if (choose.disabled) choose.title = `Il faut ${choice.cost} €; ta caisse contient ${world.player.money.toFixed(2)} €.`;
+        if (choose.disabled) choose.title = `Il faut ${choice.cost} €; ta caisse contient ${world.player.money.toFixed(2).replace('.', ',')} €.`;
         choose.addEventListener('click', () => {
           const result = holdCitizenDebate(world, choiceId);
           if (result.ok) {
@@ -2441,7 +2463,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     // Stock & prix
     body.appendChild(el('h3', 'panel-sub', 'Stock & prix'));
     body.appendChild(statRow('Stock', `${p.stock} unités`));
-    body.appendChild(statRow('Prix', `${p.price.toFixed(2)} €/unité`));
+    body.appendChild(statRow('Prix', `${p.price.toFixed(2).replace('.', ',')} €/unité`));
     const prixRow = el('div', 'reply-row');
     const prixInput = el('input', 'price-input');
     prixInput.type = 'range';
@@ -2449,12 +2471,12 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     prixInput.max = String(prixMaxStand(dayIndexOf(world.time.tick)));
     prixInput.step = '0.1';
     prixInput.value = String(p.price);
-    const prixLabel = el('span', 'stat-label', `${p.price.toFixed(2)} €`);
+    const prixLabel = el('span', 'stat-label', `${p.price.toFixed(2).replace('.', ',')} €`);
     const prixBtn = el('button', 'btn btn-action', 'Fixer le prix');
-    prixInput.addEventListener('input', () => prixLabel.textContent = `${Number(prixInput.value).toFixed(2)} €`);
+    prixInput.addEventListener('input', () => prixLabel.textContent = `${Number(prixInput.value).toFixed(2).replace('.', ',')} €`);
     prixBtn.addEventListener('click', () => {
       const r = setPrice(world, Number(prixInput.value));
-      refresh(r.ok ? `Prix : ${p.price.toFixed(2)} € ✓` : r.message, r.ok);
+      refresh(r.ok ? `Prix : ${p.price.toFixed(2).replace('.', ',')} € ✓` : r.message, r.ok);
     });
     prixRow.appendChild(prixInput);
     prixRow.appendChild(prixLabel);
@@ -2567,8 +2589,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
     // Comptes
     body.appendChild(el('h3', 'panel-sub', 'Comptes'));
-    body.appendChild(statRow('Trésorerie (caisse)', `${p.balance.toFixed(2)} €`));
-    body.appendChild(statRow('Résultat de la semaine', `${weeklyResult(p).toFixed(2)} €`));
+    body.appendChild(statRow('Trésorerie (caisse)', `${p.balance.toFixed(2).replace('.', ',')} €`));
+    body.appendChild(statRow('Résultat de la semaine', `${weeklyResult(p).toFixed(2).replace('.', ',')} €`));
     body.appendChild(el('p', 'panel-note', ledgerInvariantHolds(p)
       ? 'Livre de comptes : Σ(entrées − sorties) = solde ✓'
       : '⚠ Livre de comptes déséquilibré !'));
@@ -2576,7 +2598,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     for (const e of [...p.ledger].reverse().slice(0, 10)) {
       const art = el('article', 'journal-entry');
       art.appendChild(el('p', 'panel-desc',
-        `${dateOf(e.day).label} — ${e.label} : ${e.amount > 0 ? '+' : ''}${e.amount.toFixed(2)} €`));
+        `${dateOf(e.day).label} — ${e.label} : ${e.amount > 0 ? '+' : ''}${e.amount.toFixed(2).replace('.', ',')} €`));
       ledger.appendChild(art);
     }
     body.appendChild(ledger);
@@ -2601,7 +2623,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     repartBtn.addEventListener('click', () => {
       const r = repartition(world);
       refresh(r.ok
-        ? `${r.message} — ${r.shares.map((s) => `${s.label} ${s.amount.toFixed(2)} €`).join(' · ')}`
+        ? `${r.message} — ${r.shares.map((s) => `${s.label} ${s.amount.toFixed(2).replace('.', ',')} €`).join(' · ')}`
         : r.message, r.ok);
     });
     body.appendChild(repartBtn);
@@ -2642,9 +2664,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     // Vue d'ensemble de l'Atelier
     const summaryBox = el('div', 'ghost-detail');
     summaryBox.appendChild(statRow('Caisse de l’atelier',
-      `${ws.balance.toFixed(2)} € (Livre : ${workshopLedgerBalance(ws).toFixed(2)} € · ${workshopLedgerInvariantHolds(ws) ? 'invariants vérifiés ✓' : 'divergence ⚠'})`));
+      `${ws.balance.toFixed(2).replace('.', ',')} € (Livre : ${workshopLedgerBalance(ws).toFixed(2).replace('.', ',')} € · ${workshopLedgerInvariantHolds(ws) ? 'invariants vérifiés ✓' : 'divergence ⚠'})`));
     summaryBox.appendChild(statRow('Fonds solidaire du quartier',
-      `${ws.solidarityFund.toFixed(2)} € (prélèvement solidaire : ${Math.round(ws.solidarityRate * 100)} %)`));
+      `${ws.solidarityFund.toFixed(2).replace('.', ',')} € (prélèvement solidaire : ${Math.round(ws.solidarityRate * 100)} %)`));
     summaryBox.appendChild(statRow('Stock de pièces de rechange',
       `${ws.partsStock} pièce(s) de récupération`));
     summaryBox.appendChild(statRow('État des outils d’établi',
@@ -2711,7 +2733,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       ordersList.appendChild(el('h4', 'journal-title', 'Prêts pour livraison :'));
       for (const ord of repaired) {
         const art = el('article', 'journal-entry');
-        art.appendChild(el('p', 'panel-desc', `✦ ${ord.item} (${ord.clientName}) — Tarif : ${ord.finalPrice.toFixed(2)} € [${TARIFF_GRID[ord.appliedTariff].label}]`));
+        art.appendChild(el('p', 'panel-desc', `✦ ${ord.item} (${ord.clientName}) — Tarif : ${ord.finalPrice.toFixed(2).replace('.', ',')} € [${TARIFF_GRID[ord.appliedTariff].label}]`));
         const delBtn = el('button', 'btn btn-reply', 'Livrer & Encaisser (+ part solidaire)');
         delBtn.addEventListener('click', () => {
           deliverOrder(world, ord.id);
@@ -2726,7 +2748,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       ordersList.appendChild(el('h4', 'journal-title', 'En cours à l’établi :'));
       for (const ord of pending) {
         const art = el('article', 'journal-entry');
-        art.appendChild(el('p', 'panel-desc', `⚙ ${ord.item} (${ord.clientName}) — Pièces nécessaires : ${ord.partsRequired} · Difficulté : ${ord.difficulty}/3 · Tarif : ${ord.finalPrice.toFixed(2)} €`));
+        art.appendChild(el('p', 'panel-desc', `⚙ ${ord.item} (${ord.clientName}) — Pièces nécessaires : ${ord.partsRequired} · Difficulté : ${ord.difficulty}/3 · Tarif : ${ord.finalPrice.toFixed(2).replace('.', ',')} €`));
         const repBtn = el('button', 'btn btn-action', `Réparer (${ord.partsRequired} pièces, −${ord.difficulty * 6 + 4} % usure)`);
         repBtn.disabled = ws.partsStock < ord.partsRequired || ws.toolCondition < WORKSHOP_CONFIG.minToolConditionForRepair;
         repBtn.addEventListener('click', () => {
@@ -2743,7 +2765,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       for (const ord of available) {
         const art = el('article', 'journal-entry');
         art.appendChild(el('p', 'panel-desc', `📥 ${ord.item} — Client : ${ord.clientName}. « ${ord.description} »`));
-        art.appendChild(el('p', 'panel-note', `Prix standard : ${ord.basePrice.toFixed(2)} € · Pièces requises : ${ord.partsRequired} · Difficulté : ${ord.difficulty}/3`));
+        art.appendChild(el('p', 'panel-note', `Prix standard : ${ord.basePrice.toFixed(2).replace('.', ',')} € · Pièces requises : ${ord.partsRequired} · Difficulté : ${ord.difficulty}/3`));
         const acceptRow = el('div', 'reply-row');
         for (const t of ['solidaire', 'standard', 'soutien'] as SolidarityTariff[]) {
           const calcPrice = (ord.basePrice * TARIFF_GRID[t].multiplier).toFixed(2);
@@ -2761,11 +2783,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     body.appendChild(ordersList);
 
     // Grand Livre
-    body.appendChild(el('h3', 'panel-sub', `Grand Livre (Σ entrées−sorties = ${workshopLedgerBalance(ws).toFixed(2)} €)`));
+    body.appendChild(el('h3', 'panel-sub', `Grand Livre (Σ entrées−sorties = ${workshopLedgerBalance(ws).toFixed(2).replace('.', ',')} €)`));
     const ledgerBox = el('div', 'journal-list');
     for (const e of [...ws.ledger].reverse().slice(0, 10)) {
       const art = el('article', 'journal-entry');
-      art.appendChild(el('p', 'panel-note', `${dateOf(e.day).label} — ${e.label} : ${e.amount >= 0 ? '+' : ''}${e.amount.toFixed(2)} €`));
+      art.appendChild(el('p', 'panel-note', `${dateOf(e.day).label} — ${e.label} : ${e.amount >= 0 ? '+' : ''}${e.amount.toFixed(2).replace('.', ',')} €`));
       ledgerBox.appendChild(art);
     }
     body.appendChild(ledgerBox);
@@ -3057,7 +3079,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
     const first = cols.actives[0] ?? cols.endormies[0] ?? cols.hostiles[0] ?? cols.mortes[0];
     if (first) selectGhost(first);
-    showModal('Le Conseil', 'les voix dans ta tête — 4 parlent, les autres attendent', body, true);
+    const nActives = councilActiveCount(world);
+    showModal('Le Conseil', nActives === 0
+      ? 'les voix dans ta tête — aucune ne s’est encore installée (elles se présentent au fil de l’aventure)'
+      : `les voix dans ta tête — ${nActives} voix installée${nActives > 1 ? 's' : ''} sur ${MAX_ACTIVE_VOICES} possibles`, body, true);
   }
 
   // ---------- Bandeau in-world (un fantôme parle) ----------
@@ -3085,7 +3110,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   }
 
   function frame(now: number): void {
-    const dt = Math.min(100, now - last);
+    // Jamais négatif : un horodatage en retard (premier rAF, qa.step) ferait diverger les lissages exponentiels.
+    const dt = Math.max(0, Math.min(100, now - last));
     last = now;
 
     if (bannerUntil > 0 && now >= bannerUntil) {

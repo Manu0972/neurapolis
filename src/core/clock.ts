@@ -77,7 +77,7 @@ export function dateOf(day: number): GameDate {
   const dd = d.getUTCDate();
   const wd = d.getUTCDay();
   const iso = `${y}-${String(m).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
-  return { y, m, d: dd, weekday: wd, iso, label: `${DAYS[wd]} ${dd} ${MONTHS[m - 1]} ${y}` };
+  return { y, m, d: dd, weekday: wd, iso, label: `${DAYS[wd]} ${dd === 1 ? '1er' : dd} ${MONTHS[m - 1]} ${y}` };
 }
 
 /** Indice de jour d'une date ISO (AAAA-MM-JJ), depuis le 1er septembre 2020. */

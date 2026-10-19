@@ -82,12 +82,14 @@ export function useFurniture(w: WorldState, placeId: PlaceId, furnitureId: strin
     return { ok: r.ok, message: r.message, minutes: r.ok ? DEVOIRS_MINUTES : 0 };
   }
   if (furn.money !== undefined && furn.money < 0 && w.player.money < Math.abs(furn.money)) {
-    return { ok: false, message: `Fonds insuffisants : il te faut ${Math.abs(furn.money).toFixed(2)} €.` };
+    return { ok: false, message: `Fonds insuffisants : il te faut ${Math.abs(furn.money).toFixed(2).replace('.', ',')} €.` };
   }
   if (furn.money !== undefined) w.player.money = Math.max(0, Math.round((w.player.money + furn.money) * 100) / 100);
   if (furn.needs) addNeeds(w, furn.needs);
   if (furn.skill && furn.xp) addXp(w, furn.skill, furn.xp);
   // Certaines actions existent aussi comme actions de lieu (achat de goûter, courses…).
   const placeResult = applyPlaceAction(w, placeId, furn.actionId);
-  return { ok: true, message: placeResult.ok && placeResult.message ? placeResult.message : `✓ ${furn.actionLabel}`, minutes: furn.minutes };
+  // Sans message de lieu, on raconte ce que le joueur découvre (la description du meuble).
+  const told = furn.description ? `✓ ${furn.actionLabel.replace(/\s*\([^)]*\)\s*$/, '')}. ${furn.description}` : `✓ ${furn.actionLabel}`;
+  return { ok: true, message: placeResult.ok && placeResult.message ? placeResult.message : told, minutes: furn.minutes };
 }

@@ -177,7 +177,7 @@ export function ideaStatus(w: WorldState, id: string): IdeaStatus {
   const cost = launchCost(w, idea);
   const keynesBorrow = DUEL_BY_ID[idea.duel]?.effects.A.borrow ?? 0;
   const minCash = cost * (1 - keynesBorrow);
-  if (w.player.money < minCash) reasons.push(`Il faut au moins ${minCash.toLocaleString('fr-FR')} € (tu as ${w.player.money.toFixed(2)} €).`);
+  if (w.player.money < minCash) reasons.push(`Il faut au moins ${minCash.toLocaleString('fr-FR')} € (tu as ${w.player.money.toFixed(2).replace('.', ',')} €).`);
   return { available: reasons.length === 0, reasons, cost, eased: cost < idea.startCost };
 }
 

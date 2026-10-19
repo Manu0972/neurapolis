@@ -85,7 +85,7 @@ export function handleStreetEncounterChoice(
     w.player.needs.moral = Math.min(100, w.player.needs.moral + 5);
     return {
       ok: true,
-      message: 'Vente spontanée conclue dans la rue ! (+6.00 €, Réputation +2, Moral +5). Le passant repart ravi.',
+      message: 'Vente spontanée conclue dans la rue ! (+6,00 €, Réputation +2, Moral +5). Le passant repart ravi.',
     };
   } else {
     w.player.characteristics.influence = Math.min(100, w.player.characteristics.influence + 1);
