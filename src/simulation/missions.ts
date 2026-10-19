@@ -209,7 +209,7 @@ function waitStep(w: WorldState, ch: number, targetAge: number): MissionStep {
     return {
       id: `c${ch}:anniversaire`, chapter: ch, rank: 50, kind: 'attendre', icon: '📅',
       text: `Fais passer le temps jusqu’à tes ${targetAge} ans (1er septembre)`,
-      detail: 'Objectifs remplis : le chapitre se conclura à ton anniversaire. Tes affaires continuent de tourner.',
+      detail: 'Objectifs remplis : le chapitre se conclura à ton anniversaire. Appuie sur E : « Aller jusqu’à ton anniversaire » t’y amène d’un coup, tes affaires continuent de tourner.',
       action: skip,
     };
   }
@@ -278,6 +278,7 @@ function chapterStep(w: WorldState): MissionStep | null {
         return {
           id: 'c4:attente-debat', chapter: 4, rank: 5, kind: 'attendre', icon: '📅',
           text: 'Fais passer le temps : le débat de la place aura lieu à tes 15 ans',
+          detail: 'Le Conseil est prêt. Appuie sur E : « Aller jusqu’à ton anniversaire » t’y amène d’un coup, tes affaires continuent de tourner.',
           action: { do: 'passer_temps', label: 'Passer le temps' },
         };
       }
@@ -299,6 +300,14 @@ function chapterStep(w: WorldState): MissionStep | null {
       id: 'c5:modele', chapter: 5, rank: 1, kind: 'faire', icon: '🏛️',
       text: 'Choisis le modèle économique de Val-Ferrand',
       action: { do: 'modele', label: 'Choisir le modèle économique' },
+    };
+  }
+  // Campagne finie : le bandeau ne s'éteint pas sans rien dire, il montre la suite.
+  if (w.campaign.completedChapters.includes(5)) {
+    return {
+      id: 'campagne:fin', chapter: 5, rank: 60, kind: 'faire', icon: '🏁',
+      text: 'Campagne de Val-Ferrand terminée : continue ton Ascension',
+      detail: 'Ouvre le téléphone (P), appli 🚀 Ascension : lance des idées, gagne des paliers. Tes affaires continuent de tourner.',
     };
   }
   return null;

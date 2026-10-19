@@ -254,6 +254,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   }
   let modalOpen = false;
   const deferredArrivals = new Set<string>();
+  /** Jour de la dernière scène d'arrivée proposée d'elle-même (une par jour au plus). */
+  let arrivalShownDay = -1;
   let last = performance.now();
   let acc = 0;
   let moveAcc = 0;
@@ -456,7 +458,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const body = el('div', 'panel-body');
     body.appendChild(el('p', 'panel-desc', 'Le temps passe vraiment : tu vas en cours quand il y en a, tu manges et tu dors à la maison, tes commerces et tes entreprises tournent, le monde bouge. Un bilan t’attend à l’arrivée.'));
     const list = el('div', 'ph-list');
-    for (const kind of ['jour', 'semaine', 'mois', 'vacances'] as SkipKind[]) {
+    // Le chapitre attend un anniversaire : on propose d'y aller d'un coup (au lieu de douze mois).
+    const waitsBirthday = !mp?.connected && /:anniversaire$|^c4:attente-debat$/.test(mission.current()?.id ?? '');
+    const kinds: SkipKind[] = waitsBirthday ? ['anniversaire', 'jour', 'semaine', 'mois', 'vacances'] : ['jour', 'semaine', 'mois', 'vacances'];
+    for (const kind of kinds) {
       const block = skipBlocker(world, kind);
       if (kind === 'vacances' && block) continue;
       const target = skipTarget(world, kind);
@@ -476,7 +481,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   function runSkip(kind: SkipKind): void {
     const s = beginSkip(world, kind);
     if ('error' in s) { toast(s.error, false); return; }
-    if (mp?.isHost) mp.broadcastSkip(kind, s.target);
+    if (mp?.isHost && kind !== 'anniversaire') mp.broadcastSkip(kind, s.target);
     skipping = true;
     const total = Math.max(1, s.target - world.time.tick);
     const start = world.time.tick;
@@ -1293,6 +1298,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       if (nearNpc) return `E — Parler à ${NPC_BY_ID[nearNpc]?.name ?? 'quelqu’un'}`;
       const classHere = classInsideCollege();
       if (classHere) return classHere;
+      const anywhere = mission.actionAnywhere(world);
+      if (anywhere) return anywhere.label;
       if (renderer3D.interiorSpec?.destinationId) {
         return `${renderer3D.interiorSpec.title} · ${travelSlotsLeft(world)} demi-journée(s) sur place · approche-toi d’une icône pour agir`;
       }
@@ -1322,7 +1329,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       const nearNpc = interiorNpcNear();
       if (nearNpc) { openNpcDialogue(nearNpc); return; }
       // Dans le collège à l'heure des cours : E y va, sans ressortir chercher la porte.
-      if (classInsideCollege()) goToClass();
+      if (classInsideCollege()) { goToClass(); return; }
+      mission.actionAnywhere(world)?.run();
       return;
     }
     const mis = mission.actionHere(world);
@@ -2172,7 +2180,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const stage = world.campaign.stages.find((s) => s.chapter === world.campaign.currentChapter);
     if (stage) {
       const cBox = el('div', 'ghost-detail');
-      cBox.appendChild(el('h4', 'journal-title', `✦ ${stage.title} (âge : ${stage.targetAge} ans)`));
+      cBox.appendChild(el('h4', 'journal-title', `✦ ${stage.title} (tu as ${world.player.age} ans${stage.targetAge > world.player.age ? ` · fin du chapitre à ${stage.targetAge} ans` : ''})`));
       cBox.appendChild(el('p', 'panel-desc', stage.objective));
 
       // Actions spécifiques au Chapitre 4 : Conseil et Débat
@@ -2370,7 +2378,12 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
     const hero = el('div', 'ghost-detail');
     hero.appendChild(el('h3', 'panel-sub', '✦ ÉPILOGUE DE NEURAPOLIS ✦'));
-    hero.appendChild(el('h2', 'journal-title', `${epilogue.legacyTitle} — ${epilogue.modelTitle}`));
+    // Titre accordé au genre du joueur (« Bâtisseuse des Communs », « Pionnier·ère… »).
+    const g = world.player.gender;
+    const accords: [string, string, string][] = [['Bâtisseur', 'Bâtisseuse', 'Bâtisseur·euse'], ['Pionnier', 'Pionnière', 'Pionnier·ère'], ['Harmonisateur', 'Harmonisatrice', 'Harmonisateur·rice']];
+    let legacy = epilogue.legacyTitle;
+    if (g !== 'garcon') for (const [m, f, nb] of accords) legacy = legacy.replace(m, g === 'fille' ? f : nb);
+    hero.appendChild(el('h2', 'journal-title', `${legacy} — ${epilogue.modelTitle}`));
     body.appendChild(hero);
 
     // Destin du quartier
@@ -2378,7 +2391,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     distBox.appendChild(el('span', 'rel-name', 'Destin de Val-Ferrand'));
     distBox.appendChild(el('p', 'panel-desc', epilogue.districtSummary));
     distBox.appendChild(el('p', 'panel-desc', `${epilogue.urbanChoiceTitle} — ${epilogue.urbanChoiceSummary}`));
-    distBox.appendChild(el('p', 'panel-note', `Vitalité épicerie : ${epilogue.vitaliteEpicerie}/100 · Confiance citoyenne : ${epilogue.confianceQuartier}/100`));
+    distBox.appendChild(el('p', 'panel-note', `Vitalité de l’épicerie : ${Math.round(epilogue.vitaliteEpicerie)}/100 · Confiance citoyenne : ${Math.round(epilogue.confianceQuartier)}/100`));
     body.appendChild(distBox);
 
     // Voix du Conseil
@@ -2836,9 +2849,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         msg.textContent = r.message;
         return;
       }
-      closeModal();
-      const next = councilPendingArrivals(world);
-      if (next.length > 0) openArrivalScene(next[0] ?? '');
+      closeModal(); // la voix suivante viendra un autre jour (une par jour)
     });
     const refuseBtn = el('button', 'btn btn-reply', ARRIVAL_CHOICE.refuse);
     refuseBtn.addEventListener('click', () => {
@@ -2847,9 +2858,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         msg.textContent = r.message;
         return;
       }
-      closeModal();
-      const next = councilPendingArrivals(world);
-      if (next.length > 0) openArrivalScene(next[0] ?? '');
+      closeModal(); // la voix suivante viendra un autre jour (une par jour)
     });
     const deferBtn = el('button', 'btn btn-reply', 'Accéder au Conseil (mettre en attente)');
     deferBtn.addEventListener('click', () => {
@@ -3154,7 +3163,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         const pend = arriveesAProposer(world).filter((id) => !deferredArrivals.has(id));
         const surprise = surpriseAProposer(world);
         const ecole = ecoleAProposer(world);
-        if (pend.length > 0 && quietOk) {
+        // Pas en pleine nuit ni en cours, et une seule voix nouvelle par jour : après un long saut,
+        // une file de sept philosophes d'affilée noyait le joueur.
+        const arrivalOk = !world.player.asleep && !isInClass(world) && arrivalShownDay !== dayIndexOf(world.time.tick);
+        if (pend.length > 0 && quietOk && arrivalOk) {
+          arrivalShownDay = dayIndexOf(world.time.tick);
           audio.playGhostArrival();
           autoWindow = { kind: 'arrivee', id: pend[0]! };
           openArrivalScene(pend[0] ?? '');

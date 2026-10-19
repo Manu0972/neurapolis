@@ -368,7 +368,8 @@ export function createMissionUi(deps: MissionUiDeps): MissionUi {
     },
     actionAnywhere(w: WorldState): MissionAction | null {
       const s = step;
-      if (!s?.action || s.target || deps.inside()) return null;
+      // Étape sans lieu (règles, Conseil, modèle…) : faisable partout, même à l'intérieur.
+      if (!s?.action || s.target) return null;
       return { label: `E — ${s.action.label}`, run: () => runAction(w, s) };
     },
   };

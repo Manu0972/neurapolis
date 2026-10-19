@@ -423,7 +423,8 @@ export function calculateEpilogue(w: WorldState): EpilogueResult {
     const def = NPC_BY_ID[nid];
     const r = w.player.relations[nid];
     if (!def || !r) continue;
-    let high = 'Allié fidèle du quartier.';
+    // Accord : Lina, Mme Bertin et Monique sont des alliées.
+    let high = ['lina', 'bertin', 'monique'].includes(nid) ? 'Alliée fidèle du quartier.' : 'Allié fidèle du quartier.';
     if (r.amitie >= 60) high = `Amitié inébranlable (${r.amitie}/100) — complices de chaque instant.`;
     else if (r.confiance >= 60) high = `Confiance totale (${r.confiance}/100) — partenaire de premier plan.`;
     else if (r.respect >= 60) high = `Grand respect mutuel (${r.respect}/100) — estime reconnue.`;

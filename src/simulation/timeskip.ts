@@ -20,13 +20,14 @@ import { ensureSchoolLifeState } from './school_life';
 import { isTraveling } from './travel';
 import { isOnBus } from './transit';
 
-export type SkipKind = 'jour' | 'semaine' | 'mois' | 'vacances';
+export type SkipKind = 'jour' | 'semaine' | 'mois' | 'vacances' | 'anniversaire';
 
 export const SKIP_LABELS: Record<SkipKind, string> = {
   jour: 'Finir la journée',
   semaine: 'Passer la semaine',
   mois: 'Passer le mois',
   vacances: 'Passer les vacances',
+  anniversaire: 'Aller jusqu’à ton anniversaire',
 };
 
 const WAKE = 7 * 60;
@@ -45,6 +46,12 @@ export function skipTarget(w: WorldState, kind: SkipKind): number {
   if (kind === 'vacances') {
     let d = next;
     while (isVacances(d) && d < day + 120) d++;
+    return tickOf(d, WAKE);
+  }
+  if (kind === 'anniversaire') {
+    // Prochain 1er septembre (l'anniversaire du joueur, jour de départ du jeu).
+    let d = next;
+    while (!(dateOf(d).m === 9 && dateOf(d).d === 1) && d < day + 400) d++;
     return tickOf(d, WAKE);
   }
   // Un mois du calendrier (du 14 au 14) : douze clics font une année.
@@ -143,6 +150,22 @@ export interface SkipReport {
 
 const eur = (v: number): string => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v)).toLocaleString('fr-FR')} €`;
 
+/** Faits identiques regroupés (« … (×7) ») : un long saut ne répète pas dix fois la même ligne. */
+function collapseRepeats(texts: readonly string[]): string[] {
+  const count = new Map<string, number>();
+  for (const t of texts) count.set(t, (count.get(t) ?? 0) + 1);
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (let i = texts.length - 1; i >= 0; i--) {
+    const t = texts[i]!;
+    if (seen.has(t)) continue;
+    seen.add(t);
+    const n = count.get(t)!;
+    out.unshift(n > 1 ? `${t} (×${n})` : t);
+  }
+  return out;
+}
+
 export function skipReport(w: WorldState, s: SkipSession): SkipReport {
   const a = s.before;
   const b = snap(w);
@@ -159,7 +182,11 @@ export function skipReport(w: WorldState, s: SkipSession): SkipReport {
   const newGrades = f.grades.filter((g) => g.day >= startDay && g.day <= Math.floor(b.tick / TICKS_PER_DAY));
   // Moyenne : une seule source de vérité, celle du panneau Famille et du bulletin.
   const avg = schoolAverage(w);
-  if (newGrades.length) lines.push(`📝 Notes : ${newGrades.map((g) => `${g.note}/20`).join(', ')} · moyenne ${a.average === avg ? '' : `${a.average} → `}${avg}/20`);
+  const fr = (n: number): string => String(n).replace('.', ',');
+  // Au-delà de six notes (un mois, une année), on montre les dernières et leur nombre.
+  const shown = newGrades.slice(-6).map((g) => `${fr(g.note)}/20`).join(', ');
+  const more = newGrades.length > 6 ? `${newGrades.length} notes, dont les dernières : ` : '';
+  if (newGrades.length) lines.push(`📝 Notes : ${more}${shown} · moyenne ${a.average === avg ? '' : `${fr(a.average)} → `}${fr(avg)}/20`);
   if (Math.round(b.trust) !== Math.round(a.trust)) lines.push(`👪 Confiance de tes parents : ${Math.round(a.trust)} → ${Math.round(b.trust)}`);
   if (Math.round(b.reputation) !== Math.round(a.reputation)) lines.push(`⭐ Réputation : ${Math.round(a.reputation)} → ${Math.round(b.reputation)}`);
   if (b.concepts > a.concepts) lines.push(`📒 Concepts appris : +${b.concepts - a.concepts}`);
@@ -169,7 +196,7 @@ export function skipReport(w: WorldState, s: SkipSession): SkipReport {
     title: `${SKIP_LABELS[s.kind]} — ${days} jour${days > 1 ? 's' : ''}`,
     days,
     lines,
-    highlights: s.highlights.slice(-12).map((n) => n.text),
+    highlights: collapseRepeats(s.highlights.map((n) => n.text)).slice(-12),
     stopped: s.stopped,
   };
 }

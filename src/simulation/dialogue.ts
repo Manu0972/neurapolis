@@ -10,6 +10,7 @@ import {
   DEFAULT_TOPIC_REPLIES, DIALOGUE_REPLIES, GENERIC_REACTIONS, NPC_GOODBYES, NPC_REACTIONS, REPEAT_REACTIONS, TONE_ICONS, TOPIC_LABELS, TOPIC_REPLIES,
   type DialogueTone,
 } from '../data/dialogue';
+import { TEAM_LINES, TEAM_REACTIONS, TEAM_REPLIES } from '../data/dialogue_team';
 import { addXp } from './skills';
 import { bump } from './events';
 import { isIrritable } from './needs';
@@ -105,11 +106,20 @@ export function topicReplies(topic: string): ConversationChoice[] {
 
 export interface AskResult { line: string; replies: ConversationChoice[] }
 
+/** Coéquipier recruté sur un sujet du stand : il en parle en équipe (répliques dédiées). */
+export function isTeamTopic(w: WorldState, npcId: NpcId, topic: string): boolean {
+  return !!w.project?.members.includes(npcId) && !!TEAM_LINES[npcId]?.[topic]?.length && !!TEAM_REPLIES[topic];
+}
+
 /** Le joueur choisit un sujet : réplique du PNJ et réponses possibles. */
 export function askTopic(w: WorldState, c: Conversation, topic: string): AskResult | null {
   if (c.ended || c.topic || c.asked.includes(topic) || !dialogueTopics(c.npcId).includes(topic)) return null;
   c.asked.push(topic);
   c.topic = topic;
+  if (isTeamTopic(w, c.npcId, topic)) {
+    const replies = TEAM_REPLIES[topic]!.map((r) => ({ id: r.tone, label: `${TONE_ICONS[r.tone]} ${r.label}` }));
+    return { line: personalize(w, rngPick(w, TEAM_LINES[c.npcId]![topic]!)), replies };
+  }
   return { line: npcLine(w, c.npcId, topic) ?? '…', replies: topicReplies(topic) };
 }
 
@@ -126,14 +136,15 @@ export interface AnswerResult {
 /** Le joueur répond : effets (relation, XP), réaction du PNJ, puis suite. */
 export function answerTopic(w: WorldState, c: Conversation, tone: string): AnswerResult | null {
   if (c.ended || !c.topic) return null;
-  const options = TOPIC_REPLIES[c.topic] ?? DEFAULT_TOPIC_REPLIES;
+  const team = isTeamTopic(w, c.npcId, c.topic);
+  const options = team ? TEAM_REPLIES[c.topic]! : TOPIC_REPLIES[c.topic] ?? DEFAULT_TOPIC_REPLIES;
   const opt = options.find((r) => r.tone === tone);
   if (!opt) return null;
   const res = replyDialogue(w, c.npcId, opt.tone);
   c.topic = null;
   const repeat = c.tones.includes(opt.tone);
   c.tones.push(opt.tone);
-  const first = NPC_REACTIONS[c.npcId]?.[opt.tone as DialogueTone] ?? GENERIC_REACTIONS[opt.tone];
+  const first = (team ? TEAM_REACTIONS[c.npcId]?.[opt.tone] : undefined) ?? NPC_REACTIONS[c.npcId]?.[opt.tone as DialogueTone] ?? GENERIC_REACTIONS[opt.tone];
   const reaction = personalize(w, repeat ? REPEAT_REACTIONS[opt.tone] : first);
   return { said: opt.label, reaction, applied: res.applied, next: conversationMenu(c).length > 0 ? 'menu' : 'fin' };
 }

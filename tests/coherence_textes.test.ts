@@ -264,7 +264,7 @@ describe('bilan de « Passer le temps » : une seule moyenne', () => {
     if ('error' in r) throw new Error(r.error);
     const line = r.lines.find((l) => l.startsWith('📝'))!;
     expect(line).toBeDefined();
-    expect(line).toContain(`${schoolAverage(w)}/20`);
+    expect(line).toContain(`${String(schoolAverage(w)).replace('.', ',')}/20`);
     expect(schoolAverage(w)).toBe(ensureSchoolLifeState(w).academicAverage);
   });
 

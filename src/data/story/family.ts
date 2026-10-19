@@ -643,7 +643,7 @@ export const FAMILY_LINES: readonly FamilyLine[] = [
     text: 'Tu as rangé tes classeurs d’économie à côté de tes livres de classe sur ton étagère. Tu crois vraiment que Val-Ferrand peut renaître de ses cendres ?',
     replies: [
       {
-        label: 'J’en suis certain maman. Et on en sera les artisans.',
+        label: 'J’en suis certain{e}, maman. Et on en sera les artisans.',
         effect: { trust: 3, worry: -2, pride: 4 },
         answer: 'Elle te caresse les cheveux : « Tant que la jeunesse y croit, rien n’est perdu. »',
       },

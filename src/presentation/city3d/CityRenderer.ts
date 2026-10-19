@@ -180,6 +180,8 @@ export class CityRenderer {
   private preset: QualityPreset = QUALITY_PRESETS.moyen;
   private postfx?: PostFx;
   private rim = createRimLight();
+  /** Lumière d'appoint chaude sur le joueur la nuit (toujours dans la scène : pas de recompilation). */
+  private playerLamp = new THREE.PointLight('#ffc98a', 0, 6, 2);
   private contact = createContactShadows(48);
   private wet = 0;
   private player?: Character3D;
@@ -305,6 +307,8 @@ export class CityRenderer {
     configureSunShadow(this.sun, 2048, 45, true);
     this.scene.add(this.sun, this.sun.target);
     this.scene.add(this.rim.light, this.rim.light.target);
+    this.playerLamp.castShadow = false;
+    this.scene.add(this.playerLamp);
     this.scene.add(this.contact.mesh);
     this.scene.fog = new THREE.Fog('#cfe2f0', 70, 460);
     for (let i = 0; i < 8; i++) {
@@ -599,7 +603,12 @@ export class CityRenderer {
     this.wet += (s.wet - this.wet) * Math.min(1, dt * (s.wet > this.wet ? 0.5 : 0.05));
     CITY_UNIFORMS.uWet.value = this.wet;
     CITY_UNIFORMS.uWetTint.value.copy(s.skyHorizon).lerp(s.skyTop, 0.3);
-    this.rim.update(this.camera, new THREE.Vector3(this.body.x, 1, this.body.z), s.rimColor, s.rimIntensity);
+    // La nuit, le joueur reste lisible : contour plus marqué et petite lumière chaude au-dessus de lui
+    // (côté caméra), qui adoucit aussi l'ombre de la lune portée sur lui.
+    this.rim.update(this.camera, new THREE.Vector3(this.body.x, 1, this.body.z), s.rimColor, Math.max(s.rimIntensity, s.night * 0.9));
+    this.playerLamp.intensity = s.night * 4.5;
+    this.playerLamp.position.set(this.body.x, groundHeightAt(this.body.x, this.body.z) + 2.3, this.body.z)
+      .lerp(this.camera.position, 0.12);
     // Vitrines, fenêtres et lampadaires s'allument dès le crépuscule (avant la nuit noire).
     for (const { mat, strength } of this.city.nightMaterials) mat.emissiveIntensity = s.lamps * strength;
     // Fenêtres des maisons et immeubles Kenney : même allumage, puis les logements s'éteignent la nuit.

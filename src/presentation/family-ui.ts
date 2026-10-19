@@ -4,7 +4,7 @@
  */
 import type { WorldState } from '../core/types';
 import type { ParentId } from '../core/family_types';
-import { dateOf, dayIndexOf } from '../core/clock';
+import { dateOf, dayIndexOf, minutesOfDay } from '../core/clock';
 import { PARENTS, SCHOOL_STAFF } from '../data/family_starter';
 import { FAMILY_BUDGET_LESSON, FAMILY_EXPENSES, FAMILY_INCOME, FAMILY_MONTHLY_MARGIN, sumBudget, type BudgetLine } from '../data/family_budget';
 import {
@@ -94,7 +94,9 @@ export function openDinnerModal(ctx: FamilyCtx): boolean {
     list.appendChild(b);
   });
   body.appendChild(list);
-  ctx.showModal('🍝 Le dîner', dateOf(dayIndexOf(ctx.world.time.tick)).label, body, true);
+  // Dîner manqué (soirée passée en ellipse) : la discussion a lieu au petit-déjeuner.
+  const matin = minutesOfDay(ctx.world.time.tick) < 11 * 60;
+  ctx.showModal(matin ? '🥐 Au petit-déjeuner' : '🍝 Le dîner', dateOf(dayIndexOf(ctx.world.time.tick)).label, body, true);
   return true;
 }
 
@@ -180,7 +182,7 @@ export function openFamilyPanel(ctx: FamilyCtx, opts: { budget?: boolean } = {})
   const school = el('div', 'ph-card');
   school.appendChild(el('div', 'ph-card-title', '🏫 Collège Jean-Moulin'));
   const unexcused = f.absences.filter((a) => !a.excused).length;
-  school.appendChild(el('p', 'ph-note', `Moyenne ${sl.academicAverage}/20 · assiduité ${sl.attendanceRate} % · ${unexcused} absence(s) injustifiée(s) · ${f.absences.length - unexcused} excusée(s)`));
+  school.appendChild(el('p', 'ph-note', `Moyenne ${String(sl.academicAverage).replace('.', ',')}/20 · assiduité ${sl.attendanceRate} % · ${unexcused} absence(s) injustifiée(s) · ${f.absences.length - unexcused} excusée(s)`));
   const next = classWindow(w);
   school.appendChild(el('p', 'ph-note', next
     ? `Cours ouvert maintenant (${next === 'matin' ? '8 h 30 – 12 h' : '13 h 30 – 16 h 30'}) : va au collège et appuie sur E à l’entrée.`
@@ -194,7 +196,7 @@ export function openFamilyPanel(ctx: FamilyCtx, opts: { budget?: boolean } = {})
     b.addEventListener('click', () => openConvocationModal(ctx));
     school.appendChild(b);
   }
-  for (const g of f.grades.slice(-5).reverse()) school.appendChild(el('p', 'ph-note', `📝 ${g.subject} (${dateOf(g.day).label}) : ${g.note}/20`));
+  for (const g of f.grades.slice(-5).reverse()) school.appendChild(el('p', 'ph-note', `📝 ${g.subject} (${dateOf(g.day).label}) : ${String(g.note).replace('.', ',')}/20`));
   body.appendChild(school);
   ctx.showModal('👪 Famille & collège', 'Nora, Thierry, et le collège Jean-Moulin', body, true);
 }

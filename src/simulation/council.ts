@@ -173,7 +173,9 @@ function revealAdvice(
       { facteur: 'rétrospection 3-7 jours après le conseil', poids: 2 },
     ],
   });
-  out.push(notify('journal', `Rétrospection : ${verdict}`, def.id));
+  const court = rec.veracite === 'mensonge' ? 'son conseil était faux, en connaissance de cause.'
+    : rec.veracite === 'exageree' ? 'son conseil était exagéré.' : 'son conseil était juste.';
+  out.push(notify('journal', `🔎 ${def.name}, avec le recul : ${court}`, def.id));
 }
 
 /** Mort symbolique : adieu, citation gardée, legs (+1 notion). Définitive. */
