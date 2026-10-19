@@ -60,7 +60,7 @@ export function createAvatarPreview(width = 240, height = 300): AvatarPreview | 
   renderer.setSize(width, height, false);
   renderer.setClearColor(0x000000, 0);
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap; // PCFSoft est retiré de three r18x (avertissement en console)
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NoToneMapping;
   ensurePreviewStyles();
