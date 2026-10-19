@@ -1298,6 +1298,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       if (nearNpc) return `E — Parler à ${NPC_BY_ID[nearNpc]?.name ?? 'quelqu’un'}`;
       const classHere = classInsideCollege();
       if (classHere) return classHere;
+      const anywhere = mission.actionAnywhere(world);
+      if (anywhere) return anywhere.label;
       if (renderer3D.interiorSpec?.destinationId) {
         return `${renderer3D.interiorSpec.title} · ${travelSlotsLeft(world)} demi-journée(s) sur place · approche-toi d’une icône pour agir`;
       }
@@ -1327,7 +1329,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       const nearNpc = interiorNpcNear();
       if (nearNpc) { openNpcDialogue(nearNpc); return; }
       // Dans le collège à l'heure des cours : E y va, sans ressortir chercher la porte.
-      if (classInsideCollege()) goToClass();
+      if (classInsideCollege()) { goToClass(); return; }
+      mission.actionAnywhere(world)?.run();
       return;
     }
     const mis = mission.actionHere(world);
@@ -2375,7 +2378,12 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
     const hero = el('div', 'ghost-detail');
     hero.appendChild(el('h3', 'panel-sub', '✦ ÉPILOGUE DE NEURAPOLIS ✦'));
-    hero.appendChild(el('h2', 'journal-title', `${epilogue.legacyTitle} — ${epilogue.modelTitle}`));
+    // Titre accordé au genre du joueur (« Bâtisseuse des Communs », « Pionnier·ère… »).
+    const g = world.player.gender;
+    const accords: [string, string, string][] = [['Bâtisseur', 'Bâtisseuse', 'Bâtisseur·euse'], ['Pionnier', 'Pionnière', 'Pionnier·ère'], ['Harmonisateur', 'Harmonisatrice', 'Harmonisateur·rice']];
+    let legacy = epilogue.legacyTitle;
+    if (g !== 'garcon') for (const [m, f, nb] of accords) legacy = legacy.replace(m, g === 'fille' ? f : nb);
+    hero.appendChild(el('h2', 'journal-title', `${legacy} — ${epilogue.modelTitle}`));
     body.appendChild(hero);
 
     // Destin du quartier
@@ -2383,7 +2391,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     distBox.appendChild(el('span', 'rel-name', 'Destin de Val-Ferrand'));
     distBox.appendChild(el('p', 'panel-desc', epilogue.districtSummary));
     distBox.appendChild(el('p', 'panel-desc', `${epilogue.urbanChoiceTitle} — ${epilogue.urbanChoiceSummary}`));
-    distBox.appendChild(el('p', 'panel-note', `Vitalité épicerie : ${epilogue.vitaliteEpicerie}/100 · Confiance citoyenne : ${epilogue.confianceQuartier}/100`));
+    distBox.appendChild(el('p', 'panel-note', `Vitalité de l’épicerie : ${Math.round(epilogue.vitaliteEpicerie)}/100 · Confiance citoyenne : ${Math.round(epilogue.confianceQuartier)}/100`));
     body.appendChild(distBox);
 
     // Voix du Conseil

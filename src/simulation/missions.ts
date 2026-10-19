@@ -302,6 +302,14 @@ function chapterStep(w: WorldState): MissionStep | null {
       action: { do: 'modele', label: 'Choisir le modèle économique' },
     };
   }
+  // Campagne finie : le bandeau ne s'éteint pas sans rien dire, il montre la suite.
+  if (w.campaign.completedChapters.includes(5)) {
+    return {
+      id: 'campagne:fin', chapter: 5, rank: 60, kind: 'faire', icon: '🏁',
+      text: 'Campagne de Val-Ferrand terminée : continue ton Ascension',
+      detail: 'Ouvre le téléphone (P), appli 🚀 Ascension : lance des idées, gagne des paliers. Tes affaires continuent de tourner.',
+    };
+  }
   return null;
 }
 
