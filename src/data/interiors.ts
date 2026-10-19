@@ -186,16 +186,16 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
         id: 'grenier',
         name: 'Grenier',
         floor: 'sous le toit',
-        description: 'Sous les poutres : des cartons, une lucarne sur la vallée et la vieille malle de papi Lucien.',
+        description: 'Sous les poutres : des cartons, une lucarne sur la vallée et la vieille malle de papy Lucien.',
         ambientSound: 'maison',
         surfaceType: 'parquet',
         exit: false,
         links: [{ to: 'chambre', label: 'Redescendre dans ta chambre', icon: '⬇️' }],
         furniture: [
           {
-            id: 'malle', name: 'Malle de papi Lucien', icon: '🧳',
+            id: 'malle', name: 'Malle de papy Lucien', icon: '🧳',
             description: 'Sa veste de Taret-Acier, ses fiches de paie de 1974 et des photos de la grève.',
-            actionLabel: 'Ouvrir la malle de papi Lucien (20 min)', actionId: 'malle_lucien',
+            actionLabel: 'Ouvrir la malle de papy Lucien (20 min)', actionId: 'malle_lucien',
             needs: { moral: 6, stress: -4 }, minutes: 20, surface: 'parquet', sound: 'ghost',
           },
           {

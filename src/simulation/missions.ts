@@ -20,7 +20,7 @@ import {
   CHAPTER4_SUPPORT, chapter1Sales, chapter1Team, chapter3Help, chapter4QuarterBacked, chapter4Support,
   chapterObjectivesMet,
 } from './campaign';
-import { classWindow, isInClass } from './family';
+import { classWindow, isInClass, SESSIONS } from './family';
 import { nearPlace, placeAtAdjacent } from './interact';
 import { npcPosition } from './npc';
 import { coutStock } from './project';
@@ -334,9 +334,14 @@ export function currentMission(w: WorldState, ctx: MissionContext = {}): Mission
     };
   }
   if (session) {
+    const start = session === 'matin' ? '8 h 30' : '13 h 30';
+    // Déjà commencé : on le dit (« commencent à 8 h 30 » à 11 h, c'est trompeur).
+    const late = minutesOfDay(w.time.tick) > SESSIONS[session].start;
     return {
       id: `cours:${session}`, chapter: ch, rank: -1, kind: 'aller', icon: '📚',
-      text: `Va au collège : les cours commencent à ${session === 'matin' ? '8 h 30' : '13 h 30'}`,
+      text: late
+        ? `Va au collège : tu es en retard, le cours a commencé à ${start}`
+        : `Va au collège : les cours commencent à ${start}`,
       detail: 'Entre au collège avec E. Ta mission reprendra après les cours.', target: lieu('college'),
     };
   }

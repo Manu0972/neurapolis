@@ -544,6 +544,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   // et depuis les tests E2E. Lecture/écriture directe = leviers de QA, jamais du gameplay.
   (window as unknown as { __NEURAPOLIS__: unknown }).__NEURAPOLIS__ = {
     world,
+    /** Moteur de rendu 3D (QA : caméra, corps du joueur). */
+    get r3d() { return renderer3D; },
     /** Session multijoueur (QA). */
     get mp() { return mp; },
     /** Capture du rendu 3D (QA) : fonctionne même fenêtre masquée. */
@@ -1255,6 +1257,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           toast(r.message, r.ok);
           if (r.ok && r.minutes !== 0) spendTaskTime(r.minutes ?? TASK_MINUTES.meuble, (dyn ?? label).replace(/^E — /, '').split(' (')[0]!);
           updateHud(ui, world, promptText());
+          // « Faire le point sur le budget familial » : on montre vraiment le budget de la famille.
+          if (r.ok && place === 'maison' && target === 'table') openFamilyPanel({ world, showModal, closeModal, toast }, { budget: true });
         },
       };
     }
@@ -3085,7 +3089,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   }
 
   function frame(now: number): void {
-    const dt = Math.min(100, now - last);
+    // Jamais négatif : un horodatage en retard (premier rAF, qa.step) ferait diverger les lissages exponentiels.
+    const dt = Math.max(0, Math.min(100, now - last));
     last = now;
 
     if (bannerUntil > 0 && now >= bannerUntil) {

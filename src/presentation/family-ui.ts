@@ -6,6 +6,7 @@ import type { WorldState } from '../core/types';
 import type { ParentId } from '../core/family_types';
 import { dateOf, dayIndexOf } from '../core/clock';
 import { PARENTS, SCHOOL_STAFF } from '../data/family_starter';
+import { FAMILY_BUDGET_LESSON, FAMILY_EXPENSES, FAMILY_INCOME, FAMILY_MONTHLY_MARGIN, sumBudget, type BudgetLine } from '../data/family_budget';
 import {
   COSIGN_TRUST, SESSIONS, classWindow, ensureFamily, familyTrust, pendingDinner, resolveConvocation, resolveDinner,
   type ConvocationChoice,
@@ -34,6 +35,29 @@ function gauge(label: string, value: number, tone: 'good' | 'bad'): HTMLElement 
   row.appendChild(bar);
   row.appendChild(el('span', 'fam-gauge-value', `${Math.round(value)}`));
   return row;
+}
+
+/** Budget du mois du foyer (table de la cuisine) : revenus, dépenses, reste. */
+function budgetCard(): HTMLElement {
+  const eur = (n: number): string => `${n.toLocaleString('fr-FR')} €`;
+  const card = el('div', 'ph-card fam-budget');
+  card.appendChild(el('div', 'ph-card-title', '🧾 Budget du mois de la famille'));
+  const block = (title: string, lines: readonly BudgetLine[], sign: string): void => {
+    const head = el('p', 'ph-note', `${title} : ${sign}${eur(sumBudget(lines))}`);
+    head.style.fontWeight = '700';
+    card.appendChild(head);
+    const ul = el('ul', 'fam-budget-lines');
+    ul.style.cssText = 'margin:2px 0 8px 18px;padding:0;font-size:12px;line-height:1.45;';
+    for (const l of lines) ul.appendChild(el('li', '', `${l.label} — ${eur(l.amount)}`));
+    card.appendChild(ul);
+  };
+  block('Ce qui rentre', FAMILY_INCOME, '+');
+  block('Ce qui sort', FAMILY_EXPENSES, '−');
+  const rest = el('p', 'ph-note ok', `Reste pour les imprévus : ${eur(FAMILY_MONTHLY_MARGIN)}`);
+  rest.style.fontWeight = '700';
+  card.appendChild(rest);
+  card.appendChild(el('p', 'ph-note', FAMILY_BUDGET_LESSON));
+  return card;
 }
 
 function parentCard(w: WorldState, id: ParentId): HTMLElement {
@@ -112,12 +136,13 @@ export function openConvocationModal(ctx: FamilyCtx): boolean {
 }
 
 /** Panneau « Famille & collège ». */
-export function openFamilyPanel(ctx: FamilyCtx): void {
+export function openFamilyPanel(ctx: FamilyCtx, opts: { budget?: boolean } = {}): void {
   const w = ctx.world;
   const f = ensureFamily(w);
   const sl = ensureSchoolLifeState(w);
   const day = dayIndexOf(w.time.tick);
   const body = el('div', 'panel-body');
+  if (opts.budget) body.appendChild(budgetCard());
   const parents = el('div', 'fam-parents');
   parents.appendChild(parentCard(w, 'nora'));
   parents.appendChild(parentCard(w, 'thierry'));

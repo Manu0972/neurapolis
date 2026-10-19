@@ -89,5 +89,7 @@ export function useFurniture(w: WorldState, placeId: PlaceId, furnitureId: strin
   if (furn.skill && furn.xp) addXp(w, furn.skill, furn.xp);
   // Certaines actions existent aussi comme actions de lieu (achat de goûter, courses…).
   const placeResult = applyPlaceAction(w, placeId, furn.actionId);
-  return { ok: true, message: placeResult.ok && placeResult.message ? placeResult.message : `✓ ${furn.actionLabel}`, minutes: furn.minutes };
+  // Sans message de lieu, on raconte ce que le joueur découvre (la description du meuble).
+  const told = furn.description ? `✓ ${furn.actionLabel.replace(/\s*\([^)]*\)\s*$/, '')} — ${furn.description}` : `✓ ${furn.actionLabel}`;
+  return { ok: true, message: placeResult.ok && placeResult.message ? placeResult.message : told, minutes: furn.minutes };
 }
