@@ -42,3 +42,32 @@ describe('créateur : modèle par défaut', () => {
     expect(defaultPlayerRig([])).toBeUndefined();
   });
 });
+
+describe('passer le temps jusqu’à l’anniversaire', () => {
+  it('vise le prochain 1er septembre à 7 h', async () => {
+    const { skipTarget } = await import('../src/simulation/timeskip');
+    const { dateOf, dayIndexOf, minutesOfDay } = await import('../src/core/clock');
+    const w = createWorld();
+    w.time.tick += 2 * 144; // jeudi 3 septembre 2020
+    const t = skipTarget(w, 'anniversaire');
+    expect(dateOf(dayIndexOf(t)).iso).toBe('2021-09-01');
+    expect(minutesOfDay(t)).toBe(7 * 60);
+  });
+});
+
+describe('fins de chapitre', () => {
+  it('chaque chapitre 1 à 5 a sa cinématique de fin, avec ses propres sous-titres', async () => {
+    const { chapterEndCinematic } = await import('../src/presentation/cinematic/plan');
+    const vus = new Set<string>();
+    for (let ch = 1; ch <= 5; ch++) {
+      const p = chapterEndCinematic(ch)!;
+      expect(p.outro).toContain(`chapitre ${ch}`);
+      expect(p.shots.every((s) => !!s.subtitle)).toBe(true);
+      vus.add(p.shots[0]!.subtitle!);
+      const speaker = p.shots.find((s) => s.speaker)?.speaker;
+      expect(p.ghosts).toContain(speaker);
+    }
+    expect(vus.size).toBe(5);
+    expect(chapterEndCinematic(6)).toBeNull();
+  });
+});

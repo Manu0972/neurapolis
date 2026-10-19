@@ -4,7 +4,8 @@
  * porte un sous-titre et peut déclencher des « repères » (lampe, éclair, carnet, voix…) qui
  * restent actifs ensuite. Le lecteur (player.ts) et les décors (sets.ts) lisent ce plan.
  */
-import { CHAPTER1_END_OUTRO, CHAPTER1_END_SUBTITLES, ORIGIN_OUTRO, ORIGIN_SUBTITLES } from '../../data/story_cinematics';
+import { CHAPTER1_END_OUTRO, CHAPTER1_END_SUBTITLES, CHAPTER_END_TEXTS, ORIGIN_OUTRO, ORIGIN_SUBTITLES } from '../../data/story_cinematics';
+import { INITIAL_CAMPAIGN_STAGES } from '../../data/campaign';
 
 export interface Vec3 { x: number; y: number; z: number }
 export interface CamPose { pos: Vec3; look: Vec3 }
@@ -134,6 +135,24 @@ export const CHAPTER1_END_CINEMATIC: CinematicPlan = {
     { id: 'horizon', duration: 5.5, speaker: 'smith', from: pose(v(2.5, 1.7, -3.5), v(0, 1.3, 2)), to: pose(v(0.6, 1.9, -2.2), v(0, 2.2, 30)) },
   ], CHAPTER1_END_SUBTITLES),
 };
+
+/** Fin du chapitre `ch` : celle du chapitre 1, ou le même décor avec les textes du chapitre. */
+export function chapterEndCinematic(ch: number): CinematicPlan | null {
+  if (ch === 1) return CHAPTER1_END_CINEMATIC;
+  const t = CHAPTER_END_TEXTS[ch];
+  if (!t) return null;
+  const title = INITIAL_CAMPAIGN_STAGES[ch - 1]?.title ?? '';
+  return {
+    ...CHAPTER1_END_CINEMATIC,
+    id: `fin_c${ch}`,
+    outro: `Fin du chapitre ${ch}${title ? ` — ${title}` : ''}`,
+    shots: CHAPTER1_END_CINEMATIC.shots.map((sh, i) => ({
+      ...sh,
+      subtitle: t.subtitles[i],
+      speaker: sh.speaker ? t.speaker : undefined,
+    })),
+  };
+}
 
 export const CINEMATICS: Readonly<Record<string, CinematicPlan>> = {
   [ORIGIN_CINEMATIC.id]: ORIGIN_CINEMATIC,

@@ -456,7 +456,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const body = el('div', 'panel-body');
     body.appendChild(el('p', 'panel-desc', 'Le temps passe vraiment : tu vas en cours quand il y en a, tu manges et tu dors à la maison, tes commerces et tes entreprises tournent, le monde bouge. Un bilan t’attend à l’arrivée.'));
     const list = el('div', 'ph-list');
-    for (const kind of ['jour', 'semaine', 'mois', 'vacances'] as SkipKind[]) {
+    // Le chapitre attend un anniversaire : on propose d'y aller d'un coup (au lieu de douze mois).
+    const waitsBirthday = !mp?.connected && /:anniversaire$|^c4:attente-debat$/.test(mission.current()?.id ?? '');
+    const kinds: SkipKind[] = waitsBirthday ? ['anniversaire', 'jour', 'semaine', 'mois', 'vacances'] : ['jour', 'semaine', 'mois', 'vacances'];
+    for (const kind of kinds) {
       const block = skipBlocker(world, kind);
       if (kind === 'vacances' && block) continue;
       const target = skipTarget(world, kind);
@@ -476,7 +479,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   function runSkip(kind: SkipKind): void {
     const s = beginSkip(world, kind);
     if ('error' in s) { toast(s.error, false); return; }
-    if (mp?.isHost) mp.broadcastSkip(kind, s.target);
+    if (mp?.isHost && kind !== 'anniversaire') mp.broadcastSkip(kind, s.target);
     skipping = true;
     const total = Math.max(1, s.target - world.time.tick);
     const start = world.time.tick;

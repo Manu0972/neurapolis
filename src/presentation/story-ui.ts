@@ -12,10 +12,10 @@ import { ghostAvatar, thinkerMeta } from './ghost-avatar';
 import { el } from './ui';
 import { heightForAge } from './city3d/bodyScale';
 import { playCinematic } from './cinematic/player';
-import { CHAPTER1_END_CINEMATIC, ORIGIN_CINEMATIC, type Cue } from './cinematic/plan';
+import { chapterEndCinematic, ORIGIN_CINEMATIC, type Cue } from './cinematic/plan';
 import { playThoughts } from './cinematic/thoughts';
 import {
-  CHAPTER1_END_FLAG, OPENING_THOUGHTS, OPENING_THOUGHTS_FLAG, OPENING_VOICE,
+  chapterEndFlag, OPENING_THOUGHTS, OPENING_THOUGHTS_FLAG, OPENING_VOICE,
 } from '../data/story_cinematics';
 
 export interface CinematicHooks {
@@ -70,15 +70,25 @@ export function playOpening(host: HTMLElement, w: WorldState, hooks: CinematicHo
   if (!ok) playOrigin(host, w, thoughts);
 }
 
-/** La cinématique de fin du chapitre 1 est à jouer (une fois, juste après le chapitre 1). */
-export function chapterEndDue(w: WorldState): boolean {
-  return w.campaign.completedChapters.includes(1) && w.campaign.currentChapter <= 2 && !w.seen[CHAPTER1_END_FLAG];
+/**
+ * Chapitre dont la cinématique de fin est à jouer (une fois, juste après ce chapitre), sinon null.
+ * Chapitre 1 : les toits ; chapitres 2 à 5 : même décor, textes propres (data/story_cinematics.ts).
+ */
+export function chapterEndDue(w: WorldState): number | null {
+  for (let ch = 1; ch <= 5; ch++) {
+    if (!w.campaign.completedChapters.includes(ch) || w.seen[chapterEndFlag(ch)]) continue;
+    // Seulement le chapitre qui vient de se terminer (une vieille partie ne rejoue pas tout).
+    if (w.campaign.currentChapter <= ch + 1) return ch;
+  }
+  return null;
 }
 
-/** Fin du chapitre 1 (≈ 15 s, sur les toits). Retourne faux sans WebGL (rien à attendre). */
+/** Fin de chapitre (≈ 15 s, sur les toits). Retourne faux sans WebGL (rien à attendre). */
 export function playChapterEnd(host: HTMLElement, w: WorldState, hooks: CinematicHooks, done: () => void): boolean {
-  w.seen[CHAPTER1_END_FLAG] = true;
-  return playCinematic(host, CHAPTER1_END_CINEMATIC, cineOpts(w, hooks), done);
+  const ch = chapterEndDue(w) ?? 1;
+  w.seen[chapterEndFlag(ch)] = true;
+  const plan = chapterEndCinematic(ch);
+  return plan ? playCinematic(host, plan, cineOpts(w, hooks), done) : false;
 }
 
 export interface StoryCtx {

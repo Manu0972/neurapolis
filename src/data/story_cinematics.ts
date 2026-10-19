@@ -50,3 +50,45 @@ export const OPENING_VOICE = {
 export const OPENING_THOUGHTS_FLAG = 'recit:pensees_c1';
 /** Drapeau (w.seen) : la cinématique de fin du chapitre 1 a été vue. */
 export const CHAPTER1_END_FLAG = 'recit:cine_fin_c1';
+
+/**
+ * Fins des chapitres 2 à 5 (QA vague 11 : elles étaient muettes). Même décor que la fin du
+ * chapitre 1 (les toits au crépuscule), trois sous-titres, une voix qui conclut.
+ */
+export const CHAPTER_END_TEXTS: Readonly<Record<number, { subtitles: readonly string[]; speaker: string }>> = {
+  2: {
+    subtitles: [
+      'Un an a passé. Sur les toits, {prenom} regarde la Friche Taret s’allumer.',
+      'Des règles écrites ensemble, une caisse commune : le stand est devenu une vraie équipe.',
+      'Ostrom sourit : « Ce qui est à tous peut durer, si chacun y met du sien. »',
+    ],
+    speaker: 'ostrom',
+  },
+  3: {
+    subtitles: [
+      'Les courses, les cartons, les livraisons : l’épicerie de Mme Bertin respire encore.',
+      'Face au Drive, le quartier a choisi de se serrer les coudes.',
+      'Keynes regarde la vallée : « Quand la demande s’effondre, quelqu’un doit la relancer. »',
+    ],
+    speaker: 'keynes',
+  },
+  4: {
+    subtitles: [
+      'La place a été débattue, votée, rêvée. {prenom} y a pris la parole.',
+      'Les habitants et les voix du Conseil ont parlé ensemble, parfois très fort.',
+      'Smith murmure : « Une ville est un marché, mais c’est aussi une promesse. »',
+    ],
+    speaker: 'smith',
+  },
+  5: {
+    subtitles: [
+      'Seize ans. Val-Ferrand a choisi son chemin, et {prenom} l’a aidée à le tracer.',
+      'Le Stand des Roses, la Friche, la place : chaque choix a laissé sa trace.',
+      'Les voix s’apaisent : « La suite t’appartient. Grandis avec ta ville. »',
+    ],
+    speaker: 'smith',
+  },
+};
+
+/** Drapeau (w.seen) : la cinématique de fin du chapitre `ch` a été vue. */
+export const chapterEndFlag = (ch: number): string => (ch === 1 ? CHAPTER1_END_FLAG : `recit:cine_fin_c${ch}`);
