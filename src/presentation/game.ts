@@ -648,10 +648,20 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
   /** Action économique possible ici (déchargement, retrait, porte de local), la plus prioritaire d'abord. */
   /** Rejoindre sa classe : la séance passe en accéléré, avec un moment de classe. */
+  /** Invite « aller en cours » quand on est déjà dans le collège pendant la fenêtre d'un cours. */
+  function classInsideCollege(): string | null {
+    if (renderer3D?.interiorSpec?.placeId !== 'college') return null;
+    const session = classWindow(world);
+    return session ? `E — Aller en cours (${session === 'matin' ? '8 h 30 – 12 h' : '13 h 30 – 16 h 30'})` : null;
+  }
+
   function goToClass(): void {
     const r = attendClass(world);
     toast(r.message, r.ok);
-    if (r.ok && renderer3D?.inInterior) exitInterior();
+    if (!r.ok || !renderer3D?.inInterior) return;
+    // Déjà dans le collège : on file en salle 204 (et non sur le trottoir) ; ailleurs, on sort.
+    if (renderer3D.interiorSpec?.placeId === 'college') { if (renderer3D.interiorSpec.roomId !== 'classe') enterPlace('college', 'classe'); }
+    else exitInterior();
   }
 
   function economyActionHere(): { label: string; run: () => void } | null {
@@ -1281,6 +1291,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       if (inside) return inside.label;
       const nearNpc = interiorNpcNear();
       if (nearNpc) return `E — Parler à ${NPC_BY_ID[nearNpc]?.name ?? 'quelqu’un'}`;
+      const classHere = classInsideCollege();
+      if (classHere) return classHere;
       if (renderer3D.interiorSpec?.destinationId) {
         return `${renderer3D.interiorSpec.title} · ${travelSlotsLeft(world)} demi-journée(s) sur place · approche-toi d’une icône pour agir`;
       }
@@ -1308,7 +1320,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       const inside = interiorActionHere();
       if (inside) { inside.run(); return; }
       const nearNpc = interiorNpcNear();
-      if (nearNpc) openNpcDialogue(nearNpc);
+      if (nearNpc) { openNpcDialogue(nearNpc); return; }
+      // Dans le collège à l'heure des cours : E y va, sans ressortir chercher la porte.
+      if (classInsideCollege()) goToClass();
       return;
     }
     const mis = mission.actionHere(world);

@@ -330,7 +330,7 @@ export function currentMission(w: WorldState, ctx: MissionContext = {}): Mission
   if (session && nearPlace(w, 'college')) {
     return {
       id: `cours:${session}:entrer`, chapter: ch, rank: -1, kind: 'faire', icon: '📚',
-      text: 'Entre en cours : appuie sur E devant le collège',
+      text: 'Entre en cours : appuie sur E devant le collège (ou dans le hall)',
       detail: 'Ta mission reprendra après les cours.', target: lieu('college'),
     };
   }

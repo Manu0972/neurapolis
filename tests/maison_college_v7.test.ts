@@ -92,7 +92,7 @@ describe('maison : les meubles servent vraiment', () => {
     const w = createWorld();
     const r = useFurniture(w, 'maison', 'malle');
     expect(r.ok).toBe(true);
-    expect(r.message).toContain('Ouvrir la malle de papy Lucien — ');
+    expect(r.message).toContain('Ouvrir la malle de papy Lucien. ');
     expect(r.message).toContain('fiches de paie');
     expect(r.message).not.toContain('(20 min)');
   });
