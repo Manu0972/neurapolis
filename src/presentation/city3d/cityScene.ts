@@ -16,6 +16,7 @@ import {
   asphaltTexture, cobbleTexture, dirtTexture, glowTexture, grassTexture, gravelTexture, parkingTexture,
   groundBumpTexture, playgroundTexture, sidewalkTexture, skylineTexture, visualRng,
 } from './textures';
+import { makeFoliageOccludable } from './occlusion';
 import { applyGroundPhoto, enhanceFacadeMaterial, enhanceGroundMaterial, setFacadePhoto, shapeCrownGeometry, type GroundKind } from './materials';
 import { isGenericHouse, textureVariation, varyUv } from './assetsPlan';
 import { loadPhoto } from './assetsPolyhaven';
@@ -432,6 +433,7 @@ function buildProps(group: THREE.Group, disposables: { dispose(): void }[], nigh
   const stallGoodsGeo = new THREE.BoxGeometry(0.42, 0.16, 0.32).translate(0, 0.08, 0);
   const barkMat = new THREE.MeshStandardMaterial({ color: '#5b4231', roughness: 1 });
   const leafMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9, flatShading: true, vertexColors: true });
+  makeFoliageOccludable(leafMat);
   const metalMat = new THREE.MeshStandardMaterial({ color: '#2f3a36', roughness: 0.5, metalness: 0.6 });
   const bulbMat = new THREE.MeshStandardMaterial({ color: '#fff1d0', emissive: new THREE.Color('#ffc46b'), emissiveIntensity: 0, roughness: 0.4 });
   const woodMat = new THREE.MeshStandardMaterial({ color: '#8a5a3a', roughness: 0.8 });

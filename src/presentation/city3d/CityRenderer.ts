@@ -34,6 +34,7 @@ import { QUALITY_PRESETS, detectedQuality, chooseQuality, getQualityPref, onQual
 import { PostFx } from './postfx';
 import { configureSunShadow, createContactShadows, createRimLight, frameSunShadow } from './lighting';
 import { CITY_UNIFORMS } from './materials';
+import { setFoliageOcclusion } from './occlusion';
 
 /** Autre joueur (multijoueur) vu dans la ville. */
 export interface RemoteAvatar {
@@ -871,6 +872,9 @@ export class CityRenderer {
     }
     this.camera.position.copy(this.camTarget).addScaledVector(dir, d);
     this.camera.lookAt(this.camTarget);
+    // Les feuillages entre la caméra et le joueur s'effacent (sinon un arbre peut le cacher entièrement).
+    this.occTarget.set(this.body.x, gy + 1.1, this.body.z);
+    setFoliageOcclusion(this.camera.position, this.occTarget, this.topDown ? 0 : 2.4);
     const w = Math.max(1, cw);
     const h = Math.max(1, ch);
     if (this.camera.aspect !== w / h) {
@@ -882,6 +886,7 @@ export class CityRenderer {
     if (size.x !== w || size.y !== h || this.canvas.width !== Math.floor(w * this.renderer!.getPixelRatio())) this.renderer!.setSize(w, h, false);
   }
   private lastCamClip?: number;
+  private occTarget = new THREE.Vector3();
 
   // ---------- Vélo ----------
   private riding = false;
