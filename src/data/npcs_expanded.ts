@@ -289,7 +289,7 @@ export const NPCS_EXPANDED: ExpandedNpcDef[] = [
     color: '#ff8fc0',
     traits: ['Curieuse', 'Éloquente', 'Impétueuse', 'Engagée'],
     intimateSecret:
-      'Rédige et imprime clandestinement "La Gazette du Préau", révélant les marges abusives du distributeur automatique Selecta et les dessous des conseils de classe.',
+      'Rédige et imprime clandestinement "La Gazette du Préau", révélant les marges abusives du distributeur automatique et les dessous des conseils de classe.',
     humorAndTics:
       'Ponctue ses phrases par "Source vérifiée à 94 % !" en enregistrant des mémos vocaux frénétiques sur son dictaphone rose bonbon.',
     systemicHook:
