@@ -1352,7 +1352,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     }
     const near = npcsNearby(world, 2);
     const first = near[0];
-    if (first) openNpcDialogue(first.id);
+    if (first) { openNpcDialogue(first.id); return; }
+    // Étape sans lieu (adopter les règles…) : l'invite l'annonce, E doit la faire.
+    mission.actionAnywhere(world)?.run();
   }
 
   function showModal(title: string, sub: string, body: HTMLElement, wide = false): void {

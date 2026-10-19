@@ -29,10 +29,10 @@ export const ARRIVAL_CHOICE = { listen: 'L’écouter', refuse: 'Le repousser' }
 export const ARRIVAL_SCENES: Record<GhostId, ArrivalSceneDef> = {
   smith: {
     lines: [
-      'Mon enfant. On m’a dit qu’il y avait eu un échange, ici, ce matin. Un goûter contre une pièce, librement convenu.',
+      'Mon enfant. Depuis la nuit de la bibliothèque, je te regarde faire. Sur la place, tu as conclu ton premier échange : un goûter contre une pièce, librement convenu.',
       'Sais-tu ce que tu as vu ? Deux personnes qui voulaient des choses différentes, et qui se sont arrangées sans qu’aucun bureau ne s’en mêle.',
       'Le boulanger, le boucher, le marchand de goûters : ce n’est pas leur bonté qui te nourrit. C’est leur intérêt, bien entendu.',
-      'La manufacture d’épingles t’expliquerait le reste. Mais elle attendra. D’abord : veux-tu que je t’apprenne à écouter le marché respirer ?',
+      'La manufacture d’épingles t’expliquerait le reste. Mais elle attendra. Je te l’avais promis dans la bibliothèque : veux-tu que je m’installe pour t’apprendre à écouter le marché respirer ?',
       'Je ne promets pas la justice, mon enfant. Je promets de ne jamais te mentir sur les prix.',
     ],
   },

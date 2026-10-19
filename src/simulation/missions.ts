@@ -238,7 +238,7 @@ function chapterStep(w: WorldState): MissionStep | null {
     if ((w.flags['chapitre2ConversationCoopSamir'] ?? 0) <= 0) {
       return goThenDo(w, 2, 1, 'c2:samir', pnj(w, 'samir'), 'Rejoins Samir (Friche le matin, place l’après-midi)', {
         kind: 'parler', icon: '💬', text: 'Parle de la coopérative avec Samir',
-        detail: 'Choisis le sujet « Coop ».',
+        detail: 'Choisis le sujet « 🤝 La coop ».',
         action: { do: 'parler', label: 'Parler à Samir', npc: 'samir' },
       });
     }
@@ -248,6 +248,7 @@ function chapterStep(w: WorldState): MissionStep | null {
       return {
         id: 'c2:regles', chapter: 2, rank: 20, kind: 'faire', icon: '📜',
         text: 'Adopte des règles partagées avec ton équipe',
+        detail: 'Rôles, partage de la caisse, horaires : décidez ensemble. Appuie sur E quand personne n’est à côté de toi.',
         action: { do: 'regles', label: 'Adopter les règles partagées' },
       };
     }
