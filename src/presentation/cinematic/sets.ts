@@ -18,7 +18,15 @@ export interface SetOptions {
   gender: PlayerGender;
   heightM: number;
   age: number;
+  /** Amis réellement recrutés (fin du chapitre 1) ; absent ou vide : le joueur seul avec les voix. */
+  friends?: readonly string[];
 }
+
+/** Allure des coéquipiers sur les toits (distincte du joueur). */
+const FRIEND_LOOKS: Record<string, { gender: PlayerGender; look: Partial<PlayerAppearance>; color: string }> = {
+  noah: { gender: 'garcon', look: { hairStyle: 'degrade', hairColor: 'noir', skinTone: 'ambree', outfitStyle: 'streetwear', glasses: 'aucune', accessory: 'casquette' }, color: '#4ea1ff' },
+  lina: { gender: 'fille', look: { hairStyle: 'queue', hairColor: 'roux', skinTone: 'rosee', outfitStyle: 'ecolier', glasses: 'rondes', accessory: 'aucun' }, color: '#5cd6e8' },
+};
 
 export interface CineSet {
   scene: THREE.Scene;
@@ -561,12 +569,13 @@ function buildRooftops(plan: CinematicPlan, opts: SetOptions): CineSet {
   kid.root.position.set(0, 0, 3.6);
   kid.setHeading(Math.PI);
   scene.add(kid.root);
-  const friends = [
-    createProceduralCharacter({ appearance: { ...opts.appearance }, gender: 'garcon', heightM: opts.heightM, bodyColor: '#4ea1ff' }),
-    createProceduralCharacter({ appearance: { ...opts.appearance }, gender: 'fille', heightM: opts.heightM * 0.98, bodyColor: '#5cd6e8' }),
-  ];
-  friends[0]!.root.position.set(-0.8, 0, 3.4);
-  friends[1]!.root.position.set(0.85, 0, 3.45);
+  // Seulement les amis recrutés pendant le chapitre (aucun : le joueur seul avec ses voix).
+  const friends = (opts.friends ?? []).filter((id) => FRIEND_LOOKS[id]).slice(0, 2).map((id, i) => {
+    const f = FRIEND_LOOKS[id]!;
+    return createProceduralCharacter({ appearance: { ...opts.appearance, ...f.look }, gender: f.gender, heightM: opts.heightM * (i ? 0.98 : 1), bodyColor: f.color });
+  });
+  const spots = [[-0.8, 3.4], [0.85, 3.45]] as const;
+  friends.forEach((f, i) => f.root.position.set(spots[i]![0], 0, spots[i]![1]));
   for (const f of friends) { f.setHeading(Math.PI); f.root.visible = false; scene.add(f.root); }
 
   const ghosts = makeGhosts(plan.ghosts, [{ x: 0.5, y: 2.1, z: 3.9 }, { x: -1.4, y: 1.9, z: 3.8 }, { x: 1.6, y: 1.6, z: 3.6 }], disposables);

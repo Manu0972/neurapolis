@@ -36,10 +36,19 @@ export function openingDue(w: WorldState): boolean {
   return !w.story?.originDone || thoughtsDue(w);
 }
 
+/** Fin du chapitre 1 : « des amis à bord » seulement s'il y en a vraiment. */
+function friendsAboard(w: WorldState): string {
+  const m = w.project?.members ?? [];
+  if (m.length === 0) return 'et l’envie d’aller plus loin';
+  if (m.length === 1) return m[0] === 'lina' ? 'et une amie à bord' : 'et un ami à bord';
+  return 'et des amis à bord';
+}
+
 function cineOpts(w: WorldState, hooks: CinematicHooks) {
   return {
     appearance: w.player.appearance, gender: w.player.gender, heightM: heightForAge(w.player.age), age: w.player.age,
-    text: (s: string) => personalize(w, s), music: hooks.music, onCue: hooks.onCue,
+    friends: w.project?.members ?? [],
+    text: (s: string) => personalize(w, s.replace('et des amis à bord', friendsAboard(w))), music: hooks.music, onCue: hooks.onCue,
   };
 }
 
