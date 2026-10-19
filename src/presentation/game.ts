@@ -254,6 +254,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   }
   let modalOpen = false;
   const deferredArrivals = new Set<string>();
+  /** Jour de la dernière scène d'arrivée proposée d'elle-même (une par jour au plus). */
+  let arrivalShownDay = -1;
   let last = performance.now();
   let acc = 0;
   let moveAcc = 0;
@@ -2175,7 +2177,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const stage = world.campaign.stages.find((s) => s.chapter === world.campaign.currentChapter);
     if (stage) {
       const cBox = el('div', 'ghost-detail');
-      cBox.appendChild(el('h4', 'journal-title', `✦ ${stage.title} (âge : ${stage.targetAge} ans)`));
+      cBox.appendChild(el('h4', 'journal-title', `✦ ${stage.title} (tu as ${world.player.age} ans${stage.targetAge > world.player.age ? ` · fin du chapitre à ${stage.targetAge} ans` : ''})`));
       cBox.appendChild(el('p', 'panel-desc', stage.objective));
 
       // Actions spécifiques au Chapitre 4 : Conseil et Débat
@@ -2839,9 +2841,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         msg.textContent = r.message;
         return;
       }
-      closeModal();
-      const next = councilPendingArrivals(world);
-      if (next.length > 0) openArrivalScene(next[0] ?? '');
+      closeModal(); // la voix suivante viendra un autre jour (une par jour)
     });
     const refuseBtn = el('button', 'btn btn-reply', ARRIVAL_CHOICE.refuse);
     refuseBtn.addEventListener('click', () => {
@@ -2850,9 +2850,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         msg.textContent = r.message;
         return;
       }
-      closeModal();
-      const next = councilPendingArrivals(world);
-      if (next.length > 0) openArrivalScene(next[0] ?? '');
+      closeModal(); // la voix suivante viendra un autre jour (une par jour)
     });
     const deferBtn = el('button', 'btn btn-reply', 'Accéder au Conseil (mettre en attente)');
     deferBtn.addEventListener('click', () => {
@@ -3157,7 +3155,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
         const pend = arriveesAProposer(world).filter((id) => !deferredArrivals.has(id));
         const surprise = surpriseAProposer(world);
         const ecole = ecoleAProposer(world);
-        if (pend.length > 0 && quietOk) {
+        // Pas en pleine nuit ni en cours, et une seule voix nouvelle par jour : après un long saut,
+        // une file de sept philosophes d'affilée noyait le joueur.
+        const arrivalOk = !world.player.asleep && !isInClass(world) && arrivalShownDay !== dayIndexOf(world.time.tick);
+        if (pend.length > 0 && quietOk && arrivalOk) {
+          arrivalShownDay = dayIndexOf(world.time.tick);
           audio.playGhostArrival();
           autoWindow = { kind: 'arrivee', id: pend[0]! };
           openArrivalScene(pend[0] ?? '');

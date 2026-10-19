@@ -209,7 +209,7 @@ function waitStep(w: WorldState, ch: number, targetAge: number): MissionStep {
     return {
       id: `c${ch}:anniversaire`, chapter: ch, rank: 50, kind: 'attendre', icon: '📅',
       text: `Fais passer le temps jusqu’à tes ${targetAge} ans (1er septembre)`,
-      detail: 'Objectifs remplis : le chapitre se conclura à ton anniversaire. Tes affaires continuent de tourner.',
+      detail: 'Objectifs remplis : le chapitre se conclura à ton anniversaire. Appuie sur E : « Aller jusqu’à ton anniversaire » t’y amène d’un coup, tes affaires continuent de tourner.',
       action: skip,
     };
   }
@@ -278,6 +278,7 @@ function chapterStep(w: WorldState): MissionStep | null {
         return {
           id: 'c4:attente-debat', chapter: 4, rank: 5, kind: 'attendre', icon: '📅',
           text: 'Fais passer le temps : le débat de la place aura lieu à tes 15 ans',
+          detail: 'Le Conseil est prêt. Appuie sur E : « Aller jusqu’à ton anniversaire » t’y amène d’un coup, tes affaires continuent de tourner.',
           action: { do: 'passer_temps', label: 'Passer le temps' },
         };
       }

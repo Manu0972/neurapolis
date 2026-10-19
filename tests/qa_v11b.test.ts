@@ -71,3 +71,13 @@ describe('fins de chapitre', () => {
     expect(chapterEndCinematic(6)).toBeNull();
   });
 });
+
+describe('anniversaires en famille', () => {
+  it('chaque réplique d’anniversaire datée correspond à un âge de la campagne', async () => {
+    const { birthdayAgeOf } = await import('../src/simulation/family');
+    const { FAMILY_LINES } = await import('../src/data/family_registry');
+    const ages = FAMILY_LINES.filter((l) => l.when === 'anniversaire').map((l) => birthdayAgeOf(l.id));
+    for (const a of [12, 13, 14, 15, 16]) expect(ages).toContain(a);
+    expect(birthdayAgeOf('fam_anniversaire_15_ans_bilan_debat')).toBe(15);
+  });
+});

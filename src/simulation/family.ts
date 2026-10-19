@@ -188,12 +188,23 @@ const sinceFlag = (w: WorldState, key: string, day: number): number => {
   return v > 0 ? day - (v - 1) : Infinity;
 };
 
+/** Âge fêté par une réplique d'anniversaire (`fam_anniversaire_15_ans_…` → 15), sinon undefined. */
+export function birthdayAgeOf(id: string): number | undefined {
+  const m = /_(\d{2})_ans/.exec(id);
+  return m ? Number(m[1]) : undefined;
+}
+
 function pickLine(w: WorldState, day: number): FamilyLine | undefined {
   const f = ensureFamily(w);
   const topics = TOPIC_PRIORITY.filter((t) => f.topics.includes(t) && sinceFlag(w, `dinerSujet:${t}`, day) >= (TOPIC_COOLDOWN[t] ?? 0));
   const when: FamilyMoment = topics.find((t) => FAMILY_LINES.some((l) => l.when === t)) ?? 'diner';
   if (when === 'diner' && econRand(w, 'diner-calme', day) >= PLAIN_DINNER_CHANCE) return undefined;
-  const pool = FAMILY_LINES.filter((l) => l.when === when);
+  let pool = FAMILY_LINES.filter((l) => l.when === when);
+  // Anniversaire : la réplique de l'âge qu'on fête (« douze ans tout rond » ne revient pas à 15 ans).
+  if (when === 'anniversaire') {
+    const sameAge = pool.filter((l) => birthdayAgeOf(l.id) === w.player.age);
+    pool = sameAge.length > 0 ? sameAge : pool.filter((l) => birthdayAgeOf(l.id) === undefined);
+  }
   const all = pool.length > 0 ? pool : FAMILY_LINES.filter((l) => l.when === 'diner');
   const fresh = all.filter((l) => sinceFlag(w, `diner:${l.id}`, day) >= DINNER_LINE_GAP);
   const oldest = all.reduce<FamilyLine | undefined>((a, l) => (!a || sinceFlag(w, `diner:${l.id}`, day) > sinceFlag(w, `diner:${a.id}`, day) ? l : a), undefined);
