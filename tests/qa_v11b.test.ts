@@ -33,3 +33,12 @@ describe('coéquipiers recrutés', () => {
     expect(vues.size).toBeGreaterThan(1);
   });
 });
+
+describe('créateur : modèle par défaut', () => {
+  it('propose une silhouette libre (sans PNJ attitré) en priorité', async () => {
+    const { defaultPlayerRig } = await import('../src/presentation/city3d/rigged/playerModel');
+    expect(defaultPlayerRig([{ id: 'bertin_1', pnj: ['bertin'] }, { id: 'L002_ado', pnj: [] }])).toBe('L002_ado');
+    expect(defaultPlayerRig([{ id: 'bertin_1', pnj: ['bertin'] }])).toBe('bertin_1');
+    expect(defaultPlayerRig([])).toBeUndefined();
+  });
+});

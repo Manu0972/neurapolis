@@ -37,8 +37,9 @@ import { DEFAULT_PLAYER_APPEARANCE } from '../core/types';
 import { buildAppearanceEditor } from './appearance-editor';
 import { heightForAge } from './city3d/bodyScale';
 import { createAvatarPreview } from './avatar-preview3d';
-import { playerRigModel, setPlayerRigModel } from './city3d/rigged/playerModel';
+import { defaultPlayerRig, hasPlayerRigPref, playerRigModel, setPlayerRigModel } from './city3d/rigged/playerModel';
 import { loadRigAsset, startRiggedCharacters } from './city3d/rigged/library';
+import { ageClassOf } from './city3d/rigged/manifest';
 
 export interface CharacterCreatorOptions {
   initialCustomization?: Partial<PlayerCustomization>;
@@ -351,8 +352,12 @@ export function mountCharacterCreation(
   modelBox.className = 'creator-model-box';
   modelBox.hidden = true;
   void startRiggedCharacters().then((m) => {
-    const choices = m?.models.filter((x) => x.ageClass === 'ado') ?? [];
+    // Tranche d'âge du joueur (12 ans : ado), repli sur les enfants si le manifeste n'en a pas.
+    const ado = m?.models.filter((x) => x.ageClass === ageClassOf(12)) ?? [];
+    const choices = ado.length > 0 ? ado : m?.models.filter((x) => x.ageClass === 'enfant') ?? [];
     if (!m || choices.length === 0) return;
+    // Par défaut (aucun choix enregistré) : la silhouette détaillée, bien plus fidèle que le dessin.
+    if (!hasPlayerRigPref()) setPlayerRigModel(defaultPlayerRig(choices));
     const label = document.createElement('label');
     label.textContent = 'Modèle 3D du personnage ';
     const sel = document.createElement('select');

@@ -19,3 +19,20 @@ export function setPlayerRigModel(id: string | undefined): void {
     if (id) localStorage.setItem(KEY, id); else localStorage.setItem(KEY, 'dessin');
   } catch { /* stockage indisponible : le choix vaut pour cette session seulement */ }
 }
+
+/** Le joueur a-t-il déjà un choix enregistré (modèle ou personnage dessiné) ? */
+export function hasPlayerRigPref(): boolean {
+  try {
+    return localStorage.getItem(KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Modèle proposé par défaut au créateur : une silhouette détaillée de la tranche d'âge, de préférence
+ * libre (sans PNJ attitré, pour ne pas ressembler à un habitant). `undefined` : personnage dessiné.
+ */
+export function defaultPlayerRig<T extends { id: string; pnj: readonly string[] }>(choices: readonly T[]): string | undefined {
+  return (choices.find((c) => c.pnj.length === 0) ?? choices[0])?.id;
+}
