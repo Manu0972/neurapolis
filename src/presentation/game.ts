@@ -1379,6 +1379,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     renderer3D?.setTalkingNpc(null);
     ui.modalEl.replaceChildren();
     ui.modalEl.classList.add('hidden');
+    // L'étape de mission suit tout de suite (sinon E relance l'action d'avant pendant ½ seconde).
+    mission.sync(world);
   }
 
   function openPlacePanel(place: PlaceId): void {

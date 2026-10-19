@@ -16,6 +16,7 @@ import {
 } from '../simulation/missions';
 import { adoptSharedRules, buyStock, createProject, recruitMember, runCourse, runSalesSession } from '../simulation/project';
 import { placeAtAdjacent } from '../simulation/interact';
+import { isInClass } from '../simulation/family';
 import { HUD_PARTS, hudSeenKey, nextHudReveal, type HudPart } from './hud-reveal';
 import { TASK_MINUTES } from './time-pace';
 import { setMissionMarker } from './minimap';
@@ -204,6 +205,8 @@ export function createMissionUi(deps: MissionUiDeps): MissionUi {
   function syncReveal(w: WorldState): void {
     const now = performance.now();
     if (now < revealUntil) return;
+    // Écran voilé (nuit, cours) : la présentation suivante attend le réveil.
+    if (!firstSync && (w.player.asleep || isInClass(w))) return;
     reveal.classList.add('hidden');
     deps.root.querySelectorAll('.nm-new').forEach((n) => n.classList.remove('nm-new'));
     // Partie avancée chargée : tout s'affiche d'un coup, sans phrases.
@@ -291,6 +294,9 @@ export function createMissionUi(deps: MissionUiDeps): MissionUi {
   const api: MissionUi = {
     current: () => step,
     sync(w: WorldState): void {
+      // Fenêtre ou cinématique ouverte : « Mission accomplie », « Chapitre terminé » et les
+      // présentations du HUD (téléphone…) attendent qu'on la ferme, sinon le joueur les rate.
+      if (deps.modalOpen() && !firstSync) return;
       const s = currentMission(w, { inside: deps.inside() });
       const ch = w.campaign.currentChapter;
       // Étape franchie : rang supérieur à tout ce qui a déjà été vu dans ce chapitre.
