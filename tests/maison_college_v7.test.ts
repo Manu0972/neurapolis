@@ -89,7 +89,7 @@ describe('maison : les meubles servent vraiment', () => {
   });
 
   it('raconte ce que l’on découvre (description du meuble) au lieu d’un simple libellé', () => {
-    const w = createWorld(1);
+    const w = createWorld();
     const r = useFurniture(w, 'maison', 'malle');
     expect(r.ok).toBe(true);
     expect(r.message).toContain('Ouvrir la malle de papy Lucien — ');

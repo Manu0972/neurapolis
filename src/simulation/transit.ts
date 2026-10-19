@@ -104,12 +104,12 @@ export function takeBus(w: WorldState, toId: string): { ok: boolean; message: st
   const route = busRoute(from.id, to.id);
   if (!route) return { ok: false, message: 'Aucune ligne ne relie ces deux arrêts.' };
   const fare = busFare(w);
-  if (w.player.money < fare) return { ok: false, message: `Le ticket coûte ${fare.toFixed(2)} € (tu as ${w.player.money.toFixed(2)} €).` };
+  if (w.player.money < fare) return { ok: false, message: `Le ticket coûte ${fare.toFixed(2).replace('.', ',')} € (tu as ${w.player.money.toFixed(2).replace('.', ',')} €).` };
   w.player.money = Math.round((w.player.money - fare) * 100) / 100;
   w.player.pos.x = to.x;
   w.player.pos.y = to.y;
   w.flags['busArrivee'] = w.time.tick + route.ticks;
   w.flags['busTrajets'] = (w.flags['busTrajets'] ?? 0) + 1;
   const via = route.transfer ? `, correspondance à ${BUS_STOP_BY_ID[route.transfer]!.name}` : '';
-  return { ok: true, message: `Ligne ${route.lines.join(' puis ')} → ${to.name}${via} (${fare.toFixed(2)} €).` };
+  return { ok: true, message: `Ligne ${route.lines.join(' puis ')} → ${to.name}${via} (${fare.toFixed(2).replace('.', ',')} €).` };
 }

@@ -285,7 +285,7 @@ export function holdCitizenDebate(
   if (w.player.money < choice.cost) {
     return {
       ok: false,
-      message: `Il manque ${(choice.cost - w.player.money).toFixed(2)} € pour financer ce projet.`,
+      message: `Il manque ${(choice.cost - w.player.money).toFixed(2).replace('.', ',')} € pour financer ce projet.`,
       confianceGain: 0,
     };
   }

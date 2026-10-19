@@ -23,7 +23,7 @@ export function ownsBike(w: WorldState): boolean {
 
 export function buyBike(w: WorldState): { ok: boolean; message: string } {
   if (ownsBike(w)) return { ok: false, message: 'Tu as déjà un vélo.' };
-  if (w.player.money < BIKE.price) return { ok: false, message: `Il faut ${BIKE.price} € (tu as ${w.player.money.toFixed(2)} €).` };
+  if (w.player.money < BIKE.price) return { ok: false, message: `Il faut ${BIKE.price} € (tu as ${w.player.money.toFixed(2).replace('.', ',')} €).` };
   w.player.money = Math.round((w.player.money - BIKE.price) * 100) / 100;
   w.flags['velo'] = 1;
   const e = ensureEconomy(w);

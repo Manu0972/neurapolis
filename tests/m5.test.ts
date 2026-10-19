@@ -349,7 +349,7 @@ describe('scénario bout-en-bout — la partie qui échoue', () => {
     expect(w.player.needs.stress).toBeGreaterThan(25);
     const echec = w.events.find((e) => e.title === 'Stand désert');
     expect(echec).toBeDefined();
-    expect(echec?.causes.map((c) => c.seuil)).toContain('2.00 €');
+    expect(echec?.causes.map((c) => c.seuil)).toContain('2,00 €');
 
     // La rivalité explose : au passage du jour suivant, Noah claque la porte.
     w.player.relations['noah']!.rivalite = 61;

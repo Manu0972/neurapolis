@@ -44,7 +44,7 @@ export function chooseLaminoirFuture(w: WorldState, id: LaminoirFuture): { ok: b
   const opt = LAMINOIR_OPTIONS.find((o) => o.id === id);
   if (!opt) return { ok: false, message: 'Option inconnue.' };
   if (w.player.reputation < opt.minReputation) return { ok: false, message: `Il faut une réputation de ${opt.minReputation} pour porter ce projet (tu es à ${w.player.reputation}).` };
-  if (w.player.money < opt.cost) return { ok: false, message: `Il faut apporter ${opt.cost} € (tu as ${w.player.money.toFixed(2)} €).` };
+  if (w.player.money < opt.cost) return { ok: false, message: `Il faut apporter ${opt.cost} € (tu as ${w.player.money.toFixed(2).replace('.', ',')} €).` };
   w.player.money = Math.round((w.player.money - opt.cost) * 100) / 100;
   const d = w.district;
   const clamp = (v: number): number => Math.max(0, Math.min(100, v));

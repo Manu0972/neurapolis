@@ -89,9 +89,9 @@ export function borrowVendorCredit(w: WorldState, vendorId: VendorId, amount: nu
     date: dateOf(day).iso,
     type: 'consequence',
     title: `Crédit marchand accordé : ${rel.name}`,
-    text: `Emprunt de ${amt.toFixed(2)} € sur la ligne de crédit de ${rel.name}. Dette actuelle : ${rel.creditBalance.toFixed(2)} / ${rel.creditLineLimit.toFixed(2)} €.`,
+    text: `Emprunt de ${amt.toFixed(2).replace('.', ',')} € sur la ligne de crédit de ${rel.name}. Dette actuelle : ${rel.creditBalance.toFixed(2).replace('.', ',')} / ${rel.creditLineLimit.toFixed(2).replace('.', ',')} €.`,
     causes: [
-      { facteur: `Ligne de crédit disponible : ${available.toFixed(2)} €`, poids: 3 },
+      { facteur: `Ligne de crédit disponible : ${available.toFixed(2).replace('.', ',')} €`, poids: 3 },
       { facteur: `Niveau de relation marchand : Palier ${rel.tier}`, poids: 2 },
     ],
   });
@@ -121,10 +121,10 @@ export function repayVendorCredit(w: WorldState, vendorId: VendorId, amount: num
     date: dateOf(day).iso,
     type: 'consequence',
     title: `Remboursement crédit marchand : ${rel.name}`,
-    text: `Remboursement de ${actualRepay.toFixed(2)} € sur la dette chez ${rel.name}. Dette restante : ${rel.creditBalance.toFixed(2)} €.`,
+    text: `Remboursement de ${actualRepay.toFixed(2).replace('.', ',')} € sur la dette chez ${rel.name}. Dette restante : ${rel.creditBalance.toFixed(2).replace('.', ',')} €.`,
     causes: [
-      { facteur: `Remboursement effectué : ${actualRepay.toFixed(2)} €`, poids: 3 },
-      { facteur: `Trésorerie restante : ${w.player.money.toFixed(2)} €`, poids: 2 },
+      { facteur: `Remboursement effectué : ${actualRepay.toFixed(2).replace('.', ',')} €`, poids: 3 },
+      { facteur: `Trésorerie restante : ${w.player.money.toFixed(2).replace('.', ',')} €`, poids: 2 },
     ],
   });
 
@@ -175,7 +175,7 @@ export function recordVendorTrade(
         title: `Palier marchand atteint : ${def.name}`,
         text: notifMsg,
         causes: [
-          { facteur: `Volume d’échanges cumulé : ${rel.spentTotal.toFixed(2)} €`, poids: 3 },
+          { facteur: `Volume d’échanges cumulé : ${rel.spentTotal.toFixed(2).replace('.', ',')} €`, poids: 3 },
           { facteur: `Nombre de transactions : ${rel.tradeCount}`, poids: 2 },
         ],
       });
@@ -187,7 +187,7 @@ export function recordVendorTrade(
     ok: true,
     message: tierUpgraded
       ? `Palier ${rel.tier} débloqué chez ${def.name} ! Remise : ${Math.round(rel.discountRate * 100)} % (Ligne de crédit : ${rel.creditLineLimit} €)`
-      : `Achat enregistré chez ${def.name}. Total dépensé : ${rel.spentTotal.toFixed(2)} € (${rel.tradeCount} transactions).`,
+      : `Achat enregistré chez ${def.name}. Total dépensé : ${rel.spentTotal.toFixed(2).replace('.', ',')} € (${rel.tradeCount} transactions).`,
     tierUpgraded,
     notifications: notifs,
   };
@@ -211,7 +211,7 @@ export function buyVendorSpecialGood(
 
   const finalCost = good.cost * (1 - rel.discountRate);
   if (w.player.money < finalCost) {
-    return { ok: false, message: `Fonds insuffisants (${finalCost.toFixed(2)} € requis, tu as ${w.player.money.toFixed(2)} €).` };
+    return { ok: false, message: `Fonds insuffisants (${finalCost.toFixed(2).replace('.', ',')} € requis, tu as ${w.player.money.toFixed(2).replace('.', ',')} €).` };
   }
 
   w.player.money -= finalCost;
@@ -229,7 +229,7 @@ export function buyVendorSpecialGood(
 
   return {
     ok: true,
-    message: `Acquisition réussie : ${good.name} pour ${finalCost.toFixed(2)} € (${Math.round(rel.discountRate * 100)} % de remise appliquée).`,
+    message: `Acquisition réussie : ${good.name} pour ${finalCost.toFixed(2).replace('.', ',')} € (${Math.round(rel.discountRate * 100)} % de remise appliquée).`,
   };
 }
 
@@ -307,7 +307,7 @@ export function executeVendorStockPurchase(
     if (availableCredit < deficit) {
       return {
         ok: false,
-        message: `Pas assez d'argent : le stock coûte ${finalCost.toFixed(2)} € (caisse ${p.balance.toFixed(2)} € · toi ${w.player.money.toFixed(2)} € · crédit dispo ${availableCredit.toFixed(2)} €).`,
+        message: `Pas assez d'argent : le stock coûte ${finalCost.toFixed(2).replace('.', ',')} € (caisse ${p.balance.toFixed(2).replace('.', ',')} € · toi ${w.player.money.toFixed(2).replace('.', ',')} € · crédit dispo ${availableCredit.toFixed(2).replace('.', ',')} €).`,
         baseCost,
         finalCost,
         discountRate,
@@ -371,7 +371,7 @@ export function executeVendorStockPurchase(
 
   return {
     ok: true,
-    message: `Stock +${stockUnits} unités (−${finalCost.toFixed(2)} €).${borrowedCredit > 0 ? ` (${borrowedCredit.toFixed(2)} € financés par crédit marchand)` : ''}`,
+    message: `Stock +${stockUnits} unités (−${finalCost.toFixed(2).replace('.', ',')} €).${borrowedCredit > 0 ? ` (${borrowedCredit.toFixed(2).replace('.', ',')} € financés par crédit marchand)` : ''}`,
     baseCost,
     finalCost,
     discountRate,

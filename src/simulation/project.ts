@@ -144,7 +144,7 @@ export function buyStock(w: WorldState): ProjectAction {
   if (p.balance + w.player.money < cost) {
     return {
       ok: false,
-      message: `Pas assez d'argent : le stock coûte ${cost} € (caisse ${p.balance.toFixed(2)} € · toi ${w.player.money.toFixed(2)} €).`,
+      message: `Pas assez d'argent : le stock coûte ${cost} € (caisse ${p.balance.toFixed(2).replace('.', ',')} € · toi ${w.player.money.toFixed(2).replace('.', ',')} €).`,
     };
   }
   const fromCaisse = Math.min(p.balance, cost);
@@ -184,7 +184,7 @@ export function setPrice(w: WorldState, price: number): ProjectAction {
   const p = w.project;
   if (!p?.active) return { ok: false, message: 'Pas de projet actif.' };
   p.price = round2(clamp(price, STAND_CONFIG.priceMin, prixMaxStand(dayIndexOf(w.time.tick))));
-  return { ok: true, message: `Prix fixé à ${p.price.toFixed(2)} €.` };
+  return { ok: true, message: `Prix fixé à ${p.price.toFixed(2).replace('.', ',')} €.` };
 }
 
 // ---------- Équipe ----------
@@ -298,9 +298,9 @@ export function runSalesSession(w: WorldState, place: string): SessionResult {
     pushEvent(w, {
       type: 'consequence',
       title: 'Stand désert',
-      text: `Une heure au stand, personne ne s’arrête. Le stock ne bouge pas. Le prix (${p.price.toFixed(2)} €) ? La météo ?`,
+      text: `Une heure au stand, personne ne s’arrête. Le stock ne bouge pas. Le prix (${p.price.toFixed(2).replace('.', ',')} €) ? La météo ?`,
       causes: [
-        { facteur: 'prix de vente', seuil: `${p.price.toFixed(2)} €`, poids: 2 },
+        { facteur: 'prix de vente', seuil: `${p.price.toFixed(2).replace('.', ',')} €`, poids: 2 },
         { facteur: 'météo', seuil: w.district.meteo, poids: 2 },
         { facteur: 'réputation dans le quartier', seuil: `${w.player.reputation}/100`, poids: 1 },
       ],
@@ -309,7 +309,7 @@ export function runSalesSession(w: WorldState, place: string): SessionResult {
   }
 
   p.stock -= sold;
-  post(w, `Vente — ${sold} unité(s) à ${p.price.toFixed(2)} €`, revenue);
+  post(w, `Vente — ${sold} unité(s) à ${p.price.toFixed(2).replace('.', ',')} €`, revenue);
   p.week.revenue = round2(p.week.revenue + revenue);
   // Rendements décroissants : une vente de plus compte moins quand tout le quartier te connaît.
   const repGain = w.player.reputation < LONG_RUN_CONFIG.reputationFullGainBelow ? 2 : 1;
@@ -325,9 +325,9 @@ export function runSalesSession(w: WorldState, place: string): SessionResult {
   pushEvent(w, {
     type: 'vie',
     title: `Vente au stand — ${sold} unités`,
-    text: `${sold} clients s’arrêtent en une heure : ${revenue.toFixed(2)} € dans la caisse. Réputation +${repGain}.${chapter2CollectiveSale ? ' L’équipe a tenu cette vente avec les règles décidées ensemble.' : ''}`,
+    text: `${sold} clients s’arrêtent en une heure : ${revenue.toFixed(2).replace('.', ',')} € dans la caisse. Réputation +${repGain}.${chapter2CollectiveSale ? ' L’équipe a tenu cette vente avec les règles décidées ensemble.' : ''}`,
     causes: [
-      { facteur: 'prix de vente', seuil: `${p.price.toFixed(2)} €`, poids: 2 },
+      { facteur: 'prix de vente', seuil: `${p.price.toFixed(2).replace('.', ',')} €`, poids: 2 },
       { facteur: 'réputation dans le quartier', seuil: `${w.player.reputation - repGain}/100`, poids: 1 },
       { facteur: 'météo', seuil: w.district.meteo, poids: 1 },
       ...(rival ? [{ facteur: `projection d'attractivité face à ${rival.name}`, seuil: `${playerShare}%`, poids: 2 }] : []),
@@ -360,7 +360,7 @@ export function runSalesSession(w: WorldState, place: string): SessionResult {
       causes: [{ facteur: `sessions réussies`, seuil: String(p.sessionsDone), poids: 2 }],
     });
   }
-  return { ok: true, message: `${sold} vente(s) — +${revenue.toFixed(2)} €.`, demand, sold, revenue };
+  return { ok: true, message: `${sold} vente(s) — +${revenue.toFixed(2).replace('.', ',')} €.`, demand, sold, revenue };
 }
 
 // ---------- Service de courses ----------
@@ -449,14 +449,14 @@ export function repartition(w: WorldState, mode?: RepartitionMode): RepartitionR
     pushEvent(w, {
       type: 'consequence',
       title: 'Semaine de perte',
-      text: `La semaine se termine en dessous de zéro (${result.toFixed(2)} €). Pas de gains à répartir — il faudra ajuster le prix, les coûts ou la météo.`,
+      text: `La semaine se termine en dessous de zéro (${result.toFixed(2).replace('.', ',')} €). Pas de gains à répartir — il faudra ajuster le prix, les coûts ou la météo.`,
       causes: [
-        { facteur: 'résultat hebdomadaire', seuil: `${result.toFixed(2)} €`, poids: 3 },
+        { facteur: 'résultat hebdomadaire', seuil: `${result.toFixed(2).replace('.', ',')} €`, poids: 3 },
         { facteur: 'fin de semaine', poids: 1 },
       ],
       once: 'semainesPerte_event',
     });
-    return { ok: false, message: `Semaine à perte (${result.toFixed(2)} €) : rien à répartir.`, shares: [] };
+    return { ok: false, message: `Semaine à perte (${result.toFixed(2).replace('.', ',')} €) : rien à répartir.`, shares: [] };
   }
   const pool = round2(Math.min(result, Math.max(0, p.balance)));
   if (pool <= 0) return { ok: false, message: 'La caisse est vide : rien à répartir.', shares: [] };
@@ -542,13 +542,13 @@ export function repartition(w: WorldState, mode?: RepartitionMode): RepartitionR
   pushEvent(w, {
     type: 'consequence',
     title: `Répartition — ${REPARTITION_MODE_LABELS[m]}`,
-    text: `Les gains de la semaine (${pool.toFixed(2)} €) sont partagés${conflict ? ' — non sans cris' : ''}. ${shares.map((s) => `${s.label} ${s.amount.toFixed(2)} €`).join(' · ')}.`,
+    text: `Les gains de la semaine (${pool.toFixed(2).replace('.', ',')} €) sont partagés${conflict ? ' — non sans cris' : ''}. ${shares.map((s) => `${s.label} ${s.amount.toFixed(2).replace('.', ',')} €`).join(' · ')}.`,
     causes: [
-      { facteur: 'résultat de la semaine', seuil: `${result.toFixed(2)} €`, poids: 3 },
+      { facteur: 'résultat de la semaine', seuil: `${result.toFixed(2).replace('.', ',')} €`, poids: 3 },
       { facteur: 'mode de répartition', seuil: REPARTITION_MODE_LABELS[m], poids: 2 },
     ],
   });
-  return { ok: true, message: `Répartition (${REPARTITION_MODE_LABELS[m]}) : ${pool.toFixed(2)} € partagés.`, shares };
+  return { ok: true, message: `Répartition (${REPARTITION_MODE_LABELS[m]}) : ${pool.toFixed(2).replace('.', ',')} € partagés.`, shares };
 }
 
 /** Choisit le mode de la prochaine répartition (appliqué en fin de semaine). */

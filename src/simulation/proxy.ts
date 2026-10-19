@@ -95,7 +95,7 @@ export function mandateBlockers(w: WorldState, id: string): string[] {
     out.push('En faire une de tes connexions (application Ascension → Connexions).');
   }
   if (id === 'lina' && w.player.age < 14) out.push('Maître Kessler ne signe pas pour un client de moins de 14 ans.');
-  if (m.setupFee > w.player.money) out.push(`Frais de mise en place : ${m.setupFee} € (tu as ${w.player.money.toFixed(2)} €).`);
+  if (m.setupFee > w.player.money) out.push(`Frais de mise en place : ${m.setupFee} € (tu as ${w.player.money.toFixed(2).replace('.', ',')} €).`);
   return out;
 }
 

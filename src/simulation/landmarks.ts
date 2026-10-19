@@ -46,7 +46,7 @@ export function activityBlocker(w: WorldState, a: LandmarkActivity): string | nu
     if (a.per === 'semaine' && weekIndexOf(last) === weekIndexOf(day)) return 'Déjà fait cette semaine.';
   }
   const money = a.effects.money ?? 0;
-  if (money < 0 && w.player.money < -money) return `Il te faut ${(-money).toFixed(2)} €.`;
+  if (money < 0 && w.player.money < -money) return `Il te faut ${(-money).toFixed(2).replace('.', ',')} €.`;
   return null;
 }
 
@@ -77,6 +77,6 @@ export function doLandmarkActivity(w: WorldState, landmarkId: string, activityId
   let learned = '';
   if (e.concept && learnConcept(w, e.concept)) learned = ' 📒 Nouveau concept au carnet.';
   w.flags[`repere:${a.id}`] = dayIndexOf(w.time.tick) + 1;
-  const money = Math.abs(gain) >= 0.01 ? ` (${gain >= 0 ? '+' : '−'}${Math.abs(gain).toFixed(2)} €)` : '';
+  const money = Math.abs(gain) >= 0.01 ? ` (${gain >= 0 ? '+' : '−'}${Math.abs(gain).toFixed(2).replace('.', ',')} €)` : '';
   return { ok: true, message: `${a.text}${money}${learned}`, minutes: a.minutes };
 }

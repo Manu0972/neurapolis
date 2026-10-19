@@ -144,7 +144,7 @@ function stockStep(w: WorldState, ch: number, r: number): MissionStep {
   }
   return goThenDo(w, ch, r, `c${ch}:stock`, lieu('epicerie'), `Va à l’${placeName('epicerie')} acheter du stock`, {
     kind: 'faire', icon: '📦', text: `Achète ton stock de goûters chez Mme Bertin (${cost} €)`,
-    detail: p?.active ? undefined : 'Ton Stand des Roses ouvre avec ce premier achat.',
+    detail: p?.active ? undefined : 'Acheter des goûters en gros pour les revendre un peu plus cher sur la place : ton petit commerce, le Stand des Roses, démarre avec ce premier achat.',
     action: { do: 'acheter_stock', label: `Acheter du stock (${cost} €)` },
   });
 }
@@ -152,7 +152,7 @@ function stockStep(w: WorldState, ch: number, r: number): MissionStep {
 /** Tenir le stand sur la place (avec le stock en préalable). */
 function sellStep(w: WorldState, ch: number, r: number, count?: MissionStep['count'], detail?: string): MissionStep {
   if (!w.project?.active || w.project.stock <= 0) return stockStep(w, ch, r);
-  return goThenDo(w, ch, r + 2, `c${ch}:vente`, lieu('place'), `Va sur la ${placeName('place').toLowerCase()} pour tenir ton stand`, {
+  return goThenDo(w, ch, r + 2, `c${ch}:vente`, lieu('place'), `Va sur la ${placeName('place').replace(/^Place/, 'place')} pour tenir ton stand`, {
     kind: 'faire', icon: '🧁', text: 'Tiens ton stand sur la place du Marché', count, detail,
     action: { do: 'tenir_stand', label: 'Tenir le stand (1 h)' },
   });

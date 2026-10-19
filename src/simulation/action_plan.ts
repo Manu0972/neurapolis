@@ -170,7 +170,7 @@ export function payTerritoryConcession(
   if (w.player.money < node.concessionCost) {
     return {
       ok: false,
-      message: `Fonds insuffisants (${node.concessionCost} € requis, tu as ${w.player.money.toFixed(2)} €).`,
+      message: `Fonds insuffisants (${node.concessionCost} € requis, tu as ${w.player.money.toFixed(2).replace('.', ',')} €).`,
     };
   }
 

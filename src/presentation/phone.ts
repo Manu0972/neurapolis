@@ -261,7 +261,7 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'accueil', focus?: 
       const owned = w.economy?.owned?.[l.unit.id];
       const isStall = l.unit.buildingId.startsWith('etal_');
       if (owned) {
-        card.appendChild(el('p', 'ph-note', `🏛️ Tu possèdes ces murs (achetés ${owned.price.toLocaleString('fr-FR')} €)${owned.tenant ? ` · loué à ${owned.tenant.name} : ${owned.tenant.rentPerDay.toFixed(2)} €/jour` : ''}.`));
+        card.appendChild(el('p', 'ph-note', `🏛️ Tu possèdes ces murs (achetés ${owned.price.toLocaleString('fr-FR')} €)${owned.tenant ? ` · loué à ${owned.tenant.name} : ${owned.tenant.rentPerDay.toFixed(2).replace('.', ',')} €/jour` : ''}.`));
         if (!owned.tenant && l.status !== 'loue_joueur') actions.appendChild(button('Mettre en location', () => act(rentOutProperty(w, l.unit.id))));
         if (l.status !== 'loue_joueur') {
           actions.appendChild(button('Vendre les murs', () => {

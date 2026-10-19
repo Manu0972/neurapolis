@@ -111,8 +111,8 @@ export function calculateMarketShares(w: WorldState, place: PlaceId): {
 /** D'où vient l'argent d'une contre-offensive, en clair. */
 function payLabel(fromCaisse: number, fromPoche: number): string {
   const parts: string[] = [];
-  if (fromCaisse > 0) parts.push(`${fromCaisse.toFixed(2)} € de la caisse du stand`);
-  if (fromPoche > 0) parts.push(`${fromPoche.toFixed(2)} € de ta poche`);
+  if (fromCaisse > 0) parts.push(`${fromCaisse.toFixed(2).replace('.', ',')} € de la caisse du stand`);
+  if (fromPoche > 0) parts.push(`${fromPoche.toFixed(2).replace('.', ',')} € de ta poche`);
   return parts.length ? `payée : ${parts.join(' + ')}` : 'gratuite';
 }
 
@@ -131,8 +131,8 @@ export function executeCounterStrategy(w: WorldState, strategyId: string, startA
   // Une contre-offensive défend le stand : la caisse du stand paie d'abord, la poche complète
   // (même règle que l'achat de stock). Avant, seule la poche payait, sans que rien ne le dise.
   if (standSpendable(w) < def.costMoney) {
-    const caisse = w.project?.active ? ` · caisse du stand ${Math.max(0, w.project.balance).toFixed(2)} €` : '';
-    return { ok: false, message: `Pas assez d'argent : ${def.costMoney.toFixed(2)} € requis (toi ${w.player.money.toFixed(2)} €${caisse}).` };
+    const caisse = w.project?.active ? ` · caisse du stand ${Math.max(0, w.project.balance).toFixed(2).replace('.', ',')} €` : '';
+    return { ok: false, message: `Pas assez d'argent : ${def.costMoney.toFixed(2).replace('.', ',')} € requis (toi ${w.player.money.toFixed(2).replace('.', ',')} €${caisse}).` };
   }
 
   if (w.player.needs.fatigue > 85) {
@@ -267,13 +267,13 @@ export function rivalDay(w: WorldState): Notification[] {
         pushEvent(w, {
           type: 'antagonisme',
           title: 'Guerre des prix du Drive HyperVal',
-          text: `Face au succès de ton Stand des Roses (${playerShare}% du marché sur la place), le Drive baisse le prix de ses goûters industriels à ${rival.price.toFixed(2)} € et intensifie ses tracts publicitaires.`,
+          text: `Face au succès de ton Stand des Roses (${playerShare}% du marché sur la place), le Drive baisse le prix de ses goûters industriels à ${rival.price.toFixed(2).replace('.', ',')} € et intensifie ses tracts publicitaires.`,
           causes: [
             { facteur: 'domination du joueur sur la place', seuil: `${playerShare}%`, poids: 3 },
             { facteur: 'réaction concurrentielle agressive', poids: 2 },
           ],
         });
-        out.push(notify('alerte', `Le Drive HyperVal réplique : prix cassés à ${rival.price.toFixed(2)} € !`));
+        out.push(notify('alerte', `Le Drive HyperVal réplique : prix cassés à ${rival.price.toFixed(2).replace('.', ',')} € !`));
       } else if (rival.id === 'distributeur_college') {
         // Le distributeur est approvisionné en nouveautés
         rival.quality = clamp(rival.quality + 10);

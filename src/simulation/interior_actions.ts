@@ -82,7 +82,7 @@ export function useFurniture(w: WorldState, placeId: PlaceId, furnitureId: strin
     return { ok: r.ok, message: r.message, minutes: r.ok ? DEVOIRS_MINUTES : 0 };
   }
   if (furn.money !== undefined && furn.money < 0 && w.player.money < Math.abs(furn.money)) {
-    return { ok: false, message: `Fonds insuffisants : il te faut ${Math.abs(furn.money).toFixed(2)} €.` };
+    return { ok: false, message: `Fonds insuffisants : il te faut ${Math.abs(furn.money).toFixed(2).replace('.', ',')} €.` };
   }
   if (furn.money !== undefined) w.player.money = Math.max(0, Math.round((w.player.money + furn.money) * 100) / 100);
   if (furn.needs) addNeeds(w, furn.needs);
