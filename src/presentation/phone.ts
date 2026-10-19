@@ -214,8 +214,11 @@ export function openPhone(ctx: PhoneContext, app: PhoneApp = 'accueil', focus?: 
     const daily = e.loans.reduce((s, l) => s + l.dailyPayment, 0) + ascDebts.reduce((s, d) => s + d.dailyRepay + d.dailyInterest, 0);
     const head = el('div', 'ph-wallet');
     head.appendChild(stat('Argent sur toi', eur(w.player.money), w.player.money < 0 ? 'bad' : ''));
+    // L'argent des ventes du stand est dans sa caisse, pas dans ta poche : on le montre aussi.
+    if (w.project?.active) head.appendChild(stat('Caisse du stand', eur(w.project.balance)));
     head.appendChild(stat('Dettes', eur(debtTotal), debtTotal > 0 ? 'bad' : ''));
     screen.appendChild(head);
+    if (w.project?.active) screen.appendChild(el('p', 'ph-note', 'Les ventes du Stand des Roses vont dans sa caisse : elle rachète le stock et paie les contre-offensives.'));
     screen.appendChild(el('p', 'ph-note', daily > 0 ? `Chaque jour, il sort ${eur(daily)} pour rembourser.` : 'Aucun remboursement à venir.'));
     const acts = el('div', 'ph-actions');
     acts.appendChild(button('🛍️ Dépenses', () => { current = 'depenses'; render(); }, 'ph-btn primary'));

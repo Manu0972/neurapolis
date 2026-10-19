@@ -3063,7 +3063,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
 
     const first = cols.actives[0] ?? cols.endormies[0] ?? cols.hostiles[0] ?? cols.mortes[0];
     if (first) selectGhost(first);
-    showModal('Le Conseil', 'les voix dans ta tête — 4 parlent, les autres attendent', body, true);
+    const nActives = councilActiveCount(world);
+    showModal('Le Conseil', nActives === 0
+      ? 'les voix dans ta tête — aucune ne s’est encore installée (elles se présentent au fil de l’aventure)'
+      : `les voix dans ta tête — ${nActives} voix installée${nActives > 1 ? 's' : ''} sur ${MAX_ACTIVE_VOICES} possibles`, body, true);
   }
 
   // ---------- Bandeau in-world (un fantôme parle) ----------
