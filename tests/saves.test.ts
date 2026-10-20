@@ -5,7 +5,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { createWorld } from '../src/core/store';
-import { exportSave, importSave, inspectAutoSave, saveToSlot, loadFromSlot, deleteSlot } from '../src/saves/persist';
+import { exportSave, importSave, inspectAutoSave, saveToSlot, loadFromSlot, deleteSlot, slotSummary } from '../src/saves/persist';
 import { CURRENT_SAVE_VERSION, migrateSave } from '../src/saves/migrations';
 import { runTicks } from '../src/simulation/engine';
 import { buyStock, createProject } from '../src/simulation/project';
@@ -72,6 +72,26 @@ describe('sauvegarde — aller-retour export/import', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe('sécurité des sauvegardes — validation des clés et réjection des tableaux', () => {
+  it('rejette les noms d’emplacements invalides (injection, traversée, caractères non autorisés)', () => {
+    const world = createWorld({ playerName: 'Camille' });
+    const invalidSlots = ['../auto', 'slot/1', 'slot name', '', 'a'.repeat(33), 'slot@key', 'slot!'];
+
+    for (const invalid of invalidSlots) {
+      expect(() => saveToSlot(invalid, world)).toThrow(/invalide/);
+      expect(() => loadFromSlot(invalid)).toThrow(/invalide/);
+      expect(() => deleteSlot(invalid)).toThrow(/invalide/);
+      expect(slotSummary(invalid)).toEqual({ slot: invalid, exists: false, error: 'nom d\'emplacement invalide' });
+    }
+  });
+
+  it('rejette les tableaux JSON lors de la migration de sauvegarde', () => {
+    expect(() => migrateSave([])).toThrow(/illisible/);
+    expect(() => migrateSave([1, 2, 3])).toThrow(/illisible/);
+    expect(() => importSave('[1, 2, 3]')).toThrow(/illisible/);
   });
 });
 
