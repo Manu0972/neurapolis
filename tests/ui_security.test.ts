@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { escapeHtml, showGhostAdvicePopup, updateHud, buildUi } from '../src/presentation/ui';
+import { escapeHtml, showGhostAdvicePopup, updateHud } from '../src/presentation/ui';
+import { ghostSvgMarkup } from '../src/presentation/ghost-avatar';
 import { createWorld } from '../src/core/store';
 
 describe('UI Security & XSS Prevention (escapeHtml)', () => {
@@ -66,6 +67,18 @@ describe('UI Security & XSS Prevention (escapeHtml)', () => {
     const widgetHtml = mockWidgetEl.innerHTML;
     expect(widgetHtml).not.toContain('<iframe src="javascript:alert(1)">');
     expect(widgetHtml).toContain('&lt;iframe src=&quot;javascript:alert(1)&quot;&gt;');
+  });
+
+  it('sanitizes ghost ID, mood and thinker name in ghostSvgMarkup', () => {
+    const maliciousId = 'smith" onload="alert(1)"';
+    const maliciousMood = 'calme"><script>alert(2)</script>' as any;
+    const markup = ghostSvgMarkup(maliciousId, maliciousMood);
+
+    expect(markup).not.toContain('data-ghost="smith" onload="alert(1)"');
+    expect(markup).not.toContain('<script>alert(2)</script>');
+    expect(markup).toContain('data-ghost="smith&quot; onload=&quot;alert(1)&quot;"');
+    expect(markup).toContain('data-mood="calme&quot;&gt;&lt;script&gt;alert(2)&lt;/script&gt;"');
+    expect(markup).toContain('aria-label="smith&quot; onload=&quot;alert(1)&quot;"');
   });
 
   it('safely builds E2E panel DOM elements', () => {
