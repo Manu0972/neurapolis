@@ -8,6 +8,7 @@ export interface CharacterSpec {
   heightM?: number;               // 1.55 par défaut pour un ado de 12 ans, 1.75 pour un adulte
   bodyColor?: string;             // pour les PNJ sans apparence complète
   legColor?: string;              // optionnel pour PNJ
+  detail?: 'full' | 'low';
 }
 
 export interface Character3D {
@@ -17,7 +18,7 @@ export interface Character3D {
   dispose(): void;
 }
 
-// Palettes canoniques : source unique dans src/core/player_customization.ts (intégration E).
+// Palettes canoniques : source unique dans src/core/player_customization.ts
 const toHex = (info: Record<string, { hex: string }>): Record<string, string> =>
   Object.fromEntries(Object.entries(info).map(([k, v]) => [k, v.hex]));
 const SKIN_TONE_PALETTE: Record<string, string> = toHex(SKIN_TONE_INFO);
@@ -39,7 +40,7 @@ function parseColorHex(colorStr: string | undefined, palette: Record<string, str
   return parseInt(defaultHex.replace('#', ''), 16);
 }
 
-// Cache global partagé pour optimiser les performances (60 personnages à 60 fps)
+// Cache global partagé pour optimiser les performances (<1500 triangles, 60 persos à 60 fps)
 const sharedGeometries = new Map<string, THREE.BufferGeometry>();
 const sharedMaterials = new Map<number, THREE.Material>();
 
@@ -94,7 +95,7 @@ function hashSpec(spec: CharacterSpec): number {
 
 export function createCharacter(spec: CharacterSpec): Character3D {
   const targetHeight = spec.heightM ?? 1.55;
-  const baseHeight = 1.55; // Hauteur de référence exacte de la hiérarchie
+  const baseHeight = 1.55; // Hauteur de référence de la hiérarchie
   const scale = targetHeight / baseHeight;
 
   const app = spec.appearance || {};
@@ -297,8 +298,39 @@ export function createCharacter(spec: CharacterSpec): Character3D {
     pigtailR.position.set(-0.15, 0.02, 0);
     pigtailR.rotation.z = 0.6;
     hairGroup.add(topCap, pigtailL, pigtailR);
+  } else if (style === 'long') {
+    const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.09, 0.25), matHair);
+    topCap.position.y = 0.045;
+    const back = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.32, 0.05), matHair);
+    back.position.set(0, -0.12, 0.11);
+    hairGroup.add(topCap, back);
+  } else if (style === 'afro') {
+    const sphere = new THREE.Mesh(getSharedSphereGeometry(0.18), matHair);
+    sphere.position.y = 0.06;
+    hairGroup.add(sphere);
+  } else if (style === 'chignon') {
+    const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.08, 0.24), matHair);
+    topCap.position.y = 0.04;
+    const bun = new THREE.Mesh(getSharedSphereGeometry(0.08), matHair);
+    bun.position.set(0, 0.10, 0.05);
+    hairGroup.add(topCap, bun);
+  } else if (style === 'queue') {
+    const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.08, 0.24), matHair);
+    topCap.position.y = 0.04;
+    const tail = new THREE.Mesh(getSharedCylinderGeometry(0.03, 0.015, 0.22), matHair);
+    tail.position.set(0, -0.02, 0.13);
+    tail.rotation.x = 0.5;
+    hairGroup.add(topCap, tail);
+  } else if (style === 'crete') {
+    const mohawk = new THREE.Mesh(getSharedBoxGeometry(0.06, 0.16, 0.26), matHair);
+    mohawk.position.y = 0.08;
+    hairGroup.add(mohawk);
+  } else if (style === 'rase') {
+    const stubble = new THREE.Mesh(getSharedBoxGeometry(0.25, 0.02, 0.23), matHair);
+    stubble.position.y = 0.01;
+    hairGroup.add(stubble);
   } else {
-    // 'court' (par défaut)
+    // 'court', 'frange', 'degrade', 'locks', default
     const topCap = new THREE.Mesh(getSharedBoxGeometry(0.26, 0.09, 0.24), matHair);
     topCap.position.y = 0.045;
     const fringe = new THREE.Mesh(getSharedBoxGeometry(0.24, 0.04, 0.05), matHair);
