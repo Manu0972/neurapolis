@@ -17,6 +17,7 @@ import {
   acknowledgeEvents, ensureMultiplayer, publicProfile, receiveMultiEvent, renameSelf, upsertPeer,
 } from '../simulation/multiplayer';
 import { connectRelay, type NetClient, type NetStatus } from './client';
+import { pushSample, samplePose, type PoseSample } from './interp';
 import { NET_PROTOCOL, cleanText, displayAddress, normalizeRelayUrl, parseGameMsg, type GameMsg, type RelayMsg, type SkipKind } from './protocol';
 
 export interface RemotePlayer {
@@ -26,13 +27,20 @@ export interface RemotePlayer {
   appearance: PlayerAppearance;
   gender?: PlayerGender;
   heightM: number;
+  /** Âge (profil) et modèle 3D choisi dans son créateur : pour l'habiller comme il se voit. */
+  age?: number;
+  model?: string;
   x: number;
   z: number;
   h: number;
   s: number;
   inside: boolean;
+  /** Dans une fenêtre ou une cinématique (son horloge est en pause). */
+  busy: boolean;
   /** Dernière position reçue (ms, horloge locale). */
   seenAt: number;
+  /** Dernières poses reçues, pour un mouvement lissé (src/net/interp.ts). */
+  track: PoseSample[];
 }
 
 export interface SessionHooks {
@@ -45,7 +53,12 @@ export interface SessionHooks {
   /** Quelque chose a changé (panneau, HUD). */
   changed(): void;
   /** Apparence et taille du joueur local. */
-  me(): { appearance: PlayerAppearance; gender?: PlayerGender; heightM: number };
+  me(): { appearance: PlayerAppearance; gender?: PlayerGender; heightM: number; model?: string };
+  /**
+   * Le monde vient de changer à cause d'un autre joueur (événement reçu, accusé, nouveau venu) :
+   * à sauvegarder tout de suite, sinon un rechargement perdrait un prêt d'un côté seulement.
+   */
+  persist?(): void;
 }
 
 /** Ce que la session emprunte à son environnement (remplaçable dans les tests). */
@@ -85,6 +98,20 @@ const MUTE_AFTER = 300;
 const RESEND_MS = 4000;
 /** Une connexion silencieuse depuis ce délai peut être reprise par le même joueur (reconnexion). */
 const TAKEOVER_MS = 3000;
+/** L'hôte occupé (fenêtre, cinématique, onglet en arrière-plan) laisse les autres avancer de 1 h de jeu au plus. */
+export const HOST_BUSY_SLACK = 6;
+/** Sans nouvelle position de l'hôte depuis ce délai, sa partie est considérée en pause (onglet masqué). */
+const HOST_SILENT_MS = 3000;
+
+/**
+ * Vitesse de l'horloge d'un invité (multiplicateur, 0 = arrêt). En retard sur l'hôte : rattrapage
+ * rapide. À l'heure : on attend l'hôte, sauf s'il est occupé (cinématique, fenêtre) : on avance alors
+ * à sa propre allure, d'une heure de jeu au plus, pour qu'un joueur en cinématique ne bloque pas l'autre.
+ */
+export function guestClockSpeed(tick: number, hostTick: number, hostBusy: boolean, ownSpeed: number): number {
+  if (tick < hostTick) return hostTick - tick > 6 ? 900 : 90;
+  return hostBusy && tick < hostTick + HOST_BUSY_SLACK ? ownSpeed : 0;
+}
 
 export class MultiplayerSession {
   private client: NetClient | null = null;
@@ -117,6 +144,10 @@ export class MultiplayerSession {
   private readonly muted = new Set<number>();
   private readonly warned = new Set<number>();
   private readonly lastHeard = new Map<number, number>();
+  /** Dernière demande de présentation à une connexion inconnue (ms). */
+  private readonly askedHello = new Map<number, number>();
+  /** Génération de la connexion : les rappels d'un ancien client (fermeture tardive) sont ignorés. */
+  private gen = 0;
 
   constructor(private world: WorldState, private hooks: SessionHooks, env: Partial<SessionEnv> = {}) {
     this.env = { ...browserEnv(), ...env };
@@ -163,9 +194,12 @@ export class MultiplayerSession {
     }
     this.env.storage.set(MP_KEYS.address, address.trim());
     this.env.storage.set(MP_KEYS.resume, '1');
+    const gen = ++this.gen;
     this.client = this.env.connect(url, {
-      onMessage: (msg) => this.onRelay(msg),
+      onMessage: (msg) => { if (gen === this.gen) this.onRelay(msg); },
       onStatus: (s, detail) => {
+        // Un ancien client qui finit de se fermer ne doit pas effacer la nouvelle connexion.
+        if (gen !== this.gen) return;
         this.status = s;
         this.detail = detail ?? '';
         if (s === 'connecte') this.wasConnected = true;
@@ -198,6 +232,7 @@ export class MultiplayerSession {
   private close(): void {
     const c = this.client;
     this.client = null;
+    this.gen++;
     c?.close();
     this.status = 'deconnecte';
     this.wasConnected = false;
@@ -215,13 +250,14 @@ export class MultiplayerSession {
     this.muted.clear();
     this.warned.clear();
     this.lastHeard.clear();
+    this.askedHello.clear();
   }
 
   private send(msg: GameMsg): boolean { return this.client?.send(msg) ?? false; }
 
   private hello(reply = false): GameMsg {
     const me = this.hooks.me();
-    return { t: 'hello', v: NET_PROTOCOL, player: publicProfile(this.world), appearance: me.appearance, gender: me.gender, heightM: me.heightM, mode: this.isHost ? this.mode : undefined, reply };
+    return { t: 'hello', v: NET_PROTOCOL, player: publicProfile(this.world), appearance: me.appearance, gender: me.gender, heightM: me.heightM, model: me.model, mode: this.isHost ? this.mode : undefined, reply };
   }
 
   private allow(conn: number, kind: string): boolean {
@@ -298,6 +334,15 @@ export class MultiplayerSession {
     const msg = parseGameMsg(raw);
     if (!msg || !this.allow(conn, msg.t)) return;
     this.lastHeard.set(conn, this.env.now());
+    // Un joueur qu'on entend sans le connaître (présentation perdue pendant un chargement, une
+    // reconnexion) : on se présente à nouveau, il répond par la sienne. Au plus toutes les 3 s.
+    if (msg.t !== 'hello' && msg.t !== 'version' && !this.remotes.has(conn)) {
+      const now = this.env.now();
+      if (now - (this.askedHello.get(conn) ?? -Infinity) > 3000) {
+        this.askedHello.set(conn, now);
+        this.send(this.hello());
+      }
+    }
     this.onGame(conn, msg);
   }
 
@@ -336,14 +381,16 @@ export class MultiplayerSession {
         upsertPeer(this.world, p);
         const name = m.peers[p.id]?.name ?? p.name;
         this.remotes.set(conn, {
-          conn, id: p.id, name, appearance: msg.appearance, gender: msg.gender, heightM: msg.heightM,
-          x: prev?.x ?? 0, z: prev?.z ?? 0, h: prev?.h ?? 0, s: 0, inside: prev?.inside ?? true, seenAt: prev?.seenAt ?? now,
+          conn, id: p.id, name, appearance: msg.appearance, gender: msg.gender, heightM: msg.heightM, age: p.age, model: msg.model,
+          x: prev?.x ?? 0, z: prev?.z ?? 0, h: prev?.h ?? 0, s: 0, inside: prev?.inside ?? true, busy: prev?.busy ?? false,
+          seenAt: prev?.seenAt ?? now, track: prev?.track ?? [],
         });
         if (conn === this.host && msg.mode) this.mode = msg.mode;
         if (!prev) {
           // Nouveau venu (ou retour) : ce qui l'attend dans la boîte d'envoi part tout de suite.
           for (const e of m.outbox) if (e.to === p.id) this.lastSent.delete(e.id);
           this.hooks.notify([{ kind: 'bien', text: `📡 ${name} est dans la partie.` }]);
+          this.hooks.persist?.();
         }
         if (!msg.reply) this.send(this.hello(true));
         return;
@@ -353,11 +400,14 @@ export class MultiplayerSession {
         if (!r || r.id !== msg.player.id) return;
         upsertPeer(this.world, msg.player);
         r.name = m.peers[r.id]?.name ?? r.name;
+        r.age = msg.player.age;
         return;
       }
       case 'pose': {
         const r = this.remotes.get(conn);
-        if (r) Object.assign(r, { x: msg.x, z: msg.z, h: msg.h, s: msg.s, inside: msg.inside, seenAt: now });
+        if (!r) return;
+        Object.assign(r, { x: msg.x, z: msg.z, h: msg.h, s: msg.s, inside: msg.inside, busy: msg.busy === true, seenAt: now });
+        pushSample(r.track, { t: now, x: msg.x, z: msg.z, h: msg.h, s: msg.s });
         return;
       }
       case 'clock':
@@ -374,14 +424,17 @@ export class MultiplayerSession {
         if (!r || msg.ev.from !== r.id) return; // usurpation : ignoré
         const notes = receiveMultiEvent(this.world, msg.ev, this.mode);
         this.send({ t: 'ack', ids: [msg.ev.id], to: conn });
+        this.hooks.persist?.();
         if (notes.length) this.hooks.notify(notes);
         return;
       }
       case 'ack': {
         const r = this.remotes.get(conn);
         if (!r) return;
+        const before = m.outbox.length;
         acknowledgeEvents(this.world, r.id, msg.ids);
         for (const id of msg.ids) this.lastSent.delete(id);
+        if (m.outbox.length !== before) this.hooks.persist?.();
         return;
       }
       case 'chat': {
@@ -398,13 +451,13 @@ export class MultiplayerSession {
   }
 
   /** Chaque image : position, profil, horloge (hôte), événements à envoyer ou à renvoyer. */
-  update(nowMs: number, pose: { x: number; z: number; heading: number; speed: number }, inside: boolean, pace: string): void {
+  update(nowMs: number, pose: { x: number; z: number; heading: number; speed: number }, inside: boolean, pace: string, busy = false): void {
     if (!this.connected) return;
     const m = ensureMultiplayer(this.world);
     if (nowMs - this.lastPose > 100) {
       this.lastPose = nowMs;
       const r2 = (v: number): number => (Number.isFinite(v) ? Math.round(v * 100) / 100 : 0);
-      this.send({ t: 'pose', x: r2(pose.x), z: r2(pose.z), h: r2(pose.heading), s: Math.round((Number.isFinite(pose.speed) ? pose.speed : 0) * 10) / 10, inside });
+      this.send({ t: 'pose', x: r2(pose.x), z: r2(pose.z), h: r2(pose.heading), s: Math.round((Number.isFinite(pose.speed) ? pose.speed : 0) * 10) / 10, inside, busy });
     }
     if (nowMs - this.lastProfile > 5000) {
       this.lastProfile = nowMs;
@@ -461,9 +514,31 @@ export class MultiplayerSession {
     return true;
   }
 
-  /** Autres joueurs visibles dehors (position récente). */
-  visibleRemotes(nowMs: number): RemotePlayer[] {
-    return [...this.remotes.values()].filter((r) => !r.inside && nowMs - r.seenAt < 60000);
+  /**
+   * Autres joueurs visibles dehors (position reçue dans la dernière minute), à leur position lissée :
+   * légèrement dans le passé, interpolée entre deux poses reçues (src/net/interp.ts). L'horloge est
+   * celle de la session (celle des poses reçues), pas celle de l'image.
+   */
+  visibleRemotes(now = this.env.now()): RemotePlayer[] {
+    const out: RemotePlayer[] = [];
+    for (const r of this.remotes.values()) {
+      if (r.inside || now - r.seenAt >= 60000) continue;
+      const p = samplePose(r.track, now);
+      out.push(p ? { ...r, ...p } : r);
+    }
+    return out;
+  }
+
+  /** L'hôte est-il occupé (fenêtre, cinématique) ou silencieux (onglet masqué : sa partie est en pause) ? */
+  get hostBusy(): boolean {
+    if (!this.followsHost) return false;
+    const h = [...this.remotes.values()].find((r) => r.conn === this.host);
+    return !!h && (h.busy || this.env.now() - h.seenAt > HOST_SILENT_MS);
+  }
+
+  /** Vitesse de l'horloge locale quand on suit l'hôte (voir `guestClockSpeed`). */
+  clockSpeed(tick: number, ownSpeed: number): number {
+    return this.hostTick === null ? ownSpeed : guestClockSpeed(tick, this.hostTick, this.hostBusy, ownSpeed);
   }
 
   pendingOffers(): number { return this.world.multiplayer?.offers.length ?? 0; }

@@ -109,7 +109,7 @@ import { openConvocationModal, openDinnerModal, openFamilyPanel, openRentreeCard
 import { bedroomExtras, openPlanner, openShelf, type PlanCtx } from './plan-ui';
 import { openDuelModal } from './ascension-ui';
 import { buildAppearanceEditor } from './appearance-editor';
-import { rememberPlayerRigChoice } from './city3d/rigged/playerModel';
+import { playerRigModel, rememberPlayerRigChoice } from './city3d/rigged/playerModel';
 import { createAvatarPreview } from './avatar-preview3d';
 import { chapterEndDue, openNotebooks, openUnreadBeat, openingDue, playChapterEnd, playOpening } from './story-ui';
 import { ensureRoom, planChecklist } from '../simulation/room';
@@ -540,7 +540,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       ui.mpBtn.classList.toggle('on', !!mp?.connected);
       syncPaceUi();
     },
-    me: () => ({ appearance: world.player.appearance, gender: world.player.gender, heightM: heightForAge(world.player.age) }),
+    me: () => ({ appearance: world.player.appearance, gender: world.player.gender, heightM: heightForAge(world.player.age), model: playerRigModel() }),
+    // Prêt, remboursement, accusé : enregistré aussitôt (un rechargement ne le perd pas d'un côté seulement).
+    persist: () => { try { saveToSlot('auto', world); } catch { /* stockage indisponible */ } },
   });
   ui.mpBtn.addEventListener('click', () => {
     if (modalOpen || !mp) return;
@@ -3218,9 +3220,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           const paceScale = PACE_BY_ID[pacePrefs.pace].scale;
           const ellipse = isTraveling(world) || isOnBus(world) || isInClass(world) || world.player.asleep || inShift(world);
           const taskRunning = pendingTaskTicks > 0 && !ellipse;
-          // Multijoueur : un invité suit l'horloge de l'hôte (rattrapage rapide, jamais d'avance).
-          const follow = mp?.followsHost ? mp.hostTick : null;
-          const speed = follow !== null && follow !== undefined ? (skipping || world.time.tick >= follow ? 0 : follow - world.time.tick > 6 ? 900 : 90) : skipping || (isOnSite(world) && !world.player.asleep) ? 0 : isTraveling(world) ? TRAVEL_SPEED : isOnBus(world) ? BUS_SPEED : isInClass(world) ? CLASS_SPEED : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : taskRunning ? TASK_SPEED : paceScale;
+          // Multijoueur : un invité suit l'horloge de l'hôte (rattrapage rapide ; pas d'avance, sauf d'une
+          // heure quand l'hôte est en cinématique ou dans une fenêtre : il ne bloque pas les autres).
+          const follows = !!mp?.followsHost;
+          const ownSpeed = skipping || (isOnSite(world) && !world.player.asleep) ? 0 : isTraveling(world) ? TRAVEL_SPEED : isOnBus(world) ? BUS_SPEED : isInClass(world) ? CLASS_SPEED : world.player.asleep ? NIGHT_SPEED : inShift(world) ? SHIFT_SPEED : taskRunning ? TASK_SPEED : paceScale;
+          const speed = follows && mp ? (skipping ? 0 : mp.clockSpeed(world.time.tick, ownSpeed)) : ownSpeed;
           if (busyUntilTick && world.time.tick >= busyUntilTick) busyUntilTick = 0;
           if (!taskRunning && pendingTaskTicks <= 0 && !busyUntilTick) ui.taskChip.classList.add('hidden');
           if (speed !== 0) {
@@ -3233,7 +3237,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
             // Horloge à la minute entre deux ticks (temps réel, allure lente).
             setClockSubMinutes(ellipse || taskRunning ? 0 : subMinutes(acc, tickMs));
             while (acc >= tickMs) {
-              if (follow !== null && follow !== undefined && world.time.tick >= follow) { acc = 0; break; }
+              if (follows && mp && mp.clockSpeed(world.time.tick, ownSpeed) === 0) { acc = 0; break; }
               acc -= tickMs;
               if (taskRunning && pendingTaskTicks > 0) {
                 pendingTaskTicks -= 1;
@@ -3333,9 +3337,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       // Multijoueur : on envoie sa position, on affiche les autres ; et les habitants des quartiers.
       const figures: RemoteAvatar[] = [];
       if (mp?.connected) {
-        mp.update(now, renderer3D.playerPose, renderer3D.inInterior, pacePrefs.pace);
+        // `modalOpen` (fenêtre, dialogue, cinématique) : les autres voient 💬 et ne sont pas bloqués par notre pause.
+        mp.update(now, renderer3D.playerPose, renderer3D.inInterior, pacePrefs.pace, modalOpen);
         const others = mp.visibleRemotes(now);
-        for (const r of others) figures.push({ id: r.id, name: r.name, appearance: r.appearance, gender: r.gender, heightM: r.heightM, x: r.x, z: r.z, h: r.h, s: r.s });
+        for (const r of others) figures.push({ id: r.id, name: r.name, appearance: r.appearance, gender: r.gender, heightM: r.heightM, age: r.age, model: r.model, busy: r.busy, x: r.x, z: r.z, h: r.h, s: r.s });
         setPlayerMarkers(others.map((r) => ({ x: r.x - 0.5, y: r.z - 0.5, label: r.name })));
       } else if (renderer3D.remotePlayers.length) {
         setPlayerMarkers([]);

@@ -87,6 +87,11 @@ export function connectRelay(url: string, handlers: {
     sock.onerror = () => { /* onclose suit */ };
   };
   open();
+  // Onglet fermé ou rechargé : on ferme proprement, et le relais prévient les autres tout de suite
+  // (sinon ils ne l'apprennent qu'au ping suivant, 10 à 20 s plus tard). Revenu de l'historique,
+  // l'onglet se reconnecte tout seul (fermeture non demandée = nouvel essai).
+  const bye = (): void => { if (ws && ws.readyState <= WebSocket.OPEN) ws.close(1000); };
+  globalThis.addEventListener?.('pagehide', bye);
 
   return {
     get status() { return status; },
@@ -97,6 +102,7 @@ export function connectRelay(url: string, handlers: {
     },
     close(): void {
       closed = true;
+      globalThis.removeEventListener?.('pagehide', bye);
       if (timer) clearTimeout(timer);
       const sock = ws;
       ws = null;

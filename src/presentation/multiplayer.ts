@@ -32,6 +32,7 @@ export interface MultiPanelCtx {
 type HostApi = { host(): Promise<{ ok: boolean; port?: number; addresses?: { name: string; address: string; meshnet: boolean }[]; error?: string }> };
 
 const eur = (v: number): string => `${Math.round(v).toLocaleString('fr-FR')} €`;
+const shopsText = (n: number): string => (n === 0 ? 'aucun commerce' : n === 1 ? '1 commerce' : `${n} commerces`);
 
 function button(label: string, onClick: () => void, cls = 'ph-btn'): HTMLButtonElement {
   const b = el('button', cls, label);
@@ -119,14 +120,19 @@ export function openMultiplayerPanel(ctx: MultiPanelCtx): void {
     const peer = m.peers[r.id];
     const card = el('div', 'ph-card mp-peer');
     const trust = peer?.trust ?? 0;
-    card.appendChild(el('div', 'ph-card-title', `${r.name} · palier ${peer?.tier ?? 1} · réputation ${peer?.reputation ?? '?'} · ${peer?.shops.length ?? 0} commerce(s)`));
+    card.appendChild(el('div', 'ph-card-title', `${r.name} · palier ${peer?.tier ?? 1} · réputation ${peer?.reputation ?? '?'} · ${shopsText(peer?.shops.length ?? 0)}`));
     card.appendChild(el('p', 'ph-note', `Relation : ${trust > 30 ? '🤝 alliance' : trust < -30 ? '⚔️ hostilité' : '😐 neutre'} (${Math.round(trust)})`));
     // Paramètres du prêt et de la formation.
     const amount = el('input', 'mp-input small') as HTMLInputElement;
     amount.type = 'number';
     amount.min = '10';
     amount.value = String(Math.max(10, Math.round(Math.min(200, w.player.money / 2))));
+    amount.setAttribute('aria-label', 'Montant prêté en euros');
     const rate = el('select', 'mp-input small') as HTMLSelectElement;
+    rate.setAttribute('aria-label', 'Intérêts');
+    // Montant et intérêts AVANT le bouton : on voit ce qu'on prête avant de cliquer.
+    const loanParams = el('label', 'mp-loan', 'Montant : ');
+    loanParams.append(amount, ' € ', rate);
     for (const [v, l] of [['0', 'sans intérêts'], ['0.05', '5 %'], ['0.1', '10 %']] as const) {
       const o = el('option', '', l) as HTMLOptionElement;
       o.value = v;
@@ -154,8 +160,8 @@ export function openMultiplayerPanel(ctx: MultiPanelCtx): void {
         }, `ph-btn mp-btn${def.kind === 'sabotage' ? ' danger' : ''}`);
         b.title = block ?? def.pitch.split('{autre}').join(r.name);
         b.disabled = !!block && !(def.id === 'pret' || def.id === 'formation');
+        if (def.id === 'pret') row.appendChild(loanParams);
         row.appendChild(b);
-        if (def.id === 'pret') { row.appendChild(amount); row.appendChild(rate); }
         if (def.id === 'formation' && concept.options.length) row.appendChild(concept);
       }
       card.appendChild(row);

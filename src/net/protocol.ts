@@ -12,8 +12,8 @@
 import type { MultiEvent, MultiMechanicId, MultiMode } from '../core/multiplayer_types';
 import {
   DEFAULT_PLAYER_APPEARANCE, VALID_ACCESSORIES, VALID_BEARDS, VALID_BODIES, VALID_EYE_COLORS, VALID_EYES, VALID_GENDERS, VALID_GLASSES,
-  VALID_HAIR_COLORS, VALID_HAIR_STYLES, VALID_OUTFIT_COLORS, VALID_OUTFIT_STYLES, VALID_SKIN_TONES,
-  type PlayerAppearance, type PlayerGender,
+  VALID_GEAR, VALID_HAIR_COLORS, VALID_HAIR_STYLES, VALID_OUTFIT_COLORS, VALID_OUTFIT_STYLES, VALID_SKIN_TONES,
+  type PlayerAppearance, type PlayerGear, type PlayerGearColorKey, type PlayerGender, type PlayerOutfitColor,
 } from '../core/types';
 import type { PeerProfile } from '../simulation/multiplayer';
 import { MULTI_MECHANIC_BY_ID } from '../data/multi_mechanics';
@@ -38,11 +38,11 @@ export type RelayMsg =
 
 export type GameMsg =
   /** Présentation : profil, apparence ; l'hôte y joint le mode de la partie. */
-  | { t: 'hello'; v: number; player: PeerProfile; appearance: PlayerAppearance; gender?: PlayerGender; heightM: number; mode?: MultiMode; reply?: boolean }
+  | { t: 'hello'; v: number; player: PeerProfile; appearance: PlayerAppearance; gender?: PlayerGender; heightM: number; mode?: MultiMode; reply?: boolean; model?: string }
   /** Profil à jour (commerces, réputation, palier), quelques fois par minute. */
   | { t: 'profile'; player: PeerProfile }
   /** Position dans la ville (≈ 10 fois par seconde). */
-  | { t: 'pose'; x: number; z: number; h: number; s: number; inside: boolean }
+  | { t: 'pose'; x: number; z: number; h: number; s: number; inside: boolean; busy?: boolean }
   /** Horloge partagée, envoyée par l'hôte. */
   | { t: 'clock'; tick: number; pace: string; mode: MultiMode }
   /** Demande d'allure envoyée à l'hôte par un autre joueur. */
@@ -128,7 +128,33 @@ export function cleanAppearance(v: unknown): PlayerAppearance {
     freckles: typeof a.freckles === 'boolean' ? a.freckles : d.freckles,
     beard: oneOf(VALID_BEARDS, a.beard) ?? d.beard,
     accessory: oneOf(VALID_ACCESSORIES, a.accessory) ?? d.accessory,
+    // Personnalisation v26 : silhouette, bas, chaussures, accessoires portés et leurs couleurs.
+    // Sans eux, l'autre joueur apparaissait avec la tenue par défaut au lieu de la sienne.
+    ...cleanCustomization(a),
   };
+}
+
+/** Champs de personnalisation (save v26), recopiés seulement s'ils sont valides. */
+function cleanCustomization(a: Record<string, unknown>): Partial<PlayerAppearance> {
+  const out: Partial<PlayerAppearance> = {};
+  if (typeof a.model === 'string' && /^[\p{L}\p{N}_.-]{1,64}$/u.test(a.model)) out.model = a.model;
+  const bottom = oneOf(VALID_OUTFIT_COLORS, a.bottomColor);
+  if (bottom) out.bottomColor = bottom;
+  const shoes = oneOf(VALID_OUTFIT_COLORS, a.shoesColor);
+  if (shoes) out.shoesColor = shoes;
+  if (Array.isArray(a.gear)) {
+    const gear = [...new Set(a.gear.filter((g): g is PlayerGear => VALID_GEAR.includes(g as PlayerGear)))].slice(0, VALID_GEAR.length);
+    if (gear.length) out.gear = gear;
+  }
+  if (isObj(a.gearColors)) {
+    const gc: Partial<Record<PlayerGearColorKey, PlayerOutfitColor>> = {};
+    for (const [k, v] of Object.entries(a.gearColors)) {
+      const color = oneOf(VALID_OUTFIT_COLORS, v);
+      if (color && (k === 'lunettes' || VALID_GEAR.includes(k as PlayerGear))) gc[k as PlayerGearColorKey] = color;
+    }
+    if (Object.keys(gc).length) out.gearColors = gc;
+  }
+  return out;
 }
 
 /** Profil public reçu (la simulation le borne encore : locaux et catégories connus). */
@@ -192,6 +218,8 @@ export function parseGameMsg(raw: unknown): GameMsg | { t: 'version'; v: number;
         t: 'hello', v: NET_PROTOCOL, player, appearance: cleanAppearance(raw.appearance),
         gender: oneOf(VALID_GENDERS, raw.gender), heightM: bounded(raw.heightM, 1, 2.2) ?? 1.5,
         mode: oneOf(MODES, raw.mode), reply: raw.reply === true,
+        // Modèle 3D choisi dans le créateur : identifiant court ; inconnu du manifeste, il est ignoré à l'affichage.
+        model: typeof raw.model === 'string' && /^[\w-]{1,48}$/.test(raw.model) ? raw.model : undefined,
       };
     }
     case 'profile': {
@@ -205,7 +233,8 @@ export function parseGameMsg(raw: unknown): GameMsg | { t: 'version'; v: number;
       const h = bounded(raw.h, -100, 100);
       const s = bounded(raw.s, 0, 50);
       if (x === null || z === null || h === null || s === null) return null;
-      return { t: 'pose', x, z, h, s, inside: raw.inside === true };
+      // `busy` : le joueur est dans une fenêtre ou une cinématique (son horloge est en pause).
+      return { t: 'pose', x, z, h, s, inside: raw.inside === true, busy: raw.busy === true };
     }
     case 'clock': {
       const tick = bounded(raw.tick, 0, 1e9);

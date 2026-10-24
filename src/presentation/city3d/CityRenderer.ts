@@ -35,23 +35,10 @@ import { PostFx } from './postfx';
 import { configureSunShadow, createContactShadows, createRimLight, frameSunShadow } from './lighting';
 import { CITY_UNIFORMS } from './materials';
 import { setFoliageOcclusion } from './occlusion';
+import { RemotePlayerViews, type RemoteAvatar } from './remotePlayers';
 
-/** Autre joueur (multijoueur) vu dans la ville. */
-export interface RemoteAvatar {
-  id: string;
-  name: string;
-  appearance: PlayerAppearance;
-  gender?: PlayerGender;
-  heightM: number;
-  /** Âge connu (habitants) : choix du modèle par tranche d'âge. */
-  age?: number;
-  x: number;
-  z: number;
-  h: number;
-  s: number;
-  /** Étiquette : joueur (doré, 🎮) par défaut, ou habitant. */
-  label?: { text: string; color: string; bg: string };
-}
+/** Autres joueurs et habitants : rendus par ./remotePlayers (fichier dédié). */
+export type { RemoteAvatar } from './remotePlayers';
 
 export interface CityFrameInput {
   /** Direction demandée (clavier/joystick), x vers la droite, y vers le bas de l'écran. */
@@ -192,7 +179,7 @@ export class CityRenderer {
   private npcs = new Map<string, NpcView>();
   /** Multijoueur : autres joueurs à afficher dans la ville (posé par la boucle de jeu). */
   remotePlayers: RemoteAvatar[] = [];
-  private remoteViews = new Map<string, { ch: Character3D; tag: THREE.Sprite; x: number; z: number; key: string }>();
+  private remoteViews = new RemotePlayerViews(this.scene);
   private pathQueue: string[] = [];
   private ghost?: THREE.Sprite;
   private ghostKey = '';
@@ -583,7 +570,7 @@ export class CityRenderer {
     this.syncPlayer(world, dt, input);
     this.syncNpcs(world, dt);
     this.syncGhost(world, dt);
-    this.syncRemotes(dt);
+    this.remoteViews.sync(this.remotePlayers, dt);
     this.market?.update(dt, world, { x: this.body.x, z: this.body.z });
 
     // Lumière selon l'heure et la météo.
@@ -1195,7 +1182,7 @@ export class CityRenderer {
     };
     add(this.player?.root, this.riding ? 0.75 : 0.42);
     for (const v of this.npcs.values()) add(v.ch.root, 0.42);
-    for (const v of this.remoteViews.values()) add(v.ch.root, 0.42);
+    for (const r of this.remoteViews.roots()) add(r, 0.42);
     for (const chars of this.stallCrowds.values()) for (const c of chars) add(c.root, 0.4);
     if (pts.length > 48) pts.sort((a, b) => a.d - b.d);
     this.contact.update(pts, opacity);
@@ -1215,53 +1202,12 @@ export class CityRenderer {
     return this.canvas.toDataURL('image/jpeg', 0.82);
   }
 
-  /** Autres joueurs (multijoueur) : personnage à leur apparence, nom doré, mouvement lissé. */
-  private syncRemotes(dt: number): void {
-    const live = new Set<string>();
-    for (const r of this.remotePlayers) {
-      live.add(r.id);
-      const key = `${r.id}|${JSON.stringify(r.appearance)}|${r.gender ?? ''}|${r.heightM}`;
-      let v = this.remoteViews.get(r.id);
-      if (v && v.key !== key) {
-        v.ch.dispose();
-        v.ch.root.removeFromParent();
-        v.tag.removeFromParent();
-        this.remoteViews.delete(r.id);
-        v = undefined;
-      }
-      if (!v) {
-        // Habitants (étiquette) : modèle riggé possible ; autres joueurs : leur apparence, toujours procédurale.
-        const ch = createCharacter({ appearance: r.appearance, gender: r.gender, heightM: r.heightM, rig: r.label ? { key: r.id, age: r.age } : undefined, rigRecolor: 'tenue' });
-        const tag = r.label ? textSprite(r.label.text, r.label.color, r.label.bg) : textSprite(`🎮 ${r.name}`, '#ffe08a', 'rgba(60,36,10,0.85)');
-        this.scene.add(ch.root, tag);
-        v = { ch, tag, x: r.x, z: r.z, key };
-        this.remoteViews.set(r.id, v);
-      }
-      // Rattrapage exponentiel ; téléportation si l'écart est grand (bus, chargement).
-      const far = Math.hypot(r.x - v.x, r.z - v.z) > 12;
-      const k = far ? 1 : 1 - Math.exp(-dt * 12);
-      v.x += (r.x - v.x) * k;
-      v.z += (r.z - v.z) * k;
-      const y = groundHeightAt(v.x, v.z);
-      v.ch.root.position.set(v.x, y, v.z);
-      v.ch.setHeading(r.h);
-      v.ch.update(dt, r.s);
-      v.tag.position.set(v.x, y + r.heightM + 0.55, v.z);
-    }
-    for (const [id, v] of this.remoteViews) {
-      if (live.has(id)) continue;
-      v.ch.dispose();
-      v.ch.root.removeFromParent();
-      v.tag.removeFromParent();
-      this.remoteViews.delete(id);
-    }
-  }
-
   dispose(): void {
     this.ambient?.dispose();
     this.market?.dispose();
     this.city?.dispose();
     this.player?.dispose();
+    this.remoteViews.dispose();
     for (const v of this.npcs.values()) { v.ch.dispose(); v.tag.removeFromParent(); }
     this.postfx?.dispose();
     this.contact.dispose();
