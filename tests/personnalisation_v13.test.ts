@@ -3,7 +3,7 @@
  * et attaches d'accessoires, accessoires multiples, sérialisation (save v26) et aléatoire déterministe.
  */
 import { describe, expect, it } from 'vitest';
-import { FEET_TOP, recolorKey, regionOf, zoneOf } from '../src/presentation/city3d/rigged/recolorLogic';
+import { FEET_TOP, HEAD_FROM, headFromNeck, isSkinLike, recolorKey, regionOf, skinReference, zoneOf } from '../src/presentation/city3d/rigged/recolorLogic';
 import { fitBody, placeGear, quatFromX, sampleBody, type Vec3 } from '../src/presentation/city3d/rigged/gearLogic';
 import { silhouetteChoices } from '../src/presentation/city3d/rigged/playerModel';
 import {
@@ -22,6 +22,14 @@ describe('zones de recolorage', () => {
     expect(zoneOf(FEET_TOP + 0.001, 0)).toBe('jambes');
     expect(zoneOf(0.03, 0)).toBe('pieds');
   });
+  it('la tête commence au cou mesuré (têtes d’enfants et d’ados), repli sur les proportions', () => {
+    expect(headFromNeck(undefined)).toBe(HEAD_FROM);
+    expect(headFromNeck(0.95)).toBe(HEAD_FROM);
+    expect(headFromNeck(0.88)).toBe(HEAD_FROM);
+    expect(headFromNeck(0.73)).toBeCloseTo(0.74);
+    expect(zoneOf(0.78, 0.05, headFromNeck(0.73))).toBe('visage');
+    expect(zoneOf(0.78, 0.05)).toBe('torse');
+  });
   it('chaque zone donne sa région, la peau reste de la peau partout', () => {
     const skin: [number, number, number] = [0.8, 0.6, 0.5];
     const jean: [number, number, number] = [0.15, 0.2, 0.45];
@@ -31,6 +39,21 @@ describe('zones de recolorage', () => {
     expect(regionOf('jambes', [0.79, 0.61, 0.5], skin)).toBe('skin');
     expect(regionOf('pieds', [0.79, 0.61, 0.5], skin)).toBe('skin');
     expect(regionOf('fond', jean, skin)).toBeNull();
+  });
+  it('peau foncée : les vêtements noirs ou gris ne passent pas pour de la peau', () => {
+    const dark: [number, number, number] = [0.3, 0.19, 0.13];
+    expect(isSkinLike([0.31, 0.2, 0.14], dark)).toBe(true);
+    expect(isSkinLike([0.07, 0.07, 0.07], dark)).toBe(false);
+    expect(isSkinLike([0.28, 0.28, 0.29], dark)).toBe(false);
+    expect(regionOf('torse', [0.08, 0.08, 0.09], dark)).toBe('outfit');
+    expect(regionOf('jambes', [0.27, 0.27, 0.28], dark)).toBe('bottom');
+  });
+  it('teint de référence : la peau dominante, pas la moyenne faussée par des mèches claires', () => {
+    const skin: [number, number, number] = [0.42, 0.27, 0.18];
+    const cands = [...Array.from({ length: 80 }, () => skin), ...Array.from({ length: 40 }, () => [0.95, 0.8, 0.6] as [number, number, number])];
+    const ref = skinReference(cands)!;
+    expect(ref[0]).toBeCloseTo(0.42, 2);
+    expect(skinReference(cands.slice(0, 20))).toBeNull();
   });
   it('la clé de recolorage distingue bas et chaussures', () => {
     expect(recolorKey({ outfit: '#111111' })).not.toBe(recolorKey({ outfit: '#111111', bottom: '#222222' }));
@@ -101,6 +124,20 @@ describe('mesure du corps et attaches d’accessoires', () => {
       }
     }
   });
+  it('rig à grosse tête : cou et tête ramenés au-dessus des épaules', () => {
+    const s = mannequin();
+    // Cou et tête placés trop haut par le rig automatique, épaules à 1,1 m.
+    const f = fitBody({ ...s, bones: { ...s.bones, neck_01: [0, 1.6, 0], Head: [0, 1.7, 0], upperarm_l: [0.18, 1.1, 0] } });
+    expect(f.bigHead).toBe(true);
+    expect(f.torso.top).toBeLessThan(1.3);
+    expect(f.neck.pos[1]).toBeLessThan(1.3);
+    expect(f.eyeY).toBeGreaterThan(1.3);
+    expect(f.eyeY).toBeLessThan(1.5);
+    const [, straps] = placeGear('sac_dos', f);
+    expect(straps!.pos[1] + straps!.scale[1] / 2).toBeLessThanOrEqual(f.torso.top + 1e-9); // pas sur le visage
+    // Un rig aux proportions courantes n'est pas recalé.
+    expect(fitBody({ ...s, bones: { ...s.bones, upperarm_l: [0.18, 1.17, 0] } }).bigHead).toBe(false);
+  });
   it('quatFromX oriente +X vers la direction demandée', () => {
     const q = quatFromX([0, 1, 0]);
     // Rotation de +90° autour de Z : (0, 0, sin45, cos45).
@@ -167,7 +204,11 @@ describe('sérialisation de l’apparence (save v26)', () => {
     const m = migrateSave(old);
     expect(m.version).toBe(CURRENT_SAVE_VERSION);
     expect(m.player.appearance.gear).toEqual(['casquette']);
-    expect(m.player.appearance.gearColors).toEqual({});
+    expect(m.player.appearance.gearColors).toBeUndefined();
+    // Sans accessoire, l'apparence migrée est inchangée.
+    const plain = JSON.parse(JSON.stringify(old));
+    plain.player.appearance = { ...DEFAULT_PLAYER_APPEARANCE };
+    expect(migrateSave(plain).player.appearance).toEqual(DEFAULT_PLAYER_APPEARANCE);
     expect(m.player.appearance.model).toBeUndefined();
     // Aller-retour de la partie migrée.
     expect(deserializeWorld(serializeWorld(m)).player.appearance).toEqual(m.player.appearance);
