@@ -5,11 +5,11 @@
  * parents. État : drapeaux `ecole:<id>` (vu) et `ecoleEnAttente` (index + 1) — pas de schéma.
  */
 import type { WorldState } from '../core/types';
-import { dayIndexOf } from '../core/clock';
+import { dateOf, dayIndexOf } from '../core/clock';
 import { STARTER_SCHOOL_EVENTS, type SchoolEvent } from '../data/school_events_starter';
 import { SCHOOL_EVENTS as AG_SCHOOL_EVENTS } from '../data/school/events';
 import { econRand } from './economy';
-import { ensureSchoolLifeState } from './school_life';
+import { adapterTexteEcole, ensureSchoolLifeState, estLyceen } from './school_life';
 import { pushEvent } from './events';
 
 /** Événements de départ, puis les 25 d'Antigravity (workflow AG-2). */
@@ -26,11 +26,21 @@ const clamp = (v: number, lo = 0, hi = 100): number => Math.max(lo, Math.min(hi,
 function eligible(w: WorldState, e: SchoolEvent): boolean {
   if ((w.flags[`ecole:${e.id}`] ?? 0) > 0) return false;
   if (e.minAge !== undefined && w.player.age < e.minAge) return false;
+  if (e.maxAge !== undefined && w.player.age > e.maxAge) return false;
+  if (e.months !== undefined) {
+    const mois = dateOf(dayIndexOf(w.time.tick)).m;
+    if (mois < e.months[0] || mois > e.months[1]) return false;
+  }
   if (e.tier !== undefined && (w.ascension?.tier ?? 1) < e.tier) return false;
   return true;
 }
 
-/** À la fin d'une séance suivie : tirage d'un événement de collège. */
+/** Événements encore possibles maintenant (âge, mois, palier, jamais vus). */
+export function eligibleSchoolEvents(w: WorldState): SchoolEvent[] {
+  return SCHOOL_EVENTS.filter((e) => eligible(w, e));
+}
+
+/** À la fin d'une séance suivie : tirage d'un événement de collège ou de lycée. */
 export function rollSchoolEvent(w: WorldState, salt: string): void {
   if ((w.flags['ecoleEnAttente'] ?? 0) > 0) return;
   const day = dayIndexOf(w.time.tick);
@@ -52,7 +62,7 @@ export function pendingSchoolEvent(w: WorldState): SchoolEvent | undefined {
 export function resolveSchoolEvent(w: WorldState, index: number): { ok: boolean; message: string; ghost?: string } {
   const e = pendingSchoolEvent(w);
   const o = e?.options[index];
-  if (!e || !o) return { ok: false, message: 'Rien en cours au collège.' };
+  if (!e || !o) return { ok: false, message: 'Rien en cours à l’école.' };
   const fx = o.effects;
   for (const [npc, d] of Object.entries(fx.relations ?? {})) {
     const r = (w.player.relations[npc] ??= { amitie: 0, confiance: 0, respect: 0, rivalite: 0 });
@@ -75,8 +85,8 @@ export function resolveSchoolEvent(w: WorldState, index: number): { ok: boolean;
   w.flags['ecoleEnAttente'] = 0;
   pushEvent(w, {
     type: 'vie',
-    title: `Collège — ${e.title}`,
-    text: `${o.label}. ${o.outcome}`,
+    title: `${estLyceen(w) ? 'Lycée' : 'Collège'} — ${adapterTexteEcole(e.title, estLyceen(w))}`,
+    text: adapterTexteEcole(`${o.label}. ${o.outcome}`, estLyceen(w)),
     causes: [{ facteur: `conseil suivi : ${o.ghost}`, seuil: o.advice, poids: 2 }],
   });
   return { ok: true, message: o.outcome, ghost: o.ghost };

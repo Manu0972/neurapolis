@@ -33,14 +33,37 @@ const CLASS_MOMENTS = [...STARTER_CLASS_MOMENTS, ...CLASS_MOMENTS_EXT];
 import { FAMILY_LINES, FAMILY_LINE_BY_ID } from '../data/family_registry';
 import { econRand } from './economy';
 import { pushEvent } from './events';
-import { attendSchoolClass, bonusRevisions, classeScolaire, difficulteClasse, ensureSchoolLifeState, etablissementScolaire } from './school_life';
+import {
+  AGE_LYCEE, adapterTexteEcole, attendSchoolClass, bonusRevisions, classeScolaire, difficulteClasse, ensureSchoolLifeState, estLyceen,
+  etablissementDe, etablissementScolaire,
+} from './school_life';
 import { notify } from './events';
 import { rollSchoolEvent } from './school_events';
 
+/** Emploi du temps du collège. */
 export const SESSIONS: Record<SessionId, { start: number; end: number }> = {
   matin: { start: 8 * 60 + 30, end: 12 * 60 },
   apres: { start: 13 * 60 + 30, end: 16 * 60 + 30 },
 };
+/** Emploi du temps du lycée : journée plus longue (8 h – 12 h, 14 h – 17 h), mercredi matin seulement. */
+export const SESSIONS_LYCEE: Record<SessionId, { start: number; end: number }> = {
+  matin: { start: 8 * 60, end: 12 * 60 },
+  apres: { start: 14 * 60, end: 17 * 60 },
+};
+const hm = (m: number): string => `${Math.floor(m / 60)} h${m % 60 ? ` ${String(m % 60).padStart(2, '0')}` : ''}`;
+/** « 8 h 30 – 12 h » : plage d'une séance selon l'établissement du joueur. */
+export function seanceLabel(w: WorldState, s: SessionId): string {
+  const { start, end } = sessionsFor(w)[s];
+  return `${hm(start)} – ${hm(end)}`;
+}
+/** « 8 h 30 » : début d'une séance. */
+export function seanceDebut(w: WorldState, s: SessionId): string {
+  return hm(sessionsFor(w)[s].start);
+}
+/** Horaires des séances selon l'établissement du joueur. */
+export function sessionsFor(w: WorldState): Record<SessionId, { start: number; end: number }> {
+  return estLyceen(w) ? SESSIONS_LYCEE : SESSIONS;
+}
 const DINNER = 19 * 60 + 30;
 const CURFEW = 18 * 60;
 const HOME_RADIUS = 8;
@@ -70,8 +93,9 @@ export function classWindow(w: WorldState): SessionId | null {
   const f = ensureFamily(w);
   const day = dayIndexOf(w.time.tick);
   const m = minutesOfDay(w.time.tick);
+  const horaires = sessionsFor(w);
   for (const s of sessionsOf(day)) {
-    const { start, end } = SESSIONS[s];
+    const { start, end } = horaires[s];
     if (m >= start - 30 && m <= end - 60 && !f.attended.includes(`${day}:${s}`)) return s;
   }
   return null;
@@ -138,12 +162,14 @@ export function attendClass(w: WorldState): { ok: boolean; message: string } {
   const subject = moment.subject ?? subjects[Math.floor(econRand(w, 'matiere', day, s) * subjects.length)]!;
   f.attended.push(`${day}:${s}`);
   if (f.attended.length > 120) f.attended.splice(0, f.attended.length - 120);
-  f.inClass = { session: s, day, untilTick: tickAt(day, SESSIONS[s].end), moment: `${subject} — ${moment.text}` };
+  f.inClass = { session: s, day, untilTick: tickAt(day, sessionsFor(w)[s].end), moment: adapterTexteEcole(`${subject} — ${moment.text}`, estLyceen(w)) };
+  // Compteur cumulé (le journal `attended` est plafonné à 120 : il ne sert plus au bilan d'un saut).
+  w.flags['coursSuivis'] = (w.flags['coursSuivis'] ?? 0) + 1;
   attendSchoolClass(w);
   w.player.characteristics.comprehension = Math.min(100, w.player.characteristics.comprehension + moment.comprehension);
   w.player.needs.moral = clamp(w.player.needs.moral + moment.mood);
   syncSchoolLife(w);
-  return { ok: true, message: `${subject}. ${moment.text}` };
+  return { ok: true, message: adapterTexteEcole(`${subject}. ${moment.text}`, estLyceen(w)) };
 }
 
 function recordAbsence(w: WorldState, day: number, s: SessionId): void {
@@ -156,6 +182,7 @@ function recordAbsence(w: WorldState, day: number, s: SessionId): void {
   f.absences.push({ day, session: s, excused });
   if (f.absences.length > 60) f.absences.splice(0, f.absences.length - 60);
   if (excused) return;
+  w.flags['absencesInjustifiees'] = (w.flags['absencesInjustifiees'] ?? 0) + 1;
   sl.academicAverage = Math.max(0, Math.round((sl.academicAverage - 0.3) * 10) / 10);
   bump(f, 'les_deux', { worry: 7, pride: -1 });
   if (f.promised) {
@@ -244,7 +271,7 @@ export function resolveConvocation(w: WorldState, choice: ConvocationChoice): { 
   if (!c) return { ok: false, message: 'Pas de convocation.' };
   const day = dayIndexOf(w.time.tick);
   const sl = ensureSchoolLifeState(w);
-  const p = SCHOOL_STAFF.principal.name;
+  const p = etablissementDe(w).chef.name;
   let message: string;
   if (choice === 'verite') {
     if (sl.academicAverage >= 12 && familyTrust(w) >= 45) {
@@ -328,11 +355,12 @@ export function familyTick(w: WorldState, prevTick: number): void {
     rollSchoolEvent(w, `${f.inClass.day}:${f.inClass.session}`);
     f.inClass = undefined;
   }
+  const horaires = sessionsFor(w);
   for (const s of sessionsOf(day)) {
-    if (crossed(pm, m, SESSIONS[s].end) && !f.attended.includes(`${day}:${s}`)) recordAbsence(w, day, s);
+    if (crossed(pm, m, horaires[s].end) && !f.attended.includes(`${day}:${s}`)) recordAbsence(w, day, s);
   }
   // Note du vendredi.
-  if (dateOf(day).weekday === 5 && crossed(pm, m, SESSIONS.apres.end)) fridayGrade(w, day);
+  if (dateOf(day).weekday === 5 && crossed(pm, m, horaires.apres.end)) fridayGrade(w, day);
   // Couvre-feu de la punition : le respecter apaise, le braver inquiète.
   if (f.groundedUntil > day && crossed(pm, m, CURFEW)) {
     if (isHome(w)) bump(f, 'les_deux', { worry: -2, trust: 1 });
@@ -419,9 +447,10 @@ function rentree(w: WorldState, day: number): void {
   const absences = f.absences.filter((a) => !a.excused && a.day > day - 365).length;
   const bonus = bulletinBonus(avg);
   const parts: string[] = [`Bulletin de l’an dernier : ${avg}/20 de moyenne, ${absences} demi-journée(s) d’absence injustifiée.`];
-  if (age === 15) {
+  if (age === AGE_LYCEE) {
     const b = brevetMention(avg);
     parts.push(`Brevet des collèges : ${b.label}.`);
+    parts.push('Cette année, c’est le lycée : même cité scolaire Jean-Moulin, mais un autre bâtiment, avec son entrée rue Louise-Michel. Mme Moreau y enseigne aussi, et la bande suit.');
     bump(f, 'les_deux', { pride: b.pride });
   }
   if (bonus > 0) {
@@ -434,13 +463,15 @@ function rentree(w: WorldState, day: number): void {
     bump(f, 'les_deux', { worry: 6 });
   }
   topic(f, 'anniversaire');
+  // Carton de rentrée à l'écran (consommé par la présentation) : seulement quand l'établissement change.
+  if (age === AGE_LYCEE) w.flags['rentreeCarton'] = age;
   // Nouvelle année, nouvelles règles : l'aménagement et la promesse ne se reportent pas.
   f.arrangement = undefined;
   f.promised = false;
   pushEvent(w, {
     type: 'vie',
     title: `Rentrée en ${classeScolaire(age)}`,
-    text: `${age === 15 ? 'Premier jour au ' : 'Retour au '}${etablissementScolaire(age)}, en ${classeScolaire(age)}. ${parts.join(' ')}`,
+    text: `${age === AGE_LYCEE ? 'Premier jour au ' : 'Retour au '}${etablissementScolaire(age)}, en ${classeScolaire(age)}. ${parts.join(' ')}`,
     causes: [
       { facteur: 'rentrée scolaire', seuil: dateOf(day).iso, poids: 3 },
       { facteur: 'moyenne de l’année', seuil: `${avg}/20`, poids: 2 },

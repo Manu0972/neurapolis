@@ -160,7 +160,7 @@ const TILE_COLORS = {
 } as const;
 
 const ENTRY_COLORS: Record<string, string> = {
-  maison: '#f2c94c', college: '#6ba7d6', epicerie: '#e89a56',
+  maison: '#f2c94c', college: '#6ba7d6', lycee: '#4f86c6', epicerie: '#e89a56',
   friche: '#8f96a3', parc: '#5d9e57', place: '#d9c39a',
 };
 

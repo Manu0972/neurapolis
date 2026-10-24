@@ -8,6 +8,8 @@ export interface SchoolEvent {
   text: string;
   characters: string[];
   minAge?: number;
+  maxAge?: number;
+  months?: [number, number];
   tier?: number;
   options: {
     label: string;

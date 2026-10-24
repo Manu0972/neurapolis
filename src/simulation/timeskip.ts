@@ -96,8 +96,10 @@ const snap = (w: WorldState): Snap => {
     reputation: w.player.reputation,
     trust: familyTrust(w),
     average: schoolAverage(w),
-    attended: f.attended.length,
-    absences: f.absences.filter((a) => !a.excused).length,
+    // Compteurs cumulés : les journaux `attended` / `absences` sont plafonnés (120 / 60 entrées) et ne bougent
+    // plus une fois pleins, ce qui faisait disparaître la ligne « Cours suivis » d'un saut d'un an.
+    attended: w.flags['coursSuivis'] ?? 0,
+    absences: w.flags['absencesInjustifiees'] ?? 0,
     grades: f.grades.length,
     concepts: Object.keys(w.ascension?.concepts ?? {}).length,
     contacts: Object.keys(w.ascension?.contacts ?? {}).length,

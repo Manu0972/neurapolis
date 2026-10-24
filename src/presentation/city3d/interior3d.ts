@@ -194,6 +194,7 @@ function frontOf(it: InteriorItem): { x: number; z: number } {
 const PLACE_ROOM_STYLE: Partial<Record<PlaceId, { floor: InteriorSpec['floor']; wall: string; w: number; d: number }>> = {
   maison: { floor: 'parquet', wall: '#e8d9c0', w: 10, d: 8 },
   college: { floor: 'lino', wall: '#dfe3d2', w: 11, d: 9 },
+  lycee: { floor: 'lino', wall: '#d3dce6', w: 13, d: 10 },
   epicerie: { floor: 'carrelage', wall: '#f0e2c4', w: 10, d: 8 },
   friche: { floor: 'beton', wall: '#9a8a7a', w: 13, d: 10 },
 };
@@ -221,6 +222,8 @@ const ROOM_STYLE: Record<string, Partial<{ floor: InteriorSpec['floor']; wall: s
   'maison:grenier': { wall: '#b89a76', w: 10, d: 7 },
   'college:hall': { floor: 'carrelage', wall: '#e6e2d0', w: 12, d: 9 },
   'college:cantine': { floor: 'carrelage', wall: '#f0dcc0', w: 12, d: 9 },
+  'lycee:hall': { floor: 'carrelage', wall: '#dde1ea', w: 14, d: 10 },
+  'lycee:cantine': { floor: 'carrelage', wall: '#e6e0d4', w: 14, d: 10 },
 };
 
 /**
