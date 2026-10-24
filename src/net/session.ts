@@ -144,6 +144,10 @@ export class MultiplayerSession {
   private readonly muted = new Set<number>();
   private readonly warned = new Set<number>();
   private readonly lastHeard = new Map<number, number>();
+  /** Dernière demande de présentation à une connexion inconnue (ms). */
+  private readonly askedHello = new Map<number, number>();
+  /** Génération de la connexion : les rappels d'un ancien client (fermeture tardive) sont ignorés. */
+  private gen = 0;
 
   constructor(private world: WorldState, private hooks: SessionHooks, env: Partial<SessionEnv> = {}) {
     this.env = { ...browserEnv(), ...env };
@@ -190,9 +194,12 @@ export class MultiplayerSession {
     }
     this.env.storage.set(MP_KEYS.address, address.trim());
     this.env.storage.set(MP_KEYS.resume, '1');
+    const gen = ++this.gen;
     this.client = this.env.connect(url, {
-      onMessage: (msg) => this.onRelay(msg),
+      onMessage: (msg) => { if (gen === this.gen) this.onRelay(msg); },
       onStatus: (s, detail) => {
+        // Un ancien client qui finit de se fermer ne doit pas effacer la nouvelle connexion.
+        if (gen !== this.gen) return;
         this.status = s;
         this.detail = detail ?? '';
         if (s === 'connecte') this.wasConnected = true;
@@ -225,6 +232,7 @@ export class MultiplayerSession {
   private close(): void {
     const c = this.client;
     this.client = null;
+    this.gen++;
     c?.close();
     this.status = 'deconnecte';
     this.wasConnected = false;
@@ -242,6 +250,7 @@ export class MultiplayerSession {
     this.muted.clear();
     this.warned.clear();
     this.lastHeard.clear();
+    this.askedHello.clear();
   }
 
   private send(msg: GameMsg): boolean { return this.client?.send(msg) ?? false; }
@@ -325,6 +334,15 @@ export class MultiplayerSession {
     const msg = parseGameMsg(raw);
     if (!msg || !this.allow(conn, msg.t)) return;
     this.lastHeard.set(conn, this.env.now());
+    // Un joueur qu'on entend sans le connaître (présentation perdue pendant un chargement, une
+    // reconnexion) : on se présente à nouveau, il répond par la sienne. Au plus toutes les 3 s.
+    if (msg.t !== 'hello' && msg.t !== 'version' && !this.remotes.has(conn)) {
+      const now = this.env.now();
+      if (now - (this.askedHello.get(conn) ?? -Infinity) > 3000) {
+        this.askedHello.set(conn, now);
+        this.send(this.hello());
+      }
+    }
     this.onGame(conn, msg);
   }
 

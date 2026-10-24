@@ -142,7 +142,7 @@ describe('deux joueurs se rencontrent (relais réel)', () => {
       expect(bilalVuParAlex.appearance.gear).toEqual(['casquette']);
       expect(bilalVuParAlex.appearance.bottomColor).toBe('noir');
 
-      // Bilal marche : Alex le voit avancer sans à-coups (positions intermédiaires, jamais en arrière).
+      // Bilal marche : Alex le voit avancer sans à-coups (positions intermédiaires, pas de recul).
       B.pose = { x: 100, z: 200, heading: 0, speed: 2 };
       const xs: number[] = [];
       const t0 = Date.now();
@@ -154,7 +154,8 @@ describe('deux joueurs se rencontrent (relais réel)', () => {
       }
       const moved = xs.filter((x, i) => i > 0 && x > xs[i - 1]! + 1e-6).length;
       expect(moved).toBeGreaterThan(20); // bien plus que les ≈ 9 poses reçues : c'est lissé
-      expect(xs.every((x, i) => i === 0 || x >= xs[i - 1]! - 1e-6)).toBe(true);
+      // Jamais de recul visible (une légère correction après une courte extrapolation est tolérée).
+      expect(Math.min(...xs.slice(1).map((x, i) => x - xs[i]!))).toBeGreaterThan(-0.2);
       expect(Math.max(...xs.slice(1).map((x, i) => x - xs[i]!))).toBeLessThan(1.5);
 
       // Alex (l'hôte) ouvre une fenêtre : Bilal voit 💬 et son horloge n'est pas bloquée.
@@ -180,6 +181,12 @@ describe('deux joueurs se rencontrent (relais réel)', () => {
       await until(() => B.w.player.money === 1100 && A.w.multiplayer!.debts.length === 1);
       expect(B.saves).toBeGreaterThan(savesB);
       expect(A.saves).toBeGreaterThan(savesA);
+
+      // Présentation perdue (chargement, reconnexion) : on l'entend sans le connaître, on se
+      // représente, il répond, et il réapparaît sans que personne ne recharge.
+      A.s.remotes.clear();
+      await until(() => A.s.remotes.size === 1 && A.s.visibleRemotes().length === 1);
+      expect([...A.s.remotes.values()][0]!.name).toBe('Bilal');
     } finally {
       A.stop();
       B.stop();

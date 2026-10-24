@@ -128,7 +128,7 @@ export class RemotePlayerViews {
       v.ch.root.position.set(v.x, y, v.z);
       v.ch.setHeading(v.h);
       v.ch.update(dt, r.s);
-      v.tag.position.set(v.x, y + r.heightM + 0.6, v.z);
+      v.tag.position.set(v.x, y + r.heightM + 0.45, v.z);
     }
     for (const [id, v] of this.views) if (!live.has(id)) this.drop(id, v);
   }
