@@ -430,8 +430,9 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
     const player = s.player as AnySave | undefined;
     if (player && typeof player.appearance === 'object' && player.appearance !== null) {
       const a = player.appearance as AnySave;
-      if (!Array.isArray(a.gear)) a.gear = typeof a.accessory === 'string' && a.accessory !== 'aucun' && VALID_GEAR.includes(a.accessory as PlayerGear) ? [a.accessory] : [];
-      if (typeof a.gearColors !== 'object' || a.gearColors === null || Array.isArray(a.gearColors)) a.gearColors = {};
+      // Sans accessoire, l'apparence reste identique (champs absents = comportement d'avant).
+      if (!Array.isArray(a.gear) && typeof a.accessory === 'string' && VALID_GEAR.includes(a.accessory as PlayerGear)) a.gear = [a.accessory];
+      if (a.gearColors !== undefined && (typeof a.gearColors !== 'object' || a.gearColors === null || Array.isArray(a.gearColors))) delete a.gearColors;
     }
     s.version = 26;
     return s;
