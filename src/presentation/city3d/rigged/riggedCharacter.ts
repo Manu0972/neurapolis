@@ -17,7 +17,8 @@ import { animInterval, chooseClip, locoBlend, LOCO_SPEC, movingAmount, nextGait,
 import { hash32, modelFor, type RigRequest } from './manifest';
 import { applyRecolor, type RecolorHandle } from './recolor';
 import type { RecolorSpec } from './recolorLogic';
-import { maskOf, loadRigAsset, lodDistance, rigAssetIfLoaded, rigCounters, riggedManifest, riggedState, startRiggedCharacters, type RigAsset } from './library';
+import { attachGear, type GearHandle, type GearSpec } from './gear';
+import { fitOf, maskOf, loadRigAsset, lodDistance, rigAssetIfLoaded, rigCounters, riggedManifest, riggedState, startRiggedCharacters, type RigAsset } from './library';
 
 const LOCO_NAMES = ['walk', 'jog', 'run'] as const;
 
@@ -37,12 +38,18 @@ class RigInstance {
   readonly legScale: number;
 
   private recolor: RecolorHandle | null = null;
+  private gear: GearHandle | null = null;
 
-  constructor(asset: RigAsset, heightM: number, seed: number, recolor?: RecolorSpec) {
+  constructor(asset: RigAsset, heightM: number, seed: number, recolor?: RecolorSpec, gear?: GearSpec) {
     this.model = cloneSkinned(asset.template);
     if (recolor) {
       const mask = maskOf(asset);
       if (mask) { this.recolor = applyRecolor(this.model, mask); this.recolor.set(recolor); }
+    }
+    // Accessoires (joueur seulement) : posés en pose de liaison, avant toute animation.
+    if (gear && gear.items.length > 0) {
+      const fit = fitOf(asset);
+      if (fit) this.gear = attachGear(this.model, fit, gear);
     }
     const s = heightM / asset.height;
     // Le studio exporte face à +Z ; le jeu attend un personnage tourné vers −Z.
@@ -121,6 +128,7 @@ class RigInstance {
 
   dispose(): void {
     this.recolor?.dispose();
+    this.gear?.dispose();
     this.mixer.stopAllAction();
     this.mixer.uncacheRoot(this.model);
     this.model.traverse((o) => { (o as THREE.SkinnedMesh).skeleton?.dispose(); });
@@ -135,6 +143,8 @@ export interface RiggedSpec {
   recolor?: RecolorSpec;
   /** Teintes appliquées seulement si le modèle est tiré au sort (pas attitré à ce personnage). */
   recolorWhenAuto?: RecolorSpec;
+  /** Accessoires portés (joueur). */
+  gear?: GearSpec;
 }
 
 /** Personnage riggé si le manifeste en prévoit un pour lui (ou s'il se charge encore) ; sinon `null`. */
@@ -211,7 +221,7 @@ class HybridCharacter implements Character3D {
 
   private attach(asset: RigAsset): void {
     const rc = this.recolor ?? (asset.entry.auto ? this.spec.recolorWhenAuto : undefined);
-    this.rig = new RigInstance(asset, this.heightM, hash32(this.req.key), rc);
+    this.rig = new RigInstance(asset, this.heightM, hash32(this.req.key), rc, this.spec.gear);
     this.root.add(this.rig.pivot);
     rigCounters.instances++;
     if (this.proc) {
