@@ -176,3 +176,83 @@ export function clearLine(a: { x: number; z: number }, b: { x: number; z: number
   }
   return true;
 }
+
+/* ─────────────── Sensations de caméra (logique pure) ─────────────── */
+
+/** Ressort amorti à une dimension (position, vitesse). */
+export interface Spring1 { x: number; v: number }
+
+/**
+ * Avance un ressort vers `target` : pulsation `omega` (rad/s), amortissement `zeta`
+ * (1 = critique, < 1 = léger dépassement). Sous-pas de 1/120 s : stable à toute cadence.
+ */
+export function springStep(s: Spring1, target: number, omega: number, zeta: number, dt: number): Spring1 {
+  let { x, v } = s;
+  let left = Math.max(0, Math.min(0.25, dt));
+  while (left > 1e-6) {
+    const h = Math.min(1 / 120, left);
+    v += (omega * omega * (target - x) - 2 * zeta * omega * v) * h;
+    x += v * h;
+    left -= h;
+  }
+  return { x, v };
+}
+
+/** Recul de la caméra visé (m) selon l'allure : nul en marchant, ~0,9 m en pleine course. */
+export function runPullBack(speed: number): number {
+  return 0.9 * Math.max(0, Math.min(1, (speed - WALK_SPEED * 1.1) / (RUN_SPEED - WALK_SPEED * 1.1)));
+}
+
+export interface CameraFeel {
+  tx: Spring1; ty: Spring1; tz: Spring1;
+  pull: Spring1;
+  /** Amplitude de secousse restante (m) et horloge. */
+  shake: number;
+  t: number;
+  /** Cible suivie à l'image précédente (pour détecter une téléportation). */
+  last: { x: number; y: number; z: number } | null;
+}
+
+export function createCameraFeel(): CameraFeel {
+  return { tx: { x: 0, v: 0 }, ty: { x: 0, v: 0 }, tz: { x: 0, v: 0 }, pull: { x: 0, v: 0 }, shake: 0, t: 0, last: null };
+}
+
+/**
+ * Une image de caméra : le point suivi glisse vers la cible avec un léger amorti (petit
+ * dépassement à l'arrêt), recule un peu à la course, et tremble à peine après un événement.
+ * `cur` est le point suivi actuel : s'il a été déplacé ailleurs (entrée, téléportation),
+ * les ressorts repartent de là, sans élan. `reduce` : ni dépassement ni secousse.
+ */
+export function stepCameraFeel(
+  f: CameraFeel,
+  cur: { x: number; y: number; z: number },
+  target: { x: number; y: number; z: number },
+  speed: number,
+  dt: number,
+  reduce: boolean,
+): { x: number; y: number; z: number; distAdd: number; shakeX: number; shakeY: number } {
+  const moved = !f.last || Math.abs(f.last.x - cur.x) + Math.abs(f.last.y - cur.y) + Math.abs(f.last.z - cur.z) > 1e-4;
+  if (moved) {
+    f.tx = { x: cur.x, v: 0 }; f.ty = { x: cur.y, v: 0 }; f.tz = { x: cur.z, v: 0 };
+  }
+  const zeta = reduce ? 1 : 0.78;
+  f.tx = springStep(f.tx, target.x, 8.5, zeta, dt);
+  f.ty = springStep(f.ty, target.y, 8.5, 1, dt);
+  f.tz = springStep(f.tz, target.z, 8.5, zeta, dt);
+  f.pull = springStep(f.pull, runPullBack(speed), 2.6, 1, dt);
+  f.t += dt;
+  let shakeX = 0;
+  let shakeY = 0;
+  if (f.shake > 0.0005 && !reduce) {
+    shakeX = Math.sin(f.t * 47) * Math.sin(f.t * 13.1) * f.shake;
+    shakeY = Math.sin(f.t * 61 + 1.3) * f.shake * 0.7;
+  }
+  f.shake = reduce ? 0 : f.shake * Math.exp(-7 * dt);
+  f.last = { x: f.tx.x, y: f.ty.x, z: f.tz.x };
+  return { x: f.tx.x, y: f.ty.x, z: f.tz.x, distAdd: f.pull.x, shakeX, shakeY };
+}
+
+/** Ajoute une secousse (amplitude en mètres, plafonnée à 0,12). */
+export function addShake(f: CameraFeel, amp: number): void {
+  f.shake = Math.min(0.12, f.shake + Math.max(0, amp));
+}
