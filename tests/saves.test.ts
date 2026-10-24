@@ -73,6 +73,20 @@ describe('sauvegarde — aller-retour export/import', () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it('rejette les noms d’emplacements invalides (injection ou caractères interdits)', async () => {
+    const { validateSlotName, slotSummary } = await import('../src/saves/persist');
+    const w = mondeVecu();
+    const invalidSlots = ['../bad', 'slot/1', 'slot 1', 'slot@key', 'a'.repeat(33), ''];
+
+    for (const slot of invalidSlots) {
+      expect(validateSlotName(slot)).toBe(false);
+      expect(() => saveToSlot(slot, w)).toThrow(/invalide/);
+      expect(() => loadFromSlot(slot)).toThrow(/invalide/);
+      expect(() => deleteSlot(slot)).toThrow(/invalide/);
+      expect(slotSummary(slot)).toEqual({ slot, exists: false, error: 'nom d\'emplacement invalide' });
+    }
+  });
 });
 
 describe('sauvegarde — migration v0 → v10 (météo, Conseil, rivaux, atelier et identité)', () => {

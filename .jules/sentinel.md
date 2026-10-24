@@ -7,3 +7,8 @@
 **Vulnerability:** Path boundary checks constructed via `ROOT + sep` fail when `ROOT` already includes a trailing separator (e.g. `dist/`), evaluating `file.startsWith('dist//')` to `false` for valid requests and resulting in false-positive 403 Forbidden errors or unintended bypasses.
 **Learning:** `path.resolve()` strips trailing separators on paths except for root directories, but user arguments or computed directory strings might retain them.
 **Prevention:** Normalize root prefix paths with `const rootWithSep = ROOT.endsWith(sep) ? ROOT : ROOT + sep;` before performing `startsWith` containment validation.
+
+## 2026-03-31 - Unsanitized Slot Key Injection in LocalStorage Save System
+**Vulnerability:** `saveToSlot`, `loadFromSlot`, `deleteSlot`, and `slotSummary` interpolated user/caller-provided slot strings directly into LocalStorage keys without length or character constraints.
+**Learning:** Unsanitized key parameters in client-side persistence mechanisms allow potential key pollution, key collision, or unexpected key manipulation.
+**Prevention:** Always validate key parameters against a strict alphanumeric whitelist regex (`/^[a-zA-Z0-9_-]{1,32}$/`) before constructing storage keys.

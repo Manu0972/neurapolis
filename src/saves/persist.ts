@@ -6,6 +6,12 @@ import type { WorldState } from '../core/types';
 import { migrateSave } from './migrations';
 
 const PREFIX = 'neurapolis.save.';
+const SLOT_REGEX = /^[a-zA-Z0-9_-]{1,32}$/;
+
+/** Valide le nom de l'emplacement pour éviter toute injection ou corruption des clés. */
+export function validateSlotName(slot: string): boolean {
+  return typeof slot === 'string' && SLOT_REGEX.test(slot);
+}
 
 function storage(): Storage | null {
   try {
@@ -16,12 +22,14 @@ function storage(): Storage | null {
 }
 
 export function saveToSlot(slot: string, w: WorldState): void {
+  if (!validateSlotName(slot)) throw new Error(`Nom d'emplacement invalide : « ${slot} ».`);
   const ls = storage();
   if (!ls) throw new Error('localStorage indisponible.');
   ls.setItem(PREFIX + slot, JSON.stringify(w));
 }
 
 export function loadFromSlot(slot: string): WorldState {
+  if (!validateSlotName(slot)) throw new Error(`Nom d'emplacement invalide : « ${slot} ».`);
   const ls = storage();
   if (!ls) throw new Error('localStorage indisponible.');
   const raw = ls.getItem(PREFIX + slot);
@@ -30,6 +38,7 @@ export function loadFromSlot(slot: string): WorldState {
 }
 
 export function deleteSlot(slot: string): void {
+  if (!validateSlotName(slot)) throw new Error(`Nom d'emplacement invalide : « ${slot} ».`);
   storage()?.removeItem(PREFIX + slot);
 }
 
@@ -48,6 +57,7 @@ export interface SlotSummary {
 
 /** Résumé d'un emplacement, sans migrer ni charger tout le monde (lecture légère du JSON). */
 export function slotSummary(slot: string): SlotSummary {
+  if (!validateSlotName(slot)) return { slot, exists: false, error: 'nom d\'emplacement invalide' };
   const raw = storage()?.getItem(PREFIX + slot);
   if (!raw) return { slot, exists: false };
   try {
