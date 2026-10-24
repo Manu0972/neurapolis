@@ -13,7 +13,7 @@ export type Vec3 = [number, number, number];
 export interface Box { min: Vec3; max: Vec3 }
 
 /** Os du squelette UAL utilisés pour mesurer et porter les accessoires. */
-export const GEAR_BONES = ['Head', 'neck_01', 'spine_03', 'spine_02', 'pelvis', 'lowerarm_l', 'hand_l'] as const;
+export const GEAR_BONES = ['Head', 'neck_01', 'spine_03', 'spine_02', 'pelvis', 'upperarm_l', 'lowerarm_l', 'hand_l'] as const;
 export type GearBone = (typeof GEAR_BONES)[number];
 
 /** Mesures brutes d'un modèle (espace de liaison). */
@@ -79,6 +79,8 @@ export interface BodyFit {
   pelvis: Vec3;
   /** Poignet gauche : position, direction coude → main, rayon. */
   wrist: { pos: Vec3; dir: Vec3; r: number };
+  /** Cou et tête recalés (rig à grosse tête) : la tête commence au haut du torse. */
+  bigHead: boolean;
 }
 
 const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
@@ -94,11 +96,18 @@ export const EYE_LEVEL = 0.47;
 export function fitBody(s: BodySample): BodyFit {
   const H = Math.max(0.3, s.maxY - s.minY);
   const at = (f: number): number => s.minY + f * H;
-  const headBone = s.bones.Head ?? [0, at(0.84), 0];
-  const neckBone = s.bones.neck_01 ?? [headBone[0], headBone[1] - 0.055 * H, headBone[2]];
+  let headBone = s.bones.Head ?? [0, at(0.84), 0];
+  let neckBone = s.bones.neck_01 ?? [headBone[0], headBone[1] - 0.055 * H, headBone[2]];
+  // Certains rigs automatiques (grosse tête de style chibi) placent cou et tête bien trop haut. Sur
+  // les modèles du studio, le cou est ~0,09 H au-dessus des épaules (os du bras en pose en T) : au-delà
+  // de 0,15 H, on le ramène là, et la tête juste au-dessus.
+  const arm = s.bones.upperarm_l;
+  const neckFixed = !!arm && neckBone[1] > arm[1] + 0.15 * H;
+  if (neckFixed) neckBone = [neckBone[0], arm[1] + 0.09 * H, neckBone[2]];
+  if (neckFixed || headBone[1] > s.maxY - 0.03 * H) headBone = [headBone[0], neckBone[1] + 0.06 * H, headBone[2]];
   // Tête : boîte mesurée si elle est plausible, sinon proportions d'un modèle UAL de 1,65 m.
   let head = s.boxes.Head;
-  if (!head || head.max[1] - head.min[1] < 0.08 * H || head.max[0] - head.min[0] < 0.06 * H) {
+  if (neckFixed || !head || head.max[1] - head.min[1] < 0.08 * H || head.max[0] - head.min[0] < 0.06 * H) {
     head = { min: [headBone[0] - 0.085 * H, headBone[1] - 0.04 * H, headBone[2] - 0.11 * H], max: [headBone[0] + 0.085 * H, s.maxY, headBone[2] + 0.07 * H] };
   }
   const hh = head.max[1] - head.min[1];
@@ -108,8 +117,11 @@ export function fitBody(s: BodySample): BodyFit {
   const tb = union(s.boxes.spine_03, s.boxes.spine_02);
   const sp3 = s.bones.spine_03 ?? [neckBone[0], at(0.69), neckBone[2]];
   const pelvis = s.bones.pelvis ?? [neckBone[0], at(0.5), neckBone[2]];
+  // Profondeur bornée : sur un rig approximatif, des mèches ou un objet tenu comptent pour le torse.
+  const tz = tb ? (tb.min[2] + tb.max[2]) / 2 : 0;
+  const tDepth = tb ? Math.min(tb.max[2] - tb.min[2], 0.2 * H) / 2 : 0;
   const torso = tb
-    ? { x: (tb.min[0] + tb.max[0]) / 2, back: tb.min[2], front: tb.max[2], halfW: clamp((tb.max[0] - tb.min[0]) / 2, 0.05 * H, 0.11 * H), top: neckBone[1], bottom: pelvis[1] }
+    ? { x: (tb.min[0] + tb.max[0]) / 2, back: tz - tDepth, front: tz + tDepth, halfW: clamp((tb.max[0] - tb.min[0]) / 2, 0.05 * H, 0.11 * H), top: neckBone[1], bottom: pelvis[1] }
     : { x: sp3[0], back: sp3[2] - 0.07 * H, front: sp3[2] + 0.07 * H, halfW: 0.075 * H, top: neckBone[1], bottom: pelvis[1] };
   // Poignet : un peu avant l'articulation de la main, sur l'avant-bras.
   const hand = s.bones.hand_l ?? [0.42 * H, at(0.68), 0];
@@ -120,14 +132,26 @@ export function fitBody(s: BodySample): BodyFit {
   const back = 0.022 * H;
   const fa = s.boxes.lowerarm_l;
   const faR = fa ? Math.min(fa.max[1] - fa.min[1], fa.max[2] - fa.min[2]) / 2 * 0.8 : 0.02 * H;
+  // Poignet mesuré : bout de l'avant-bras (sommets de l'os de l'avant-bras), sur l'axe de sa boîte. L'os
+  // de la main d'un rig automatique peut se trouver au-delà de la main dessinée.
+  let wristPos: Vec3 = [hand[0] - dir[0] * back, hand[1] - dir[1] * back, hand[2] - dir[2] * back];
+  if (fa) {
+    const c: Vec3 = [(fa.min[0] + fa.max[0]) / 2, (fa.min[1] + fa.max[1]) / 2, (fa.min[2] + fa.max[2]) / 2];
+    const half = (Math.abs(dir[0]) * (fa.max[0] - fa.min[0]) + Math.abs(dir[1]) * (fa.max[1] - fa.min[1]) + Math.abs(dir[2]) * (fa.max[2] - fa.min[2])) / 2;
+    const t = Math.max(0, half - 0.6 * back);
+    wristPos = [c[0] + dir[0] * t, c[1] + dir[1] * t, c[2] + dir[2] * t];
+  }
   return {
     H,
     head,
     eyeY: head.min[1] + EYE_LEVEL * hh,
-    neck: { pos: [neckBone[0], (neckBone[1] + headBone[1]) / 2 - 0.012 * H, neckBone[2]], r: neckR },
+    // Écharpe à la base du cou : les rigs du studio placent l'os du cou vers le menton des grosses têtes
+    // d'enfants ; entre épaules et cou, elle ne cache plus la bouche.
+    neck: { pos: [neckBone[0], arm ? Math.max(arm[1] + 0.04 * H, neckBone[1] - 0.035 * H) : neckBone[1] + 0.012 * H, neckBone[2]], r: neckR },
     torso,
     pelvis,
-    wrist: { pos: [hand[0] - dir[0] * back, hand[1] - dir[1] * back, hand[2] - dir[2] * back], dir, r: clamp(faR, 0.014 * H, 0.03 * H) },
+    wrist: { pos: wristPos, dir, r: clamp(faR, 0.014 * H, 0.03 * H) },
+    bigHead: neckFixed,
   };
 }
 
