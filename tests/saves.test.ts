@@ -5,7 +5,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { createWorld } from '../src/core/store';
-import { exportSave, importSave, inspectAutoSave, saveToSlot, loadFromSlot, deleteSlot } from '../src/saves/persist';
+import { exportSave, importSave, inspectAutoSave, saveToSlot, loadFromSlot, deleteSlot, slotSummary } from '../src/saves/persist';
 import { CURRENT_SAVE_VERSION, migrateSave } from '../src/saves/migrations';
 import { runTicks } from '../src/simulation/engine';
 import { buyStock, createProject } from '../src/simulation/project';
@@ -116,6 +116,8 @@ describe('sauvegarde — migration v0 → v10 (météo, Conseil, rivaux, atelier
   it('une entrée illisible est rejetée avec une erreur claire', () => {
     expect(() => migrateSave(42)).toThrow(/illisible/);
     expect(() => importSave('{ pas du json')).toThrow();
+    expect(() => migrateSave([])).toThrow(/illisible/);
+    expect(() => importSave('[]')).toThrow(/illisible/);
   });
 });
 
@@ -489,5 +491,13 @@ describe('emplacements de sauvegarde — résumé', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it('valide et rejette les noms d’emplacements invalides', () => {
+    const w = createWorld({ playerName: 'Morgane' });
+    expect(() => saveToSlot('../bad', w)).toThrow(/invalide/);
+    expect(() => loadFromSlot('slot name!')).toThrow(/invalide/);
+    expect(() => deleteSlot('')).toThrow(/invalide/);
+    expect(slotSummary('slot space!')).toEqual({ slot: 'slot space!', exists: false, error: 'emplacement invalide' });
   });
 });

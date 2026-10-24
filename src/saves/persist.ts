@@ -7,6 +7,13 @@ import { migrateSave } from './migrations';
 
 const PREFIX = 'neurapolis.save.';
 
+function validateSlot(slot: string): string {
+  if (typeof slot !== 'string' || !/^[a-zA-Z0-9_-]{1,32}$/.test(slot)) {
+    throw new Error(`Emplacement « ${slot} » invalide.`);
+  }
+  return slot;
+}
+
 function storage(): Storage | null {
   try {
     return typeof localStorage !== 'undefined' ? localStorage : null;
@@ -16,21 +23,24 @@ function storage(): Storage | null {
 }
 
 export function saveToSlot(slot: string, w: WorldState): void {
+  const safeSlot = validateSlot(slot);
   const ls = storage();
   if (!ls) throw new Error('localStorage indisponible.');
-  ls.setItem(PREFIX + slot, JSON.stringify(w));
+  ls.setItem(PREFIX + safeSlot, JSON.stringify(w));
 }
 
 export function loadFromSlot(slot: string): WorldState {
+  const safeSlot = validateSlot(slot);
   const ls = storage();
   if (!ls) throw new Error('localStorage indisponible.');
-  const raw = ls.getItem(PREFIX + slot);
-  if (!raw) throw new Error(`Emplacement « ${slot} » vide.`);
+  const raw = ls.getItem(PREFIX + safeSlot);
+  if (!raw) throw new Error(`Emplacement « ${safeSlot} » vide.`);
   return migrateSave(JSON.parse(raw));
 }
 
 export function deleteSlot(slot: string): void {
-  storage()?.removeItem(PREFIX + slot);
+  const safeSlot = validateSlot(slot);
+  storage()?.removeItem(PREFIX + safeSlot);
 }
 
 export interface SlotSummary {
@@ -48,7 +58,11 @@ export interface SlotSummary {
 
 /** Résumé d'un emplacement, sans migrer ni charger tout le monde (lecture légère du JSON). */
 export function slotSummary(slot: string): SlotSummary {
-  const raw = storage()?.getItem(PREFIX + slot);
+  if (typeof slot !== 'string' || !/^[a-zA-Z0-9_-]{1,32}$/.test(slot)) {
+    return { slot, exists: false, error: 'emplacement invalide' };
+  }
+  const safeSlot = validateSlot(slot);
+  const raw = storage()?.getItem(PREFIX + safeSlot);
   if (!raw) return { slot, exists: false };
   try {
     const s = JSON.parse(raw) as {
