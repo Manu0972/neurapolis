@@ -751,11 +751,19 @@ export class SoundEngine {
   public setIndoor(inside: boolean): void {
     if (this.indoor === inside) return;
     this.indoor = inside;
-    if (this.rainGain && this.ctx) this.rainGain.gain.setTargetAtTime(inside ? 0.02 : 0.12, this.ctx.currentTime, 0.4);
+    if (!this.rainGain || !this.ctx) return;
+    // updateAmbient vient souvent de reconstruire la pluie avec l'ANCIEN état (rampe d'une seconde vers 0.12 ou 0.02) :
+    // une rampe programmée l'emporte sur setTargetAtTime. On l'annule donc et on repart de la valeur courante.
+    const g = this.rainGain.gain;
+    const now = this.ctx.currentTime;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(g.value, now);
+    g.setTargetAtTime(inside ? 0.02 : 0.12, now, 0.4);
   }
 
   public stopAmbient(): void {
     this.currentAmbientLocation = 'silence';
+    this.rainGain = null; // la couche de pluie s'éteint : setIndoor ne doit plus agir sur elle
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     for (const g of this.ambientNodes.gains) {
