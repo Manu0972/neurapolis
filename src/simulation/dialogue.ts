@@ -16,6 +16,13 @@ import { bump } from './events';
 import { isIrritable } from './needs';
 import { rememberedNpcLine } from './npc';
 import { personalize } from './story';
+import { missionTalkFlag } from './missions';
+
+/** Étape de mission « va parler à » ce PNJ : la conversation la valide (drapeau). */
+function noteMissionTalk(w: WorldState, npcId: NpcId): void {
+  const flag = missionTalkFlag(w, npcId);
+  if (flag) bump(w, flag);
+}
 
 /** Sujets disponibles pour un PNJ (clés de ses topics). */
 export function dialogueTopics(npcId: NpcId): string[] {
@@ -25,6 +32,7 @@ export function dialogueTopics(npcId: NpcId): string[] {
 
 /** Une réplique du PNJ tirée au PRNG dans le sujet choisi. */
 export function npcLine(w: WorldState, npcId: NpcId, topic: string): string | null {
+  noteMissionTalk(w, npcId);
   const rememberedLine = rememberedNpcLine(w, npcId, topic);
   if (rememberedLine) return rememberedLine;
   const lines = NPC_BY_ID[npcId]?.topics[topic];
@@ -117,6 +125,7 @@ export function askTopic(w: WorldState, c: Conversation, topic: string): AskResu
   c.asked.push(topic);
   c.topic = topic;
   if (isTeamTopic(w, c.npcId, topic)) {
+    noteMissionTalk(w, c.npcId);
     const replies = TEAM_REPLIES[topic]!.map((r) => ({ id: r.tone, label: `${TONE_ICONS[r.tone]} ${r.label}` }));
     return { line: personalize(w, rngPick(w, TEAM_LINES[c.npcId]![topic]!)), replies };
   }

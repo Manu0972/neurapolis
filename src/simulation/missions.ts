@@ -57,6 +57,11 @@ export interface MissionStep {
   target?: MissionTarget;
   /** Action directe (E) : à la cible si `target`, sinon n'importe où dehors. */
   action?: { do: MissionDo; label: string; npc?: NpcId };
+  /**
+   * Étape « va parler à » : drapeau (`w.flags`) posé quand le joueur parle à ce PNJ pendant que
+   * l'étape est active (simulation/dialogue.ts, via `missionTalkFlag`). Pas de champ d'état ajouté.
+   */
+  talk?: { flag: string; npc: NpcId };
 }
 
 export interface MissionContext {
@@ -127,6 +132,7 @@ function goThenDo(
     return {
       id: `${id}:aller`, chapter: ch, rank: r, kind: target.kind === 'pnj' ? 'parler' : 'aller', icon: '🎯',
       text: goText, count: doStep.count, detail: doStep.detail, target,
+      ...(doStep.talk ? { talk: doStep.talk } : {}),
     };
   }
   return { ...doStep, id: `${id}:faire`, chapter: ch, rank: r + 1, target };
@@ -203,6 +209,24 @@ function counterStep(w: WorldState, ch: number, r: number): MissionStep {
   });
 }
 
+/** Drapeau d'une étape « va parler à » (vague 14 : étapes concrètes des chapitres 2 à 5). */
+export const talkDone = (w: WorldState, id: string): boolean => (w.flags[`mission:${id}`] ?? 0) > 0;
+
+/**
+ * Aller voir quelqu'un (livrer, convaincre, préparer…) : la balise suit le PNJ, puis E ouvre la
+ * conversation ; n'importe quel sujet valide l'étape. `where` dit où le trouver.
+ */
+function talkStep(
+  w: WorldState, ch: number, r: number, id: string, npc: NpcId, goText: string, text: string, icon: string,
+  detail?: string, target: MissionTarget = pnj(w, npc), count?: MissionStep['count'],
+): MissionStep {
+  const name = firstName(npc);
+  return goThenDo(w, ch, r, id, target, goText, {
+    kind: 'parler', icon, text, detail, count, talk: { flag: `mission:${id}`, npc },
+    action: { do: 'parler', label: `Parler à ${name}`, npc },
+  });
+}
+
 /** Objectifs remplis : il reste à laisser passer le temps (fin de journée ou anniversaire). */
 function waitStep(w: WorldState, ch: number, targetAge: number): MissionStep {
   const skip = { do: 'passer_temps' as const, label: 'Passer le temps' };
@@ -243,9 +267,19 @@ function chapterStep(w: WorldState): MissionStep | null {
         action: { do: 'parler', label: 'Parler à Samir', npc: 'samir' },
       });
     }
+    if (!talkDone(w, 'c2:karim')) {
+      return talkStep(w, 2, 3, 'c2:karim', 'karim', 'Rejoins Karim (place le matin, Friche Taret l’après-midi)',
+        'Demande à Karim ce qu’il faudrait pour rouvrir l’atelier', '🔧',
+        'Karim connaît chaque machine de l’usine : écoute ce qu’il en dit avant d’écrire vos règles.');
+    }
     if (!(w.project?.rules.collectif ?? false)) {
       const team = teamStep(w, 2, 10, 2);
       if (team) return team;
+      if (!talkDone(w, 'c2:lina')) {
+        return talkStep(w, 2, 16, 'c2:lina', 'lina', 'Rejoins Lina pour préparer les règles du stand',
+          'Prépare les règles avec Lina : rôles, caisse, horaires', '📝',
+          'Lina aime que tout soit clair. Parlez-en avant de les adopter avec toute l’équipe.');
+      }
       return {
         id: 'c2:regles', chapter: 2, rank: 20, kind: 'faire', icon: '📜',
         text: 'Adopte des règles partagées avec ton équipe',
@@ -253,18 +287,39 @@ function chapterStep(w: WorldState): MissionStep | null {
         action: { do: 'regles', label: 'Adopter les règles partagées' },
       };
     }
+    if (!talkDone(w, 'c2:yasmine')) {
+      return talkStep(w, 2, 24, 'c2:yasmine', 'yasmine', 'Rejoins Yasmine sur la place (après les cours)',
+        'Annonce la vente collective à Yasmine : elle le dira à tout le quartier', '📣',
+        'Une vente collective, ça se prépare : plus il y a de monde au courant, plus il y a de clients.');
+    }
     return sellStep(w, 2, 30, undefined, 'Une vente tenue avec les règles collectives.');
   }
   if (ch === 3) {
     const help = chapter3Help(w);
-    if (help < 5) {
-      return goThenDo(w, 3, 1, 'c3:course', lieu('epicerie'), `Va à l’${placeName('epicerie')} pour aider Mme Bertin`, {
-        kind: 'faire', icon: '🧺', text: 'Fais des courses pour l’épicerie',
-        count: { done: help, total: 5, unit: 'courses' },
-        action: { do: 'course', label: 'Faire une course (20 min, 2 €)' },
-      });
+    const livraisons = { done: help, total: 5, unit: 'livraisons' };
+    const course = (r: number, id: string): MissionStep => goThenDo(w, 3, r, id, lieu('epicerie'), `Va à l’${placeName('epicerie')} chercher une commande`, {
+      kind: 'faire', icon: '🧺', text: 'Livre une commande de l’épicerie dans le quartier', count: livraisons,
+      action: { do: 'course', label: 'Faire une course (20 min, 2 €)' },
+    });
+    if (help < 5 && !talkDone(w, 'c3:bertin')) {
+      return talkStep(w, 3, 1, 'c3:bertin', 'bertin', `Va à l’${placeName('epicerie')} : Mme Bertin a une liste de livraisons`,
+        'Demande sa liste de livraisons à Mme Bertin', '📋',
+        'Les clients âgés ne peuvent plus porter leurs sacs : le réseau solidaire commence par là.',
+        lieu('epicerie'), livraisons);
     }
-    return counterStep(w, 3, 10);
+    if (help < 2) return course(3, 'c3:course');
+    if (help < 5 && !talkDone(w, 'c3:monique')) {
+      return talkStep(w, 3, 5, 'c3:monique', 'monique', 'Apporte un panier à Monique (épicerie le matin, parc l’après-midi)',
+        'Livre son panier à Monique et demande qui d’autre en a besoin', '🧺',
+        'Monique connaît tous les voisins du comité de quartier : elle saura qui aider ensuite.', undefined, livraisons);
+    }
+    if (help < 5) return course(7, 'c3:livraisons');
+    if (!talkDone(w, 'c3:noah')) {
+      return talkStep(w, 3, 9, 'c3:noah', 'noah', 'Rejoins Noah (parc après les cours)',
+        'Prépare la riposte contre le drive avec Noah', '🛹',
+        'Le drive casse les prix : avant de répondre, mettez-vous d’accord sur ce que le stand fait mieux que lui.');
+    }
+    return counterStep(w, 3, 12);
   }
   if (ch === 4) {
     if ((w.flags['chapitre4ConseilMobilise'] ?? 0) <= 0) {
@@ -275,9 +330,19 @@ function chapterStep(w: WorldState): MissionStep | null {
       };
     }
     if ((w.flags['chapitre4DebatCitoyen'] ?? 0) <= 0) {
+      if (!talkDone(w, 'c4:monique')) {
+        return talkStep(w, 4, 2, 'c4:monique', 'monique', 'Rejoins Monique (épicerie le matin, parc l’après-midi)',
+          'Convaincs Monique de venir défendre le quartier au débat', '🗣️',
+          'Le comité de quartier l’écoute : si elle vient, les anciens viendront aussi.');
+      }
+      if (!talkDone(w, 'c4:samir')) {
+        return talkStep(w, 4, 4, 'c4:samir', 'samir', 'Rejoins Samir (Friche le matin, place l’après-midi)',
+          'Prépare tes arguments pour le débat avec Samir', '📝',
+          'Qui paie, qui gagne, qui décide ? Trois questions à poser à chaque projet pour la place.');
+      }
       if (w.player.age < 15) {
         return {
-          id: 'c4:attente-debat', chapter: 4, rank: 5, kind: 'attendre', icon: '📅',
+          id: 'c4:attente-debat', chapter: 4, rank: 6, kind: 'attendre', icon: '📅',
           text: 'Fais passer le temps : le débat de la place aura lieu à tes 15 ans',
           detail: 'Le Conseil est prêt. Appuie sur E : « Aller jusqu’à ton anniversaire » t’y amène d’un coup, tes affaires continuent de tourner.',
           action: { do: 'passer_temps', label: 'Passer le temps' },
@@ -297,8 +362,18 @@ function chapterStep(w: WorldState): MissionStep | null {
     }
   }
   if (ch === 5 && (w.flags['chapitre5ModeleFonde'] ?? 0) <= 0) {
+    if (!talkDone(w, 'c5:bertin')) {
+      return talkStep(w, 5, 1, 'c5:bertin', 'bertin', `Va à l’${placeName('epicerie')} faire le bilan avec Mme Bertin`,
+        'Fais le bilan de ces quatre années avec Mme Bertin', '📒',
+        'Ce qui a tenu, ce qui a coûté, ce qu’il faut garder : son avis compte avant de choisir un modèle.', lieu('epicerie'));
+    }
+    if (!talkDone(w, 'c5:noah')) {
+      return talkStep(w, 5, 3, 'c5:noah', 'noah', 'Rejoins Noah (parc après les cours)',
+        'Demande à Noah ce que l’équipe veut léguer au quartier', '🤝',
+        'Un modèle économique, c’est aussi ce que les autres feront sans toi.');
+    }
     return {
-      id: 'c5:modele', chapter: 5, rank: 1, kind: 'faire', icon: '🏛️',
+      id: 'c5:modele', chapter: 5, rank: 5, kind: 'faire', icon: '🏛️',
       text: 'Choisis le modèle économique de Val-Ferrand',
       action: { do: 'modele', label: 'Choisir le modèle économique' },
     };
@@ -312,6 +387,16 @@ function chapterStep(w: WorldState): MissionStep | null {
     };
   }
   return null;
+}
+
+/**
+ * Le joueur parle à `npcId` : si l'étape du chapitre en cours est « va parler à » ce PNJ, renvoie
+ * le drapeau qui la valide (appelé par simulation/dialogue.ts). Les heures de cours n'y changent
+ * rien : seule compte l'étape du chapitre.
+ */
+export function missionTalkFlag(w: WorldState, npcId: NpcId): string | null {
+  const talk = chapterStep(w)?.talk;
+  return talk && talk.npc === npcId ? talk.flag : null;
 }
 
 /**

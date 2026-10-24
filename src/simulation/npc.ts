@@ -8,6 +8,7 @@ import { NPCS } from '../data/npcs';
 import { NPC_EVENT_REACTIONS } from '../data/npc-events';
 import { CITY, PLACE_ANCHORS, isWalkable } from '../data/map';
 import { estLyceen } from './school_life';
+import { LYCEE_MERCREDI_FIN, ROUTINES_LYCEE } from '../data/school/routines_lycee';
 
 const toMin = (hhmm: string): number => {
   const [h, m] = hhmm.split(':').map(Number);
@@ -24,6 +25,18 @@ function slotFor(def: NpcDef, minutes: number, schoolDay: boolean, weekday: numb
   });
 }
 
+/**
+ * Créneau d'un camarade quand le joueur est lycéen (src/data/school/routines_lycee.ts) :
+ * cours de 8 h à 12 h et de 14 h à 17 h, mercredi matin seulement. `null` : pas de routine lycée.
+ */
+export function slotLycee(id: NpcId, minutes: number, schoolDay: boolean, weekday: number): RoutineSlot | undefined | null {
+  const r = ROUTINES_LYCEE[id];
+  if (!r) return null;
+  const within = (s: RoutineSlot): boolean => toMin(s.from) <= minutes && minutes < toMin(s.to);
+  if (schoolDay && weekday === 3 && minutes >= LYCEE_MERCREDI_FIN) return r.mercredi.find(within);
+  return r.semaine.find((s) => within(s) && (schoolDay || (s.weekends === true && s.place !== 'lycee')));
+}
+
 export function npcTick(w: WorldState): void {
   const day = dayIndexOf(w.time.tick);
   const minutes = minutesOfDay(w.time.tick);
@@ -36,7 +49,8 @@ export function npcTick(w: WorldState): void {
   for (const def of NPCS) {
     const st: NpcState | undefined = w.npcs[def.id];
     if (!st) continue;
-    const slot = slotFor(def, minutes, school, dateInfo.weekday, vacances);
+    const lycee = lyceen ? slotLycee(def.id, minutes, school, dateInfo.weekday) : null;
+    const slot = lycee === null ? slotFor(def, minutes, school, dateInfo.weekday, vacances) : lycee;
     if (slot) {
       // Le joueur est lycéen : la bande et les profs du collège ont suivi au lycée (même emploi du temps).
       st.place = slot.place === 'college' && lyceen ? 'lycee' : slot.place;
