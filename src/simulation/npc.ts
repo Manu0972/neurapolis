@@ -7,6 +7,7 @@ import { isSchoolDay, minutesOfDay, dayIndexOf, dateOf } from '../core/clock';
 import { NPCS } from '../data/npcs';
 import { NPC_EVENT_REACTIONS } from '../data/npc-events';
 import { CITY, PLACE_ANCHORS, isWalkable } from '../data/map';
+import { estLyceen } from './school_life';
 
 const toMin = (hhmm: string): number => {
   const [h, m] = hhmm.split(':').map(Number);
@@ -30,13 +31,15 @@ export function npcTick(w: WorldState): void {
   const dateInfo = dateOf(day);
   const vacances = isVacances(day);
   const weekend = dateInfo.weekday === 0 || dateInfo.weekday === 6;
+  const lyceen = estLyceen(w);
 
   for (const def of NPCS) {
     const st: NpcState | undefined = w.npcs[def.id];
     if (!st) continue;
     const slot = slotFor(def, minutes, school, dateInfo.weekday, vacances);
     if (slot) {
-      st.place = slot.place;
+      // Le joueur est lycéen : la bande et les profs du collège ont suivi au lycée (même emploi du temps).
+      st.place = slot.place === 'college' && lyceen ? 'lycee' : slot.place;
       st.activity = slot.activity;
     } else {
       // Hors créneaux (nuit, ou week-end sans créneau marqué) : à la maison

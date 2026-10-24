@@ -467,6 +467,11 @@ export function buildCityLayout(): CityLayout {
     perimeter(b, { faces: ['n'], styles: ['brique', 'enduit_creme'], floors: [3, 4] });
     special({ id: 'college', x: b.x + 6, y: b.y + b.h - 3 - 22, w: b.w - 12, d: 22, floors: 3, style: 'ecole', roof: 'deux_pans', front: 's', label: 'Collège Jean-Moulin', place: 'college' });
     zones.push({ kind: 'pave', x: b.x + 6, y: b.y + 18, w: b.w - 12, h: b.h - 3 - 22 - 18, walkable: false });
+    // Lycée Jean-Moulin : la cité scolaire continue derrière le collège (2de et au-delà, dès 15 ans).
+    // Il s'ouvre sur la rue Louise-Michel, à une vingtaine de mètres de l'avenue : même trajet que
+    // pour le collège, quatre minutes à pied depuis la Cité des Roses. (Aucun local n'est touché :
+    // les identifiants « local_NN » ne bougent pas.)
+    special({ id: 'lycee_jm', x: b.x + 3, y: b.y + 17, w: 38, d: 26, floors: 3, style: 'ecole', roof: 'deux_pans', front: 'w', label: 'Lycée Jean-Moulin', place: 'lycee' });
     streetFurniture(b);
   }
 
@@ -887,7 +892,7 @@ export function buildCityLayout(): CityLayout {
     samir: homeIn('b12', 3),
   };
 
-  const required: PlaceId[] = ['maison', 'college', 'epicerie', 'friche', 'parc', 'place'];
+  const required: PlaceId[] = ['maison', 'college', 'lycee', 'epicerie', 'friche', 'parc', 'place'];
   for (const p of required) {
     if (!anchors[p]) throw new Error(`Ville : le lieu ${p} n'a pas d'entrée.`);
   }

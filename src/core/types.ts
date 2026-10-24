@@ -5,7 +5,7 @@
  */
 
 // ---------- Identifiants ----------
-export type PlaceId = 'maison' | 'college' | 'epicerie' | 'friche' | 'parc' | 'place';
+export type PlaceId = 'maison' | 'college' | 'lycee' | 'epicerie' | 'friche' | 'parc' | 'place';
 export type SkillId =
   | 'negociation' | 'comptabilite' | 'communication'
   | 'organisation' | 'technique' | 'recherche';
