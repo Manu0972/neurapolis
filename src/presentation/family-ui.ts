@@ -5,14 +5,14 @@
 import type { WorldState } from '../core/types';
 import type { ParentId } from '../core/family_types';
 import { dateOf, dayIndexOf, minutesOfDay } from '../core/clock';
-import { PARENTS, SCHOOL_STAFF } from '../data/family_starter';
+import { PARENTS } from '../data/family_starter';
 import { FAMILY_BUDGET_LESSON, FAMILY_EXPENSES, FAMILY_INCOME, FAMILY_MONTHLY_MARGIN, sumBudget, type BudgetLine } from '../data/family_budget';
 import {
-  COSIGN_TRUST, SESSIONS, classWindow, ensureFamily, familyTrust, pendingDinner, resolveConvocation, resolveDinner,
+  COSIGN_TRUST, seanceLabel, classWindow, ensureFamily, familyTrust, pendingDinner, resolveConvocation, resolveDinner,
   type ConvocationChoice,
   EMERGENCY_BELOW, EMERGENCY_GAP_DAYS, askParentsHelp, emergencyHelpStatus,
 } from '../simulation/family';
-import { ensureSchoolLifeState } from '../simulation/school_life';
+import { classeScolaire, ensureSchoolLifeState, etablissementDe } from '../simulation/school_life';
 import { personalize } from '../simulation/story';
 import { pendingSchoolEvent, resolveSchoolEvent } from '../simulation/school_events';
 import { ghostAvatar, thinkerMeta } from './ghost-avatar';
@@ -113,7 +113,8 @@ export function openConvocationModal(ctx: FamilyCtx): boolean {
   if (!c) return false;
   const sl = ensureSchoolLifeState(ctx.world);
   const body = el('div', 'panel-body');
-  body.appendChild(el('p', 'panel-desc', `Le bureau de ${SCHOOL_STAFF.principal.name}, ${SCHOOL_STAFF.principal.role}. Nora a pris sa matinée après sa garde de nuit ; Thierry a échangé son poste au Drive. Motif : ${c.reason}. Ta moyenne : ${sl.academicAverage}/20.`));
+  const chef = etablissementDe(ctx.world).chef;
+  body.appendChild(el('p', 'panel-desc', `Le bureau de ${chef.name}, ${chef.role}. Nora a pris sa matinée après sa garde de nuit ; Thierry a échangé son poste au Drive. Motif : ${c.reason}. Ta moyenne : ${sl.academicAverage}/20.`));
   const grid = el('div', 'fam-voices');
   for (const v of CONVOCATION_VOICES) {
     const box = el('div', 'duel-face');
@@ -133,7 +134,7 @@ export function openConvocationModal(ctx: FamilyCtx): boolean {
     grid.appendChild(box);
   }
   body.appendChild(grid);
-  ctx.showModal('🏫 Convocation', `${SCHOOL_STAFF.principal.name} t’attend`, body, true);
+  ctx.showModal('🏫 Convocation', `${chef.name} t’attend`, body, true);
   return true;
 }
 
@@ -180,13 +181,14 @@ export function openFamilyPanel(ctx: FamilyCtx, opts: { budget?: boolean } = {})
     body.appendChild(b);
   }
   const school = el('div', 'ph-card');
-  school.appendChild(el('div', 'ph-card-title', '🏫 Collège Jean-Moulin'));
+  const ecole = etablissementDe(w);
+  school.appendChild(el('div', 'ph-card-title', `🏫 ${ecole.nom}`));
   const unexcused = f.absences.filter((a) => !a.excused).length;
   school.appendChild(el('p', 'ph-note', `Moyenne ${String(sl.academicAverage).replace('.', ',')}/20 · assiduité ${sl.attendanceRate} % · ${unexcused} absence(s) injustifiée(s) · ${f.absences.length - unexcused} excusée(s)`));
   const next = classWindow(w);
   school.appendChild(el('p', 'ph-note', next
-    ? `Cours ouvert maintenant (${next === 'matin' ? '8 h 30 – 12 h' : '13 h 30 – 16 h 30'}) : va au collège et appuie sur E à l’entrée.`
-    : `Cours : ${Math.floor(SESSIONS.matin.start / 60)} h 30 – 12 h et 13 h 30 – 16 h 30, pas le mercredi après-midi.`));
+    ? `Cours ouvert maintenant (${seanceLabel(w, next)}) : va ${ecole.court === 'le lycée' ? 'au lycée' : 'au collège'} et appuie sur E à l’entrée.`
+    : `Cours : ${seanceLabel(w, 'matin')} et ${seanceLabel(w, 'apres')}, pas le mercredi après-midi.`));
   if (f.arrangement && f.arrangement.untilDay > day) {
     school.appendChild(el('p', 'ph-note ok', `📝 Convention avec ${f.arrangement.with} : ${f.arrangement.perWeek} demi-journées excusées par semaine, moyenne ≥ ${f.arrangement.minAverage}, encore ${f.arrangement.untilDay - day} jours.`));
   }
@@ -198,7 +200,7 @@ export function openFamilyPanel(ctx: FamilyCtx, opts: { budget?: boolean } = {})
   }
   for (const g of f.grades.slice(-5).reverse()) school.appendChild(el('p', 'ph-note', `📝 ${g.subject} (${dateOf(g.day).label}) : ${String(g.note).replace('.', ',')}/20`));
   body.appendChild(school);
-  ctx.showModal('👪 Famille & collège', 'Nora, Thierry, et le collège Jean-Moulin', body, true);
+  ctx.showModal(`👪 Famille & ${ecole.court === 'le lycée' ? 'lycée' : 'collège'}`, `Nora, Thierry, et ${ecole.court} Jean-Moulin`, body, true);
 }
 
 /** Un événement de collège : deux ou trois choix, chacun conseillé par une voix. */
@@ -226,6 +228,30 @@ export function openSchoolEventModal(ctx: FamilyCtx, onResolved: (ghost: string,
     grid.appendChild(box);
   });
   body.appendChild(grid);
-  ctx.showModal(`🏫 ${e.title}`, 'Collège Jean-Moulin', body, true);
+  ctx.showModal(`🏫 ${personalize(ctx.world, e.title)}`, etablissementDe(ctx.world).nom, body, true);
+  return true;
+}
+
+/**
+ * Carton de rentrée : à la rentrée de la 2de, l'établissement change (collège → lycée). Un court
+ * écran dit la date, la classe, le lieu, le résultat du brevet et comment s'y rendre. Le drapeau
+ * `rentreeCarton` (posé par la simulation) est consommé ici.
+ */
+export function openRentreeCard(ctx: FamilyCtx): boolean {
+  const w = ctx.world;
+  if ((w.flags['rentreeCarton'] ?? 0) <= 0) return false;
+  w.flags['rentreeCarton'] = 0;
+  const ecole = etablissementDe(w);
+  const evt = [...w.events].reverse().find((e) => e.title.startsWith('Rentrée en'));
+  const body = el('div', 'panel-body');
+  body.appendChild(el('p', 'panel-desc', `Septembre. Nouvelle classe, nouveaux locaux : ${ecole.nom}.`));
+  const lignes = (evt?.text ?? '').split(/(?<=[.!?»])\s+/).filter((l) => l.trim().length > 0);
+  for (const l of lignes) body.appendChild(el('p', 'ph-note', personalize(w, l)));
+  body.appendChild(el('p', 'ph-note ok', `Cours ${seanceLabel(w, 'matin')} et ${seanceLabel(w, 'apres')} (mercredi matin seulement). Le lycée est à côté du collège : même rue Louise-Michel, quatre minutes à pied de la Cité des Roses.`));
+  const b = el('button', 'ph-btn primary', 'C’est parti');
+  b.type = 'button';
+  b.addEventListener('click', () => ctx.closeModal());
+  body.appendChild(b);
+  ctx.showModal(`🎒 Rentrée en ${classeScolaire(w.player.age)}`, dateOf(dayIndexOf(w.time.tick)).label, body, true);
   return true;
 }

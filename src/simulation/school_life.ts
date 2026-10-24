@@ -4,6 +4,7 @@
 import type { Notification, SchoolLifeState, WorldState } from '../core/types';
 import { dayIndexOf, isSchoolDay } from '../core/clock';
 import { notify } from './events';
+import { AGE_LYCEE, adapterTexteEcole } from '../core/school';
 
 /** Fatigue d'une demi-journée de cours (8 rendait le joueur assidu irritable en permanence). */
 export const CLASS_FATIGUE = 5;
@@ -18,9 +19,37 @@ export function classeScolaire(age: number): string {
   return CLASSES[Math.max(11, Math.min(17, age))]!;
 }
 
-/** Collège jusqu'en 3e, lycée ensuite (même cité scolaire Jean-Moulin). */
+export { AGE_LYCEE, adapterTexteEcole };
+
+/** Collège jusqu'en 3e, lycée ensuite (même cité scolaire Jean-Moulin, entrée rue Louise-Michel). */
 export function etablissementScolaire(age: number): string {
-  return age >= 15 ? 'lycée Jean-Moulin' : 'collège Jean-Moulin';
+  return age >= AGE_LYCEE ? 'lycée Jean-Moulin' : 'collège Jean-Moulin';
+}
+
+/** Lieu de la carte où le joueur suit ses cours selon son âge. */
+export function lieuScolaire(age: number): 'college' | 'lycee' {
+  return age >= AGE_LYCEE ? 'lycee' : 'college';
+}
+
+/** Le joueur est-il lycéen (2de ou plus) ? Les parties en 3e ou avant gardent le collège. */
+export function estLyceen(w: WorldState): boolean {
+  return w.player.age >= AGE_LYCEE;
+}
+
+/** Établissement du joueur : lieu, noms et mots à employer dans les textes. */
+export interface Etablissement {
+  place: 'college' | 'lycee';
+  /** « Collège Jean-Moulin » / « Lycée Jean-Moulin » */
+  nom: string;
+  /** « le collège » / « le lycée » */
+  court: string;
+  chef: { name: string; role: string };
+}
+
+export function etablissementDe(w: WorldState): Etablissement {
+  return estLyceen(w)
+    ? { place: 'lycee', nom: 'Lycée Jean-Moulin', court: 'le lycée', chef: { name: 'Mme Leroux', role: 'proviseure du lycée Jean-Moulin' } }
+    : { place: 'college', nom: 'Collège Jean-Moulin', court: 'le collège', chef: { name: 'M. Vasseur', role: 'principal du collège Jean-Moulin' } };
 }
 
 /** Les contrôles se corsent d'une année sur l'autre (points retirés à la note du vendredi). */

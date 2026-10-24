@@ -29,7 +29,7 @@ import { STAND_CONFIG } from '../../src/data/project';
 import { tickWorld } from '../../src/simulation/engine';
 import { basculerForfait, depenseStatus, faireDepense, forfaitActif, FORFAIT_MIN_AGE, type DepenseId } from '../../src/simulation/depenses';
 import { beginSkip, skipTime, stepSkip } from '../../src/simulation/timeskip';
-import { attendClass, classWindow, isInClass } from '../../src/simulation/family';
+import { attendClass, classWindow, isInClass, sessionsFor } from '../../src/simulation/family';
 import { finishOrigin, ensureStory } from '../../src/simulation/story';
 import { placeAtAdjacent } from '../../src/simulation/interact';
 import { npcsAt } from '../../src/simulation/npc';
@@ -519,10 +519,11 @@ export function jouerCampagne(opts: ParcoursOptions): ParcoursBilan {
       }
       if (objectivesDay === null && objectifsHorsAge()) objectivesDay = day;
 
-      // Temps libre : après les cours, le mercredi après-midi, toute la journée sinon.
+      // Temps libre : après les cours (16 h 40 au collège, 17 h 10 au lycée), le mercredi
+      // après-midi, toute la journée sinon.
       const school = isSchoolDay(day);
       const wd = dateOf(day).weekday;
-      const debut = !school ? MIN(9) : wd === 3 ? MIN(12, 30) : MIN(16, 40);
+      const debut = !school ? MIN(9) : wd === 3 ? MIN(12, 30) : sessionsFor(w).apres.end + 10;
       const fin = MIN(19);
       routineJusqua(tickAt(day, debut));
       conseil();
@@ -534,8 +535,11 @@ export function jouerCampagne(opts: ParcoursOptions): ParcoursBilan {
         // coup quand il y est, sinon mois par mois (les deux boutons de « Passer le temps »).
         const kind = isVacances(dayIndexOf(w.time.tick)) ? 'vacances' : 'mois';
         const r = skipTime(w, kind);
-        if ('error' in r) refus(`passer ${kind === 'mois' ? 'le mois' : 'les vacances'}`, r.error);
-        else sauts[kind] += 1;
+        if ('error' in r) {
+          refus(`passer ${kind === 'mois' ? 'le mois' : 'les vacances'}`, r.error);
+          // Garde-fou : un saut refusé ne doit jamais figer la journée (boucle sans fin).
+          routineJusqua(tickAt(dayIndexOf(w.time.tick) + 1, MIN(7)));
+        } else sauts[kind] += 1;
       } else {
         tempsLibre(fin);
         routineJusqua(tickAt(dayIndexOf(w.time.tick) + 1, MIN(7)));
