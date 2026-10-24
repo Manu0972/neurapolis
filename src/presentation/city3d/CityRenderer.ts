@@ -27,10 +27,12 @@ import { setRiggedLodFocus, startRiggedCharacters } from './rigged/library';
 import { activityFromLabel } from './rigged/animState';
 import { addShake, createCameraFeel, findPath, stepBody, stepCameraFeel, tileOf, type BodyState, type CameraFeel } from './locomotion';
 import { INTERIOR_CELL, buildInterior, nearestHotspot, type BuiltInterior, type Hotspot, type InteriorSpec } from './interior3d';
-import { updateChunkVisibility } from './chunks';
+import { DETAIL_LOD, updateChunkVisibility } from './chunks';
 import { createBarriers, type Barriers } from './barriers';
 import { createMarketLife, type MarketLife } from './marketLife';
-import { QUALITY_PRESETS, detectedQuality, chooseQuality, getQualityPref, onQualityPref, readGpuCaps, resolveQuality, type GpuCaps, type QualityLevel, type QualityPreset } from './quality';
+import { QUALITY_PRESETS, detectedQuality, chooseQuality, getQualityPref, lowerQuality, onQualityPref, readGpuCaps, recallAutoLevel, rememberAutoLevel, resolveQuality, type GpuCaps, type QualityLevel, type QualityPreset } from './quality';
+import { FrameMonitor, RENDER_BUDGETS, viewCone, type RenderBudget } from './lod';
+import { freezeStatic, setAttached } from './lodScene';
 import { PostFx } from './postfx';
 import { configureSunShadow, createContactShadows, createRimLight, frameSunShadow } from './lighting';
 import { CITY_UNIFORMS } from './materials';
@@ -178,6 +180,14 @@ export class CityRenderer {
   private gpuCaps: GpuCaps = {};
   private qualityLevel: QualityLevel = 'moyen';
   private preset: QualityPreset = QUALITY_PRESETS.moyen;
+  /** Budgets de rendu de la qualité (niveaux de détail, trafic, portée de vue : lod.ts). */
+  private budget: RenderBudget = RENDER_BUDGETS.moyen;
+  /** Temps d'image réel : résolution dynamique (qualité basse) et descente de « Auto ». */
+  private frameMon = new FrameMonitor();
+  private lastFrameAt = 0;
+  private renderScale = 1;
+  /** Plafond posé par « Auto » après mesure (null : la détection seule). */
+  private autoCap: QualityLevel | null = null;
   private postfx?: PostFx;
   private rim = createRimLight();
   /** Lumière d'appoint chaude sur le joueur la nuit (toujours dans la scène : pas de recompilation). */
@@ -226,7 +236,8 @@ export class CityRenderer {
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
       this.gpuCaps = readGpuCaps(this.renderer.getContext());
-      detectedQuality.level = chooseQuality(this.gpuCaps);
+      this.autoCap = recallAutoLevel(this.gpuCaps.renderer);
+      detectedQuality.level = lowerQuality(chooseQuality(this.gpuCaps), this.autoCap);
       ok = true;
     } catch (err) {
       console.warn('WebGL indisponible, rendu 3D désactivé.', err);
@@ -238,8 +249,8 @@ export class CityRenderer {
       this.onContextLost?.();
     });
     this.setupScene();
-    this.applyQuality(resolveQuality(getQualityPref(), this.gpuCaps));
-    onQualityPref((p) => this.applyQuality(resolveQuality(p, this.gpuCaps)));
+    this.applyQuality(this.resolveLevel());
+    onQualityPref(() => this.applyQuality(this.resolveLevel()));
     this.attachControls();
     // Personnages riggés du studio (public/personnages/, hors Git) : sans manifeste, rien ne change.
     void startRiggedCharacters();
@@ -300,6 +311,10 @@ export class CityRenderer {
   get playerPose(): { x: number; z: number; heading: number; speed: number } { return { x: this.body.x, z: this.body.z, heading: this.body.heading, speed: this.body.speed }; }
 
   private setupScene(): void {
+    // Racines immobiles : sans cela, la racine recalcule sa matrice à chaque image et force le
+    // recalcul de toutes les matrices de la scène, même figées (~10 000 objets, premier poste CPU).
+    this.scene.matrixAutoUpdate = false;
+    this.interiorScene.matrixAutoUpdate = false;
     const tBuild = performance.now();
     this.city = buildCityScene();
     // Mesure exposée pour la QA (temps de construction de la grande carte).
@@ -307,6 +322,8 @@ export class CityRenderer {
     this.scene.add(this.city.group);
     this.barriers = createBarriers();
     this.scene.add(this.barriers.group);
+    // Barrières immobiles : matrices calculées une fois (seule leur visibilité change).
+    freezeStatic(this.barriers.group);
     this.scene.add(this.sky.mesh);
     this.scene.add(this.hemi);
     this.sun.castShadow = true;
@@ -569,11 +586,13 @@ export class CityRenderer {
   frame(world: WorldState, dt: number, input: CityFrameInput, cw: number, ch: number): void {
     if (!this.renderer || !this.city) return;
     this.frameCount++;
+    this.watchFrameTime();
     setRiggedLodFocus(this.body.x, this.body.z);
     // Grande carte : seuls les blocs à portée du brouillard sont dessinés.
     if (this.city && this.frameCount % 10 === 1) {
       const far = (this.scene.fog as THREE.Fog).far;
       updateChunkVisibility(this.city.chunks, this.camera.position.x, this.camera.position.z, far);
+
       this.barriers?.update(world, this.camera.position.x, this.camera.position.z, far);
     }
     if (this.interior) {
@@ -585,6 +604,8 @@ export class CityRenderer {
     this.syncGhost(world, dt);
     this.syncRemotes(dt);
     this.market?.update(dt, world, { x: this.body.x, z: this.body.z });
+    // Place du marché loin du joueur : détachée de la scène (plus parcourue à chaque image).
+    if (this.market) setAttached(this.market.group, this.scene, this.market.group.visible);
 
     // Lumière selon l'heure et la météo.
     const hour = minutesOfDay(world.time.tick) / 60;
@@ -601,8 +622,9 @@ export class CityRenderer {
     frameSunShadow(this.sun, focus, s.sunDir, 150);
     const fog = this.scene.fog as THREE.Fog;
     fog.color.copy(s.fogColor);
-    fog.near = s.fogNear;
-    fog.far = s.fogFar;
+    // Portée de vue selon la qualité : moins de blocs dessinés au loin en qualité basse.
+    fog.near = s.fogNear * this.budget.viewScale;
+    fog.far = s.fogFar * this.budget.viewScale;
     const rainy = world.district.meteo === 'pluie';
     this.renderer.toneMappingExposure = s.exposure;
     // Sol mouillé : il sèche lentement après la pluie.
@@ -612,6 +634,9 @@ export class CityRenderer {
     // La nuit, le joueur reste lisible : contour plus marqué et petite lumière chaude au-dessus de lui
     // (côté caméra), qui adoucit aussi l'ombre de la lune portée sur lui.
     this.rim.update(this.camera, new THREE.Vector3(this.body.x, 1, this.body.z), s.rimColor, Math.max(s.rimIntensity, s.night * 0.9));
+    // Qualité basse : pas de contre-jour le jour (une lumière de moins par pixel) ; la nuit, il
+    // garde le joueur lisible.
+    this.rim.light.visible = this.budget.rimLight || s.night > 0.5;
     this.playerLamp.intensity = s.night * 4.5;
     this.playerLamp.position.set(this.body.x, groundHeightAt(this.body.x, this.body.z) + 2.3, this.body.z)
       .lerp(this.camera.position, 0.12);
@@ -656,6 +681,7 @@ export class CityRenderer {
     }
 
     this.updateCamera(dt, cw, ch);
+    this.updateKenneyLod();
     this.updateContactShadows(s.contactShadow);
     try {
       this.renderScene(this.scene, s);
@@ -1155,7 +1181,28 @@ export class CityRenderer {
     if (!r) return;
     this.qualityLevel = level;
     this.preset = QUALITY_PRESETS[level];
+    this.budget = RENDER_BUDGETS[level];
+    this.renderScale = 1;
+    this.frameMon.reset(1);
     r.setPixelRatio(Math.min(this.preset.maxPixelRatio, window.devicePixelRatio || 1));
+    // Ombres nettes (un échantillon) en qualité basse ; Three.js recompile les matériaux de la
+    // scène, ceux des blocs détachés (hors de portée) sont marqués à la main.
+    const shadowType = this.budget.basicShadows ? THREE.BasicShadowMap : THREE.PCFShadowMap;
+    if (r.shadowMap.type !== shadowType) {
+      r.shadowMap.type = shadowType;
+      for (const c of this.city?.chunks ?? []) {
+        if (c.group.parent) continue;
+        c.group.traverse((o) => {
+          const m = (o as THREE.Mesh).material;
+          if (m) for (const x of Array.isArray(m) ? m : [m]) x.needsUpdate = true;
+        });
+      }
+    }
+    this.ambient?.setBudget(this.budget.cars, this.budget.pedestrians, this.budget.ambientRadius);
+    this.market?.setBudget(this.budget.shoppers);
+    // Personnages d'un seul tenant plus près en qualité basse ; petit mobilier coupé plus tôt.
+    CROWD_LOD.distance = this.budget.crowdLod;
+    DETAIL_LOD.far = this.budget.detailFar;
     configureSunShadow(this.sun, this.preset.shadowMap, this.preset.shadowExtent, this.preset.softShadows);
     this.postfx?.dispose();
     this.postfx = this.preset.postfx !== 'aucun' ? new PostFx(r, this.preset) : undefined;
@@ -1163,6 +1210,62 @@ export class CityRenderer {
     (globalThis as { __renderQuality?: string }).__renderQuality = level;
   }
   get quality(): QualityLevel { return this.qualityLevel; }
+
+  /** Niveau effectif : la préférence du joueur, ou la détection (plafonnée par la mesure) si « Auto ». */
+  private resolveLevel(): QualityLevel {
+    const pref = getQualityPref();
+    return pref === 'auto' ? lowerQuality(resolveQuality('auto', this.gpuCaps), this.autoCap) : resolveQuality(pref, this.gpuCaps);
+  }
+
+  /**
+   * Temps d'image réel (intervalle entre deux appels de la boucle) : en « Auto », descend d'un cran
+   * si le jeu reste sous 40 i/s ; en qualité basse, réduit la résolution du rendu (jusqu'à 70 %)
+   * plutôt que de saccader, et la remonte dès qu'il y a de la marge.
+   */
+  private watchFrameTime(): void {
+    const now = performance.now();
+    const dtMs = this.lastFrameAt ? now - this.lastFrameAt : 0;
+    this.lastFrameAt = now;
+    const auto = getQualityPref() === 'auto';
+    const v = this.frameMon.push(dtMs, this.qualityLevel, auto, this.budget);
+    if (v.quality) {
+      this.autoCap = v.quality;
+      rememberAutoLevel(this.gpuCaps.renderer, v.quality);
+      detectedQuality.level = v.quality;
+      this.applyQuality(v.quality);
+    } else if (v.scale !== null && this.renderer) {
+      this.renderScale = v.scale;
+      this.renderer.setPixelRatio(Math.min(this.preset.maxPixelRatio, window.devicePixelRatio || 1) * v.scale);
+    }
+  }
+
+  /**
+   * Maisons et décor Kenney (toutes les 4 images) : modèle complet près de la caméra, maquette au
+   * loin, rien au-delà du brouillard ni derrière la caméra.
+   */
+  private updateKenneyLod(): void {
+    if (!this.city || this.frameCount % 4 !== 1) return;
+    const cam = this.camera;
+    const dx = this.camTarget.x - cam.position.x;
+    const dz = this.camTarget.z - cam.position.z;
+    const len = Math.hypot(dx, dz) || 1;
+    // Vue plongeante (caméra presque à la verticale) : tout le tour est gardé.
+    const top = this.topDown || this.pitch > 1.1;
+    const fog = this.scene.fog as THREE.Fog;
+    this.city.updateLod(
+      { x: cam.position.x, z: cam.position.z, dirX: dx / len, dirZ: dz / len, cosHalf: top ? -1 : viewCone(cam.fov, cam.aspect), keep: 48 },
+      this.budget.houseLodNear,
+      this.budget.skylineLodNear,
+      fog.far + 40,
+    );
+  }
+
+  /** Mesures de rendu (QA) : niveaux de détail, trafic, échelle de rendu, objets de la scène. */
+  get perfInfo(): { lod: { full: number; proxy: number }; ambient: { cars: number; pedestrians: number }; scale: number; quality: QualityLevel; objects: number } {
+    let objects = 0;
+    this.scene.traverse(() => { objects++; });
+    return { lod: this.city?.lodCounts() ?? { full: 0, proxy: 0 }, ambient: this.ambient?.shown() ?? { cars: 0, pedestrians: 0 }, scale: this.renderScale, quality: this.qualityLevel, objects };
+  }
 
   /** Rendu final : avec le post-traitement si la qualité le permet, sinon direct. */
   private renderScene(scene: THREE.Scene, s: ReturnType<typeof skyAt> | null): void {

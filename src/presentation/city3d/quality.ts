@@ -107,6 +107,33 @@ export function readGpuCaps(gl: WebGLRenderingContext | WebGL2RenderingContext):
   };
 }
 
+const LEVELS: QualityLevel[] = ['bas', 'moyen', 'haut'];
+
+/** Le plus bas de deux niveaux (un niveau absent ne compte pas). */
+export function lowerQuality(a: QualityLevel, b: QualityLevel | null | undefined): QualityLevel {
+  if (!b) return a;
+  return LEVELS.indexOf(b) < LEVELS.indexOf(a) ? b : a;
+}
+
+const AUTO_KEY = 'neurapolis.qualite.auto';
+
+/**
+ * Niveau « Auto » mesuré lors d'une partie précédente sur ce processeur graphique : si les vraies
+ * images étaient trop lentes, « Auto » était descendu d'un cran ; on repart directement de là.
+ */
+export function recallAutoLevel(gpu: string | undefined): QualityLevel | null {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(AUTO_KEY) : null;
+    if (!raw) return null;
+    const v = JSON.parse(raw) as { gpu?: string; level?: unknown };
+    return v.gpu === (gpu ?? '') && (v.level === 'bas' || v.level === 'moyen' || v.level === 'haut') ? v.level : null;
+  } catch { return null; }
+}
+
+export function rememberAutoLevel(gpu: string | undefined, level: QualityLevel): void {
+  try { localStorage.setItem(AUTO_KEY, JSON.stringify({ gpu: gpu ?? '', level })); } catch { /* sans stockage : pour la session */ }
+}
+
 /** Libellé de la qualité détectée, partagé avec le menu (posé par le moteur de rendu). */
 export const detectedQuality: { level: QualityLevel | null } = { level: null };
 
