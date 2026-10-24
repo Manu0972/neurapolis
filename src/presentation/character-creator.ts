@@ -37,9 +37,8 @@ import { DEFAULT_PLAYER_APPEARANCE } from '../core/types';
 import { buildAppearanceEditor } from './appearance-editor';
 import { heightForAge } from './city3d/bodyScale';
 import { createAvatarPreview } from './avatar-preview3d';
-import { defaultPlayerRig, hasPlayerRigPref, playerRigModel, setPlayerRigModel } from './city3d/rigged/playerModel';
+import { defaultPlayerRig, hasPlayerRigPref, playerRigModel, setPlayerRigModel, silhouetteChoices } from './city3d/rigged/playerModel';
 import { loadRigAsset, startRiggedCharacters } from './city3d/rigged/library';
-import { ageClassOf } from './city3d/rigged/manifest';
 
 export interface CharacterCreatorOptions {
   initialCustomization?: Partial<PlayerCustomization>;
@@ -347,39 +346,19 @@ export function mountCharacterCreation(
   });
   appearanceSection.appendChild(editor.root);
 
-  // Modèle 3D détaillé (facultatif) : peau, cheveux et couleur de tenue sont recolorés dessus.
-  const modelBox = document.createElement('div');
-  modelBox.className = 'creator-model-box';
-  modelBox.hidden = true;
+  // Silhouette (onglet de l'éditeur) : sans choix enregistré, la silhouette détaillée par défaut de la
+  // tranche d'âge (ou la préférence de l'appareil) est inscrite dans l'apparence, donc dans la sauvegarde.
   void startRiggedCharacters().then((m) => {
-    // Tranche d'âge du joueur (12 ans : ado), repli sur les enfants si le manifeste n'en a pas.
-    const ado = m?.models.filter((x) => x.ageClass === ageClassOf(12)) ?? [];
-    const choices = ado.length > 0 ? ado : m?.models.filter((x) => x.ageClass === 'enfant') ?? [];
-    if (!m || choices.length === 0) return;
-    // Par défaut (aucun choix enregistré) : la silhouette détaillée, bien plus fidèle que le dessin.
-    if (!hasPlayerRigPref()) setPlayerRigModel(defaultPlayerRig(choices));
-    const label = document.createElement('label');
-    label.textContent = 'Modèle 3D du personnage ';
-    const sel = document.createElement('select');
-    sel.add(new Option('Personnage dessiné (tous les réglages)', 'dessin'));
-    choices.forEach((c, i) => sel.add(new Option(`Silhouette détaillée ${i + 1} (peau, cheveux, tenue)`, c.id)));
-    sel.value = playerRigModel() ?? 'dessin';
-    sel.addEventListener('change', () => {
-      setPlayerRigModel(sel.value === 'dessin' ? undefined : sel.value);
-      updatePreview();
-    });
-    const note = document.createElement('small');
-    note.textContent = 'Sur une silhouette détaillée, coupe, lunettes et accessoires ne s’appliquent pas : seuls la peau, les cheveux et la couleur du haut changent.';
-    note.style.display = 'block';
-    label.appendChild(sel);
-    modelBox.append(label, note);
-    modelBox.hidden = false;
-    // Précharge le modèle choisi pour que l'aperçu le montre aussitôt.
-    const cur = playerRigModel();
-    const entry = choices.find((c) => c.id === cur);
-    if (entry) void loadRigAsset(entry).then(() => updatePreview());
+    const choices = m ? silhouetteChoices(m.models, 12) : [];
+    if (!m || choices.length === 0 || appearance.model !== undefined) return;
+    const pref = hasPlayerRigPref() ? playerRigModel() ?? 'dessin' : defaultPlayerRig(choices) ?? 'dessin';
+    appearance = { ...appearance, model: pref };
+    if (pref !== 'dessin') setPlayerRigModel(pref);
+    editor.set(appearance);
+    // Précharge les silhouettes pour que l'aperçu change aussitôt au clic.
+    for (const c of choices) void loadRigAsset(c).then(() => { if (c.id === appearance.model) updatePreview(); });
+    updatePreview();
   });
-  appearanceSection.appendChild(modelBox);
 
   formColumn.appendChild(appearanceSection);
   bodyGrid.appendChild(formColumn);
