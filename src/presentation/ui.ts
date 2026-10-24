@@ -12,6 +12,7 @@ import { SAVE_LABEL } from '../data/texts';
 import { getCampaignProgressSummary } from '../simulation/campaign';
 import { GHOST_DEFS_BY_ID } from '../data/ghosts/registry';
 import { qualitySelectEl } from './city3d/quality';
+import { setMoney } from './sfx/feedback';
 
 export const NEED_IDS: readonly NeedId[] = ['fatigue', 'faim', 'stress', 'moral'];
 
@@ -380,6 +381,8 @@ export function setClockSubMinutes(n: number): void {
   clockSubMinutes = n;
 }
 
+const eurHud = (v: number): string => `${v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+
 export function updateHud(ui: UiRefs, w: WorldState, prompt: string): void {
   let cache = hudCache.get(ui);
   if (!cache) {
@@ -400,9 +403,10 @@ export function updateHud(ui: UiRefs, w: WorldState, prompt: string): void {
     cache.date = dateStr;
   }
 
-  const moneyStr = `${w.player.money.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+  const moneyStr = eurHud(w.player.money);
   if (cache.money !== moneyStr) {
-    ui.moneyEl.textContent = moneyStr;
+    // Le compteur défile et flashe (vert : gain, rouge : dépense) ; voir sfx/feedback.ts.
+    setMoney(ui.moneyEl, w.player.money, eurHud);
     cache.money = moneyStr;
   }
 

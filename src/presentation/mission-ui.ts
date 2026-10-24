@@ -21,6 +21,9 @@ import { HUD_PARTS, hudSeenKey, nextHudReveal, type HudPart } from './hud-reveal
 import { TASK_MINUTES } from './time-pace';
 import { setMissionMarker } from './minimap';
 import { el } from './ui';
+import { sfx } from './sfx';
+import { beaconFlash } from './sfx/feedback';
+import { ArrivalWatch } from './sfx/logic';
 
 export interface MissionUiDeps {
   root: HTMLElement;
@@ -40,6 +43,8 @@ export interface MissionUiDeps {
   spendTaskTime: (minutes: number, label: string) => void;
   toast: (text: string, ok: boolean) => void;
   celebrate?: (chapter: boolean) => void;
+  /** Vente au stand faite par la mission (caisse, pièces). */
+  sold?: (revenue: number) => void;
 }
 
 export interface MissionAction { label: string; run: () => void }
@@ -179,6 +184,7 @@ export function createMissionUi(deps: MissionUiDeps): MissionUi {
   let doneTimer: number | undefined;
   let revealUntil = 0;
   let firstSync = true;
+  const arrivalWatch = new ArrivalWatch();
   let start: { x: number; y: number } | null = null;
 
   function showDone(title: string, sub: string): void {
@@ -272,6 +278,7 @@ export function createMissionUi(deps: MissionUiDeps): MissionUi {
         const ici = placeAtAdjacent(w) === 'college' ? 'college' : 'place';
         const r = runSalesSession(w, ici);
         deps.spendTaskTime(60, 'Tenir le stand');
+        if (r.ok) deps.sold?.(r.revenue);
         say(r);
         break;
       }
@@ -334,6 +341,11 @@ export function createMissionUi(deps: MissionUiDeps): MissionUi {
       }
       const s = step;
       const sp = s?.target && !deps.modalOpen() ? deps.screenPos(cw, ch) : null;
+      // Arrivée sur la cible : éclat discret de la balise et deux notes douces (une fois par étape).
+      if (arrivalWatch.update(s?.id ?? '', !!s?.target && !deps.inside() && missionTargetReached(w, s.target))) {
+        sfx.arrival();
+        beaconFlash(sp && !sp.behind ? sp : { x: cw / 2, y: ch * 0.45 });
+      }
       const margin = 40;
       if (!s?.target || !sp || missionTargetReached(w, s.target)) { arrow.classList.add('hidden'); return; }
       const on = !sp.behind && sp.x >= margin && sp.x <= cw - margin && sp.y >= margin + 60 && sp.y <= ch - margin;
