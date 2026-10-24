@@ -262,4 +262,38 @@ describe('fêtes de quartier saisonnières', () => {
     w.time.tick = tickAt('2020-12-16', 11);
     expect(fetesTick(w)).toEqual([]); // déjà vu cette année
   });
+
+  // Ce que game.ts affiche : une notification avec fantôme (barre) ou de type fantome/journal (bandeau).
+  const affichee = (n: { kind: string; ghost?: string }): boolean => !!n.ghost || n.kind === 'fantome' || n.kind === 'journal';
+
+  it('nouvelle partie, 5 septembre 2020 sur la place : annonce affichée, aucun fantôme pas encore rencontré', () => {
+    const w = createWorld({ seed: 14 });
+    w.time.tick = tickAt('2020-09-05', 11);
+    w.player.pos = { ...PLACE_ANCHORS.place };
+    expect(w.council.ghosts.bourdieu?.status).toBe('inconnu');
+    const ns = fetesTick(w);
+    expect(ns).toHaveLength(2); // annonce + visite
+    for (const n of ns) {
+      expect(affichee(n)).toBe(true);
+      if (n.ghost) {
+        const rencontre = w.council.ghosts[n.ghost as keyof typeof w.council.ghosts]?.status === 'actif'
+          || (w.ghostCompanion?.unlockedThinkers ?? ['smith']).includes(n.ghost);
+        expect(rencontre).toBe(true);
+      }
+    }
+    expect(ns.some((n) => n.ghost === 'bourdieu')).toBe(false);
+  });
+
+  it('le fantôme de la fête parle s’il est actif ; une voix tue se tait (bandeau à la place)', () => {
+    const w = monde('2020-12-15', 11);
+    w.council.ghosts.marx!.status = 'actif';
+    w.player.pos = { ...PLACE_ANCHORS.place };
+    expect(fetesTick(w).find((n) => n.kind === 'fantome')?.ghost).toBe('marx');
+    const v = monde('2020-12-15', 11);
+    v.ghostCompanion = { ...v.ghostCompanion!, unlockedThinkers: ['smith'] };
+    v.rewind = { count: 1, lessons: [], sacrifices: [{ ghost: 'smith', day: 0, untilDay: dayOfIso('2021-01-01'), returned: false }] };
+    v.player.pos = { ...PLACE_ANCHORS.place };
+    const ns = fetesTick(v);
+    expect(ns.every((n) => !n.ghost && n.kind === 'journal')).toBe(true);
+  });
 });

@@ -10,6 +10,7 @@ import { dateOf, dayIndexOf, minutesOfDay } from '../core/clock';
 import { PLACE_ANCHORS } from '../data/map';
 import { FETES_QUARTIER, FETE_BY_ID, type FeteQuartier } from '../data/happenings_saison';
 import { notify, pushEvent } from './events';
+import { isSilenced } from './rewind';
 
 /** Distance (tuiles) autour de l'ancre de la place où l'on est « à la fête ». */
 export const FETE_RAYON = 10;
@@ -54,6 +55,23 @@ function surLaPlace(w: WorldState): boolean {
   return !w.player.asleep && Math.abs(w.player.pos.x - a.x) <= FETE_RAYON && Math.abs(w.player.pos.y - a.y) <= FETE_RAYON;
 }
 
+/**
+ * Voix qui peut parler maintenant : déjà rencontrée (conseil actif ou penseur débloqué), ni
+ * endormie ni tue par un retour en arrière. La voix préférée d'abord, sinon la première présente.
+ */
+export function voixPresente(w: WorldState, preferee?: string): string | undefined {
+  const ghosts = w.council.ghosts as Record<string, { status: string; loyalty: number } | undefined>;
+  const conseil = Object.entries(ghosts)
+    .filter(([, g]) => g?.status === 'actif')
+    .sort(([, a], [, b]) => (b?.loyalty ?? 0) - (a?.loyalty ?? 0))
+    .map(([id]) => id);
+  const premieres = w.ghostCompanion?.unlockedThinkers ?? ['smith'];
+  const peutParler = (id: string): boolean => ghosts[id]?.status !== 'endormi' && !isSilenced(w, id);
+  const presentes = [...new Set([...conseil, ...premieres])].filter(peutParler);
+  if (preferee && presentes.includes(preferee)) return preferee;
+  return presentes[0];
+}
+
 /** À chaque pas de temps : annonce à l'ouverture, puis visite si le joueur passe sur la place. */
 export function fetesTick(w: WorldState): Notification[] {
   const f = feteEnCours(w);
@@ -64,7 +82,9 @@ export function fetesTick(w: WorldState): Notification[] {
   let next = state;
   if ((state & ANNONCEE) === 0) {
     next |= ANNONCEE;
-    out.push(notify('info', `${f.icon} ${f.annonce}`));
+    // Comme les dépêches : une voix présente la glisse ; sans voix, le bandeau l'affiche.
+    const voix = voixPresente(w);
+    out.push(voix ? notify('info', `${f.icon} ${f.annonce}`, voix) : notify('journal', `${f.icon} ${f.annonce}`));
   }
   if ((state & VISITEE) === 0 && surLaPlace(w)) {
     next |= VISITEE;
@@ -74,7 +94,9 @@ export function fetesTick(w: WorldState): Notification[] {
       type: 'quartier', title: `${f.name} sur la place`, text: f.visite,
       causes: [{ facteur: 'fête de quartier', poids: 1 }],
     });
-    out.push(notify('fantome', `${f.icon} ${f.visite}`, f.ghost));
+    // Le fantôme de la fête seulement s'il est déjà là ; sinon une voix présente, ou le bandeau.
+    const voix = voixPresente(w, f.ghost);
+    out.push(voix ? notify('fantome', `${f.icon} ${f.visite}`, voix) : notify('journal', `${f.icon} ${f.visite}`));
   }
   if (next !== state) w.flags[key] = next;
   return out;
