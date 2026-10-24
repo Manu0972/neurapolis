@@ -38,11 +38,11 @@ export type RelayMsg =
 
 export type GameMsg =
   /** Présentation : profil, apparence ; l'hôte y joint le mode de la partie. */
-  | { t: 'hello'; v: number; player: PeerProfile; appearance: PlayerAppearance; gender?: PlayerGender; heightM: number; mode?: MultiMode; reply?: boolean }
+  | { t: 'hello'; v: number; player: PeerProfile; appearance: PlayerAppearance; gender?: PlayerGender; heightM: number; mode?: MultiMode; reply?: boolean; model?: string }
   /** Profil à jour (commerces, réputation, palier), quelques fois par minute. */
   | { t: 'profile'; player: PeerProfile }
   /** Position dans la ville (≈ 10 fois par seconde). */
-  | { t: 'pose'; x: number; z: number; h: number; s: number; inside: boolean }
+  | { t: 'pose'; x: number; z: number; h: number; s: number; inside: boolean; busy?: boolean }
   /** Horloge partagée, envoyée par l'hôte. */
   | { t: 'clock'; tick: number; pace: string; mode: MultiMode }
   /** Demande d'allure envoyée à l'hôte par un autre joueur. */
@@ -192,6 +192,8 @@ export function parseGameMsg(raw: unknown): GameMsg | { t: 'version'; v: number;
         t: 'hello', v: NET_PROTOCOL, player, appearance: cleanAppearance(raw.appearance),
         gender: oneOf(VALID_GENDERS, raw.gender), heightM: bounded(raw.heightM, 1, 2.2) ?? 1.5,
         mode: oneOf(MODES, raw.mode), reply: raw.reply === true,
+        // Modèle 3D choisi dans le créateur : identifiant court ; inconnu du manifeste, il est ignoré à l'affichage.
+        model: typeof raw.model === 'string' && /^[\w-]{1,48}$/.test(raw.model) ? raw.model : undefined,
       };
     }
     case 'profile': {
@@ -205,7 +207,8 @@ export function parseGameMsg(raw: unknown): GameMsg | { t: 'version'; v: number;
       const h = bounded(raw.h, -100, 100);
       const s = bounded(raw.s, 0, 50);
       if (x === null || z === null || h === null || s === null) return null;
-      return { t: 'pose', x, z, h, s, inside: raw.inside === true };
+      // `busy` : le joueur est dans une fenêtre ou une cinématique (son horloge est en pause).
+      return { t: 'pose', x, z, h, s, inside: raw.inside === true, busy: raw.busy === true };
     }
     case 'clock': {
       const tick = bounded(raw.tick, 0, 1e9);
