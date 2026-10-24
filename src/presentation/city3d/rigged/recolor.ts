@@ -4,7 +4,9 @@
  * shader en gardant le relief de lumière de la texture peinte.
  */
 import * as THREE from 'three';
-import { hexToRgb, luminance, regionOf, REGIONS, zoneOf, ZONE_CODE, ZONE_NAMES, type RecolorSpec, type Rgb } from './recolorLogic';
+import { headFromNeck, hexToRgb, luminance, regionOf, REGIONS, skinCandidate, skinReference, zoneOf, ZONE_CODE, ZONE_NAMES, type RecolorSpec, type Rgb } from './recolorLogic';
+import { computeBodyFit } from './gear';
+import type { BodyFit } from './gearLogic';
 
 export interface RecolorMask {
   /** Peau / cheveux / haut (canaux R, V, B). */
@@ -20,7 +22,7 @@ export interface RecolorMask {
 const MAX_SIDE = 1024;
 
 /** Masque d'un modèle (une fois par modèle), ou `null` si la texture n'est pas lisible. */
-export function buildRecolorMask(template: THREE.Object3D): RecolorMask | null {
+export function buildRecolorMask(template: THREE.Object3D, bodyFit?: BodyFit | null): RecolorMask | null {
   if (typeof document === 'undefined') return null;
   let found: THREE.SkinnedMesh | null = null;
   template.traverse((o) => { if (!found && (o as THREE.SkinnedMesh).isSkinnedMesh) found = o as THREE.SkinnedMesh; });
@@ -51,6 +53,9 @@ export function buildRecolorMask(template: THREE.Object3D): RecolorMask | null {
       if ((pos.getY(i) - bb.min.y) / H > 0.88) { headZ += pos.getZ(i); headN++; }
     }
     headZ = headN ? headZ / headN : 0;
+    // Bas de la tête : d'après le cou mesuré sur le squelette (modèles à grosse tête), sinon proportions.
+    const fit = bodyFit === undefined ? computeBodyFit(template) : bodyFit;
+    const headFrom = headFromNeck(fit ? (fit.torso.top - bb.min.y) / H : undefined);
     const index = geo.getIndex();
     const triCount = index ? index.count / 3 : pos.count / 3;
     const zm = document.createElement('canvas');
@@ -66,7 +71,7 @@ export function buildRecolorMask(template: THREE.Object3D): RecolorMask | null {
       for (const i of ids) { cy += pos.getY(i); cz += pos.getZ(i); }
       cy = (cy / 3 - bb.min.y) / H;
       cz = (cz / 3 - headZ) / H;
-      const col = `rgb(${ZONE_CODE[zoneOf(cy, cz)] * 50},0,0)`;
+      const col = `rgb(${ZONE_CODE[zoneOf(cy, cz, headFrom)] * 50},0,0)`;
       zctx.fillStyle = col;
       zctx.strokeStyle = col;
       zctx.beginPath();
@@ -81,20 +86,15 @@ export function buildRecolorMask(template: THREE.Object3D): RecolorMask | null {
     }
     const zpix = zctx.getImageData(0, 0, w, h).data;
 
-    // Teint de référence : moyenne des texels du visage qui ressemblent à de la peau.
-    let sr = 0;
-    let sg = 0;
-    let sb = 0;
-    let sn = 0;
+    // Teint de référence : couleur de peau dominante parmi les texels du visage.
+    const cands: Rgb[] = [];
     for (let p = 0; p < w * h; p++) {
       if (Math.round(zpix[p * 4]! / 50) !== ZONE_CODE.visage || zpix[p * 4 + 3]! < 200) continue;
-      const r = pix[p * 4]! / 255;
-      const g = pix[p * 4 + 1]! / 255;
-      const b = pix[p * 4 + 2]! / 255;
-      if (r > g && g >= b * 0.9 && r - b > 0.05 && r - b < 0.6 && r > 0.2) { sr += r; sg += g; sb += b; sn++; }
+      const c: Rgb = [pix[p * 4]! / 255, pix[p * 4 + 1]! / 255, pix[p * 4 + 2]! / 255];
+      if (skinCandidate(c)) cands.push(c);
     }
-    if (sn < 50) return null;
-    const skinRef: Rgb = [sr / sn, sg / sn, sb / sn];
+    const skinRef = skinReference(cands);
+    if (!skinRef) return null;
 
     // Deux masques opaques (pas de canal alpha : le canevas prémultiplie et perdrait les couleurs).
     const outs = [document.createElement('canvas'), document.createElement('canvas')];
@@ -122,7 +122,7 @@ export function buildRecolorMask(template: THREE.Object3D): RecolorMask | null {
       t.colorSpace = THREE.NoColorSpace;
       return t;
     }) as unknown as [THREE.Texture, THREE.Texture];
-    const ref = sums.map((sm, i) => Math.max(0.02, cnt[i]! > 0 ? sm / cnt[i]! : 0.3));
+    const ref = sums.map((sm, i) => Math.max(0.002, cnt[i]! > 0 ? sm / cnt[i]! : 0.3));
     return { texture, texture2, ref, has: cnt.map((n) => n > 200) };
   } catch {
     return null;
@@ -144,7 +144,8 @@ export function applyRecolor(model: THREE.Object3D, mask: RecolorMask): RecolorH
     uMask2: { value: mask.texture2 },
     uTint: { value: REGIONS.map(() => new THREE.Color()) },
     uOn: { value: REGIONS.map(() => 0) },
-    uRef: { value: [...mask.ref] },
+    // Clarté perçue (gamma) : une pièce noire teinte en corail devient corail ombré, pas brun foncé.
+    uRef: { value: mask.ref.map((r) => Math.pow(r, 1 / 2.2)) },
   };
   const clones: THREE.Material[] = [];
   model.traverse((o) => {
@@ -161,14 +162,14 @@ export function applyRecolor(model: THREE.Object3D, mask: RecolorMask): RecolorH
           vec2 m2 = texture2D(uMask2, vMapUv).rg;
           float w[5];
           w[0] = m1.r; w[1] = m1.g; w[2] = m1.b; w[3] = m2.r; w[4] = m2.g;
-          float lum = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+          float lum = pow(max(dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)), 1e-5), 0.4545);
           for (int i = 0; i < 5; i++) {
-            float k = clamp(lum / uRef[i], 0.3, 1.8);
+            float k = clamp(lum / uRef[i], 0.7, 1.25);
             diffuseColor.rgb = mix(diffuseColor.rgb, uTint[i] * k, w[i] * uOn[i]);
           }
         }`);
     };
-    mat.customProgramCacheKey = (): string => 'neurapolis-recolor-5';
+    mat.customProgramCacheKey = (): string => 'neurapolis-recolor-5b';
     sm.material = mat;
     clones.push(mat);
   });

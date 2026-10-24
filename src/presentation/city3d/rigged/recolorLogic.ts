@@ -18,12 +18,24 @@ export const ZONE_NAMES: readonly RigZone[] = ['fond', 'cheveux', 'visage', 'tor
 /** Hauteur relative sous laquelle on est dans les chaussures (cheville des modèles UAL ≈ 0,05). */
 export const FEET_TOP = 0.062;
 
+/** Bas de la tête (part de la hauteur) d'un modèle aux proportions courantes. */
+export const HEAD_FROM = 0.865;
+
+/**
+ * Bas de la tête d'après le cou mesuré sur le squelette (part de la hauteur, recalé pour les rigs à
+ * grosse tête, voir `fitBody`) : les modèles d'enfants et d'ados ont la tête bien plus grande que les
+ * proportions courantes `HEAD_FROM`, qui coupaient leur visage en deux. Hors plage : `HEAD_FROM`.
+ */
+export function headFromNeck(neckRel: number | undefined): number {
+  return neckRel !== undefined && neckRel > 0.55 && neckRel < 0.9 ? Math.min(HEAD_FROM, neckRel + 0.01) : HEAD_FROM;
+}
+
 /**
  * Zone d'un triangle d'après son centre. `y` : hauteur relative (0 pieds, 1 sommet du crâne),
  * `zFront` : avance vers l'avant du modèle par rapport au centre de la tête, en part de la hauteur.
  */
-export function zoneOf(y: number, zFront: number): RigZone {
-  if (y > 0.865) {
+export function zoneOf(y: number, zFront: number, headFrom = HEAD_FROM): RigZone {
+  if (y > headFrom) {
     if (y > 0.955 || zFront < 0.012) return 'cheveux';
     return 'visage';
   }
@@ -49,10 +61,52 @@ export const REGIONS: readonly RecolorRegion[] = ['skin', 'hair', 'outfit', 'bot
 
 export interface TexelLabel { skin: boolean; hair: boolean; outfit: boolean; bottom: boolean; shoes: boolean }
 
+/** Couleur candidate au teint : chaude et plausible pour une peau, de très claire à très foncée. */
+export function skinCandidate(c: Rgb): boolean {
+  const [r, g, b] = c;
+  return r > g && g >= b * 0.9 && r - b > 0.05 && r - b < 0.6 && r > 0.2;
+}
+
+/**
+ * Teint de référence d'un visage : la couleur candidate la plus fréquente, affinée par la moyenne de
+ * ses voisines (et non la moyenne de toutes, que faussaient mèches claires, bijoux ou col).
+ * `null` s'il y a trop peu de candidates.
+ */
+export function skinReference(cands: readonly Rgb[]): Rgb | null {
+  if (cands.length < 50) return null;
+  const key = (c: Rgb): number => (Math.min(15, Math.floor(c[0] * 16)) << 8) | (Math.min(15, Math.floor(c[1] * 16)) << 4) | Math.min(15, Math.floor(c[2] * 16));
+  const bins = new Map<number, number>();
+  let best = 0;
+  let bn = 0;
+  for (const c of cands) {
+    const k = key(c);
+    const n = (bins.get(k) ?? 0) + 1;
+    bins.set(k, n);
+    if (n > bn) { bn = n; best = k; }
+  }
+  const center: Rgb = [((best >> 8) + 0.5) / 16, (((best >> 4) & 15) + 0.5) / 16, ((best & 15) + 0.5) / 16];
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  let n = 0;
+  for (const c of cands) if (colorDistance(c, center) < 0.12) { r += c[0]; g += c[1]; b += c[2]; n++; }
+  return n > 0 ? [r / n, g / n, b / n] : center;
+}
+
+/**
+ * Texel de peau : proche du teint relevé ET de teinte chaude comme lui. Sans ce second critère, sur
+ * un modèle à peau foncée, les vêtements noirs ou gris (proches en distance) passaient pour de la peau.
+ */
+export function isSkinLike(color: Rgb, skinRef: Rgb): boolean {
+  if (colorDistance(color, skinRef) >= SKIN_MATCH) return false;
+  const warm = color[0] - color[2];
+  return color[0] >= color[1] && warm > 0.025 && warm >= 0.35 * (skinRef[0] - skinRef[2]);
+}
+
 /** Région d'un texel selon sa zone et sa ressemblance avec le teint relevé sur le visage. */
 export function regionOf(zone: RigZone, color: Rgb, skinRef: Rgb): RecolorRegion | null {
   if (zone === 'fond') return null;
-  if (colorDistance(color, skinRef) < SKIN_MATCH) return 'skin';
+  if (isSkinLike(color, skinRef)) return 'skin';
   if (zone === 'cheveux') return 'hair';
   if (zone === 'torse') return 'outfit';
   if (zone === 'jambes') return 'bottom';

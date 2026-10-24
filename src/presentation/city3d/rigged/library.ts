@@ -193,7 +193,7 @@ function prepareAsset(entry: RigModelEntry, template: THREE.Object3D, lib: ClipL
 
 /** Masque de recolorage du modèle (calculé une fois, mis en cache). */
 export function maskOf(asset: RigAsset): RecolorMask | null {
-  if (asset.mask === undefined) asset.mask = buildRecolorMask(asset.template);
+  if (asset.mask === undefined) asset.mask = buildRecolorMask(asset.template, fitOf(asset));
   return asset.mask;
 }
 
