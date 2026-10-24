@@ -63,6 +63,9 @@ import { avatarElement } from './avatar';
 import { loadAssetKit } from './asset-loader';
 import { audio, type AmbientLocation } from './audio';
 import { mountSoundControls } from './music/controls';
+import { createGameFeel } from './sfx/feel';
+import { surfaceOfFloor, surfaceOfTile } from './sfx/logic';
+import { mountMotionToggle, onReduceMotion, reduceMotion } from './sfx/prefs';
 import { CityRenderer, heightForAge } from './city3d/CityRenderer';
 import { CROWD_LOD } from './city3d/simpleCharacter';
 import { DETAIL_LOD } from './city3d/chunks';
@@ -166,6 +169,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   // Prise en main (ASC-3) : l'étape suivante sous la carte de chapitre, les applications présentées par un fantôme.
   const guide = createGuide(ui.campaignCardEl, { openApp: (app) => openPhoneUi(app), openMap: () => openCityMap() });
   // Missions façon GTA (vague 5) : bandeau, balise, flèche, action directe (src/presentation/mission-ui.ts).
+  // Sensations : bruitages, pièces, fondus, rebonds, caméra (src/presentation/sfx/).
+  const feel = createGameFeel({
+    root, modalEl: ui.modalEl, promptEl: ui.promptEl, cashEl: ui.bizEl, moneyEl: ui.moneyEl,
+    shake: (amp) => renderer3D?.addCameraShake(amp),
+  });
   const mission = createMissionUi({
     root, campaignCard: ui.campaignCardEl,
     inside: () => !!renderer3D?.inInterior, modalOpen: () => modalOpen,
@@ -175,7 +183,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     enterPlace: (place) => { if (!enterPlace(place)) openPlacePanel(place); },
     openSkipMenu: () => openSkipMenu(),
     spendTaskTime: (m, l) => spendTaskTime(m, l), toast: (t, ok) => toast(t, ok),
-    celebrate: (chapter) => (chapter ? audio.playChapterComplete() : audio.playUiClick()),
+    celebrate: (chapter) => feel.mission(chapter),
+    sold: (revenue) => feel.sale(revenue),
   });
   const appTutor = createAppTutor(root, { busy: () => modalOpen, openApp: (app) => openPhoneUi(app) });
   let lastTipText = '';
@@ -259,9 +268,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   let last = performance.now();
   let acc = 0;
   let moveAcc = 0;
-  let footstepAcc = 0;
   let hudFrame = 0;
-  let interiorStepAcc = 0;
   let lastAdviceMood = '';
   // Rythme du temps (préférence du joueur) et ellipse des actions en cours.
   const pacePrefs = loadPacePrefs();
@@ -303,15 +310,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     renderer3D = new CityRenderer(ui.canvas3d);
     renderer3D.onPlayerTile = (x, y) => {
       const ok = moveToTile(world, x, y);
-      if (ok) {
-        const tile = tileAt(x, y);
-        const surface = tile?.surface === 'herbe' || tile?.surface === 'aire_jeux' ? 'herbe'
-          : tile?.surface === 'terre' || tile?.surface === 'gravier' ? 'terre'
-            : tile?.surface === 'chaussee' || tile?.surface === 'parking' ? 'asphalte' : 'pave';
-        footstepAcc += 1;
-        if (footstepAcc % 2 === 0) audio.playFootstep(surface);
-      }
-      return ok;
+      return ok; // les pas sonnent au rythme de la marche (feel.frame)
     };
     // Quartiers fermés : on longe la barrière, et le panneau dit pourquoi (une fois toutes les 8 s).
     let lastLockToast = -1e9;
@@ -354,7 +353,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     audio.updateAmbient(currentLocation, minutesOfDay(world.time.tick) / 60, world.district.meteo);
     audio.startMusic(world.seed); // musique adaptative (après interaction : règles d'autoplay)
   };
-  mountSoundControls(ui.cameraToolbarEl, ui.btnMuteAudio); // réglages mémorisés musique / effets
+  // Réglages mémorisés musique / effets, et « Réduire les animations » (secousses, rebonds).
+  mountMotionToggle(mountSoundControls(ui.cameraToolbarEl, ui.btnMuteAudio));
+  if (renderer3D) renderer3D.reduceMotion = reduceMotion();
+  onReduceMotion((v) => { if (renderer3D) renderer3D.reduceMotion = v; });
   root.addEventListener('pointerdown', initAudioOnce, { once: true });
   window.addEventListener('keydown', initAudioOnce, { once: true });
 
@@ -2550,6 +2552,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       const r = runSalesSession(world, ici);
       // Le bouton promet « 1 h » : l'horloge avance d'autant (à la fermeture du panneau).
       if (r.ok) spendTaskTime(60, 'Tenir le stand');
+      if (r.ok) feel.sale(r.revenue, venteBtn);
       refresh(r.message, r.ok);
     });
     body.appendChild(venteBtn);
@@ -3377,15 +3380,16 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           : `🚆 En train vers ${destName}…`;
     if (sleepText.textContent !== sleepMsg) sleepText.textContent = sleepMsg;
     if (renderer3D && use3D && hudFrame % 10 === 0) audio.setTrafficLevel(renderer3D.trafficLevel);
-    if (renderer3D?.inInterior && !modalOpen && !layoutEditActive()) {
-      const v = input.vector();
-      if (v.x !== 0 || v.y !== 0) {
-        interiorStepAcc += dt;
-        if (interiorStepAcc > (input.running() ? 300 : 460)) {
-          interiorStepAcc = 0;
-          audio.playFootstep(renderer3D.interiorSpec?.floor === 'parquet' ? 'parquet' : 'sol');
-        }
-      }
+    if (renderer3D && use3D) {
+      const inside = renderer3D.inInterior;
+      const pp = world.player.pos;
+      feel.frame({
+        dt: dt / 1000,
+        speed: modalOpen || layoutEditActive() || renderer3D.isRiding ? 0 : renderer3D.playerPose.speed,
+        surface: inside ? surfaceOfFloor(renderer3D.interiorSpec?.floor) : surfaceOfTile(tileAt(pp.x, pp.y)?.surface),
+        inside, meteo: world.district.meteo, hour: minutesOfDay(world.time.tick) / 60, location: currentLocation,
+        customers: Object.values(world.economy?.businesses ?? {}).reduce((n, b) => n + (b.today?.customers ?? 0), 0),
+      });
     }
     if (++hudFrame % 30 === 0) {
       ghostBar.sync(world);
