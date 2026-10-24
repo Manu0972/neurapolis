@@ -88,17 +88,13 @@ export function createGameFeel(deps: FeelDeps): GameFeel {
   }
 
   installButtonBounce(deps.root, () => sfx.tick());
-  // Mesures en développement (console : __sfx.stats(), await __sfx.bench()).
-  if (import.meta.env?.DEV && typeof window !== 'undefined') {
-    Object.assign(window, { __sfx: { stats: () => sfx.stats(), bench: benchSfxOffline, sfx } });
-  }
 
   function popIn(el: Element | null): void {
     if (!el || reduceMotion() || typeof (el as HTMLElement).animate !== 'function') return;
     (el as HTMLElement).animate([{ opacity: 0, scale: '0.96' }, { opacity: 1, scale: '1' }], { duration: 180, easing: 'ease-out' });
   }
 
-  return {
+  const api: GameFeel = {
     frame(f: FeelFrame): void {
       const dt = Math.max(0, Math.min(0.1, f.dt));
       // Pas : la cadence suit la vitesse, le son suit le sol.
@@ -145,4 +141,9 @@ export function createGameFeel(deps: FeelDeps): GameFeel {
       if (!reduceMotion()) deps.shake?.(chapter ? 0.07 : 0.04);
     },
   };
+  // Mesures et essais en développement (console : __sfx.stats(), await __sfx.bench(), __sfx.feel.sale(12)).
+  if (import.meta.env?.DEV && typeof window !== 'undefined') {
+    Object.assign(window, { __sfx: { stats: () => sfx.stats(), bench: benchSfxOffline, sfx, feel: api } });
+  }
+  return api;
 }
