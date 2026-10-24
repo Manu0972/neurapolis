@@ -11,6 +11,7 @@ import { runTicks } from '../src/simulation/engine';
 import { buyStock, createProject } from '../src/simulation/project';
 import { MAX_PENDING_DELIVERIES } from '../src/core/types';
 import { PLACE_ANCHORS, isWalkable } from '../src/data/map';
+import { diffStates, formatStateDiff } from '../src/simulation/stateDiff';
 
 interface SauvegardeBrute {
   version: number;
@@ -33,6 +34,8 @@ describe('sauvegarde — aller-retour export/import', () => {
   it('importSave(exportSave(w)) redonne un monde identique', () => {
     const w = mondeVecu();
     const w2 = importSave(exportSave(w));
+    const diff = diffStates(w, w2, { maxEntries: 20 });
+    expect(diff, formatStateDiff(diff)).toEqual([]);
     expect(w2).toEqual(w);
   });
 
