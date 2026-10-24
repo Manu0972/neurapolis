@@ -18,6 +18,7 @@ import {
 } from '../../core/types';
 import { CROWD_LOD, createCharacter, type Character3D } from './simpleCharacter';
 import { visualRng } from './textures';
+import { setAttached } from './lodScene';
 
 const VX = [...new Set(CITY.roads.filter((r) => r.axis === 'v').map((r) => r.x))].sort((a, b) => a - b);
 const HY = [...new Set(CITY.roads.filter((r) => r.axis === 'h').map((r) => r.y))].sort((a, b) => a - b);
@@ -175,6 +176,14 @@ export interface Ambient {
   nearestCar(player: { x: number; z: number }): number;
   /** Position des bus (QA). */
   buses(): { line: string; x: number; z: number; speed: number }[];
+  /**
+   * Budget de la qualité graphique (lod.ts) : seules les `cars` premières voitures et les
+   * `pedestrians` premiers passants vivent ; au-delà de `radius` m du joueur, ils ne sont ni
+   * dessinés ni animés (et sont détachés de la scène).
+   */
+  setBudget(cars: number, pedestrians: number, radius: number): void;
+  /** Voitures et passants actuellement dessinés (QA). */
+  shown(): { cars: number; pedestrians: number };
   dispose(): void;
 }
 
@@ -324,20 +333,36 @@ export function createAmbient(opts: { cars?: number; pedestrians?: number; buses
     w.t = wrnd();
   }
   let recycleTick = 0;
+  let carBudget = cars.length;
+  let pedBudget = walkers.length;
+  let radius = Infinity;
+  const inRange = (x: number, z: number, p: { x: number; z: number }): boolean => Math.hypot(x - p.x, z - p.z) <= radius;
 
   return {
     group,
+    setBudget(c: number, p: number, r: number): void {
+      carBudget = Math.max(0, Math.min(cars.length, c));
+      pedBudget = Math.max(0, Math.min(walkers.length, p));
+      radius = r;
+      cars.forEach((car, i) => { if (i >= carBudget) setAttached(car.mesh, group, false); });
+      walkers.forEach((w, i) => { if (i >= pedBudget) setAttached(w.ch.root, group, false); });
+    },
+    shown(): { cars: number; pedestrians: number } {
+      return { cars: cars.filter((c) => c.mesh.parent === group).length, pedestrians: walkers.filter((w) => w.ch.root.parent === group).length };
+    },
     update(dt: number, player: { x: number; z: number }, night: number): void {
       const focus = opts.anchor ?? player;
       // Grande carte : toutes les demi-secondes, ce qui est trop loin revient près du joueur.
       recycleTick += dt;
       if (recycleTick > 0.5) {
         recycleTick = 0;
-        for (const c of cars) {
+        for (let i = 0; i < carBudget; i++) {
+          const c = cars[i]!;
           const p = carPos(c);
           if (Math.hypot(p.x - focus.x, p.z - focus.z) > LIVE_RADIUS) respawnCar(c, focus);
         }
-        for (const w of walkers) {
+        for (let i = 0; i < pedBudget; i++) {
+          const w = walkers[i]!;
           const a = w.loop[w.seg]!;
           if (Math.hypot(a.x - focus.x, a.z - focus.z) > LIVE_RADIUS - 60) respawnWalker(w, focus);
         }
@@ -381,8 +406,9 @@ export function createAmbient(opts: { cars?: number; pedestrians?: number; buses
         b.mesh.visible = Math.hypot(p.x - focus.x, p.z - focus.z) < LIVE_RADIUS + 140;
         b.lights.emissiveIntensity = night * 2.5;
       }
-      // Voitures.
-      for (const c of cars) {
+      // Voitures (celles du budget seulement).
+      for (let ci = 0; ci < carBudget; ci++) {
+        const c = cars[ci]!;
         const p = carPos(c);
         // Obstacle devant : autre voiture dans la même voie, ou piéton sur la chaussée.
         let blocked = false;
@@ -394,7 +420,8 @@ export function createAmbient(opts: { cars?: number; pedestrians?: number; buses
         const lane = c.axis === 'h' ? p.z : p.x;
         if (ahead(player, lane, 7)) blocked = true;
         if (!blocked) {
-          for (const o of cars) {
+          for (let oi = 0; oi < carBudget; oi++) {
+            const o = cars[oi]!;
             if (o === c || o.axis !== c.axis || o.dir !== c.dir || o.road !== c.road) continue;
             if (ahead(carPos(o), lane, 7.5)) { blocked = true; break; }
           }
@@ -437,9 +464,11 @@ export function createAmbient(opts: { cars?: number; pedestrians?: number; buses
         c.mesh.position.copy(c.shown);
         c.mesh.rotation.y = c.heading;
         c.headlights.emissiveIntensity = night * 2.5;
+        setAttached(c.mesh, group, inRange(c.shown.x, c.shown.z, player));
       }
       // Passants.
-      for (const w of walkers) {
+      for (let wi = 0; wi < pedBudget; wi++) {
+        const w = walkers[wi]!;
         const a = w.loop[w.seg]!;
         const b = w.loop[(w.seg + 1) % w.loop.length]!;
         const len = Math.hypot(b.x - a.x, b.z - a.z);
@@ -450,6 +479,10 @@ export function createAmbient(opts: { cars?: number; pedestrians?: number; buses
         w.pos.set(a2.x + (b2.x - a2.x) * w.t, 0.15, a2.z + (b2.z - a2.z) * w.t);
         // Ralentit près du joueur pour ne pas le traverser.
         const close = Math.hypot(w.pos.x - player.x, w.pos.z - player.z) < 0.9;
+        // Hors de portée : ni dessiné ni animé (il continue d'avancer sur sa boucle).
+        const seen = inRange(w.pos.x, w.pos.z, player);
+        setAttached(w.ch.root, group, seen);
+        if (!seen) continue;
         w.ch.root.position.copy(w.pos);
         // Au loin : silhouette d'un seul tenant (un appel de dessin au lieu d'une trentaine).
         w.ch.setLod?.(Math.hypot(w.pos.x - player.x, w.pos.z - player.z) > CROWD_LOD.distance);
@@ -460,7 +493,7 @@ export function createAmbient(opts: { cars?: number; pedestrians?: number; buses
     },
     nearestCar(player: { x: number; z: number }): number {
       let best = Infinity;
-      for (const c of cars) best = Math.min(best, Math.hypot(c.shown.x - player.x, c.shown.z - player.z));
+      for (let i = 0; i < carBudget; i++) best = Math.min(best, Math.hypot(cars[i]!.shown.x - player.x, cars[i]!.shown.z - player.z));
       for (const b of buses) best = Math.min(best, Math.hypot(b.mesh.position.x - player.x, b.mesh.position.z - player.z));
       return best;
     },
@@ -468,6 +501,9 @@ export function createAmbient(opts: { cars?: number; pedestrians?: number; buses
       return buses.map((b) => ({ line: b.line.id, x: b.mesh.position.x, z: b.mesh.position.z, speed: b.speed }));
     },
     dispose(): void {
+      // Les éléments détachés (hors budget, hors de portée) sont rattachés pour être libérés.
+      for (const c of cars) setAttached(c.mesh, group, true);
+      for (const w of walkers) setAttached(w.ch.root, group, true);
       group.traverse((o) => {
         const m = o as THREE.Mesh;
         if (m.isMesh && m.geometry && !Object.values(shared).includes(m.geometry as never)) m.geometry.dispose();

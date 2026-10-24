@@ -14,6 +14,7 @@ import { dateOf, dayIndexOf, minutesOfDay } from '../../core/clock';
 import { CITY } from '../../data/city/layout';
 import { groundHeightAt } from './cityScene';
 import { CROWD_LOD, createCharacter, type Character3D } from './simpleCharacter';
+import { setAttached } from './lodScene';
 import { visualRng } from './textures';
 import { VALID_HAIR_COLORS, VALID_HAIR_STYLES, VALID_OUTFIT_COLORS, VALID_OUTFIT_STYLES, VALID_SKIN_TONES, type PlayerAppearance } from '../../core/types';
 
@@ -61,6 +62,8 @@ interface Pigeon { g: THREE.Group; hx: number; hz: number; x: number; z: number;
 export interface MarketLife {
   group: THREE.Group;
   update(dt: number, world: WorldState, player: { x: number; z: number }): void;
+  /** Nombre maximal de chalands (budget de la qualité graphique, lod.ts). */
+  setBudget(shoppers: number): void;
   dispose(): void;
 }
 
@@ -128,6 +131,7 @@ export function createMarketLife(): MarketLife {
     ...stalls.map((s) => ({ x: s.x + 0.5 + (rnd() - 0.5), z: s.y + 1.9 })),
     ...Array.from({ length: 6 }, (_, k) => ({ x: fx + Math.cos((k / 6) * Math.PI * 2) * 3.4, z: fz + Math.sin((k / 6) * Math.PI * 2) * 3.4 })),
   ];
+  let shopperBudget = Infinity;
   const shoppers: Shopper[] = Array.from({ length: 22 }, (_, i) => {
     const r = visualRng(5500 + i * 7);
     const ch = createCharacter({ appearance: appearanceFrom(r), heightM: 1.25 + r() * 0.6, detail: 'low' });
@@ -173,6 +177,7 @@ export function createMarketLife(): MarketLife {
   let t = 0;
   return {
     group,
+    setBudget(n: number): void { shopperBudget = n; },
     update(dt: number, world: WorldState, player: { x: number; z: number }): void {
       // Rien à animer si l'on est loin de la place.
       const far = Math.hypot(player.x - fx, player.z - fz) > 160;
@@ -228,8 +233,11 @@ export function createMarketLife(): MarketLife {
 
       // Chalands : d'un étal à l'autre, une pause, on repart.
       shoppers.forEach((s, i) => {
-        s.ch.root.visible = i < crowd;
-        if (!s.ch.root.visible) return;
+        // Au-delà du budget : ni dessiné, ni animé, détaché de la scène.
+        const on = i < Math.min(crowd, shopperBudget);
+        s.ch.root.visible = on;
+        setAttached(s.ch.root, group, on);
+        if (!on) return;
         const dx = s.tx - s.x;
         const dz = s.tz - s.z;
         const d = Math.hypot(dx, dz);
