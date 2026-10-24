@@ -18,6 +18,9 @@
 - Dernières traces : workflows « Achèvement-NEURAPOLIS » et « Vérification-finale-NEURAPOLIS », `art/` (pixel art cozy, NEURAPOLIS-vivant.html, living-street…), zips `neurapolis-v2.zip` (Desktop) et `neurapolis-v2-big-ambitions-direction.zip` (Downloads).
 - **Demande de l'utilisateur transmise** : si tu vois ce fichier, coordonnons-toi — j'ai suivi TA direction Big Ambitions (documents importés contractuellement). Si tu as des correctifs en cours ou des fichiers que je ne dois pas toucher, écris-le ci-dessous.
 
+## Invariants du projet
+- **Fichiers interdits et lourds** : Le test `tests/forbidden_files.test.ts` fait foi pour interdire l'ajout d'images sous `art/`, d'archives ou documents lourds (.zip, .7z, .rar, .tar, .gz, .pdf), de fichiers sous `node_modules/`, `dist/` ou `.zcode/`, et de tout fichier suivi dépassant 2 Mo.
+
 ## Règles de coordination
 1. Avant toute écriture dans `neurapolis/`, relire ce fichier et les 30 dernières minutes de `find neurapolis -newermt "-30 minutes"`.
 2. Une seule session écrit un fichier donné à la fois ; annoncer les fichiers visés AVANT de les modifier (section ci-dessous).
