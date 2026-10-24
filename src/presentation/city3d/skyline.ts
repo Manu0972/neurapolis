@@ -3,7 +3,9 @@
  * - décor lointain : seconde ceinture d'immeubles simplifiés derrière la ceinture de boîtes pixel art,
  *   et tours à l'horizon (la ville voisine) ;
  * - lotissements : les pavillons génériques (sans enseigne, ni lieu, ni local) deviennent des
- *   maisons de banlieue, instanciées par modèle et par bloc de 128 m.
+ *   maisons de banlieue, instanciées par modèle pour toute la ville ;
+ * - niveaux de détail (lodScene.ts) : modèle complet près de la caméra, maquette simplifiée au loin
+ *   (lodSimplify.ts), rien au-delà du brouillard ni derrière la caméra.
  * Repli : tant que rien n'est chargé (ou si un fichier manque), le décor d'origine reste affiché.
  */
 import * as THREE from 'three';
@@ -12,11 +14,30 @@ import { fitScale, pickModel, skylinePlan, SKYLINE_TOWERS, LOW_DETAIL_BUILDINGS,
 import { kenneyMaterial, loadKenneyModels, type KenneyModel } from './assetsKenney';
 import { chunkAt, type CityChunk } from './chunks';
 import { lotSeed } from './windowsPlan';
+import { buildProxyGeometry, type ProxyWindows } from './lodSimplify';
+import { InstancedLod } from './lodScene';
+import type { LodView } from './lod';
 
 export interface KenneyDecor {
   /** Résolu quand tout ce qui pouvait l'être est en place (QA). */
   ready: Promise<{ skyline: number; houses: number; models: number }>;
+  /**
+   * Niveaux de détail : maisons à moins de `houseNear` m de la caméra en modèle complet, au-delà en
+   * maquette simplifiée (lodSimplify.ts) ; idem pour le décor lointain avec `skylineNear`.
+   */
+  updateLod(view: LodView, houseNear: number, skylineNear: number, far: number): void;
+  /** Instances dessinées en version complète / simplifiée (QA). */
+  lodCounts(): { full: number; proxy: number };
   dispose(): void;
+}
+
+/** Maquettes simplifiées, une par modèle (partagées entre les blocs). */
+const proxies = new Map<string, THREE.BufferGeometry>();
+function proxyFor(model: KenneyModel, windows: ProxyWindows): THREE.BufferGeometry {
+  const key = `${model.name}:${windows}`;
+  let g = proxies.get(key);
+  if (!g) { g = buildProxyGeometry(model.geometry, windows); proxies.set(key, g); }
+  return g;
 }
 
 /** Cap d'un modèle Kenney (porte vers +Z) pour qu'il regarde la façade `front`. */
@@ -70,9 +91,21 @@ export function buildKenneyDecor(opts: {
   cityH: number;
 }): KenneyDecor {
   const created: THREE.InstancedMesh[] = [];
+  const houseLods: InstancedLod[] = [];
+  const skyLods: InstancedLod[] = [];
   let disposed = false;
+  // Dernière caméra connue : un modèle chargé après coup est réparti tout de suite.
+  let lastView: LodView = { x: 0, z: 0, dirX: 0, dirZ: -1, cosHalf: -1, keep: Infinity };
+  let lastNear = { house: Infinity, skyline: Infinity, far: Infinity };
+  /** Fige la matrice d'un maillage ajouté au décor statique (voir lodScene.freezeStatic). */
+  const addStatic = (parent: THREE.Object3D, o: THREE.Object3D): void => {
+    parent.add(o);
+    o.updateMatrixWorld(true);
+    o.matrixAutoUpdate = false;
+  };
 
-  const skyline = loadKenneyModels('commercial', [...LOW_DETAIL_BUILDINGS, ...SKYLINE_TOWERS]).then((models) => {
+  // Décor lointain chargé après les maisons (le voisinage du joueur d'abord).
+  const loadSkyline = (): Promise<number> => loadKenneyModels('commercial', [...LOW_DETAIL_BUILDINGS, ...SKYLINE_TOWERS]).then((models) => {
     if (disposed || models.size === 0) return 0;
     const avail = new Set(models.keys());
     const per = new Map<string, { mats: THREE.Matrix4[]; cols: THREE.Color[] }>();
@@ -91,10 +124,16 @@ export function buildKenneyDecor(opts: {
     }
     const mat = kenneyMaterial('commercial');
     for (const [name, e] of per) {
-      const im = instancedFrom(models.get(name)!, mat, e.mats, e.cols, false);
+      const model = models.get(name)!;
+      const im = instancedFrom(model, mat, e.mats, e.cols, false);
       im.receiveShadow = false;
-      opts.skylineGroup.add(im);
+      addStatic(opts.skylineGroup, im);
       created.push(im);
+      const towers = (SKYLINE_TOWERS as readonly string[]).includes(name);
+      const lod = new InstancedLod(im, proxyFor(model, towers ? 'grid' : 'discrete'));
+      addStatic(opts.skylineGroup, lod.proxy);
+      skyLods.push(lod);
+      lod.update(lastView, lastNear.skyline, Infinity);
     }
     return n;
   });
@@ -102,8 +141,8 @@ export function buildKenneyDecor(opts: {
   const houses = opts.houses.length === 0 ? Promise.resolve(0) : loadKenneyModels('suburban', SUBURBAN_HOUSES).then((models) => {
     if (disposed || models.size === 0) return 0;
     const avail = new Set(models.keys());
-    // Par bloc de 128 m puis par modèle : un InstancedMesh par (bloc, modèle).
-    const per = new Map<CityChunk, Map<string, { mats: THREE.Matrix4[]; cols: THREE.Color[] }>>();
+    // Un groupe d'instances par modèle pour toute la ville (niveaux de détail instance par instance).
+    const per = new Map<string, { mats: THREE.Matrix4[]; cols: THREE.Color[] }>();
     let n = 0;
     for (const b of opts.houses) {
       const name = pickModel(11, b.x, b.y, SUBURBAN_HOUSES, avail);
@@ -122,10 +161,8 @@ export function buildKenneyDecor(opts: {
       );
       // Données du lot (graine des fenêtres, échelle) ; la teinte d'enduit vient du shader.
       const col = lotData(cx, cz, s, s);
-      let byModel = per.get(chunk);
-      if (!byModel) { byModel = new Map(); per.set(chunk, byModel); }
-      let e = byModel.get(name);
-      if (!e) { e = { mats: [], cols: [] }; byModel.set(name, e); }
+      let e = per.get(name);
+      if (!e) { e = { mats: [], cols: [] }; per.set(name, e); }
       e.mats.push(mat4);
       e.cols.push(col);
       n++;
@@ -135,21 +172,42 @@ export function buildKenneyDecor(opts: {
       return 0;
     }
     const mat = kenneyMaterial('suburban');
-    for (const [chunk, byModel] of per) {
-      for (const [name, e] of byModel) {
-        const im = instancedFrom(models.get(name)!, mat, e.mats, e.cols, true);
-        chunk.group.add(im);
-        created.push(im);
-      }
+    for (const [name, e] of per) {
+      const model = models.get(name)!;
+      const im = instancedFrom(model, mat, e.mats, e.cols, true);
+      addStatic(opts.skylineGroup, im);
+      created.push(im);
+      const lod = new InstancedLod(im, proxyFor(model, 'discrete'));
+      addStatic(opts.skylineGroup, lod.proxy);
+      houseLods.push(lod);
+      lod.update(lastView, lastNear.house, lastNear.far);
     }
     for (const o of opts.houseMeshes) { o.visible = false; o.parent?.remove(o); }
     return n;
   });
 
+  const skyline = houses.catch(() => 0).then(() => (disposed ? 0 : loadSkyline()));
+
   return {
     ready: Promise.all([skyline, houses]).then(([s, h]) => ({ skyline: s, houses: h, models: created.length })),
+    updateLod(view: LodView, houseNear: number, skylineNear: number, far: number): void {
+      lastView = view;
+      lastNear = { house: houseNear, skyline: skylineNear, far };
+      for (const l of houseLods) l.update(view, houseNear, far);
+      // Décor lointain : jamais coupé par la distance (il fait l'horizon), seulement hors champ.
+      for (const l of skyLods) l.update(view, skylineNear, Infinity);
+    },
+    lodCounts(): { full: number; proxy: number } {
+      let full = 0;
+      let proxy = 0;
+      for (const l of [...houseLods, ...skyLods]) { full += l.counts.full; proxy += l.counts.proxy; }
+      return { full, proxy };
+    },
     dispose(): void {
       disposed = true;
+      for (const l of [...houseLods, ...skyLods]) l.dispose();
+      houseLods.length = 0;
+      skyLods.length = 0;
       for (const im of created) { im.parent?.remove(im); im.dispose(); }
       created.length = 0;
     },

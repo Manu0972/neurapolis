@@ -7,6 +7,7 @@
  * que ceux qui sont dans le champ, et `updateChunkVisibility` masque ceux au-delà du brouillard.
  */
 import * as THREE from 'three';
+import { setAttached } from './lodScene';
 
 export const CHUNK = 128;
 /**
@@ -23,6 +24,8 @@ export interface CityChunk {
   cx: number;
   cz: number;
   group: THREE.Group;
+  /** Groupe parent : un bloc hors de portée en est détaché (plus parcouru à chaque image). */
+  root: THREE.Object3D;
   /** Petit mobilier instancié du bloc, masqué au loin (voir DETAIL_LOD). */
   details: THREE.InstancedMesh[];
 }
@@ -36,7 +39,7 @@ function chunkFor(chunks: Map<string, CityChunk>, root: THREE.Group, x: number, 
     const [i, j] = key.split(',').map(Number) as [number, number];
     const group = new THREE.Group();
     group.name = `bloc ${key}`;
-    c = { key, cx: (i + 0.5) * CHUNK, cz: (j + 0.5) * CHUNK, group, details: [] };
+    c = { key, cx: (i + 0.5) * CHUNK, cz: (j + 0.5) * CHUNK, group, root, details: [] };
     chunks.set(key, c);
     root.add(group);
   }
@@ -189,7 +192,10 @@ export function chunkAt(chunks: readonly CityChunk[], x: number, z: number): Cit
   return chunks.find((c) => c.key === key);
 }
 
-/** Masque les blocs au-delà de `radius` mètres de la caméra (le brouillard les cache déjà). */
+/**
+ * Masque les blocs au-delà de `radius` mètres de la caméra (le brouillard les cache déjà) et les
+ * détache de la scène : Three.js parcourt aussi les objets invisibles à chaque image.
+ */
 export function updateChunkVisibility(chunks: readonly CityChunk[], camX: number, camZ: number, radius: number): void {
   const r = radius + CHUNK * 0.75;
   const r2 = r * r;
@@ -197,6 +203,7 @@ export function updateChunkVisibility(chunks: readonly CityChunk[], camX: number
     const dx = c.cx - camX;
     const dz = c.cz - camZ;
     c.group.visible = dx * dx + dz * dz <= r2;
+    setAttached(c.group, c.root, c.group.visible);
     if (!c.group.visible) continue;
     // Petit mobilier : seulement à portée de vue utile (bord du groupe d'instances).
     for (const im of c.details) {

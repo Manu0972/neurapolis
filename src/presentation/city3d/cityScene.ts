@@ -21,6 +21,8 @@ import { applyGroundPhoto, enhanceFacadeMaterial, enhanceGroundMaterial, setFaca
 import { isGenericHouse, textureVariation, varyUv } from './assetsPlan';
 import { loadPhoto } from './assetsPolyhaven';
 import { buildKenneyDecor } from './skyline';
+import { freezeStatic } from './lodScene';
+import type { LodView } from './lod';
 
 export const SURFACE_HEIGHT: Record<Surface, number> = {
   chaussee: 0, passage: 0, parking: 0.02,
@@ -49,6 +51,10 @@ export interface CityScene {
   water: THREE.Mesh;
   /** Blocs de 128 m (grande carte) : visibilité selon la distance à la caméra. */
   chunks: CityChunk[];
+  /** Niveaux de détail des modèles Kenney (maisons, décor lointain) selon la caméra (skyline.ts). */
+  updateLod(view: LodView, houseNear: number, skylineNear: number, far: number): void;
+  /** Instances Kenney dessinées en version complète / simplifiée (QA). */
+  lodCounts(): { full: number; proxy: number };
   dispose(): void;
 }
 
@@ -663,6 +669,8 @@ export function buildCityScene(): CityScene {
     cityH: CITY_H,
   });
   (globalThis as { __kenneyReady?: Promise<unknown> }).__kenneyReady = kenney.ready;
+  // La ville ne bouge plus : ses ~5 000 matrices sont calculées une fois pour toutes (lodScene.ts).
+  freezeStatic(group);
 
   return {
     group,
@@ -675,6 +683,10 @@ export function buildCityScene(): CityScene {
     setUnitSign(unitId: string, text: string, color: string): void {
       city.setUnitSign(unitId, text, color);
     },
+    updateLod(view: LodView, houseNear: number, skylineNear: number, far: number): void {
+      kenney.updateLod(view, houseNear, skylineNear, far);
+    },
+    lodCounts: () => kenney.lodCounts(),
     dispose(): void {
       kenney.dispose();
       for (const d of disposables) d.dispose();
