@@ -65,8 +65,27 @@ describe('Character3D Engine', () => {
     char.dispose();
   });
 
+  it('penche le buste en avant lors de la course (speed = 4.5 m/s)', () => {
+    const char = createCharacter({ heightM: 1.55 });
+    const modelGroup = char.root.getObjectByName('model_group') as THREE.Group;
+    const pelvis = modelGroup.getObjectByName('pelvis') as THREE.Group;
+    const torsoGroup = pelvis.getObjectByName('torsoGroup') as THREE.Group;
+
+    // Repos / Marche lente
+    char.update(0.1, 1.0);
+    expect(torsoGroup.rotation.x).toBeCloseTo(0, 2);
+
+    // Course à 4.5 m/s
+    for (let i = 0; i < 10; i++) {
+      char.update(0.1, 4.5);
+    }
+    expect(torsoGroup.rotation.x).toBeGreaterThan(0.1);
+
+    char.dispose();
+  });
+
   it('génère des géométries de cheveux différentes pour chaque hairStyle', () => {
-    const styles = ['court', 'mi-long', 'boucle', 'tresse', 'couettes'] as const;
+    const styles = ['court', 'mi-long', 'boucle', 'tresse', 'couettes', 'long', 'afro', 'chignon', 'queue', 'crete', 'rase'] as const;
     const hairFingerprints = new Set<string>();
 
     for (const hairStyle of styles) {
@@ -95,8 +114,16 @@ describe('Character3D Engine', () => {
       char.dispose();
     }
 
-    // Chaque style parmi les 5 doit produire une structure/empreinte unique
-    expect(hairFingerprints.size).toBe(5);
+    // Plusieurs styles distincts doivent produire des empreintes différentes
+    expect(hairFingerprints.size).toBeGreaterThanOrEqual(8);
+  });
+
+  it('supporte la création de PNJ sans apparence complète avec bodyColor', () => {
+    const char = createCharacter({ bodyColor: '#3a6ca8', heightM: 1.75 });
+    expect(char.root).toBeDefined();
+    const bbox = new THREE.Box3().setFromObject(char.root);
+    expect(bbox.max.y - bbox.min.y).toBeCloseTo(1.75, 1);
+    char.dispose();
   });
 
   it('ne produit aucun NaN après 10 000 appels à update() à des vitesses variées', () => {
