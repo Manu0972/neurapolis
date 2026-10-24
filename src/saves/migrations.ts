@@ -20,6 +20,7 @@ import { INITIAL_RIVALS } from '../data/rivals';
 import { INITIAL_CAMPAIGN_STAGES } from '../data/campaign';
 import { COUNTER_STRATEGIES } from '../data/rivals';
 import { dayIndexOf } from '../core/clock';
+import { INITIAL_ECONOMIC_HAZARDS, VENTURE_DEFS } from '../data/multi_ventures';
 
 type AnySave = Record<string, unknown>;
 
@@ -170,11 +171,25 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
       territory: {},
       expansionLevel: 'quartier',
     };
-    s.multiVentures = s.multiVentures ?? {
-      ventures: {},
-      hazards: [],
-      synergiesActive: [],
-    };
+    if (!s.multiVentures) {
+      const ventures: Record<string, AnySave> = {};
+      for (const [id, def] of Object.entries(VENTURE_DEFS)) {
+        ventures[id] = {
+          id,
+          name: def.name,
+          active: def.unlockedByDefault,
+          roles: {},
+          dailyRevenue: def.baseRevenuePerDay,
+          dailyExpenses: def.baseExpensesPerDay,
+          level: 1,
+        };
+      }
+      s.multiVentures = {
+        ventures,
+        hazards: structuredClone(INITIAL_ECONOMIC_HAZARDS),
+        synergiesActive: [],
+      };
+    }
     s.macroNews = s.macroNews ?? {
       currentTrend: 'stabilite',
       costModifier: 0,
