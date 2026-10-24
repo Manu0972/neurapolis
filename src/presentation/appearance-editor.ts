@@ -9,7 +9,7 @@
  */
 import type { PlayerAppearance, PlayerGear, PlayerGearColorKey } from '../core/types';
 import {
-  ACCESSORY_INFO, BEARD_INFO, BEARD_MIN_AGE, BODY_INFO, EYES_INFO, EYE_COLOR_INFO, GEAR_DEFAULT_COLOR, GLASSES_INFO,
+  ACCESSORY_INFO, BEARD_INFO, BEARD_MIN_AGE, BODY_INFO, EYES_INFO, EYE_COLOR_INFO, GLASSES_INFO,
   HAIR_COLOR_INFO, HAIR_STYLE_INFO, OUTFIT_COLOR_INFO, OUTFIT_STYLE_INFO, OUTFIT_TIER, SKIN_TONE_INFO, VALID_BEARDS,
   VALID_BODIES, VALID_EYES, VALID_EYE_COLORS, VALID_GEAR, VALID_GLASSES, VALID_HAIR_COLORS, VALID_HAIR_STYLES,
   VALID_OUTFIT_COLORS, VALID_OUTFIT_STYLES, VALID_SKIN_TONES, chosenModel, outfitAllowed, randomAppearance, toggleGear,
@@ -240,7 +240,12 @@ export function buildAppearanceEditor(initial: PlayerAppearance, opts: Appearanc
       pills('Lunettes', VALID_GLASSES, GLASSES_INFO, a.glasses, (v) => change({ glasses: v }));
       const colored: PlayerGearColorKey[] = [...worn, ...(a.glasses && a.glasses !== 'aucune' ? ['lunettes' as const] : [])];
       for (const k of colored) {
-        swatches(`Couleur — ${GEAR_LABEL[k]}`, VALID_OUTFIT_COLORS, OUTFIT_COLOR_INFO, a.gearColors?.[k] ?? GEAR_DEFAULT_COLOR[k], (v) => v && change({ gearColors: { ...a.gearColors, [k]: v } }));
+        // « D'origine » : couleur propre à la pièce (celle du dessin ou, sur un modèle détaillé, la teinte par défaut).
+        swatches(`Couleur — ${GEAR_LABEL[k]}`, VALID_OUTFIT_COLORS, OUTFIT_COLOR_INFO, a.gearColors?.[k], (v) => {
+          const gearColors = { ...a.gearColors };
+          if (v) gearColors[k] = v; else delete gearColors[k];
+          change({ gearColors });
+        }, 'D’origine');
       }
       if (colored.length === 0) note('Choisis un accessoire pour régler sa couleur.');
     }
