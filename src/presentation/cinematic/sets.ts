@@ -12,6 +12,7 @@ import { createCharacter, createProceduralCharacter, type Character3D } from '..
 import { playerRigModel } from '../city3d/rigged/playerModel';
 import { ghostSvgMarkup, thinkerMeta } from '../ghost-avatar';
 import { cueAge, type CinematicPlan, type Vec3 } from './plan';
+import { FRIEND_LOOKS, friendAppearance } from './friends';
 
 export interface SetOptions {
   appearance: PlayerAppearance;
@@ -21,12 +22,6 @@ export interface SetOptions {
   /** Amis réellement recrutés (fin du chapitre 1) ; absent ou vide : le joueur seul avec les voix. */
   friends?: readonly string[];
 }
-
-/** Allure des coéquipiers sur les toits (distincte du joueur). */
-const FRIEND_LOOKS: Record<string, { gender: PlayerGender; look: Partial<PlayerAppearance>; color: string }> = {
-  noah: { gender: 'garcon', look: { hairStyle: 'degrade', hairColor: 'noir', skinTone: 'ambree', outfitStyle: 'streetwear', glasses: 'aucune', accessory: 'casquette' }, color: '#4ea1ff' },
-  lina: { gender: 'fille', look: { hairStyle: 'queue', hairColor: 'roux', skinTone: 'rosee', outfitStyle: 'ecolier', glasses: 'rondes', accessory: 'aucun' }, color: '#5cd6e8' },
-};
 
 export interface CineSet {
   scene: THREE.Scene;
@@ -572,7 +567,7 @@ function buildRooftops(plan: CinematicPlan, opts: SetOptions): CineSet {
   // Seulement les amis recrutés pendant le chapitre (aucun : le joueur seul avec ses voix).
   const friends = (opts.friends ?? []).filter((id) => FRIEND_LOOKS[id]).slice(0, 2).map((id, i) => {
     const f = FRIEND_LOOKS[id]!;
-    return createProceduralCharacter({ appearance: { ...opts.appearance, ...f.look }, gender: f.gender, heightM: opts.heightM * (i ? 0.98 : 1), bodyColor: f.color });
+    return createProceduralCharacter({ appearance: friendAppearance(opts.appearance, f.look), gender: f.gender, heightM: opts.heightM * (i ? 0.98 : 1), bodyColor: f.color });
   });
   const spots = [[-0.8, 3.4], [0.85, 3.45]] as const;
   friends.forEach((f, i) => f.root.position.set(spots[i]![0], 0, spots[i]![1]));

@@ -63,6 +63,9 @@ import { avatarElement } from './avatar';
 import { loadAssetKit } from './asset-loader';
 import { audio, type AmbientLocation } from './audio';
 import { mountSoundControls } from './music/controls';
+import { createGameFeel } from './sfx/feel';
+import { surfaceOfFloor, surfaceOfTile } from './sfx/logic';
+import { mountMotionToggle, onReduceMotion, reduceMotion } from './sfx/prefs';
 import { CityRenderer, heightForAge } from './city3d/CityRenderer';
 import { CROWD_LOD } from './city3d/simpleCharacter';
 import { DETAIL_LOD } from './city3d/chunks';
@@ -102,16 +105,17 @@ import { arriveesAProposer, ecartFenetres, ecoleAProposer, fenetreEncoreEnAttent
 import { isSilenced, lessonWarnings, rewindOffer, sacrificeCandidates } from '../simulation/rewind';
 import { recordDay } from '../saves/chronicle';
 import { openRewindModal } from './rewind-ui';
-import { openConvocationModal, openDinnerModal, openFamilyPanel, openSchoolEventModal } from './family-ui';
+import { openConvocationModal, openDinnerModal, openFamilyPanel, openRentreeCard, openSchoolEventModal } from './family-ui';
 import { bedroomExtras, openPlanner, openShelf, type PlanCtx } from './plan-ui';
 import { openDuelModal } from './ascension-ui';
 import { buildAppearanceEditor } from './appearance-editor';
+import { rememberPlayerRigChoice } from './city3d/rigged/playerModel';
 import { createAvatarPreview } from './avatar-preview3d';
 import { chapterEndDue, openNotebooks, openUnreadBeat, openingDue, playChapterEnd, playOpening } from './story-ui';
 import { ensureRoom, planChecklist } from '../simulation/room';
 import { searchSecret, secretHere } from '../simulation/secrets';
 import { IDEA_BY_ID } from '../data/ascension/ideas';
-import { attendClass, classWindow, ensureFamily, isHome, isInClass, pendingDinner } from '../simulation/family';
+import { attendClass, classWindow, seanceDebut, seanceLabel, ensureFamily, isHome, isInClass, pendingDinner } from '../simulation/family';
 import { mostUrgentTip } from '../simulation/ghost_tips';
 import { CITY, PLACE_ANCHORS, isWalkable } from '../data/map';
 import * as economyApi from '../simulation/economy';
@@ -123,7 +127,7 @@ import { activateActionPlan, ensureActionPlanningState, payTerritoryConcession, 
 import { VENTURE_DEFS, VENTURE_ROLE_DEFS } from '../data/multi_ventures';
 import { assignVentureRole, ensureMultiVentureState, resolveEconomicHazard, unassignVentureRole, updateVentureSynergies } from '../simulation/multi_ventures';
 import { ensureMacroNewsState, triggerCustomMarketShock } from '../simulation/macro_news';
-import { attendSchoolClass, ensureSchoolLifeState, negotiateWithTeacher, skipSchoolForBusiness, studyEveningHomework, talkWithParents } from '../simulation/school_life';
+import { etablissementDe, lieuScolaire, attendSchoolClass, ensureSchoolLifeState, negotiateWithTeacher, skipSchoolForBusiness, studyEveningHomework, talkWithParents } from '../simulation/school_life';
 import { ensureStreetRecognitionState, handleStreetEncounterChoice } from '../simulation/street_synergies';
 import { askActiveGhostAdvice, checkAndUnlockThinkers, getGhostCompanionThought, switchCompanionGhost } from '../simulation/ghost_companions';
 import { INITIAL_TUTORIALS } from '../data/tutorials';
@@ -166,6 +170,11 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   // Prise en main (ASC-3) : l'étape suivante sous la carte de chapitre, les applications présentées par un fantôme.
   const guide = createGuide(ui.campaignCardEl, { openApp: (app) => openPhoneUi(app), openMap: () => openCityMap() });
   // Missions façon GTA (vague 5) : bandeau, balise, flèche, action directe (src/presentation/mission-ui.ts).
+  // Sensations : bruitages, pièces, fondus, rebonds, caméra (src/presentation/sfx/).
+  const feel = createGameFeel({
+    root, modalEl: ui.modalEl, promptEl: ui.promptEl, cashEl: ui.bizEl, moneyEl: ui.moneyEl,
+    shake: (amp) => renderer3D?.addCameraShake(amp),
+  });
   const mission = createMissionUi({
     root, campaignCard: ui.campaignCardEl,
     inside: () => !!renderer3D?.inInterior, modalOpen: () => modalOpen,
@@ -175,7 +184,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     enterPlace: (place) => { if (!enterPlace(place)) openPlacePanel(place); },
     openSkipMenu: () => openSkipMenu(),
     spendTaskTime: (m, l) => spendTaskTime(m, l), toast: (t, ok) => toast(t, ok),
-    celebrate: (chapter) => (chapter ? audio.playChapterComplete() : audio.playUiClick()),
+    celebrate: (chapter) => feel.mission(chapter),
+    sold: (revenue) => feel.sale(revenue),
   });
   const appTutor = createAppTutor(root, { busy: () => modalOpen, openApp: (app) => openPhoneUi(app) });
   let lastTipText = '';
@@ -232,6 +242,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     save.type = 'button';
     save.addEventListener('click', () => {
       world.player.appearance = { ...draft };
+      rememberPlayerRigChoice(draft);
       preview?.dispose();
       closeModal();
       toast('Nouvelle allure !', true);
@@ -259,9 +270,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   let last = performance.now();
   let acc = 0;
   let moveAcc = 0;
-  let footstepAcc = 0;
   let hudFrame = 0;
-  let interiorStepAcc = 0;
   let lastAdviceMood = '';
   // Rythme du temps (préférence du joueur) et ellipse des actions en cours.
   const pacePrefs = loadPacePrefs();
@@ -303,15 +312,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     renderer3D = new CityRenderer(ui.canvas3d);
     renderer3D.onPlayerTile = (x, y) => {
       const ok = moveToTile(world, x, y);
-      if (ok) {
-        const tile = tileAt(x, y);
-        const surface = tile?.surface === 'herbe' || tile?.surface === 'aire_jeux' ? 'herbe'
-          : tile?.surface === 'terre' || tile?.surface === 'gravier' ? 'terre'
-            : tile?.surface === 'chaussee' || tile?.surface === 'parking' ? 'asphalte' : 'pave';
-        footstepAcc += 1;
-        if (footstepAcc % 2 === 0) audio.playFootstep(surface);
-      }
-      return ok;
+      return ok; // les pas sonnent au rythme de la marche (feel.frame)
     };
     // Quartiers fermés : on longe la barrière, et le panneau dit pourquoi (une fois toutes les 8 s).
     let lastLockToast = -1e9;
@@ -354,7 +355,10 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     audio.updateAmbient(currentLocation, minutesOfDay(world.time.tick) / 60, world.district.meteo);
     audio.startMusic(world.seed); // musique adaptative (après interaction : règles d'autoplay)
   };
-  mountSoundControls(ui.cameraToolbarEl, ui.btnMuteAudio); // réglages mémorisés musique / effets
+  // Réglages mémorisés musique / effets, et « Réduire les animations » (secousses, rebonds).
+  mountMotionToggle(mountSoundControls(ui.cameraToolbarEl, ui.btnMuteAudio));
+  if (renderer3D) renderer3D.reduceMotion = reduceMotion();
+  onReduceMotion((v) => { if (renderer3D) renderer3D.reduceMotion = v; });
   root.addEventListener('pointerdown', initAudioOnce, { once: true });
   window.addEventListener('keydown', initAudioOnce, { once: true });
 
@@ -655,9 +659,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   /** Rejoindre sa classe : la séance passe en accéléré, avec un moment de classe. */
   /** Invite « aller en cours » quand on est déjà dans le collège pendant la fenêtre d'un cours. */
   function classInsideCollege(): string | null {
-    if (renderer3D?.interiorSpec?.placeId !== 'college') return null;
+    if (renderer3D?.interiorSpec?.placeId !== lieuScolaire(world.player.age)) return null;
     const session = classWindow(world);
-    return session ? `E — Aller en cours (${session === 'matin' ? '8 h 30 – 12 h' : '13 h 30 – 16 h 30'})` : null;
+    return session ? `E — Aller en cours (${seanceLabel(world, session)})` : null;
   }
 
   function goToClass(): void {
@@ -665,7 +669,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     toast(r.message, r.ok);
     if (!r.ok || !renderer3D?.inInterior) return;
     // Déjà dans le collège : on file en salle 204 (et non sur le trottoir) ; ailleurs, on sort.
-    if (renderer3D.interiorSpec?.placeId === 'college') { if (renderer3D.interiorSpec.roomId !== 'classe') enterPlace('college', 'classe'); }
+    const ecole = lieuScolaire(world.player.age);
+    if (renderer3D.interiorSpec?.placeId === ecole) { if (renderer3D.interiorSpec.roomId !== 'classe') enterPlace(ecole, 'classe'); }
     else exitInterior();
   }
 
@@ -683,8 +688,8 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       };
     }
     const session = classWindow(world);
-    if (session && nearPlace(world, 'college')) {
-      return { label: `E — Aller en cours (${session === 'matin' ? '8 h 30 – 12 h' : '13 h 30 – 16 h 30'})`, run: goToClass };
+    if (session && nearPlace(world, lieuScolaire(world.player.age))) {
+      return { label: `E — Aller en cours (${seanceLabel(world, session)})`, run: goToClass };
     }
     const e = ensureEconomy(world);
     for (const b of Object.values(e.businesses)) {
@@ -1195,7 +1200,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
   function interiorActionHere(): { label: string; run: () => void } | null {
     const spec = renderer3D?.interiorSpec;
     const h = renderer3D?.interiorHotspot;
-    if (spec?.placeId === 'college' && classWindow(world)) return { label: 'E — Rejoindre ta classe', run: goToClass };
+    if (spec?.placeId === lieuScolaire(world.player.age) && classWindow(world)) return { label: 'E — Rejoindre ta classe', run: goToClass };
     if (h?.kind === 'plan') return { label: `E — ${h.label}`, run: () => openPlanner(planCtx()) };
     if (h?.kind === 'armoire') return { label: `E — ${h.label}`, run: openWardrobe };
     if (h?.kind === 'objet') return { label: `E — ${h.label}`, run: () => openShelf(planCtx(), h.target) };
@@ -2541,7 +2546,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     const venteBtn = el('button', 'btn btn-action', 'Tenir le stand — 1 h');
     venteBtn.addEventListener('click', () => {
       const lieu = placeAtAdjacent(world);
-      const ici = lieu === 'college' || lieu === 'place' ? lieu : null;
+      const ici = lieu === 'college' || lieu === 'lycee' || lieu === 'place' ? lieu : null;
       if (!ici) {
         refresh('Rends-toi à la récré (collège) ou sur la place pour vendre.', false);
         return;
@@ -2549,6 +2554,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       const r = runSalesSession(world, ici);
       // Le bouton promet « 1 h » : l'horloge avance d'autant (à la fermeture du panneau).
       if (r.ok) spendTaskTime(60, 'Tenir le stand');
+      if (r.ok) feel.sale(r.revenue, venteBtn);
       refresh(r.message, r.ok);
     });
     body.appendChild(venteBtn);
@@ -3194,6 +3200,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           // La principale convoque : un rendez-vous par jour tant que rien n'est réglé.
           convocationShownDay = dayIndexOf(world.time.tick);
           openConvocationModal({ world, showModal, closeModal, toast });
+        } else if ((world.flags['rentreeCarton'] ?? 0) > 0 && !world.player.asleep && !isInClass(world) && !travelFastForward()) {
+          // Rentrée en 2de : le lycée remplace le collège (carton de rentrée, une fois).
+          openRentreeCard({ world, showModal, closeModal, toast });
         } else if (quietOk && (world.story?.unread.length ?? 0) > 0 && !world.player.asleep && !isInClass(world) && !travelFastForward()) {
           // Un cahier de Lucien vient d'être retrouvé : on le lit.
           openUnreadBeat({ world, showModal, closeModal });
@@ -3373,15 +3382,16 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
           : `🚆 En train vers ${destName}…`;
     if (sleepText.textContent !== sleepMsg) sleepText.textContent = sleepMsg;
     if (renderer3D && use3D && hudFrame % 10 === 0) audio.setTrafficLevel(renderer3D.trafficLevel);
-    if (renderer3D?.inInterior && !modalOpen && !layoutEditActive()) {
-      const v = input.vector();
-      if (v.x !== 0 || v.y !== 0) {
-        interiorStepAcc += dt;
-        if (interiorStepAcc > (input.running() ? 300 : 460)) {
-          interiorStepAcc = 0;
-          audio.playFootstep(renderer3D.interiorSpec?.floor === 'parquet' ? 'parquet' : 'sol');
-        }
-      }
+    if (renderer3D && use3D) {
+      const inside = renderer3D.inInterior;
+      const pp = world.player.pos;
+      feel.frame({
+        dt: dt / 1000,
+        speed: modalOpen || layoutEditActive() || renderer3D.isRiding ? 0 : renderer3D.playerPose.speed,
+        surface: inside ? surfaceOfFloor(renderer3D.interiorSpec?.floor) : surfaceOfTile(tileAt(pp.x, pp.y)?.surface),
+        inside, meteo: world.district.meteo, hour: minutesOfDay(world.time.tick) / 60, location: currentLocation,
+        customers: Object.values(world.economy?.businesses ?? {}).reduce((n, b) => n + (b.today?.customers ?? 0), 0),
+      });
     }
     if (++hudFrame % 30 === 0) {
       ghostBar.sync(world);
@@ -3392,9 +3402,9 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       const reminder = session ? `${dayIndexOf(world.time.tick)}:${session}` : '';
       if (session && reminder !== classReminderKey && !world.player.asleep) {
         classReminderKey = reminder;
-        const far = !nearPlace(world, 'college');
+        const far = !nearPlace(world, lieuScolaire(world.player.age));
         const voice = ghostBar.roster().find((g) => !isSilenced(world, g));
-        if (far && voice) ghostBar.push({ ghost: voice, pop: session === 'matin', mood: 'calme', text: `Les cours ${session === 'matin' ? 'du matin commencent à 8 h 30' : 'de l’après-midi commencent à 13 h 30'}. Va au collège, ou assume l’absence : ${ensureFamily(world).arrangement ? 'ta convention en couvre deux par semaine.' : 'tes parents seront prévenus.'}` });
+        if (far && voice) ghostBar.push({ ghost: voice, pop: session === 'matin', mood: 'calme', text: `Les cours ${session === 'matin' ? 'du matin commencent' : 'de l’après-midi commencent'} à ${seanceDebut(world, session)}. Va ${etablissementDe(world).place === 'lycee' ? 'au lycée' : 'au collège'}, ou assume l’absence : ${ensureFamily(world).arrangement ? 'ta convention en couvre deux par semaine.' : 'tes parents seront prévenus.'}` });
       }
       // Très grosse erreur : une voix propose de se sacrifier pour remonter le temps.
       const cat = rewindOffer(world);

@@ -66,6 +66,7 @@ const PLANTER: PixelSprite = {
 const PLACE_PALETTE: Record<PlaceId, { wall: string; roof: string; light: string; sign: string }> = {
   maison: { wall: '#f0d4a4', roof: '#a74f46', light: '#f9e6bd', sign: 'FOYER' },
   college: { wall: '#d9c9aa', roof: '#59728a', light: '#e9d5a6', sign: 'ÉCOLE' },
+  lycee: { wall: '#cfc3b0', roof: '#4a5f78', light: '#e9d5a6', sign: 'LYCÉE' },
   epicerie: { wall: '#edcf91', roof: '#9a5143', light: '#f7e4b1', sign: 'BERTIN' },
   friche: { wall: '#a99a7c', roof: '#62616a', light: '#d2b17e', sign: 'ATELIER' },
   parc: { wall: '#bfd09a', roof: '#557d54', light: '#f1df9d', sign: 'PARC' },

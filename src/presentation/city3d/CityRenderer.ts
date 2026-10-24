@@ -25,7 +25,7 @@ import { createAmbient, type Ambient } from './ambient';
 import { CROWD_LOD, createCharacter, type Character3D } from './simpleCharacter';
 import { setRiggedLodFocus, startRiggedCharacters } from './rigged/library';
 import { activityFromLabel } from './rigged/animState';
-import { findPath, stepBody, tileOf, type BodyState } from './locomotion';
+import { addShake, createCameraFeel, findPath, stepBody, stepCameraFeel, tileOf, type BodyState, type CameraFeel } from './locomotion';
 import { INTERIOR_CELL, buildInterior, nearestHotspot, type BuiltInterior, type Hotspot, type InteriorSpec } from './interior3d';
 import { updateChunkVisibility } from './chunks';
 import { createBarriers, type Barriers } from './barriers';
@@ -200,6 +200,10 @@ export class CityRenderer {
   private raycaster = new THREE.Raycaster();
   private camTarget = new THREE.Vector3();
   private lookAhead = { x: 0, z: 0 };
+  /** Sensations de caméra : amorti, recul à la course, secousse (locomotion.ts). */
+  private camFeel: CameraFeel = createCameraFeel();
+  /** Réglage « Réduire les animations » : ni dépassement ni secousse. */
+  reduceMotion = false;
   private shownCamDist = 8;
   private frameCount = 0;
   // Caméra orbitale.
@@ -247,6 +251,8 @@ export class CityRenderer {
 
   /** Azimut de la caméra autour du joueur (0 = caméra au sud). */
   get cameraYaw(): number { return this.yaw; }
+  /** Très légère secousse de caméra (amplitude en mètres). */
+  addCameraShake(amp: number): void { addShake(this.camFeel, amp); }
   get isTopDown(): boolean { return this.topDown; }
   /** Intensité de circulation perçue (0 à 1) : voitures proches, et rien à l'intérieur. */
   get trafficLevel(): number {
@@ -659,15 +665,21 @@ export class CityRenderer {
     }
   }
 
-  private syncPlayer(world: WorldState, dt: number, input: CityFrameInput): void {
+  /** (Re)crée le corps du joueur si son apparence ou son âge a changé (création, armoire, anniversaire). */
+  private refreshPlayerModel(world: WorldState, parent: THREE.Object3D): void {
     const p = world.player;
     const key = JSON.stringify(p.appearance) + p.age;
-    if (!this.player || key !== this.playerKey) {
-      this.player?.dispose();
-      this.player = createCharacter({ appearance: p.appearance, gender: p.gender, heightM: heightForAge(p.age), rig: { key: 'joueur', role: 'joueur', age: p.age, model: playerRigModel() }, rigRecolor: 'joueur' });
-      this.scene.add(this.player.root);
-      this.playerKey = key;
-    }
+    if (this.player && key === this.playerKey) return;
+    this.player?.dispose();
+    this.player = createCharacter({ appearance: p.appearance, gender: p.gender, heightM: heightForAge(p.age), rig: { key: 'joueur', role: 'joueur', age: p.age, model: playerRigModel() }, rigRecolor: 'joueur' });
+    parent.add(this.player.root);
+    this.playerKey = key;
+  }
+
+  private syncPlayer(world: WorldState, dt: number, input: CityFrameInput): void {
+    const p = world.player;
+    this.refreshPlayerModel(world, this.scene);
+    if (!this.player) return;
     // La simulation a déplacé le joueur (chargement, sommeil, téléportation) : on suit.
     if (!this.bodyReady || p.pos.x !== this.lastSimTile.x || p.pos.y !== this.lastSimTile.y) {
       const t = tileOf(this.body);
@@ -858,19 +870,21 @@ export class CityRenderer {
     this.lookAhead.z += (-Math.cos(this.body.heading) * ahead - this.lookAhead.z) * la;
     const target = new THREE.Vector3(this.body.x + this.lookAhead.x, gy + 1.35, this.body.z + this.lookAhead.z);
     if (this.camTarget.lengthSq() === 0) this.camTarget.copy(target);
-    this.camTarget.lerp(target, 1 - Math.exp(-9 * dt));
+    // Amorti à l'arrêt, recul à la course, secousse légère (voir stepCameraFeel).
+    const feel = stepCameraFeel(this.camFeel, this.camTarget, target, this.body.speed, dt, this.reduceMotion || this.topDown);
+    this.camTarget.set(feel.x, feel.y, feel.z);
     const dir = new THREE.Vector3(
       Math.sin(this.yaw) * Math.cos(this.pitch),
       Math.sin(this.pitch),
       Math.cos(this.yaw) * Math.cos(this.pitch),
     );
-    let d = this.dist;
+    let d = this.dist + (this.topDown ? 0 : feel.distAdd);
     // La caméra ne traverse pas les murs : on la rapproche si un bâtiment s'interpose.
     if (!this.topDown && this.city && this.frameCount % 2 === 0) {
       this.raycaster.set(this.camTarget, dir);
-      this.raycaster.far = this.dist;
+      this.raycaster.far = d;
       const hit = this.raycaster.intersectObjects(this.city.buildingMeshes, false)[0];
-      this.lastCamClip = hit ? Math.max(1.2, hit.distance - 0.35) : this.dist;
+      this.lastCamClip = hit ? Math.max(1.2, hit.distance - 0.35) : d;
     }
     // Mur derrière : la caméra s'approche vite (pour ne jamais voir à travers), recule doucement.
     if (!this.topDown) {
@@ -880,6 +894,8 @@ export class CityRenderer {
       d = Math.min(d, this.shownCamDist);
     }
     this.camera.position.copy(this.camTarget).addScaledVector(dir, d);
+    this.camera.position.x += feel.shakeX;
+    this.camera.position.y += feel.shakeY;
     this.camera.lookAt(this.camTarget);
     // Les feuillages entre la caméra et le joueur s'effacent (sinon un arbre peut le cacher entièrement).
     this.occTarget.set(this.body.x, gy + 1.1, this.body.z);
@@ -1062,6 +1078,8 @@ export class CityRenderer {
 
   private frameInterior(world: WorldState, dt: number, input: CityFrameInput, cw: number, ch: number): void {
     const it = this.interior!;
+    // Nouvelle tenue enfilée à l'armoire : le joueur la porte aussitôt, sans ressortir.
+    this.refreshPlayerModel(world, this.interiorScene);
     const move = input.canMove ? input.move : { x: 0, y: 0 };
     this.body = stepBody(this.body, move, this.yaw, Math.min(dt, 0.05), input.running, it.walkable, INTERIOR_CELL, 0.75);
     if (this.player) {

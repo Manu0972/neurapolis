@@ -320,9 +320,9 @@ describe('AG-2 Références croisées — Penseurs, Concepts, Rues, Objets, Cont
 });
 
 describe('AG-2 Phase 5 — Événements scolaires et moments de classe', () => {
-  it('contient au moins 25 événements scolaires (exactement 28) avec 2 ou 3 options chacun', () => {
+  it('contient au moins 25 événements scolaires (exactement 31, dont 3 de lycée) avec 2 ou 3 options chacun', () => {
     expect(SCHOOL_EVENTS.length).toBeGreaterThanOrEqual(25);
-    expect(SCHOOL_EVENTS).toHaveLength(28);
+    expect(SCHOOL_EVENTS).toHaveLength(31);
 
     for (const ev of SCHOOL_EVENTS) {
       expect([2, 3], `L'événement ${ev.id} doit avoir 2 ou 3 options, en a ${ev.options.length}`).toContain(ev.options.length);
