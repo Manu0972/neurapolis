@@ -5,7 +5,7 @@
  */
 
 // ---------- Identifiants ----------
-export type PlaceId = 'maison' | 'college' | 'epicerie' | 'friche' | 'parc' | 'place';
+export type PlaceId = 'maison' | 'college' | 'lycee' | 'epicerie' | 'friche' | 'parc' | 'place';
 export type SkillId =
   | 'negociation' | 'comptabilite' | 'communication'
   | 'organisation' | 'technique' | 'recherche';
@@ -59,6 +59,10 @@ export type PlayerEyeColor = 'brun' | 'noisette' | 'vert' | 'bleu' | 'gris';
 export type PlayerGlasses = 'aucune' | 'rondes' | 'carrees' | 'ecaille' | 'fines' | 'soleil';
 export type PlayerBeard = 'aucune' | 'duvet' | 'moustache' | 'courte' | 'pleine';
 export type PlayerAccessory = 'aucun' | 'casquette' | 'bonnet' | 'ecouteurs' | 'montre' | 'echarpe' | 'sac_dos' | 'sacoche';
+/** Accessoire porté (plusieurs à la fois, save v26) : tous les accessoires sauf « aucun ». */
+export type PlayerGear = Exclude<PlayerAccessory, 'aucun'>;
+/** Pièce dont on peut choisir la couleur : un accessoire ou la monture des lunettes. */
+export type PlayerGearColorKey = PlayerGear | 'lunettes';
 export interface PlayerAppearance {
   skinTone: PlayerSkinTone;
   hairColor: PlayerHairColor;
@@ -76,6 +80,19 @@ export interface PlayerAppearance {
   /** Disponible à partir de 16 ans. */
   beard?: PlayerBeard;
   accessory?: PlayerAccessory;
+  /**
+   * Personnalisation complète (save v26) ; absentes = comportement d'avant.
+   * `model` : silhouette 3D choisie (`dessin` = personnage dessiné, sinon id d'un modèle riggé).
+   */
+  model?: string;
+  /** Couleur du bas (pantalon, jupe) ; absente = couleur d'origine du modèle / de la tenue. */
+  bottomColor?: PlayerOutfitColor;
+  /** Couleur des chaussures ; absente = couleur d'origine. */
+  shoesColor?: PlayerOutfitColor;
+  /** Accessoires portés ensemble (remplace `accessory`, gardé pour compatibilité). */
+  gear?: PlayerGear[];
+  /** Couleur de chaque accessoire (et de la monture des lunettes) ; absente = couleur par défaut. */
+  gearColors?: Partial<Record<PlayerGearColorKey, PlayerOutfitColor>>;
 }
 /** Valeurs permises — source unique pour la création de personnage et les migrations. */
 export const VALID_GENDERS: readonly PlayerGender[] = ['fille', 'garcon', 'non-binaire'];
@@ -90,6 +107,7 @@ export const VALID_EYE_COLORS: readonly PlayerEyeColor[] = ['brun', 'noisette', 
 export const VALID_GLASSES: readonly PlayerGlasses[] = ['aucune', 'rondes', 'carrees', 'ecaille', 'fines', 'soleil'];
 export const VALID_BEARDS: readonly PlayerBeard[] = ['aucune', 'duvet', 'moustache', 'courte', 'pleine'];
 export const VALID_ACCESSORIES: readonly PlayerAccessory[] = ['aucun', 'casquette', 'bonnet', 'ecouteurs', 'montre', 'echarpe', 'sac_dos', 'sacoche'];
+export const VALID_GEAR: readonly PlayerGear[] = ['casquette', 'bonnet', 'ecouteurs', 'montre', 'echarpe', 'sac_dos', 'sacoche'];
 export const DEFAULT_PLAYER_APPEARANCE: PlayerAppearance = {
   skinTone: 'claire',
   hairColor: 'chatain',

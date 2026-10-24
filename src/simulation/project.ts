@@ -249,7 +249,8 @@ export function runSalesSession(w: WorldState, place: string): SessionResult {
   if (p.stock <= 0) return { ok: false, message: 'Plus de stock — achète avant de vendre.', demand: 0, sold: 0, revenue: 0 };
 
   const day = dayIndexOf(w.time.tick);
-  const placeId: PlaceId = (place === 'collège' || place === 'college') ? 'college' : 'place';
+  // Au lycée, la récré garde le marché (et le distributeur) du collège : même cité scolaire.
+  const placeId: PlaceId = (place === 'collège' || place === 'college' || place === 'lycee') ? 'college' : 'place';
   const { playerShare, rival } = calculateMarketShares(w, placeId);
   const baseDemand = demandAt(p.price, w.player.reputation, dateOf(day).weekday, w.district.meteo, indicePrix(day));
   // DEMAND_CONFIG représente la demande de référence au partage égal; l'autre moitié revient au rival.

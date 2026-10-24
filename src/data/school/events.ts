@@ -10,6 +10,10 @@ export interface SchoolEvent {
   text: string;
   characters: string[];
   minAge?: number;
+  /** Âge maximal (inclus) : le brevet se passe à 14 ans, avant la rentrée au lycée. */
+  maxAge?: number;
+  /** Mois de l'année (inclus) où l'événement peut tomber, ex. [3, 6] : mars à juin. */
+  months?: [number, number];
   tier?: number;
   options: {
     label: string;
@@ -548,7 +552,9 @@ export const SCHOOL_EVENTS: readonly SchoolEvent[] = [
   {
     id: 'sch_brevet_epreuves_blanches',
     title: 'La grande répétition des épreuves blanches',
-    minAge: 15,
+    minAge: 14,
+    maxAge: 14,
+    months: [3, 6],
     tier: 2,
     characters: ['char_prof_maths_moreau', 'char_prof_francais_fontaine', 'lina'],
     text: 'Semaine de brevet blanc. Deux heures d’épreuve de mathématiques suivies de trois heures de français. La pendule tourne sur le mur de la salle polyvalente, le silence n’est troublé que par le froissement des copies d’examen.',
@@ -572,7 +578,9 @@ export const SCHOOL_EVENTS: readonly SchoolEvent[] = [
   {
     id: 'sch_brevet_revisions_ouvrieres',
     title: 'Révisions d’histoire sur la table de cuisine',
-    minAge: 15,
+    minAge: 14,
+    maxAge: 14,
+    months: [3, 6],
     tier: 2,
     characters: ['char_prof_histoire_girard', 'char_eleve_decrocheur_dylan', 'lina'],
     text: 'À la veille de l’épreuve d’histoire-géographie, vous vous réunissez autour de la table de cuisine familiale. Lina a préparé des chronologies sur l’Europe industrielle et Dylan tente de mémoriser les grandes dates des réformes sociales.',
@@ -596,7 +604,9 @@ export const SCHOOL_EVENTS: readonly SchoolEvent[] = [
   {
     id: 'sch_brevet_matin_examen',
     title: 'Le matin décisif devant les grilles closes',
-    minAge: 15,
+    minAge: 14,
+    maxAge: 14,
+    months: [3, 6],
     tier: 2,
     characters: ['char_cpe_benali', 'noah', 'char_eleve_artiste_zoe'],
     text: 'C’est le grand matin du brevet officiel. Le ciel est gris et lourd au-dessus de Jean-Moulin. Une foule anxieuse piétine devant les grilles en vérifiant convocations et pièces d’identité. Noah a les mains moites et Zoé respire calmement.',
@@ -620,7 +630,9 @@ export const SCHOOL_EVENTS: readonly SchoolEvent[] = [
   {
     id: 'sch_brevet_resultats',
     title: 'Affichage des résultats sous les acclamations',
-    minAge: 15,
+    minAge: 14,
+    maxAge: 14,
+    months: [6, 6],
     tier: 2,
     characters: ['char_principal_vasseur', 'char_prof_histoire_girard', 'lina', 'noah'],
     text: 'Dix heures : les grandes grilles s’ouvrent et les listes officielles sont placardées sur les vitres du hall. Les cris de joie et les sourires éclatent. Ton nom figure en tête avec la mention Très Bien, tandis que Lina, Noah et Dylan sont également admis.',
@@ -739,6 +751,42 @@ export const SCHOOL_EVENTS: readonly SchoolEvent[] = [
         outcome: 'L’article donne envie à plusieurs camarades de lancer leurs propres projets coopératifs.',
         effects: { relations: { yasmine: 6 }, reputation: 5, average: 0.2, moral: 4, pride: 4 },
       },
+    ],
+  },
+  // =========================================================================
+  // ARC 7 : Le lycée (2de, dès 15 ans) — orientation, option, stage
+  // =========================================================================
+  {
+    id: 'sch_lycee_option',
+    title: 'Le choix de l’option de seconde',
+    text: 'Au lycée, il faut choisir une option : sciences économiques et sociales, ou sciences de l’ingénieur. Noah hésite, Lina a déjà coché SES. {prenom} tient le formulaire.',
+    characters: ['noah', 'lina'],
+    minAge: 15,
+    options: [
+      { label: 'Prendre SES avec Lina', ghost: 'smith', advice: 'Comprendre les marchés, c’est comprendre ce que tu fais déjà au stand.', outcome: 'Premier cours : l’offre et la demande. Tu souris, tu connais.', effects: { relations: { lina: 6 }, average: 0.3, moral: 4 } },
+      { label: 'Tenter sciences de l’ingénieur', ghost: 'weber', advice: 'Une compétence de plus est une vocation de plus : apprends ce que tu ne sais pas encore.', outcome: 'Les maquettes sont dures, mais Karim sera fier de tes croquis.', effects: { average: 0.2, stress: 4, reputation: 2 } },
+    ],
+  },
+  {
+    id: 'sch_lycee_stage',
+    title: 'Le stage d’observation',
+    text: 'Le professeur principal annonce une semaine de stage en entreprise. Mme Bertin, la Friche, ou un bureau du centre-ville : à {prenom} de trouver.',
+    characters: ['bertin'],
+    minAge: 15,
+    options: [
+      { label: 'Demander à Mme Bertin', ghost: 'ostrom', advice: 'Les gens du quartier se tiennent entre eux : c’est là que tu apprendras le plus.', outcome: 'Une semaine à la caisse et aux commandes : le rapport de stage s’écrit tout seul.', effects: { relations: { bertin: 8 }, average: 0.3, pride: 3 } },
+      { label: 'Viser un bureau du centre-ville', ghost: 'machiavel', advice: 'Un carnet d’adresses se construit tôt. Va là où sont les décideurs.', outcome: 'Tu photocopies beaucoup, mais tu repars avec trois cartes de visite.', effects: { reputation: 4, stress: 3 } },
+    ],
+  },
+  {
+    id: 'sch_lycee_bde',
+    title: 'Le foyer des lycéens cherche un trésorier',
+    text: 'Le foyer des lycéens organise un concert de fin de trimestre et cherche quelqu’un pour tenir les comptes. Samir pense que {prenom} est la bonne personne.',
+    characters: ['samir'],
+    minAge: 15,
+    options: [
+      { label: 'Accepter et tenir un vrai budget', ghost: 'rousseau', advice: 'Servir le groupe, c’est aussi rendre des comptes à tout le monde.', outcome: 'Le concert finit à l’équilibre, et ton tableau est affiché au foyer.', effects: { relations: { samir: 6 }, reputation: 3, stress: 3 } },
+      { label: 'Refuser : tes cours d’abord', ghost: 'weber', advice: 'Savoir dire non, c’est protéger ce qui compte vraiment.', outcome: 'Tu gardes tes soirées pour réviser. Samir trouve quelqu’un d’autre.', effects: { average: 0.3, moral: -2 } },
     ],
   },
 ];

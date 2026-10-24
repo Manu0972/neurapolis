@@ -20,7 +20,8 @@ import {
   CHAPTER4_SUPPORT, chapter1Sales, chapter1Team, chapter3Help, chapter4QuarterBacked, chapter4Support,
   chapterObjectivesMet,
 } from './campaign';
-import { classWindow, isInClass, SESSIONS } from './family';
+import { classWindow, isInClass, seanceDebut, sessionsFor } from './family';
+import { lieuScolaire } from './school_life';
 import { nearPlace, placeAtAdjacent } from './interact';
 import { npcPosition } from './npc';
 import { coutStock } from './project';
@@ -421,23 +422,25 @@ export function currentMission(w: WorldState, ctx: MissionContext = {}): Mission
     };
   }
   const session = classWindow(w);
-  if (session && nearPlace(w, 'college')) {
+  const ecole = lieuScolaire(w.player.age);
+  const quoi = ecole === 'lycee' ? 'lycée' : 'collège';
+  if (session && nearPlace(w, ecole)) {
     return {
       id: `cours:${session}:entrer`, chapter: ch, rank: -1, kind: 'faire', icon: '📚',
-      text: 'Entre en cours : appuie sur E devant le collège (ou dans le hall)',
-      detail: 'Ta mission reprendra après les cours.', target: lieu('college'),
+      text: `Entre en cours : appuie sur E devant le ${quoi} (ou dans le hall)`,
+      detail: 'Ta mission reprendra après les cours.', target: lieu(ecole),
     };
   }
   if (session) {
-    const start = session === 'matin' ? '8 h 30' : '13 h 30';
+    const start = seanceDebut(w, session);
     // Déjà commencé : on le dit (« commencent à 8 h 30 » à 11 h, c'est trompeur).
-    const late = minutesOfDay(w.time.tick) > SESSIONS[session].start;
+    const late = minutesOfDay(w.time.tick) > sessionsFor(w)[session].start;
     return {
       id: `cours:${session}`, chapter: ch, rank: -1, kind: 'aller', icon: '📚',
       text: late
-        ? `Va au collège : tu es en retard, le cours a commencé à ${start}`
-        : `Va au collège : les cours commencent à ${start}`,
-      detail: 'Entre au collège avec E. Ta mission reprendra après les cours.', target: lieu('college'),
+        ? `Va au ${quoi} : tu es en retard, le cours a commencé à ${start}`
+        : `Va au ${quoi} : les cours commencent à ${start}`,
+      detail: `Entre au ${quoi} avec E. Ta mission reprendra après les cours.`, target: lieu(ecole),
     };
   }
   const step = chapterStep(w);

@@ -8,6 +8,7 @@ import { createStoryState, type StoryBeat, type StoryState } from '../core/story
 import { dayIndexOf } from '../core/clock';
 import { BEATS } from '../data/story_registry';
 import { notify } from './events';
+import { adapterTexteEcole, AGE_LYCEE } from './school_life';
 
 export function ensureStory(w: WorldState): StoryState {
   if (!w.story) w.story = createStoryState();
@@ -30,7 +31,8 @@ export function personalize(w: WorldState, text: string): string {
       .replace(/\bmon grand\b/g, fille ? 'ma grande' : 'mon enfant')
       .replace(/\bfiston\b/g, fille ? 'ma grande' : 'mon enfant');
   }
-  return t;
+  // Lycéen : « le collège Jean-Moulin » des textes devient « le lycée Louise-Michel ».
+  return adapterTexteEcole(t, w.player.age >= AGE_LYCEE);
 }
 
 function ready(w: WorldState, b: StoryBeat): boolean {

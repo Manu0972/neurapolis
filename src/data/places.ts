@@ -41,6 +41,14 @@ export const PLACES: PlaceDef[] = [
     ],
   },
   {
+    id: 'lycee',
+    name: 'Lycée Jean-Moulin',
+    description: 'Le lycée de la cité scolaire, entrée rue Louise-Michel : grandes salles, CDI, et la même bande qu’au collège.',
+    actions: [
+      { id: 'reviser', label: 'Réviser au centre de documentation', needs: { fatigue: 10, stress: 5, faim: 5 }, skill: 'organisation', xp: 1 },
+    ],
+  },
+  {
     id: 'epicerie',
     name: 'Épicerie Bertin',
     description: 'La petite épicerie de Mme Bertin, assiégée par le drive de la grande surface.',

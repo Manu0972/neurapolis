@@ -187,7 +187,7 @@ describe('multijoueur : la ville partagée', () => {
     actOn(a, 'libre', 'pret', 'B', { amount: 100 });
     const back = importSave(exportSave(a));
     expect(back.version).toBe(CURRENT_SAVE_VERSION);
-    expect(CURRENT_SAVE_VERSION).toBe(25);
+    expect(CURRENT_SAVE_VERSION).toBe(26);
     expect(back.multiplayer!.outbox).toHaveLength(1);
     expect(back.multiplayer!.sent).toEqual([expect.objectContaining({ peer: 'B', mechanic: 'pret', phase: 'offer', amount: 100 })]);
     expect(back.multiplayer!.peers['B']!.name).toBe('Bilal');

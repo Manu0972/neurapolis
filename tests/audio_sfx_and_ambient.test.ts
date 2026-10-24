@@ -33,6 +33,10 @@ class MockAudioParam {
   setValueCurveAtTime(values: Float32Array, time: number, duration: number) {
     this.calls.push({ method: 'setValueCurveAtTime', args: [values, time, duration] });
   }
+
+  cancelScheduledValues(time: number) {
+    this.calls.push({ method: 'cancelScheduledValues', args: [time] });
+  }
 }
 
 class MockAudioBuffer {
@@ -348,6 +352,49 @@ describe('Moteur Audio — Topologie Web Audio synthétisée (Mock AudioContext)
 
     const rainFilter = mockCtx.createdFilters.find((f) => f.type === 'bandpass' && f.frequency.value === 850);
     expect(rainFilter).toBeDefined();
+  });
+
+  it('setIndoor annule la rampe de reconstruction de la pluie avant le fondu (entrée puis sortie d’un lieu)', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    // Dehors sous la pluie, puis entrée dans un lieu : updateAmbient reconstruit AVANT que setIndoor passe à vrai.
+    engine.updateAmbient('ville', 14, 'pluie');
+    engine.updateAmbient('maison', 14, 'pluie');
+    const isRain = (g: MockGainNode) =>
+      g.gain.calls.some((c) => c.method === 'linearRampToValueAtTime' && (c.args[0] === 0.12 || c.args[0] === 0.02));
+    const rains = mockCtx.createdGains.filter(isRain);
+    const rain = rains[rains.length - 1]!;
+    expect(rain.gain.calls.find((c) => c.method === 'linearRampToValueAtTime')?.args[0]).toBe(0.12); // ancien état
+    engine.setIndoor(true);
+    const m = rain.gain.calls.map((c) => c.method);
+    const iCancel = m.lastIndexOf('cancelScheduledValues');
+    expect(iCancel).toBeGreaterThan(m.indexOf('linearRampToValueAtTime'));
+    expect(m.slice(iCancel)).toEqual(['cancelScheduledValues', 'setValueAtTime', 'setTargetAtTime']);
+    expect(rain.gain.calls[rain.gain.calls.length - 1]!.args[0]).toBe(0.02);
+
+    // Sortie : la reconstruction part de 0.02 (intérieur), setIndoor(false) doit remonter à 0.12.
+    engine.updateAmbient('ville', 14, 'pluie');
+    const rains2 = mockCtx.createdGains.filter(isRain);
+    const rain2 = rains2[rains2.length - 1]!;
+    expect(rain2).not.toBe(rain);
+    engine.setIndoor(false);
+    const c2 = rain2.gain.calls;
+    expect(c2[c2.length - 1]!.method).toBe('setTargetAtTime');
+    expect(c2[c2.length - 1]!.args[0]).toBe(0.12);
+    expect(c2[c2.length - 2]!.method).toBe('setValueAtTime');
+  });
+
+  it('stopAmbient oublie la couche de pluie : setIndoor ne touche plus un gain qui s’éteint', () => {
+    const engine = new SoundEngine();
+    engine.init();
+    engine.updateAmbient('ville', 14, 'pluie');
+    const rain = mockCtx.createdGains.find((g) =>
+      g.gain.calls.some((c) => c.method === 'linearRampToValueAtTime' && c.args[0] === 0.12),
+    )!;
+    engine.stopAmbient();
+    const n = rain.gain.calls.length;
+    engine.setIndoor(true);
+    expect(rain.gain.calls.length).toBe(n);
   });
 
   it('applique le filtre passe-bas atténué et les grillons à 4500 Hz la nuit (heure >= 21 ou heure < 6)', () => {

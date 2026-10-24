@@ -17,7 +17,7 @@ import {
   CITY, MAP_H, MAP_W, PLACE_ANCHORS, assertMapValid, entranceAt, isWalkable,
 } from '../src/data/map';
 
-const PLACE_IDS: PlaceId[] = ['maison', 'college', 'epicerie', 'friche', 'parc', 'place'];
+const PLACE_IDS: PlaceId[] = ['maison', 'college', 'lycee', 'epicerie', 'friche', 'parc', 'place'];
 /** Entrées réelles des lieux, lues dans la description de la ville (1 tuile = 1 m). */
 const ENTRIES: ReadonlyArray<readonly [number, number, PlaceId]> = CITY.buildings.flatMap((b) =>
   b.doors.filter((d) => d.place).map((d) => [d.x, d.y, d.place!] as const));

@@ -10,6 +10,7 @@
  */
 import type { Notification, WorldState } from '../core/types';
 import { dateOf, dayIndexOf, isSchoolDay, minutesOfDay } from '../core/clock';
+import { estLyceen } from './school_life';
 import { addXp } from './skills';
 import { notify, pushEvent } from './events';
 
@@ -33,9 +34,11 @@ export function shiftWindowOpen(w: WorldState): JobCheck {
   const min = minutesOfDay(w.time.tick);
   if (wd === 0) return { ok: false, message: 'L’épicerie est fermée le dimanche.' };
   if (isSchoolDay(day)) {
-    return min >= 16 * 60 && min < 19 * 60
+    // Le lycée finit à 17 h : le service commence plus tard (et finit à 19 h 30, la fermeture).
+    const [from, to] = estLyceen(w) ? [17 * 60 + 30, 19 * 60 + 30] : [16 * 60, 19 * 60];
+    return min >= from && min < to
       ? { ok: true, message: '' }
-      : { ok: false, message: 'Les jours de cours, Mme Bertin a besoin d’aide entre 16 h et 19 h.' };
+      : { ok: false, message: `Les jours de cours, Mme Bertin a besoin d’aide entre ${from / 60 | 0} h${from % 60 ? ' 30' : ''} et ${to / 60 | 0} h${to % 60 ? ' 30' : ''}.` };
   }
   const ok = (min >= 9 * 60 && min < 12 * 60) || (min >= 14 * 60 && min < 18 * 60);
   return ok ? { ok: true, message: '' } : { ok: false, message: 'Mme Bertin prend de l’aide de 9 h à 12 h et de 14 h à 18 h.' };

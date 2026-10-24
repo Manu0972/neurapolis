@@ -71,6 +71,6 @@ describe('masque de recolorage', () => {
     expect(labelTexel('torse', [0.1, 0.2, 0.7], skin).outfit).toBe(true);
     expect(labelTexel('torse', [0.78, 0.6, 0.5], skin).skin).toBe(true);
     expect(labelTexel('cheveux', [0.2, 0.1, 0.05], skin).hair).toBe(true);
-    expect(labelTexel('reste', [0.1, 0.2, 0.7], skin)).toEqual({ skin: false, hair: false, outfit: false });
+    expect(labelTexel('jambes', [0.1, 0.2, 0.7], skin)).toEqual({ skin: false, hair: false, outfit: false, bottom: true, shoes: false });
   });
 });
