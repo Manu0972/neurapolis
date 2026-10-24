@@ -31,6 +31,13 @@ celle de l'hôte attend que son horloge la rejoigne (le panneau l'indique).
 connexion**, sa partie continue en solo et se reconnecte toute seule (essais toutes les 1 à 10 s) ;
 ce qui lui était destiné (prêt, remboursement, sabotage…) lui arrive à son retour.
 
+**Ce que tu vois de l'autre** : son personnage, habillé comme il s'est habillé (silhouette, tenue,
+accessoires), avec « 🎮 son prénom » au-dessus de la tête, visible même derrière un immeuble.
+Son mouvement est lissé (affiché avec 0,15 s de retard, entre deux positions reçues) : il marche,
+il ne sautille pas. **💬** à côté de son nom : il est dans une fenêtre, un dialogue ou une
+cinématique. Ça ne te bloque pas : si c'est l'hôte, ton horloge continue d'avancer à ton allure
+(une heure de jeu d'avance au plus), puis attend qu'il revienne.
+
 **Sauvegarde et reprise** : chaque joueur sauvegarde sa partie comme d'habitude (prêts, dettes,
 alliances, propositions en attente compris). En rechargeant une sauvegarde de partie à plusieurs,
 le jeu se reconnecte au même hôte ; « Quitter la partie à plusieurs » arrête cette reprise.
@@ -51,6 +58,14 @@ le jeu se reconnecte au même hôte ; « Quitter la partie à plusieurs » arrê
 6. Fermer la fenêtre 2 : Alex voit « Bilal a quitté la partie ». La rouvrir sur `127.0.0.1:8765`,
    recharger la partie : elle se reconnecte seule.
 7. Fermer la fenêtre 1 (l'hôte) : Bilal devient l'hôte (« c'est toi l'hôte maintenant »).
+
+### A bis. Depuis le serveur de développement
+
+`npm run dev` branche le relais sur le serveur Vite (`/net`). Ouvre `http://localhost:5173` et
+`http://127.0.0.1:5173` (deux origines = deux sauvegardes), puis mêmes étapes que A.2 à A.7.
+À vérifier en plus : l'autre marche sans à-coups ; ouvrir un panneau chez l'un fait apparaître 💬
+chez l'autre ; un prêt de 100 € accepté arrive tout de suite (« Prêt d'Alex reçu : +100 € ») et
+survit à un rechargement des deux onglets.
 
 ### B. Deux PC sur la même box
 
@@ -111,7 +126,14 @@ un contre. La relation entre joueurs (−100 à +100) garde la mémoire des coup
 - **Fiabilité** (`src/net/session.ts`, sans DOM) : une connexion = un joueur (usurpation ignorée) ;
   les événements restent dans la boîte d'envoi sauvegardée jusqu'à l'accusé de réception (renvoi
   après coupure, dédoublonnage à l'arrivée) ; débit borné par joueur (sourdine au-delà) ; même
-  sauvegarde ouverte deux fois → nouvel identifiant pour le second.
+  sauvegarde ouverte deux fois → nouvel identifiant pour le second. Un joueur qu'on entend sans le
+  connaître (présentation perdue pendant un chargement) est redemandé ; les rappels d'un ancien
+  client qui finit de se fermer sont ignorés. Après un événement reçu ou un accusé, la partie est
+  sauvegardée aussitôt (un rechargement ne perd pas un prêt d'un côté seulement).
+- **Affichage des autres** : `src/net/interp.ts` (lissage sans DOM : interpolation, courte
+  extrapolation, téléportation au-delà de 12 m) et `src/presentation/city3d/remotePlayers.ts`
+  (personnage, étiquette, 💬). La pose envoyée porte `busy` (fenêtre ou cinématique) ; l'horloge
+  d'un invité suit `guestClockSpeed` (rattrapage, attente, ou 1 h d'avance si l'hôte est occupé).
 - **Protocole** (`src/net/protocol.ts`, version 2) : tout message reçu est validé (`parseGameMsg`) ;
   textes nettoyés et bornés, toujours affichés comme du texte (jamais du HTML), apparence prise dans
   les valeurs permises, nombres finis et bornés.
@@ -120,5 +142,6 @@ un contre. La relation entre joueurs (−100 à +100) garde la mémoire des coup
   routage d'un message vers un seul joueur (`to`). Branché sur `tools/lan-server.mjs`, sur le
   serveur Vite (`/net`) et sur l'application de bureau (`desktop/host.cjs`).
 - **Tests** : `tests/net_session.test.ts` (relais réel, 2 à 4 sessions, coupure, départ de l'hôte,
-  client hostile), `tests/multiplayer_hostile.test.ts`, `tests/multiplayer.test.ts`,
+  client hostile), `tests/net_rencontre.test.ts` (lissage, tenue transmise, état occupé, prêt
+  sauvegardé, présentation perdue), `tests/multiplayer_hostile.test.ts`, `tests/multiplayer.test.ts`,
   `tests/net_relay.test.ts`, `tests/desktop_host.test.ts`.
