@@ -273,7 +273,15 @@ export function actBlocker(w: WorldState, mode: MultiMode, id: MultiMechanicId, 
   if (id === 'bail_coupe') return 'Automatique : louer un local le retire du marché pour l’autre.';
   const d = today(w);
   const last = m.cooldowns[`${id}:${peer}`];
-  if (last !== undefined && d - last < def.cooldownDays) return `Encore ${def.cooldownDays - (d - last)} jour(s) avant de recommencer.`;
+  if (last !== undefined && d - last < def.cooldownDays) {
+    const left = def.cooldownDays - (d - last);
+    return `Encore ${left} jour${left > 1 ? 's' : ''} avant de recommencer.`;
+  }
+  // L'autre n'accepte qu'une proposition de chaque sorte à la fois : une deuxième serait ignorée à
+  // l'arrivée, et la somme resterait bloquée jusqu'à l'expiration de la première.
+  if (def.needsAccept && m.sent.some((s) => s.peer === peer && s.mechanic === id && s.phase === 'offer')) {
+    return `Ta proposition attend encore la réponse ${deNom(peerName(w, peer))}.`;
+  }
   if (def.kind === 'sabotage' && m.cooldowns['sabotage'] === d) return 'Un seul sabotage par jour.';
   if (w.player.money < def.cost) return `Il te faut ${def.cost} €.`;
   if (id === 'pret') {

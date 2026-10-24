@@ -171,6 +171,11 @@ describe('deux joueurs se rencontrent (relais réel)', () => {
       const savesB = B.saves;
       expect(actOn(A.w, 'libre', 'pret', B.w.multiplayer!.selfId, { amount: 100, rate: 0.1 }).ok).toBe(true);
       await until(() => B.w.multiplayer!.offers.length === 1);
+      // Une deuxième proposition de prêt serait ignorée chez Bilal : elle est refusée dès le départ.
+      A.w.multiplayer!.cooldowns = {};
+      const again = actOn(A.w, 'libre', 'pret', B.w.multiplayer!.selfId, { amount: 50, rate: 0 });
+      expect(again.ok).toBe(false);
+      expect(again.message).toBe('Ta proposition attend encore la réponse de Bilal.');
       respondToOffer(B.w, B.w.multiplayer!.offers[0]!.id, true);
       await until(() => B.w.player.money === 1100 && A.w.multiplayer!.debts.length === 1);
       expect(B.saves).toBeGreaterThan(savesB);
