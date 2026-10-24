@@ -11,8 +11,6 @@ import type { QualityLevel } from './quality';
 export interface RenderBudget {
   /** Distance (m, bord du groupe le plus proche) au-delà de laquelle les maisons Kenney passent en version simplifiée. */
   houseLodNear: number;
-  /** Idem pour la ceinture lointaine et les tours de l'horizon. */
-  skylineLodNear: number;
   /** Voitures et passants animés (les plus proches du joueur d'abord). */
   cars: number;
   pedestrians: number;
@@ -35,9 +33,9 @@ export interface RenderBudget {
 }
 
 export const RENDER_BUDGETS: Record<QualityLevel, RenderBudget> = {
-  bas: { houseLodNear: 55, skylineLodNear: 60, cars: 12, pedestrians: 14, ambientRadius: 170, shoppers: 10, crowdLod: 14, detailFar: 100, viewScale: 0.72, rimLight: false, basicShadows: true, minRenderScale: 0.7 },
-  moyen: { houseLodNear: 95, skylineLodNear: 110, cars: 22, pedestrians: 26, ambientRadius: 260, shoppers: 16, crowdLod: 20, detailFar: 130, viewScale: 0.9, rimLight: true, basicShadows: false, minRenderScale: 1 },
-  haut: { houseLodNear: 150, skylineLodNear: 170, cars: 30, pedestrians: 34, ambientRadius: 340, shoppers: 22, crowdLod: 26, detailFar: 150, viewScale: 1, rimLight: true, basicShadows: false, minRenderScale: 1 },
+  bas: { houseLodNear: 55, cars: 12, pedestrians: 14, ambientRadius: 170, shoppers: 10, crowdLod: 14, detailFar: 100, viewScale: 0.72, rimLight: false, basicShadows: true, minRenderScale: 0.7 },
+  moyen: { houseLodNear: 95, cars: 22, pedestrians: 26, ambientRadius: 260, shoppers: 16, crowdLod: 20, detailFar: 130, viewScale: 0.9, rimLight: true, basicShadows: false, minRenderScale: 1 },
+  haut: { houseLodNear: 150, cars: 30, pedestrians: 34, ambientRadius: 340, shoppers: 22, crowdLod: 26, detailFar: 150, viewScale: 1, rimLight: true, basicShadows: false, minRenderScale: 1 },
 };
 
 /** Niveau de détail d'un groupe : 0 = complet, 1 = simplifié. */

@@ -52,7 +52,7 @@ export interface CityScene {
   /** Blocs de 128 m (grande carte) : visibilité selon la distance à la caméra. */
   chunks: CityChunk[];
   /** Niveaux de détail des modèles Kenney (maisons, décor lointain) selon la caméra (skyline.ts). */
-  updateLod(view: LodView, houseNear: number, skylineNear: number, far: number): void;
+  updateLod(view: LodView, houseNear: number, far: number): void;
   /** Instances Kenney dessinées en version complète / simplifiée (QA). */
   lodCounts(): { full: number; proxy: number };
   dispose(): void;
@@ -683,8 +683,8 @@ export function buildCityScene(): CityScene {
     setUnitSign(unitId: string, text: string, color: string): void {
       city.setUnitSign(unitId, text, color);
     },
-    updateLod(view: LodView, houseNear: number, skylineNear: number, far: number): void {
-      kenney.updateLod(view, houseNear, skylineNear, far);
+    updateLod(view: LodView, houseNear: number, far: number): void {
+      kenney.updateLod(view, houseNear, far);
     },
     lodCounts: () => kenney.lodCounts(),
     dispose(): void {

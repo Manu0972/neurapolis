@@ -63,7 +63,7 @@ describe('niveaux de détail (lod.ts)', () => {
 describe('budgets par qualité', () => {
   it('la qualité basse est la plus légère, la haute la plus riche', () => {
     const { bas, moyen, haut } = RENDER_BUDGETS;
-    for (const k of ['houseLodNear', 'skylineLodNear', 'cars', 'pedestrians', 'ambientRadius', 'shoppers', 'crowdLod', 'detailFar', 'viewScale'] as const) {
+    for (const k of ['houseLodNear', 'cars', 'pedestrians', 'ambientRadius', 'shoppers', 'crowdLod', 'detailFar', 'viewScale'] as const) {
       expect(bas[k]).toBeLessThanOrEqual(moyen[k]);
       expect(moyen[k]).toBeLessThanOrEqual(haut[k]);
     }

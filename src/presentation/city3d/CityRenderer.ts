@@ -1255,7 +1255,6 @@ export class CityRenderer {
     this.city.updateLod(
       { x: cam.position.x, z: cam.position.z, dirX: dx / len, dirZ: dz / len, cosHalf: top ? -1 : viewCone(cam.fov, cam.aspect), keep: 48 },
       this.budget.houseLodNear,
-      this.budget.skylineLodNear,
       fog.far + 40,
     );
   }

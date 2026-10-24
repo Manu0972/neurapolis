@@ -31,7 +31,8 @@ export function setAttached(obj: THREE.Object3D, parent: THREE.Object3D, on: boo
  */
 export class InstancedLod {
   readonly full: THREE.InstancedMesh;
-  readonly proxy: THREE.InstancedMesh;
+  /** Maquette au loin ; null : pas de maquette (seul le tri par distance et par champ s'applique). */
+  readonly proxy: THREE.InstancedMesh | null;
   private readonly mats: Float32Array;
   private readonly cols: Float32Array | null;
   private readonly xz: Float32Array;
@@ -39,7 +40,7 @@ export class InstancedLod {
   private readonly radius: number;
   private first = true;
 
-  constructor(full: THREE.InstancedMesh, proxyGeometry: THREE.BufferGeometry) {
+  constructor(full: THREE.InstancedMesh, proxyGeometry: THREE.BufferGeometry | null) {
     this.full = full;
     const n = full.count;
     this.mats = Float32Array.from(full.instanceMatrix.array as Float32Array);
@@ -51,41 +52,43 @@ export class InstancedLod {
     if (!full.geometry.boundingSphere) full.geometry.computeBoundingSphere();
     const sx = Math.hypot(this.mats[0]!, this.mats[1]!, this.mats[2]!);
     this.radius = (full.geometry.boundingSphere?.radius ?? 0) * sx;
-    this.proxy = new THREE.InstancedMesh(proxyGeometry, full.material, n);
-    this.proxy.name = `${full.name} (loin)`;
-    this.proxy.castShadow = false; // au loin, hors du cadre d'ombre du soleil
     // Instances réparties sur toute la ville : le tri par le champ se fait instance par instance.
     full.frustumCulled = false;
-    this.proxy.frustumCulled = false;
-    this.proxy.receiveShadow = full.receiveShadow;
-    if (this.cols) this.proxy.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.cols.length), 3);
-    // Mêmes volumes englobants pour les deux (calculés sur toutes les instances) : le tri par
-    // le champ de la caméra reste juste quelle que soit la répartition.
     if (!full.boundingSphere) full.computeBoundingSphere();
     if (!full.boundingBox) full.computeBoundingBox();
-    this.proxy.boundingSphere = full.boundingSphere!.clone();
-    this.proxy.boundingBox = full.boundingBox!.clone();
-    this.proxy.count = 0;
-    this.proxy.matrixAutoUpdate = full.matrixAutoUpdate;
-    this.proxy.matrix.copy(full.matrix);
-    this.proxy.matrixWorld.copy(full.matrixWorld);
+    this.proxy = null;
+    if (!proxyGeometry) return;
+    const p = new THREE.InstancedMesh(proxyGeometry, full.material, n);
+    p.name = `${full.name} (loin)`;
+    p.castShadow = false; // au loin, hors du cadre d'ombre du soleil
+    p.frustumCulled = false;
+    p.receiveShadow = full.receiveShadow;
+    if (this.cols) p.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.cols.length), 3);
+    p.boundingSphere = full.boundingSphere!.clone();
+    p.boundingBox = full.boundingBox!.clone();
+    p.count = 0;
+    p.matrixAutoUpdate = full.matrixAutoUpdate;
+    p.matrix.copy(full.matrix);
+    p.matrixWorld.copy(full.matrixWorld);
+    this.proxy = p;
   }
 
   /** Nombre d'instances dessinées en version complète / simplifiée (QA). */
-  get counts(): { full: number; proxy: number } { return { full: this.full.count, proxy: this.proxy.count }; }
+  get counts(): { full: number; proxy: number } { return { full: this.full.count, proxy: this.proxy?.count ?? 0 }; }
 
   /**
    * Répartit les instances selon la caméra : complètes à moins de `near` m, maquettes jusqu'à
    * `far` m, rien au-delà ni hors du cône de vue.
    */
   update(view: LodView, near: number, far: number): void {
-    const { full, proxy, changed } = partitionLod(this.xz, this.levels, view, near, far, this.radius);
+    // Sans maquette, tout ce qui est dessiné l'est en version complète.
+    const { full, proxy, changed } = partitionLod(this.xz, this.levels, view, this.proxy ? near : Infinity, far, this.radius);
     if (!changed && !this.first) return;
     this.first = false;
     const fm = this.full.instanceMatrix.array as Float32Array;
-    const pm = this.proxy.instanceMatrix.array as Float32Array;
+    const pm = (this.proxy?.instanceMatrix.array ?? fm) as Float32Array;
     const fc = this.full.instanceColor?.array as Float32Array | undefined;
-    const pc = this.proxy.instanceColor?.array as Float32Array | undefined;
+    const pc = this.proxy?.instanceColor?.array as Float32Array | undefined;
     let a = 0;
     let b = 0;
     for (let i = 0; i < this.levels.length; i++) {
@@ -98,19 +101,21 @@ export class InstancedLod {
       if (near0) a++; else b++;
     }
     this.full.count = full;
-    this.proxy.count = proxy;
     // Un groupe vide n'est pas parcouru par le moteur (ni programme ni uniformes à poser).
     this.full.visible = full > 0;
-    this.proxy.visible = this.proxy.count > 0;
     this.full.instanceMatrix.needsUpdate = true;
-    this.proxy.instanceMatrix.needsUpdate = true;
     if (this.full.instanceColor) this.full.instanceColor.needsUpdate = true;
-    if (this.proxy.instanceColor) this.proxy.instanceColor.needsUpdate = true;
+    if (this.proxy) {
+      this.proxy.count = proxy;
+      this.proxy.visible = proxy > 0;
+      this.proxy.instanceMatrix.needsUpdate = true;
+      if (this.proxy.instanceColor) this.proxy.instanceColor.needsUpdate = true;
+    }
   }
 
   /** Le maillage simplifié est propre à ce groupe ; la géométrie simplifiée est partagée (non libérée). */
   dispose(): void {
-    this.proxy.removeFromParent();
-    this.proxy.dispose();
+    this.proxy?.removeFromParent();
+    this.proxy?.dispose();
   }
 }
