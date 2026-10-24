@@ -5,7 +5,7 @@
 import { createMultiplayerState } from '../core/multiplayer_types';
 import {
   DEFAULT_PLAYER_APPEARANCE, MAX_PENDING_DELIVERIES, VALID_GENDERS, VALID_HAIR_COLORS, VALID_HAIR_STYLES,
-  VALID_OUTFIT_COLORS, VALID_OUTFIT_STYLES, VALID_SKIN_TONES, type WorldState,
+  VALID_GEAR, VALID_OUTFIT_COLORS, VALID_OUTFIT_STYLES, VALID_SKIN_TONES, type PlayerGear, type WorldState,
 } from '../core/types';
 import { SAVE_VERSION } from '../core/store';
 import { PLACE_ANCHORS } from '../data/map';
@@ -421,6 +421,20 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
     const m = s.multiplayer as AnySave | undefined;
     if (m && typeof m === 'object' && !Array.isArray(m.sent)) m.sent = [];
     s.version = 25;
+    return s;
+  },
+  // 25 → 26 : personnalisation complète. Les accessoires se portent ensemble (`gear`) : l'ancien
+  // accessoire unique devient la liste ; silhouette, bas, chaussures et couleurs restent absents
+  // (= comportement d'avant : silhouette de l'appareil, couleurs d'origine).
+  25: (s) => {
+    const player = s.player as AnySave | undefined;
+    if (player && typeof player.appearance === 'object' && player.appearance !== null) {
+      const a = player.appearance as AnySave;
+      // Sans accessoire, l'apparence reste identique (champs absents = comportement d'avant).
+      if (!Array.isArray(a.gear) && typeof a.accessory === 'string' && VALID_GEAR.includes(a.accessory as PlayerGear)) a.gear = [a.accessory];
+      if (a.gearColors !== undefined && (typeof a.gearColors !== 'object' || a.gearColors === null || Array.isArray(a.gearColors))) delete a.gearColors;
+    }
+    s.version = 26;
     return s;
   },
 };

@@ -665,15 +665,21 @@ export class CityRenderer {
     }
   }
 
-  private syncPlayer(world: WorldState, dt: number, input: CityFrameInput): void {
+  /** (Re)crée le corps du joueur si son apparence ou son âge a changé (création, armoire, anniversaire). */
+  private refreshPlayerModel(world: WorldState, parent: THREE.Object3D): void {
     const p = world.player;
     const key = JSON.stringify(p.appearance) + p.age;
-    if (!this.player || key !== this.playerKey) {
-      this.player?.dispose();
-      this.player = createCharacter({ appearance: p.appearance, gender: p.gender, heightM: heightForAge(p.age), rig: { key: 'joueur', role: 'joueur', age: p.age, model: playerRigModel() }, rigRecolor: 'joueur' });
-      this.scene.add(this.player.root);
-      this.playerKey = key;
-    }
+    if (this.player && key === this.playerKey) return;
+    this.player?.dispose();
+    this.player = createCharacter({ appearance: p.appearance, gender: p.gender, heightM: heightForAge(p.age), rig: { key: 'joueur', role: 'joueur', age: p.age, model: playerRigModel() }, rigRecolor: 'joueur' });
+    parent.add(this.player.root);
+    this.playerKey = key;
+  }
+
+  private syncPlayer(world: WorldState, dt: number, input: CityFrameInput): void {
+    const p = world.player;
+    this.refreshPlayerModel(world, this.scene);
+    if (!this.player) return;
     // La simulation a déplacé le joueur (chargement, sommeil, téléportation) : on suit.
     if (!this.bodyReady || p.pos.x !== this.lastSimTile.x || p.pos.y !== this.lastSimTile.y) {
       const t = tileOf(this.body);
@@ -1072,6 +1078,8 @@ export class CityRenderer {
 
   private frameInterior(world: WorldState, dt: number, input: CityFrameInput, cw: number, ch: number): void {
     const it = this.interior!;
+    // Nouvelle tenue enfilée à l'armoire : le joueur la porte aussitôt, sans ressortir.
+    this.refreshPlayerModel(world, this.interiorScene);
     const move = input.canMove ? input.move : { x: 0, y: 0 };
     this.body = stepBody(this.body, move, this.yaw, Math.min(dt, 0.05), input.running, it.walkable, INTERIOR_CELL, 0.75);
     if (this.player) {

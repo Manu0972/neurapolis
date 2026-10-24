@@ -17,9 +17,12 @@ import {
   VALID_EYE_COLORS,
   VALID_EYES,
   VALID_GLASSES,
+  VALID_GEAR,
   type Characteristics,
   type Player,
   type PlayerAccessory,
+  type PlayerGear,
+  type PlayerGearColorKey,
   type PlayerAppearance,
   type PlayerBeard,
   type PlayerBody,
@@ -50,9 +53,12 @@ export {
   VALID_EYE_COLORS,
   VALID_EYES,
   VALID_GLASSES,
+  VALID_GEAR,
   type Characteristics,
   type Player,
   type PlayerAppearance,
+  type PlayerGear,
+  type PlayerGearColorKey,
   type PlayerGender,
   type WorldState,
 };
@@ -252,6 +258,84 @@ export const ACCESSORY_INFO: Record<PlayerAccessory, { label: string; icon: stri
   sacoche: { label: 'Sacoche', icon: '💼' },
 };
 
+// ---------- Accessoires portés ensemble (save v26) ----------
+
+/** Emplacement du corps : deux accessoires du même emplacement ne se portent pas ensemble. */
+export const GEAR_SLOT: Record<PlayerGear, 'tete' | 'oreilles' | 'poignet' | 'cou' | 'dos' | 'flanc'> = {
+  casquette: 'tete', bonnet: 'tete', ecouteurs: 'oreilles', montre: 'poignet', echarpe: 'cou', sac_dos: 'dos', sacoche: 'flanc',
+};
+
+/** Couleur d'origine de chaque pièce (palette des tenues). */
+export const GEAR_DEFAULT_COLOR: Record<PlayerGearColorKey, PlayerOutfitColor> = {
+  casquette: 'indigo', bonnet: 'bordeaux', ecouteurs: 'noir', montre: 'noir', echarpe: 'moutarde', sac_dos: 'vert', sacoche: 'ocre', lunettes: 'noir',
+};
+
+/** Accessoires réellement portés : `gear` (v26) ou, pour une apparence plus ancienne, `accessory`. */
+export function wornGear(a: Pick<PlayerAppearance, 'gear' | 'accessory'>): PlayerGear[] {
+  const list = Array.isArray(a.gear) ? a.gear : a.accessory && a.accessory !== 'aucun' ? [a.accessory] : [];
+  const out: PlayerGear[] = [];
+  for (const g of list) if (VALID_GEAR.includes(g) && !out.includes(g) && !out.some((o) => GEAR_SLOT[o] === GEAR_SLOT[g])) out.push(g);
+  return out;
+}
+
+/** Met ou enlève un accessoire ; en mettre un retire celui du même emplacement (casquette ↔ bonnet). */
+export function toggleGear(a: PlayerAppearance, g: PlayerGear): PlayerAppearance {
+  const cur = wornGear(a);
+  const gear = cur.includes(g) ? cur.filter((x) => x !== g) : [...cur.filter((x) => GEAR_SLOT[x] !== GEAR_SLOT[g]), g];
+  // `accessory` reste rempli (premier accessoire) pour les lecteurs plus anciens (multijoueur).
+  return { ...a, gear, accessory: gear[0] ?? 'aucun' };
+}
+
+/** Couleur (hex) d'une pièce portée. */
+export function gearColorHex(a: Pick<PlayerAppearance, 'gearColors'>, k: PlayerGearColorKey): string {
+  const c = a.gearColors?.[k];
+  return OUTFIT_COLOR_INFO[c && VALID_OUTFIT_COLORS.includes(c) ? c : GEAR_DEFAULT_COLOR[k]].hex;
+}
+
+/** Silhouette 3D voulue : id de modèle, `null` = personnage dessiné, `undefined` = pas encore choisie. */
+export function chosenModel(a: Pick<PlayerAppearance, 'model'>): string | null | undefined {
+  if (a.model === undefined) return undefined;
+  return a.model === 'dessin' ? null : a.model;
+}
+
+const SAFE_MODEL_ID = /^[\p{L}\p{N}_.-]{1,64}$/u;
+
+/** Apparence au hasard, reproductible (même graine → même résultat), respectant âge et palier. */
+export function randomAppearance(seed: number, age: number, tier: number, models: readonly string[] = []): PlayerAppearance {
+  let s = (seed * 2654435761) >>> 0;
+  const r = (): number => {
+    s = Math.imul(s ^ (s >>> 15), 2246822519) >>> 0;
+    s = Math.imul(s ^ (s >>> 13), 3266489917) >>> 0;
+    return ((s ^ (s >>> 16)) >>> 0) / 4294967296;
+  };
+  const pick = <T,>(list: readonly T[]): T => list[Math.floor(r() * list.length)]!;
+  const outfits = VALID_OUTFIT_STYLES.filter((o) => outfitAllowed(o, tier));
+  const base: PlayerAppearance = {
+    skinTone: pick(VALID_SKIN_TONES),
+    hairColor: r() < 0.82 ? pick(VALID_HAIR_COLORS.slice(0, 6)) : pick(VALID_HAIR_COLORS),
+    hairStyle: pick(VALID_HAIR_STYLES),
+    outfitStyle: pick(outfits),
+    outfitColor: pick(VALID_OUTFIT_COLORS),
+    body: pick(VALID_BODIES),
+    heightAdj: Math.floor(r() * 5) - 2,
+    eyes: pick(VALID_EYES),
+    eyeColor: pick(VALID_EYE_COLORS),
+    glasses: r() < 0.65 ? 'aucune' : pick(VALID_GLASSES),
+    freckles: r() < 0.25,
+    beard: age >= BEARD_MIN_AGE && r() < 0.4 ? pick(VALID_BEARDS) : 'aucune',
+    accessory: 'aucun',
+  };
+  // Tenue complète et accessoires (v26) : jamais plus de trois accessoires, couleurs assorties.
+  let a: PlayerAppearance = { ...base, bottomColor: pick(VALID_OUTFIT_COLORS), shoesColor: pick(VALID_OUTFIT_COLORS), gear: [], gearColors: {} };
+  const n = Math.floor(r() * 4);
+  for (let i = 0; i < n; i++) a = toggleGear(a, pick(VALID_GEAR));
+  const colors: Partial<Record<PlayerGearColorKey, PlayerOutfitColor>> = {};
+  for (const g of [...wornGear(a), ...(a.glasses !== 'aucune' ? ['lunettes' as const] : [])]) colors[g] = pick(VALID_OUTFIT_COLORS);
+  a.gearColors = colors;
+  if (models.length > 0) a.model = pick(models);
+  return a;
+}
+
 export const CHARACTERISTIC_LABELS: Record<
   keyof Characteristics,
   { label: string; icon: string; description: string }
@@ -415,6 +499,31 @@ export function validateAppearance(raw: unknown): AppearanceValidationResult {
     if (typeof obj.freckles === 'boolean') freckles = obj.freckles;
     else errors.push(`Taches de rousseur invalides : « ${String(obj.freckles)} ».`);
   }
+  // Personnalisation complète (v26) : champs facultatifs, recopiés seulement s'ils sont valides.
+  const extra: Partial<PlayerAppearance> = {};
+  if (obj.model !== undefined) {
+    if (typeof obj.model === 'string' && SAFE_MODEL_ID.test(obj.model)) extra.model = obj.model;
+    else errors.push(`Silhouette invalide : « ${String(obj.model)} ».`);
+  }
+  for (const key of ['bottomColor', 'shoesColor'] as const) {
+    const v = obj[key];
+    if (v === undefined) continue;
+    if (VALID_OUTFIT_COLORS.includes(v as OutfitColor)) extra[key] = v as OutfitColor;
+    else errors.push(`Couleur invalide (${key}) : « ${String(v)} ».`);
+  }
+  if (obj.gear !== undefined) {
+    if (Array.isArray(obj.gear)) extra.gear = wornGear({ gear: obj.gear.filter((g): g is PlayerGear => VALID_GEAR.includes(g as PlayerGear)) });
+    else errors.push('Accessoires invalides.');
+  }
+  if (obj.gearColors !== undefined) {
+    const gc: Partial<Record<PlayerGearColorKey, OutfitColor>> = {};
+    if (typeof obj.gearColors === 'object' && obj.gearColors !== null) {
+      for (const [k, v] of Object.entries(obj.gearColors as Record<string, unknown>)) {
+        if ((k === 'lunettes' || VALID_GEAR.includes(k as PlayerGear)) && VALID_OUTFIT_COLORS.includes(v as OutfitColor)) gc[k as PlayerGearColorKey] = v as OutfitColor;
+      }
+      extra.gearColors = gc;
+    } else errors.push('Couleurs d’accessoires invalides.');
+  }
 
   return {
     valid: errors.length === 0,
@@ -426,6 +535,7 @@ export function validateAppearance(raw: unknown): AppearanceValidationResult {
       outfitStyle,
       outfitColor,
       body, heightAdj, eyes, eyeColor, glasses, freckles, beard, accessory,
+      ...extra,
     },
   };
 }

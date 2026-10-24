@@ -13,7 +13,9 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { PlayerAppearance, PlayerGender } from '../../core/types';
 import { DEFAULT_PLAYER_APPEARANCE } from '../../core/types';
-import { EYE_COLOR_INFO, HAIR_COLOR_INFO, OUTFIT_COLOR_INFO, SKIN_TONE_INFO } from '../../core/player_customization';
+import { chosenModel, EYE_COLOR_INFO, gearColorHex, HAIR_COLOR_INFO, OUTFIT_COLOR_INFO, SKIN_TONE_INFO, wornGear } from '../../core/player_customization';
+import type { GearSpec } from './rigged/gear';
+import type { RecolorSpec } from './rigged/recolorLogic';
 import type { CharacterActivity } from './rigged/animState';
 import type { RigRequest } from './rigged/manifest';
 import { createRiggedCharacter } from './rigged/riggedCharacter';
@@ -50,7 +52,7 @@ export interface Character3D {
   /** Activité à l'arrêt (assis, parler) ; seuls les personnages riggés l'animent. */
   setActivity?(activity: CharacterActivity): void;
   /** Change les teintes d'un modèle riggé à chaud (aperçu du créateur) ; sans effet sur le procédural. */
-  setRecolor?(spec: { skin?: string; hair?: string; outfit?: string } | undefined): void;
+  setRecolor?(spec: RecolorSpec | undefined): void;
   /**
    * Niveau de détail : au loin, la silhouette entière devient UN seul maillage figé (couleurs
    * par sommet) — un appel de dessin au lieu d'une trentaine. De près, rien ne change.
@@ -165,18 +167,45 @@ export function createCharacter(spec: CharacterSpec): Character3D {
   if (spec.rig) {
     const a = { ...DEFAULT_PLAYER_APPEARANCE, ...spec.appearance };
     const outfit = spec.bodyColor ?? OUTFIT_COLOR_INFO[a.outfitColor]?.hex;
-    const rigged = createRiggedCharacter(
-      {
-        rig: spec.rig,
-        heightM: spec.heightM,
-        recolor: spec.rigRecolor === 'joueur' ? { skin: SKIN_TONE_INFO[a.skinTone]?.hex, hair: HAIR_COLOR_INFO[a.hairColor]?.hex, outfit } : undefined,
-        recolorWhenAuto: spec.rigRecolor === 'tenue' ? { outfit } : undefined,
-      },
-      () => createProceduralCharacter(spec),
-    );
-    if (rigged) return rigged;
+    const isPlayer = spec.rigRecolor === 'joueur';
+    // Silhouette enregistrée dans la sauvegarde (v26) : elle prime sur la préférence de l'appareil.
+    const chosen = isPlayer ? chosenModel(a) : undefined;
+    if (chosen !== null) {
+      const rigged = createRiggedCharacter(
+        {
+          rig: chosen ? { ...spec.rig, model: chosen } : spec.rig,
+          // La taille choisie au créateur vaut aussi pour la silhouette détaillée.
+          heightM: isPlayer && spec.heightM ? spec.heightM * (1 + (a.heightAdj ?? 0) * 0.035) : spec.heightM,
+          recolor: isPlayer ? playerRecolor(a, spec.bodyColor) : undefined,
+          recolorWhenAuto: spec.rigRecolor === 'tenue' ? { outfit } : undefined,
+          gear: isPlayer ? playerGear(a) : undefined,
+        },
+        () => createProceduralCharacter(spec),
+      );
+      if (rigged) return rigged;
+    }
   }
   return createProceduralCharacter(spec);
+}
+
+/** Teintes du modèle riggé du joueur : peau, cheveux, haut, bas et chaussures choisis au créateur. */
+export function playerRecolor(a: PlayerAppearance, bodyColor?: string): RecolorSpec {
+  return {
+    skin: SKIN_TONE_INFO[a.skinTone]?.hex,
+    hair: HAIR_COLOR_INFO[a.hairColor]?.hex,
+    outfit: bodyColor ?? OUTFIT_COLOR_INFO[a.outfitColor]?.hex,
+    bottom: a.bottomColor ? OUTFIT_COLOR_INFO[a.bottomColor]?.hex : undefined,
+    shoes: a.shoesColor ? OUTFIT_COLOR_INFO[a.shoesColor]?.hex : undefined,
+  };
+}
+
+/** Accessoires du joueur pour un modèle riggé (lunettes comprises). */
+export function playerGear(a: PlayerAppearance): GearSpec {
+  const items: GearSpec['items'] = [...wornGear(a)];
+  if (a.glasses && a.glasses !== 'aucune') items.push('lunettes');
+  const colors: GearSpec['colors'] = {};
+  for (const k of items) colors[k] = gearColorHex(a, k);
+  return { items, colors, sunglasses: a.glasses === 'soleil' };
 }
 
 /** Personnage procédural (formes douces, toute la personnalisation du créateur). */
@@ -189,7 +218,12 @@ export function createProceduralCharacter(spec: CharacterSpec): Character3D {
   const limb = { fine: 0.88, moyenne: 1, sportive: 1.1, ronde: 1.14 }[a.body ?? 'moyenne'];
   const skin = SKIN_TONE_INFO[a.skinTone]?.hex ?? '#e2ad7a';
   const hair = HAIR_COLOR_INFO[a.hairColor]?.hex ?? '#6b4a2f';
-  const look = outfitLook(a, spec.bodyColor, spec.legColor);
+  const look = outfitLook(a, spec.bodyColor, spec.legColor ?? (a.bottomColor ? OUTFIT_COLOR_INFO[a.bottomColor]?.hex : undefined));
+  if (a.shoesColor) look.shoes = OUTFIT_COLOR_INFO[a.shoesColor]?.hex ?? look.shoes;
+  // Accessoires portés ensemble (v26) ; une couleur choisie remplace la teinte d'origine.
+  const worn = wornGear(a);
+  const has = (g: (typeof worn)[number]): boolean => worn.includes(g);
+  const gc = (k: Parameters<typeof gearColorHex>[1], fallback: string): string => (a.gearColors?.[k] ? gearColorHex(a, k) : fallback);
   const variation = hashStr(JSON.stringify(a) + (spec.bodyColor ?? ''));
   const full = spec.detail !== 'low';
 
@@ -313,31 +347,32 @@ export function createProceduralCharacter(spec: CharacterSpec): Character3D {
     pocket.scale.setScalar(k);
     chest.add(pocket);
   }
-  if (a.outfitStyle === 'citoyen' || a.accessory === 'echarpe') {
-    const scarf = mk(geo('v2scarf', () => new THREE.TorusGeometry(0.1, 0.038, 8, 16).rotateX(Math.PI / 2)), mat(a.accessory === 'echarpe' ? '#c25a40' : shade(look.top, 0.7), 0.95));
+  if (a.outfitStyle === 'citoyen' || has('echarpe')) {
+    const scarf = mk(geo('v2scarf', () => new THREE.TorusGeometry(0.1, 0.038, 8, 16).rotateX(Math.PI / 2)), mat(has('echarpe') ? gc('echarpe', '#c25a40') : shade(look.top, 0.7), 0.95));
     scarf.position.y = 0.55 * k;
     scarf.scale.set(k * build, k, k * build);
     chest.add(scarf);
   }
-  if (a.outfitStyle === 'ecolier' || a.accessory === 'sac_dos') {
-    const bag = mk(geo('v2bag', () => new THREE.CapsuleGeometry(0.1, 0.16, 4, 10).scale(1.15, 1, 0.55)), mat('#4f6a8a', 0.75));
+  if (a.outfitStyle === 'ecolier' || has('sac_dos')) {
+    const bagHex = has('sac_dos') ? gc('sac_dos', '#4f6a8a') : '#4f6a8a';
+    const bag = mk(geo('v2bag', () => new THREE.CapsuleGeometry(0.1, 0.16, 4, 10).scale(1.15, 1, 0.55)), mat(bagHex, 0.75));
     bag.position.set(0, 0.3 * k, 0.15 * k * build);
     bag.scale.setScalar(k);
     chest.add(bag);
     const strapG = geo('v2strap', () => new THREE.TorusGeometry(0.1, 0.012, 4, 12, Math.PI).rotateY(Math.PI / 2));
     for (const side of [-1, 1]) {
-      const strap = mk(strapG, mat('#2f3d52', 0.8), false);
+      const strap = mk(strapG, mat(bagHex === '#4f6a8a' ? '#2f3d52' : shade(bagHex, 0.65), 0.8), false);
       strap.position.set(side * 0.09 * k * build, 0.42 * k, 0.02 * k);
       strap.scale.set(k, k * 1.3, k * build);
       chest.add(strap);
     }
   }
-  if (a.accessory === 'sacoche') {
-    const bag = mk(geo('v2satchel', () => new THREE.BoxGeometry(0.2, 0.15, 0.06)), mat('#6b4a2f', 0.7));
+  if (has('sacoche')) {
+    const bag = mk(geo('v2satchel', () => new THREE.BoxGeometry(0.2, 0.15, 0.06)), mat(gc('sacoche', '#6b4a2f'), 0.7));
     bag.position.set(0.17 * k * build, 0.02 * k, -0.02 * k);
     bag.scale.setScalar(k);
     chest.add(bag);
-    const strap = mk(geo('v2satStrap', () => new THREE.TorusGeometry(0.22, 0.01, 4, 20).scale(1, 1.2, 0.6).rotateZ(0.5)), mat('#4a3220', 0.8), false);
+    const strap = mk(geo('v2satStrap', () => new THREE.TorusGeometry(0.22, 0.01, 4, 20).scale(1, 1.2, 0.6).rotateZ(0.5)), mat(shade(gc('sacoche', '#6b4a2f'), 0.7), 0.8), false);
     strap.position.set(0.02 * k, 0.28 * k, 0);
     strap.scale.set(k * build, k, k * build);
     chest.add(strap);
@@ -369,8 +404,8 @@ export function createProceduralCharacter(spec: CharacterSpec): Character3D {
     hand.position.y = -0.27 * k;
     hand.scale.setScalar(k * limb);
     elbow.add(hand);
-    if (a.accessory === 'montre' && side < 0) {
-      const watch = mk(geo('v2watch', () => new THREE.TorusGeometry(0.045, 0.012, 6, 14).rotateX(Math.PI / 2)), mat('#c9c9cf', 0.3, 0.8), false);
+    if (has('montre') && side < 0) {
+      const watch = mk(geo('v2watch', () => new THREE.TorusGeometry(0.045, 0.012, 6, 14).rotateX(Math.PI / 2)), a.gearColors?.montre ? mat(gearColorHex(a, 'montre'), 0.4) : mat('#c9c9cf', 0.3, 0.8), false);
       watch.position.y = -0.22 * k;
       watch.scale.setScalar(k * limb);
       elbow.add(watch);
@@ -472,7 +507,7 @@ export function createProceduralCharacter(spec: CharacterSpec): Character3D {
     }
     // Lunettes.
     if (a.glasses && a.glasses !== 'aucune') {
-      const frameM = mat(a.glasses === 'ecaille' ? '#6b3f22' : a.glasses === 'fines' ? '#b9b3a6' : '#1c1a1f', 0.4, a.glasses === 'fines' ? 0.6 : 0);
+      const frameM = mat(gc('lunettes', a.glasses === 'ecaille' ? '#6b3f22' : a.glasses === 'fines' ? '#b9b3a6' : '#1c1a1f'), 0.4, a.glasses === 'fines' ? 0.6 : 0);
       const square = a.glasses === 'carrees' || a.glasses === 'soleil';
       const rimG = geo(`v2rim${square ? 's' : 'r'}`, () => (square ? new THREE.TorusGeometry(0.026, 0.004, 4, 4).rotateZ(Math.PI / 4).scale(1.15, 0.85, 1) : new THREE.TorusGeometry(0.024, 0.0035, 6, 18)));
       for (const side of [-1, 1]) {
@@ -562,8 +597,8 @@ export function createProceduralCharacter(spec: CharacterSpec): Character3D {
     }
   }
   // Couvre-chefs et écouteurs.
-  if (a.accessory === 'casquette') {
-    const capM = mat(shade(look.top, 0.85), 0.7);
+  if (has('casquette')) {
+    const capM = mat(gc('casquette', shade(look.top, 0.85)), 0.7);
     const crown = mk(geo('v2capCrown', () => new THREE.SphereGeometry(0.124, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.5)), capM);
     crown.position.y = 0.02 * hk;
     crown.scale.setScalar(hk);
@@ -573,8 +608,8 @@ export function createProceduralCharacter(spec: CharacterSpec): Character3D {
     brim.scale.setScalar(hk);
     headPivot.add(brim);
   }
-  if (a.accessory === 'bonnet') {
-    const b = mk(geo('v2beanie', () => new THREE.SphereGeometry(0.127, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.5).scale(1, 1.15, 1)), mat(shade(look.top, 0.9), 0.95));
+  if (has('bonnet')) {
+    const b = mk(geo('v2beanie', () => new THREE.SphereGeometry(0.127, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.5).scale(1, 1.15, 1)), mat(gc('bonnet', shade(look.top, 0.9)), 0.95));
     b.position.y = 0.02 * hk;
     b.scale.setScalar(hk);
     headPivot.add(b);
@@ -582,13 +617,14 @@ export function createProceduralCharacter(spec: CharacterSpec): Character3D {
     pom.position.y = 0.16 * hk;
     headPivot.add(pom);
   }
-  if (a.accessory === 'ecouteurs') {
-    const band = mk(geo('v2band', () => new THREE.TorusGeometry(0.122, 0.009, 6, 20, Math.PI)), mat('#22252c', 0.4), false);
+  if (has('ecouteurs')) {
+    const phonesM = mat(gc('ecouteurs', '#22252c'), 0.4);
+    const band = mk(geo('v2band', () => new THREE.TorusGeometry(0.122, 0.009, 6, 20, Math.PI)), phonesM, false);
     band.position.y = 0.02 * hk;
     band.scale.setScalar(hk);
     headPivot.add(band);
     for (const side of [-1, 1]) {
-      const cup = mk(geo('v2cup', () => new THREE.CylinderGeometry(0.035, 0.035, 0.025, 14).rotateZ(Math.PI / 2)), mat('#22252c', 0.4), false);
+      const cup = mk(geo('v2cup', () => new THREE.CylinderGeometry(0.035, 0.035, 0.025, 14).rotateZ(Math.PI / 2)), phonesM, false);
       cup.position.set(side * 0.118 * hk, 0, 0);
       headPivot.add(cup);
     }

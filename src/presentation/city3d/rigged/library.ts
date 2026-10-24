@@ -10,6 +10,8 @@
  *   (`SkeletonUtils.clone`) qui partagent géométrie, matériau et texture.
  */
 import { buildRecolorMask, type RecolorMask } from './recolor';
+import { computeBodyFit } from './gear';
+import type { BodyFit } from './gearLogic';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { NPC_BY_ID } from '../../../data/npcs';
@@ -128,6 +130,8 @@ export interface RigAsset {
   legScale: number;
   /** Masque de recolorage, calculé à la première demande (`null` : texture illisible). */
   mask?: RecolorMask | null;
+  /** Mesures du corps pour les accessoires, calculées à la première demande (`null` : pas de squelette). */
+  fit?: BodyFit | null;
 }
 
 const assets = new Map<string, RigAsset | null>();
@@ -189,8 +193,13 @@ function prepareAsset(entry: RigModelEntry, template: THREE.Object3D, lib: ClipL
 
 /** Masque de recolorage du modèle (calculé une fois, mis en cache). */
 export function maskOf(asset: RigAsset): RecolorMask | null {
-  if (asset.mask === undefined) asset.mask = buildRecolorMask(asset.template);
+  if (asset.mask === undefined) asset.mask = buildRecolorMask(asset.template, fitOf(asset));
   return asset.mask;
+}
+
+export function fitOf(asset: RigAsset): BodyFit | null {
+  if (asset.fit === undefined) asset.fit = computeBodyFit(asset.template);
+  return asset.fit;
 }
 
 // ---------- Point de vue (niveau de détail) et mesures ----------

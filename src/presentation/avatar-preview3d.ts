@@ -4,8 +4,11 @@
  */
 import { playerRigModel } from './city3d/rigged/playerModel';
 import * as THREE from 'three';
+import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { PlayerAppearance, PlayerGender } from '../core/types';
 import { createCharacter, type Character3D } from './city3d/simpleCharacter';
+import { loadRigAsset } from './city3d/rigged/library';
+import type { RigModelEntry } from './city3d/rigged/manifest';
 import { frameAvatar } from './avatar-framing';
 
 export interface AvatarPreview {
@@ -133,8 +136,8 @@ export function createAvatarPreview(width = 240, height = 300): AvatarPreview | 
     canvas,
     setAppearance(a, gender, heightM = 1.52): void {
       ch?.dispose();
-      const model = playerRigModel();
-      ch = createCharacter({ appearance: a, gender, heightM, rig: model ? { key: 'joueur', role: 'joueur', age: 12, model } : undefined, rigRecolor: 'joueur' });
+      // Silhouette : celle de l'apparence (v26), sinon la préférence de l'appareil, sinon le dessin.
+      ch = createCharacter({ appearance: a, gender, heightM, rig: { key: 'joueur', role: 'joueur', age: 12, model: playerRigModel() }, rigRecolor: 'joueur' });
       ch.root.traverse((o) => { o.castShadow = true; o.receiveShadow = false; });
       // Face au joueur tout de suite (sans attendre l'animation).
       ch.setHeading(Math.PI + yaw);
@@ -153,4 +156,73 @@ export function createAvatarPreview(width = 240, height = 300): AvatarPreview | 
       canvas.remove();
     },
   };
+}
+
+// ---------- Vignettes des silhouettes (sélecteur du créateur et de l'armoire) ----------
+
+const thumbs = new Map<string, Promise<string | null>>();
+let thumbRenderer: THREE.WebGLRenderer | null = null;
+let thumbUsers = 0;
+
+/**
+ * Vignette d'une silhouette (couleurs d'origine, pose de repos, de face) en image `data:`.
+ * Mise en cache par modèle ; un seul petit moteur de rendu partagé, libéré après la dernière vignette.
+ * `null` sans WebGL ou si le modèle ne se charge pas.
+ */
+export function rigThumbnail(entry: RigModelEntry, width = 84, height = 112): Promise<string | null> {
+  const k = `${entry.id}@${width}x${height}`;
+  let p = thumbs.get(k);
+  if (!p) {
+    p = renderThumb(entry, width, height);
+    thumbs.set(k, p);
+  }
+  return p;
+}
+
+async function renderThumb(entry: RigModelEntry, width: number, height: number): Promise<string | null> {
+  const asset = await loadRigAsset(entry);
+  if (!asset) return null;
+  thumbUsers++;
+  try {
+    if (!thumbRenderer) {
+      thumbRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+      thumbRenderer.outputColorSpace = THREE.SRGBColorSpace;
+      thumbRenderer.setClearColor(0x000000, 0);
+    }
+    const r = thumbRenderer;
+    r.setPixelRatio(2);
+    r.setSize(width, height, false);
+    const scene = new THREE.Scene();
+    scene.add(new THREE.HemisphereLight('#fff4e0', '#8a7058', 1.6));
+    const key = new THREE.DirectionalLight('#fff1d8', 1.8);
+    key.position.set(1.2, 2.5, 3);
+    scene.add(key);
+    const model = cloneSkinned(asset.template);
+    const pivot = new THREE.Group();
+    pivot.position.y = -asset.minY;
+    pivot.add(model);
+    scene.add(pivot);
+    // Pose de repos (bras le long du corps) plutôt que la pose en T du fichier.
+    const idle = asset.clips.get('idle');
+    const mixer = idle ? new THREE.AnimationMixer(model) : null;
+    if (mixer && idle) { mixer.clipAction(idle).play(); mixer.update(0.4); }
+    const aspect = width / height;
+    const fr = frameAvatar(asset.height, aspect, 30, 0.06);
+    const cam = new THREE.PerspectiveCamera(30, aspect, 0.05, 20);
+    cam.position.set(0, fr.camY, fr.camZ);
+    cam.lookAt(0, fr.lookY, 0);
+    r.render(scene, cam);
+    const url = r.domElement.toDataURL('image/png');
+    mixer?.stopAllAction();
+    model.traverse((o) => { (o as THREE.SkinnedMesh).skeleton?.dispose(); });
+    return url;
+  } catch {
+    return null;
+  } finally {
+    thumbUsers--;
+    // Plus aucune vignette en cours : on rend le contexte WebGL (ils sont limités par page).
+    if (thumbUsers === 0) setTimeout(() => {
+      if (thumbUsers === 0 && thumbRenderer) { thumbRenderer.dispose(); thumbRenderer.forceContextLoss(); thumbRenderer = null; }
+    }, 1500);
+  }
 }
