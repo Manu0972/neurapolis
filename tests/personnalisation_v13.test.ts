@@ -2,10 +2,12 @@
  * V13 — personnalisation complète : zones de recolorage (haut, bas, chaussures), mesure du corps
  * et attaches d'accessoires, accessoires multiples, sérialisation (save v26) et aléatoire déterministe.
  */
-import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FEET_TOP, HEAD_FROM, headFromNeck, isSkinLike, recolorKey, regionOf, skinReference, zoneOf } from '../src/presentation/city3d/rigged/recolorLogic';
 import { fitBody, placeGear, quatFromX, sampleBody, type Vec3 } from '../src/presentation/city3d/rigged/gearLogic';
-import { silhouetteChoices } from '../src/presentation/city3d/rigged/playerModel';
+import { hasPlayerRigPref, playerRigModel, rememberPlayerRigChoice, silhouetteChoices } from '../src/presentation/city3d/rigged/playerModel';
+import { FRIEND_LOOKS, friendAppearance } from '../src/presentation/cinematic/friends';
 import {
   createCustomWorld, gearColorHex, randomAppearance, toggleGear, validateAppearance, wornGear, chosenModel,
 } from '../src/core/player_customization';
@@ -237,5 +239,52 @@ describe('aléatoire déterministe et silhouettes', () => {
     expect(silhouetteChoices(models, 12).map((m) => m.id)).toEqual(['a']);
     expect(silhouetteChoices(models.slice(1), 13).map((m) => m.id)).toEqual(['j']);
     expect(silhouetteChoices([{ id: 'e', ageClass: 'enfant' as const }], 12)).toEqual([]);
+  });
+});
+
+describe('amis de la cinématique des toits', () => {
+  const player: PlayerAppearance = {
+    ...DEFAULT_PLAYER_APPEARANCE, model: 'ado_a', gear: ['sac_dos', 'echarpe'], accessory: 'sac_dos',
+    gearColors: { lunettes: 'coral' }, bottomColor: 'noir', shoesColor: 'blanc',
+  };
+  it('ne reprennent ni les accessoires, ni la silhouette, ni les couleurs choisies par le joueur', () => {
+    const lina = friendAppearance(player, FRIEND_LOOKS.lina!.look);
+    const noah = friendAppearance(player, FRIEND_LOOKS.noah!.look);
+    expect(wornGear(lina)).toEqual([]);
+    expect(wornGear(noah)).toEqual(['casquette']);
+    for (const f of [lina, noah]) {
+      expect(f.model).toBeUndefined();
+      expect(f.gearColors).toBeUndefined();
+      expect(f.bottomColor).toBeUndefined();
+      expect(f.shoesColor).toBeUndefined();
+    }
+    expect(lina.glasses).toBe('rondes');
+  });
+});
+
+describe('préférence de silhouette de l’appareil', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+  function fakeStorage(): Map<string, string> {
+    const m = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => m.get(k) ?? null,
+      setItem: (k: string, v: string) => { m.set(k, v); },
+      removeItem: (k: string) => { m.delete(k); },
+    });
+    return m;
+  }
+  it('n’est écrite qu’à la validation, et seulement si une silhouette a été choisie', () => {
+    const m = fakeStorage();
+    rememberPlayerRigChoice({});
+    expect(hasPlayerRigPref()).toBe(false);
+    rememberPlayerRigChoice({ model: 'ado_a' });
+    expect(playerRigModel()).toBe('ado_a');
+    rememberPlayerRigChoice({ model: 'dessin' });
+    expect(playerRigModel()).toBeUndefined();
+    expect(m.size).toBe(1);
+  });
+  it('l’éditeur (essayage) ne l’écrit jamais : armoire fermée sans valider = rien de changé', () => {
+    const src = readFileSync('src/presentation/appearance-editor.ts', 'utf8');
+    expect(src).not.toMatch(/setPlayerRigModel|rememberPlayerRigChoice/);
   });
 });

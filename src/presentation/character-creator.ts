@@ -37,7 +37,7 @@ import { DEFAULT_PLAYER_APPEARANCE } from '../core/types';
 import { buildAppearanceEditor } from './appearance-editor';
 import { heightForAge } from './city3d/bodyScale';
 import { createAvatarPreview } from './avatar-preview3d';
-import { defaultPlayerRig, hasPlayerRigPref, playerRigModel, setPlayerRigModel, silhouetteChoices } from './city3d/rigged/playerModel';
+import { defaultPlayerRig, hasPlayerRigPref, playerRigModel, rememberPlayerRigChoice, silhouetteChoices } from './city3d/rigged/playerModel';
 import { loadRigAsset, startRiggedCharacters } from './city3d/rigged/library';
 
 export interface CharacterCreatorOptions {
@@ -353,7 +353,6 @@ export function mountCharacterCreation(
     if (!m || choices.length === 0 || appearance.model !== undefined) return;
     const pref = hasPlayerRigPref() ? playerRigModel() ?? 'dessin' : defaultPlayerRig(choices) ?? 'dessin';
     appearance = { ...appearance, model: pref };
-    if (pref !== 'dessin') setPlayerRigModel(pref);
     editor.set(appearance);
     // Précharge les silhouettes pour que l'aperçu change aussitôt au clic.
     for (const c of choices) void loadRigAsset(c).then(() => { if (c.id === appearance.model) updatePreview(); });
@@ -457,6 +456,8 @@ export function mountCharacterCreation(
       characteristics: allocValidation.finalCharacteristics,
       appearance: { ...appearance },
     };
+    // La silhouette validée devient la préférence de l'appareil (jamais pendant l'essayage).
+    rememberPlayerRigChoice(appearance);
 
     onComplete(customization);
   });

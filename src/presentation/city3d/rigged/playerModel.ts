@@ -23,6 +23,15 @@ export function setPlayerRigModel(id: string | undefined): void {
   } catch { /* stockage indisponible : le choix vaut pour cette session seulement */ }
 }
 
+/**
+ * Retient la silhouette d'une apparence VALIDÉE (armoire « Enfiler cette tenue », créateur) comme
+ * préférence de l'appareil : défaut des nouvelles parties et repli des parties d'avant v26.
+ * Rien n'est écrit tant que le joueur n'a rien choisi (`model` absent), ni pendant l'essayage.
+ */
+export function rememberPlayerRigChoice(a: { model?: string }): void {
+  if (a.model !== undefined) setPlayerRigModel(a.model === 'dessin' ? undefined : a.model);
+}
+
 /** Le joueur a-t-il déjà un choix enregistré (modèle ou personnage dessiné) ? */
 export function hasPlayerRigPref(): boolean {
   try {

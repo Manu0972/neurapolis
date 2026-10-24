@@ -106,6 +106,7 @@ import { openConvocationModal, openDinnerModal, openFamilyPanel, openRentreeCard
 import { bedroomExtras, openPlanner, openShelf, type PlanCtx } from './plan-ui';
 import { openDuelModal } from './ascension-ui';
 import { buildAppearanceEditor } from './appearance-editor';
+import { rememberPlayerRigChoice } from './city3d/rigged/playerModel';
 import { createAvatarPreview } from './avatar-preview3d';
 import { chapterEndDue, openNotebooks, openUnreadBeat, openingDue, playChapterEnd, playOpening } from './story-ui';
 import { ensureRoom, planChecklist } from '../simulation/room';
@@ -232,6 +233,7 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
     save.type = 'button';
     save.addEventListener('click', () => {
       world.player.appearance = { ...draft };
+      rememberPlayerRigChoice(draft);
       preview?.dispose();
       closeModal();
       toast('Nouvelle allure !', true);

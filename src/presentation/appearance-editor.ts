@@ -17,7 +17,7 @@ import {
 } from '../core/player_customization';
 import { startRiggedCharacters } from './city3d/rigged/library';
 import type { RigModelEntry } from './city3d/rigged/manifest';
-import { playerRigModel, setPlayerRigModel, silhouetteChoices } from './city3d/rigged/playerModel';
+import { playerRigModel, silhouetteChoices } from './city3d/rigged/playerModel';
 import { rigThumbnail } from './avatar-preview3d';
 
 // Compatibilité : l'aléatoire vit désormais dans le cœur (logique pure, testée).
@@ -144,8 +144,8 @@ export function buildAppearanceEditor(initial: PlayerAppearance, opts: Appearanc
       const box = h('span', 'ae-sil-img');
       fill(box);
       b.append(box, h('span', 'ae-sil-cap', caption));
+      // Essayage seulement : la préférence de l'appareil n'est écrite qu'à la validation.
       b.addEventListener('click', () => {
-        setPlayerRigModel(id ?? undefined);
         change({ model: id ?? 'dessin' });
       });
       grid.appendChild(b);
@@ -182,7 +182,6 @@ export function buildAppearanceEditor(initial: PlayerAppearance, opts: Appearanc
     rnd.title = 'Une tenue au hasard (toujours la même suite de propositions)';
     rnd.addEventListener('click', () => {
       const r = randomAppearance(seed++, opts.age, opts.tier, models.map((m) => m.id));
-      if (r.model) setPlayerRigModel(r.model);
       change(models.length > 0 ? r : { ...r, model: a.model });
     });
     tabs.appendChild(rnd);
