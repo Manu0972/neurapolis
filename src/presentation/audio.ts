@@ -17,6 +17,8 @@ import { createDirector, stepDirector, type DirectorState } from './music/direct
 import { MOODS, type MusicMood } from './music/moods';
 import { readMusicSignals, type MusicScene } from './music/signals';
 import { DEFAULT_AUDIO_PREFS, loadAudioPrefs, saveAudioPrefs, type AudioPrefs } from './music/prefs';
+import { VoiceLimiter, runFactor, type SfxKind } from './sfx/logic';
+import { WALK_SPEED } from './city3d/locomotion';
 
 /** État musical affiché dans le panneau Son. */
 export interface MusicStatus {
@@ -27,7 +29,7 @@ export interface MusicStatus {
   running: boolean;
 }
 
-export type SurfaceType = 'pave' | 'herbe' | 'parquet' | 'terre' | 'sol' | 'asphalte';
+export type SurfaceType = 'pave' | 'brique' | 'herbe' | 'parquet' | 'terre' | 'sol' | 'asphalte';
 export type AmbientLocation = 'maison' | 'ville' | 'parc' | 'atelier' | 'college' | 'epicerie' | 'place' | 'silence';
 
 export class SoundEngine {
@@ -35,6 +37,10 @@ export class SoundEngine {
   private masterGain: GainNode | null = null;
   private ambientGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
+  /** Limiteur en sortie des bruitages : plusieurs sons simultanés ne saturent pas. */
+  private sfxLimiter: DynamicsCompressorNode | null = null;
+  /** Pool de voix : borne les bruitages simultanés (total et par famille). */
+  public readonly voices = new VoiceLimiter();
 
   private sharedNoiseBuffer: AudioBuffer | null = null;
 
@@ -44,6 +50,9 @@ export class SoundEngine {
   private currentIsNight = false;
   private currentIsGoldenHour = false;
   private currentIsRain = false;
+  /** Le joueur est dans un intérieur : la pluie passe derrière les murs. */
+  private indoor = false;
+  private rainGain: GainNode | null = null;
 
   // Gestion du bruit de trafic routier urbain (0..1)
   private trafficGainNode: GainNode | null = null;
@@ -102,7 +111,19 @@ export class SoundEngine {
 
         this.sfxGain = this.ctx.createGain();
         this.sfxGain.gain.setValueAtTime(this.sfxVolume * this.effectsLevel, this.ctx.currentTime);
-        this.sfxGain.connect(this.masterGain);
+        if (typeof this.ctx.createDynamicsCompressor === 'function') {
+          const lim = this.ctx.createDynamicsCompressor();
+          lim.threshold.value = -10;
+          lim.knee.value = 6;
+          lim.ratio.value = 12;
+          lim.attack.value = 0.003;
+          lim.release.value = 0.15;
+          this.sfxGain.connect(lim);
+          lim.connect(this.masterGain);
+          this.sfxLimiter = lim;
+        } else {
+          this.sfxGain.connect(this.masterGain);
+        }
 
         this.ambientGain = this.ctx.createGain();
         this.ambientGain.gain.setValueAtTime(this.ambientVolume * this.effectsLevel, this.ctx.currentTime);
@@ -172,6 +193,21 @@ export class SoundEngine {
     return this.muted;
   }
 
+  /**
+   * Bus des bruitages pour src/presentation/sfx : seulement après la première interaction
+   * (le contexte n'est jamais créé ici), et rien quand le son est coupé ou l'onglet caché.
+   */
+  public sfxBus(): { ctx: AudioContext; sfx: GainNode; ambient: GainNode; noise: AudioBuffer } | null {
+    if (!this.initialized || !this.ctx || !this.sfxGain || !this.ambientGain || this.muted || this.hidden) return null;
+    if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+    return { ctx: this.ctx, sfx: this.sfxGain, ambient: this.ambientGain, noise: this.getOrCreateSharedNoiseBuffer(this.ctx) };
+  }
+
+  /** Réserve une voix dans le pool ; faux si la famille ou le total est saturé. */
+  private voice(kind: SfxKind, duration: number): boolean {
+    return !!this.ctx && this.voices.tryStart(kind, this.ctx.currentTime, duration);
+  }
+
   public setMasterVolume(v: number): void {
     this.masterVolume = Math.max(0, Math.min(1, v));
     if (this.masterGain && this.ctx && !this.muted) {
@@ -182,116 +218,70 @@ export class SoundEngine {
   /* ─────────────────────────────────────────────────────────────
    * BRUITS DE PAS SELON SURFACE (synthèse granulaire/filtrée)
    * ───────────────────────────────────────────────────────────── */
-  public playFootstep(surface: SurfaceType = 'pave'): void {
+  /**
+   * Pas selon le sol ; `speed` (m/s) règle la force et la hauteur (la course frappe plus fort).
+   * Trois nœuds par pas au plus (source, filtre, gain) : la cadence est déjà bornée par
+   * l'horloge des pas (sfx/logic.ts), le pas ne passe donc pas par le pool de voix.
+   */
+  public playFootstep(surface: SurfaceType = 'pave', speed = WALK_SPEED): void {
     const ctx = this.ensureContext();
     if (!ctx || !this.sfxGain || this.muted) return;
-
     const t = ctx.currentTime;
+    const run = runFactor(speed);
+    const force = 0.72 + 0.4 * run; // la course frappe plus fort…
+    const up = 1 + 0.07 * run; // …et un peu plus haut
+    const jitter = (w: number): number => (Math.random() * 2 - 1) * w;
 
-    if (surface === 'parquet') {
-      // Résonance bois chaleureuse (triangle 140 Hz -> 70 Hz, lowpass 450 Hz)
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(140 + (Math.random() * 10 - 5), t);
-      osc.frequency.exponentialRampToValueAtTime(70, t + 0.07);
-
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(450, t);
-
-      gain.gain.setValueAtTime(0.35, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
-
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.sfxGain);
-
-      osc.start(t);
-      osc.stop(t + 0.08);
-    } else if (surface === 'herbe') {
-      // Froissement végétal doux (bruit partagé pré-alloué passe-bande 1100-1500 Hz, centré ~1300 Hz)
+    if (surface === 'herbe') {
+      // Froissement végétal (bruit partagé, passe-bande 1100-1500 Hz)
       const buffer = this.getOrCreateSharedNoiseBuffer(ctx);
-      const whiteNoise = ctx.createBufferSource();
-      whiteNoise.buffer = buffer;
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
       const offset = Math.random() * Math.max(0, buffer.duration - 0.08);
-
       const filter = ctx.createBiquadFilter();
       filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(1100 + Math.random() * 400, t); // 1100 - 1500 Hz
+      filter.frequency.setValueAtTime(Math.min(1500, (1100 + Math.random() * 400) * up), t);
       filter.Q.setValueAtTime(2.0, t);
-
       const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.2, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-
-      whiteNoise.connect(filter);
+      gain.gain.setValueAtTime(0.2 * force, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+      src.connect(filter);
       filter.connect(gain);
       gain.connect(this.sfxGain);
-
-      whiteNoise.start(t, offset, 0.07);
-    } else if (surface === 'terre') {
-      // Impact sourd et granuleux
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(100 + Math.random() * 15, t);
-      osc.frequency.exponentialRampToValueAtTime(40, t + 0.05);
-
-      gain.gain.setValueAtTime(0.25, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
-
-      osc.connect(gain);
-      gain.connect(this.sfxGain);
-      osc.start(t);
-      osc.stop(t + 0.07);
-    } else if (surface === 'asphalte') {
-      // Pas sur macadam / asphalte : impact mat avec friction fine (triangle 220 Hz -> 80 Hz + passe-bande)
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(220 + (Math.random() * 20 - 10), t);
-      osc.frequency.exponentialRampToValueAtTime(75, t + 0.05);
-
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(380, t);
-      filter.Q.setValueAtTime(1.4, t);
-
-      gain.gain.setValueAtTime(0.28, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.055);
-
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.sfxGain);
-
-      osc.start(t);
-      osc.stop(t + 0.06);
-    } else {
-      // 'pave' / 'sol' : claquement sec sur pierre (triangle 340 Hz -> 90 Hz, highpass 200 Hz)
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(340 + (Math.random() * 20 - 10), t);
-      osc.frequency.exponentialRampToValueAtTime(90, t + 0.04);
-
-      filter.type = 'highpass';
-      filter.frequency.setValueAtTime(200, t);
-
-      gain.gain.setValueAtTime(0.3, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
-
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.sfxGain);
-
-      osc.start(t);
-      osc.stop(t + 0.05);
+      src.start(t, offset, 0.08);
+      return;
     }
+
+    // Les autres sols : impact (oscillateur qui chute) à travers un filtre propre au matériau.
+    const spec: Record<Exclude<SurfaceType, 'herbe'>, { wave: OscillatorType; f0: number; f1: number; dur: number; filter?: BiquadFilterType; ff: number; q: number; g: number }> = {
+      parquet: { wave: 'triangle', f0: 140, f1: 70, dur: 0.07, filter: 'lowpass', ff: 450, q: 1, g: 0.35 }, // bois chaleureux
+      terre: { wave: 'sine', f0: 107, f1: 40, dur: 0.06, ff: 0, q: 1, g: 0.25 }, // impact sourd
+      asphalte: { wave: 'triangle', f0: 220, f1: 75, dur: 0.055, filter: 'bandpass', ff: 380, q: 1.4, g: 0.28 }, // macadam mat
+      brique: { wave: 'triangle', f0: 265, f1: 85, dur: 0.05, filter: 'bandpass', ff: 900, q: 1.1, g: 0.27 }, // trottoir de briques
+      sol: { wave: 'triangle', f0: 420, f1: 120, dur: 0.04, filter: 'highpass', ff: 300, q: 0.8, g: 0.24 }, // carrelage, lino
+      pave: { wave: 'triangle', f0: 340, f1: 90, dur: 0.045, filter: 'highpass', ff: 200, q: 1, g: 0.3 }, // pierre
+    };
+    const sp = spec[surface] ?? spec.pave;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = sp.wave;
+    osc.frequency.setValueAtTime(sp.f0 * up + jitter(sp.f0 * 0.028), t);
+    osc.frequency.exponentialRampToValueAtTime(sp.f1, t + sp.dur * 0.9);
+    gain.gain.setValueAtTime(sp.g * force, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + sp.dur);
+    if (sp.filter) {
+      const filter = ctx.createBiquadFilter();
+      filter.type = sp.filter;
+      filter.frequency.setValueAtTime(sp.ff, t);
+      if (sp.q !== 1) filter.Q.setValueAtTime(sp.q, t);
+      osc.connect(filter);
+      filter.connect(gain);
+    } else {
+      osc.connect(gain);
+    }
+    gain.connect(this.sfxGain);
+    osc.start(t);
+    osc.stop(t + sp.dur + 0.01);
   }
 
   /* ─────────────────────────────────────────────────────────────
@@ -299,7 +289,7 @@ export class SoundEngine {
    * ───────────────────────────────────────────────────────────── */
   public playUiClick(): void {
     const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain || this.muted) return;
+    if (!ctx || !this.sfxGain || this.muted || !this.voice('ui', 0.04)) return;
 
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();
@@ -320,7 +310,7 @@ export class SoundEngine {
 
   public playCoin(): void {
     const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain || this.muted) return;
+    if (!ctx || !this.sfxGain || this.muted || !this.voice('piece', 0.3)) return;
 
     const t = ctx.currentTime;
     // Carillon doré 2 notes (B5 -> E6)
@@ -345,7 +335,7 @@ export class SoundEngine {
 
   public playGhostArrival(): void {
     const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain || this.muted) return;
+    if (!ctx || !this.sfxGain || this.muted || !this.voice('jingle', 0.8)) return;
 
     const t = ctx.currentTime;
     // Accord mystique & spectral (La mineur 9 éthéré : A3, C4, E4, B4)
@@ -380,7 +370,7 @@ export class SoundEngine {
 
   public playGhostDebate(): void {
     const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain || this.muted) return;
+    if (!ctx || !this.sfxGain || this.muted || !this.voice('alerte', 0.5)) return;
 
     const t = ctx.currentTime;
     // Pulsation d'idées : 3 accords rapides résonnants
@@ -406,7 +396,7 @@ export class SoundEngine {
 
   public playChapterComplete(): void {
     const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain || this.muted) return;
+    if (!ctx || !this.sfxGain || this.muted || !this.voice('jingle', 1.2)) return;
 
     const t = ctx.currentTime;
     // Fanfare chaleureuse et réconfortante Hygge (C4 - E4 - G4 - C5 arpeggiated)
@@ -432,7 +422,7 @@ export class SoundEngine {
   /** Validation d'objectif ou d'étape stratégique (carillon ascendant 3 notes : Sol4 392.00 Hz, Do5 523.25 Hz, Sol5 783.99 Hz avec décroissance exponentielle). */
   public playObjectiveComplete(): void {
     const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain || this.muted) return;
+    if (!ctx || !this.sfxGain || this.muted || !this.voice('jingle', 0.8)) return;
 
     const t = ctx.currentTime;
     const notes = [392.00, 523.25, 783.99]; // G4, C5, G5
@@ -457,7 +447,7 @@ export class SoundEngine {
   /** Alerte de marché / choc macroéconomique (2 impulsions descendantes triton D5 587.33 Hz -> Bb4 466.16 Hz avec balayage passe-bas 900 Hz -> 300 Hz). */
   public playMarketAlert(): void {
     const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain || this.muted) return;
+    if (!ctx || !this.sfxGain || this.muted || !this.voice('alerte', 0.5)) return;
 
     const t = ctx.currentTime;
     const tones = [587.33, 466.16]; // D5 -> Bb4 (impulsions descendantes)
@@ -717,7 +707,8 @@ export class SoundEngine {
       this.ambientNodes.filters.push(cricketFilter);
     }
 
-    // 4. Météo Pluie : sous-couche procédurale de bruit de pluie
+    // 4. Météo Pluie : sous-couche procédurale de bruit de pluie (assourdie à l'intérieur, voir setIndoor ;
+    //    le grain fin de la pluie et le vent sont des nappes de src/presentation/sfx/beds.ts)
     if (isRain) {
       const rainNoise = ctx.createBufferSource();
       rainNoise.buffer = this.getOrCreateSharedNoiseBuffer(ctx);
@@ -739,7 +730,8 @@ export class SoundEngine {
 
       const rainGain = ctx.createGain();
       rainGain.gain.setValueAtTime(0.001, t);
-      rainGain.gain.linearRampToValueAtTime(0.12, t + 1.0);
+      rainGain.gain.linearRampToValueAtTime(this.indoor ? 0.02 : 0.12, t + 1.0);
+      this.rainGain = rainGain;
 
       rainNoise.connect(rainFilter);
       rainFilter.connect(rainGain);
@@ -753,6 +745,13 @@ export class SoundEngine {
       this.ambientNodes.gains.push(rainGain, rainLfoGain);
       this.ambientNodes.filters.push(rainFilter);
     }
+  }
+
+  /** Intérieur / extérieur : la couche de pluie baisse derrière les murs (fondu d'une seconde). */
+  public setIndoor(inside: boolean): void {
+    if (this.indoor === inside) return;
+    this.indoor = inside;
+    if (this.rainGain && this.ctx) this.rainGain.gain.setTargetAtTime(inside ? 0.02 : 0.12, this.ctx.currentTime, 0.4);
   }
 
   public stopAmbient(): void {
@@ -789,7 +788,7 @@ export class SoundEngine {
    */
   public playDoorBell(): void {
     const ctx = this.ensureContext();
-    if (!ctx || !this.sfxGain || this.muted) return;
+    if (!ctx || !this.sfxGain || this.muted || !this.voice('porte', 0.6)) return;
 
     const t = ctx.currentTime;
     // Cloche d'entrée de boutique en deux notes harmoniques (E6 = 1318.5 Hz, C6 = 1046.5 Hz)
