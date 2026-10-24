@@ -27,6 +27,15 @@ import { notify } from './events';
 import { addXp } from './skills';
 
 const round2 = (v: number): number => Math.round(v * 100) / 100;
+/** Montant à la française : « 100 € », « 12,50 € » (jamais « 100.00 € »). */
+export function euros(v: number): string {
+  const r = round2(v);
+  return `${Number.isInteger(r) ? String(r) : r.toFixed(2).replace('.', ',')} €`;
+}
+/** « de Bilal », « d’Alex » : élision devant une voyelle. */
+export function deNom(name: string): string {
+  return /^[aeiouyàâäéèêëîïôöùûü]/i.test(name) ? `d’${name}` : `de ${name}`;
+}
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 const today = (w: WorldState): number => dayIndexOf(w.time.tick);
 const UNIT_DOOR: Readonly<Record<string, { x: number; y: number }>> = Object.fromEntries(CITY.units.map((u) => [u.id, u.door]));
@@ -361,7 +370,7 @@ export function respondToOffer(w: WorldState, offerId: string, accept: boolean):
     bumpTrust(w, o.fromPeer, -3);
   }
   outgoing(w, { to: o.fromPeer, mechanic: o.mechanic, phase: 'reply', ref: o.id, accepted: accept });
-  const msg = accept ? `Accepté : ${def.label.toLowerCase()} avec ${o.fromName} (en attente de sa confirmation).` : `Refusé : ${def.label.toLowerCase()} de ${o.fromName}.`;
+  const msg = accept ? `Accepté : ${def.label.toLowerCase()} avec ${o.fromName} (en attente de sa confirmation).` : `Refusé : ${def.label.toLowerCase()} ${deNom(o.fromName)}.`;
   log(w, o.fromPeer, o.mechanic, msg, accept ? 'bien' : 'info');
   return { ok: true, message: msg };
 }
@@ -454,14 +463,14 @@ export function receiveMultiEvent(w: WorldState, ev: MultiEvent, mode?: MultiMod
     const s = takeSent(w, ev.ref, ev.from, ev.mechanic, 'accepted');
     if (!s) return [];
     if (!ev.accepted) {
-      out.push(notify('info', `La proposition de ${other} avait expiré : rien n’a été signé.`));
-      log(w, ev.from, ev.mechanic, `Proposition de ${other} expirée : ${def.label.toLowerCase()} annulé.`, 'info');
+      out.push(notify('info', `La proposition ${deNom(other)} avait expiré : rien n’a été signé.`));
+      log(w, ev.from, ev.mechanic, `Proposition ${deNom(other)} expirée : ${def.label.toLowerCase()} annulé.`, 'info');
       return out;
     }
     if (s.mechanic === 'pret') {
       w.player.money = round2(w.player.money + s.amount);
       m.debts.push({ id: s.id, peer: ev.from, side: 'owe', amount: round2(s.amount * (1 + s.rate)), dueDay: d + s.days });
-      out.push(notify('bien', `💶 Prêt de ${other} reçu : +${s.amount.toFixed(2)} €, à rendre ${round2(s.amount * (1 + s.rate)).toFixed(2)} € dans ${s.days} jours.`));
+      out.push(notify('bien', `💶 Prêt ${deNom(other)} reçu : +${euros(s.amount)}, à rendre ${euros(s.amount * (1 + s.rate))} dans ${s.days} jours.`));
     } else if (s.mechanic === 'garant_mutuel') {
       addEffect(w, { mechanic: s.mechanic, fromPeer: ev.from, kind: 'garant', value: 1, untilDay: d + 30 });
       out.push(notify('bien', `✍️ ${other} se porte garant·e pour toi pendant 30 jours.`));
@@ -479,12 +488,12 @@ export function receiveMultiEvent(w: WorldState, ev: MultiEvent, mode?: MultiMod
     if (!s) return [];
     if (ev.mechanic === 'espionnage' && typeof ev.report === 'string' && ev.report) {
       const report = ev.report.slice(0, 240);
-      out.push(notify('journal', `🔍 Comptes de ${other} : ${report}`));
-      log(w, ev.from, ev.mechanic, `Comptes de ${other} : ${report}`, 'info');
+      out.push(notify('journal', `🔍 Comptes ${deNom(other)} : ${report}`));
+      log(w, ev.from, ev.mechanic, `Comptes ${deNom(other)} : ${report}`, 'info');
     }
     if (ev.mechanic === 'debauchage') {
-      if (ev.accepted) { addXp(w, 'organisation', 20); out.push(notify('bien', `🧲 L’employé·e de ${other} a accepté ton offre.`)); }
-      else out.push(notify('info', `🧲 L’employé·e de ${other} est resté·e : bien payé·e, fidèle.`));
+      if (ev.accepted) { addXp(w, 'organisation', 20); out.push(notify('bien', `🧲 L’employé·e ${deNom(other)} a accepté ton offre.`)); }
+      else out.push(notify('info', `🧲 L’employé·e ${deNom(other)} est resté·e : bien payé·e, fidèle.`));
     }
     if (ev.discovered) {
       w.player.reputation = clamp(w.player.reputation - 4, 0, 100);
@@ -505,8 +514,8 @@ export function receiveMultiEvent(w: WorldState, ev: MultiEvent, mode?: MultiMod
       w.player.money = round2(w.player.money + amount);
       debt.amount = round2(debt.amount - amount);
       if (debt.amount <= 0.01) m.debts.splice(m.debts.indexOf(debt), 1);
-      out.push(notify('bien', `💶 ${other} te rembourse ${amount.toFixed(2)} €.`));
-      log(w, ev.from, ev.mechanic, `+${amount.toFixed(2)} € de ${other}.`, 'bien');
+      out.push(notify('bien', `💶 ${other} te rembourse ${euros(amount)}.`));
+      log(w, ev.from, ev.mechanic, `+${euros(amount)} ${deNom(other)}.`, 'bien');
       return out;
     }
     if (ev.mechanic === 'coentreprise') {
@@ -519,8 +528,8 @@ export function receiveMultiEvent(w: WorldState, ev: MultiEvent, mode?: MultiMod
       m.cooldowns[dayKey] = evDay;
       const amount = round2(Math.min(raw, MULTI_LIMITS.shareMax));
       w.player.money = round2(w.player.money + amount);
-      out.push(notify('bien', `🏗️ Part des bénéfices de ${other} (coentreprise) : +${amount.toFixed(2)} €.`));
-      log(w, ev.from, ev.mechanic, `+${amount.toFixed(2)} € de ${other}.`, 'bien');
+      out.push(notify('bien', `🏗️ Part des bénéfices ${deNom(other)} (coentreprise) : +${euros(amount)}.`));
+      log(w, ev.from, ev.mechanic, `+${euros(amount)} ${deNom(other)}.`, 'bien');
       return out;
     }
     return [];
@@ -628,7 +637,7 @@ export function multiplayerDay(w: WorldState, provenProfitNow: number): Notifica
     if (s.phase === 'offer') {
       const label = MULTI_MECHANIC_BY_ID[s.mechanic]?.label.toLowerCase() ?? s.mechanic;
       if (s.mechanic === 'pret' && s.amount > 0) w.player.money = round2(w.player.money + s.amount);
-      out.push(notify('info', `📨 Pas de réponse de ${peerName(w, s.peer)} : proposition annulée (${label})${s.mechanic === 'pret' ? ', l’argent te revient' : ''}.`));
+      out.push(notify('info', `📨 Pas de réponse ${deNom(peerName(w, s.peer))} : proposition annulée (${label})${s.mechanic === 'pret' ? ', l’argent te revient' : ''}.`));
       log(w, s.peer, s.mechanic, `Sans réponse : ${label} annulé.`, 'info');
     }
   }
@@ -669,11 +678,11 @@ export function multiplayerDay(w: WorldState, provenProfitNow: number): Notifica
     if (debt.amount <= 0.01) {
       m.debts.splice(m.debts.indexOf(debt), 1);
       bumpTrust(w, debt.peer, 5);
-      out.push(notify('bien', `💶 Prêt de ${peerName(w, debt.peer)} remboursé.`));
+      out.push(notify('bien', `💶 Prêt ${deNom(peerName(w, debt.peer))} remboursé.`));
     } else {
       debt.dueDay = d + 7;
       bumpTrust(w, debt.peer, -10);
-      out.push(notify('alerte', `💸 Tu n’as pas pu tout rembourser à ${peerName(w, debt.peer)} : il reste ${debt.amount.toFixed(2)} €, dans 7 jours.`));
+      out.push(notify('alerte', `💸 Tu n’as pas pu tout rembourser à ${peerName(w, debt.peer)} : il reste ${euros(debt.amount)}, dans 7 jours.`));
     }
   }
   // Alliances au long cours.
