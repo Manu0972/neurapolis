@@ -442,7 +442,7 @@ const MIGRATIONS: Record<number, (s: AnySave) => AnySave> = {
 export const CURRENT_SAVE_VERSION = SAVE_VERSION;
 
 export function migrateSave(raw: unknown): WorldState {
-  if (typeof raw !== 'object' || raw === null) throw new Error('Sauvegarde illisible (pas un objet).');
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error('Sauvegarde illisible (pas un objet).');
   let s = raw as AnySave;
   let v = typeof s.version === 'number' ? s.version : 0;
   if (v > CURRENT_SAVE_VERSION) {

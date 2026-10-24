@@ -5,7 +5,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { createWorld } from '../src/core/store';
-import { exportSave, importSave, inspectAutoSave, saveToSlot, loadFromSlot, deleteSlot } from '../src/saves/persist';
+import { exportSave, importSave, inspectAutoSave, saveToSlot, loadFromSlot, deleteSlot, slotSummary } from '../src/saves/persist';
 import { CURRENT_SAVE_VERSION, migrateSave } from '../src/saves/migrations';
 import { runTicks } from '../src/simulation/engine';
 import { buyStock, createProject } from '../src/simulation/project';
@@ -115,6 +115,7 @@ describe('sauvegarde — migration v0 → v10 (météo, Conseil, rivaux, atelier
 
   it('une entrée illisible est rejetée avec une erreur claire', () => {
     expect(() => migrateSave(42)).toThrow(/illisible/);
+    expect(() => migrateSave([])).toThrow(/illisible/);
     expect(() => importSave('{ pas du json')).toThrow();
   });
 });
@@ -463,6 +464,37 @@ describe('inspectAutoSave — inspection de démarrage', () => {
       } finally {
         localStorage.removeItem('neurapolis.save.auto');
       }
+    }
+  });
+});
+
+describe('emplacements de sauvegarde — sécurité des emplacements', () => {
+  it('valide strictement la forme des noms d’emplacements (slots)', () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => { store.set(k, v); },
+      removeItem: (k: string) => { store.delete(k); },
+      key: (i: number) => [...store.keys()][i] ?? null,
+      get length() { return store.size; },
+    });
+    try {
+      const w = mondeVecu();
+      const invalidSlots = ['../../evil', 'slot avec espace', '', 'a'.repeat(33), 'slot!key'];
+
+      for (const invalid of invalidSlots) {
+        expect(() => saveToSlot(invalid, w)).toThrow(/invalide/);
+        expect(() => loadFromSlot(invalid)).toThrow(/invalide/);
+        expect(() => deleteSlot(invalid)).toThrow(/invalide/);
+
+        const sum = slotSummary(invalid);
+        expect(sum.exists).toBe(false);
+        expect(sum.error).toMatch(/invalide/);
+      }
+
+      expect(() => saveToSlot('valid_slot_123', w)).not.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
     }
   });
 });
