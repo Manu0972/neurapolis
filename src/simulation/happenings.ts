@@ -20,6 +20,7 @@ import { econRand } from './economy';
 import { ensureAscension, learnConcept } from './ascension';
 import { notify, pushEvent } from './events';
 import { markCatastrophe } from './rewind';
+import { fetesTick } from './happenings_saison';
 
 export const NEWS_HOURS: readonly number[] = [7, 12, 18];
 /** Pas de surprise pendant les premiers jours : le joueur apprend d'abord. */
@@ -237,11 +238,13 @@ export function resolveSurprise(w: WorldState, index: number): { ok: boolean; me
 /** À chaque tick : dépêches aux heures fixes, surprises au fil de la journée, effets expirés. */
 export function happeningsTick(w: WorldState, prevTick: number): Notification[] {
   const h = ensureHappenings(w);
+  // Fêtes de la place (vague 14) : à chaque pas, le joueur peut y passer à tout moment.
+  const fetes = fetesTick(w);
   const prevHour = Math.floor(minutesOfDay(prevTick) / 60);
   const hour = Math.floor(minutesOfDay(w.time.tick) / 60);
-  if (prevHour === hour && dayIndexOf(prevTick) === dayIndexOf(w.time.tick)) return [];
+  if (prevHour === hour && dayIndexOf(prevTick) === dayIndexOf(w.time.tick)) return fetes;
   const day = dayIndexOf(w.time.tick);
-  const out: Notification[] = [];
+  const out: Notification[] = [...fetes];
   h.effects = h.effects.filter((e) => e.untilDay > day);
   if (NEWS_HOURS.includes(hour) && econRand(w, 'news', day, hour) < 0.6) {
     const t = pickNews(w, day, hour);
