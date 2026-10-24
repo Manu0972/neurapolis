@@ -20,6 +20,7 @@ export interface PlaceOpeningConfig {
 
 export const PLACE_OPENING_HOURS: Record<string, PlaceOpeningConfig> = {
   college: { openMin: 7 * 60 + 30, closeMin: 18 * 60, schoolOnly: true, wednesdayCloseMin: 13 * 60 + 30 },
+  lycee: { openMin: 7 * 60 + 30, closeMin: 18 * 60, schoolOnly: true, wednesdayCloseMin: 12 * 60 + 30 },
   epicerie: { openMin: 7 * 60 + 30, closeMin: 19 * 60 + 30, lunchCloseMin: 13 * 60, lunchOpenMin: 14 * 60 + 30 },
   parc: { openMin: 6 * 60, closeMin: 21 * 60 },
   friche: { openMin: 7 * 60, closeMin: 21 * 60 },

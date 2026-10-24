@@ -145,12 +145,13 @@ describe('Validateur de cartes (map_validation)', () => {
       { de: 'place', vers: 'parc' },
       { de: 'place', vers: 'college' },
       { de: 'place', vers: 'friche' },
+      { de: 'college', vers: 'lycee' },
     ];
 
     const carteActuelle = convertirPlacesEnCarte(PLACES, liaisonsValFerrand, 'maison');
     const erreurs = validerCarte(carteActuelle);
 
     expect(erreurs).toEqual([]);
-    expect(carteActuelle.lieux).toHaveLength(6);
+    expect(carteActuelle.lieux).toHaveLength(7); // + le lycée (2de)
   });
 });

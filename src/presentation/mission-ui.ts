@@ -275,7 +275,8 @@ export function createMissionUi(deps: MissionUiDeps): MissionUi {
         break;
       }
       case 'tenir_stand': {
-        const ici = placeAtAdjacent(w) === 'college' ? 'college' : 'place';
+        const lieuIci = placeAtAdjacent(w);
+        const ici = lieuIci === 'college' || lieuIci === 'lycee' ? lieuIci : 'place';
         const r = runSalesSession(w, ici);
         deps.spendTaskTime(60, 'Tenir le stand');
         if (r.ok) deps.sold?.(r.revenue);

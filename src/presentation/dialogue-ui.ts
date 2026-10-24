@@ -9,6 +9,7 @@ import { REL_LABELS } from '../data/dialogue';
 import { answerTopic, askTopic, conversationMenu, endConversation, startConversation } from '../simulation/dialogue';
 import { avatarElement } from './avatar';
 import { el } from './ui';
+import { AGE_LYCEE, adapterTexteEcole } from '../core/school';
 
 export interface DialogueCtx {
   world: WorldState;
@@ -51,7 +52,7 @@ export function openConversation(ctx: DialogueCtx, id: NpcId): boolean {
   head.appendChild(avatarElement(`pnj:${def.id}`, def.color, def.name, 56));
   const col = el('div', 'avatar-col');
   col.appendChild(el('span', 'rel-name', def.name));
-  col.appendChild(el('div', 'rel-role', def.role));
+  col.appendChild(el('div', 'rel-role', adapterTexteEcole(def.role, ctx.world.player.age >= AGE_LYCEE)));
   head.appendChild(col);
   body.appendChild(head);
   const log = el('div', 'dlg-log');
@@ -110,6 +111,6 @@ export function openConversation(ctx: DialogueCtx, id: NpcId): boolean {
 
   say('dlg-npc', `${def.name.split(' ')[0]} te fait signe.`);
   menu();
-  ctx.showModal(def.name, def.role, body);
+  ctx.showModal(def.name, adapterTexteEcole(def.role, ctx.world.player.age >= AGE_LYCEE), body);
   return true;
 }

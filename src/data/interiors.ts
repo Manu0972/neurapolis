@@ -3,6 +3,7 @@
  * Chaque lieu possède plusieurs pièces avec mobilier interactif,
  * conséquences chiffrées, descriptions narratives et ambiance sonore.
  */
+import { adapterTexteEcole } from '../core/school';
 import type { Needs, PlaceId, SkillId } from '../core/types';
 
 export interface InteractiveFurniture {
@@ -53,7 +54,7 @@ export interface InteriorPlaceDef {
   rooms: InteriorRoom[];
 }
 
-export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
+const INTERIOR_PLACES_BASE: Record<Exclude<PlaceId, 'lycee'>, InteriorPlaceDef> = {
   maison: {
     placeId: 'maison',
     // Un duplex au dernier étage du bâtiment A (Cité des Roses, 1965) : en bas l'entrée, le salon
@@ -650,4 +651,51 @@ export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
       },
     ],
   },
+};
+
+/** Retouches du lycée sur le gabarit du collège (par identifiant de pièce, de meuble ou de lien). */
+const LYCEE_RETOUCHES: Record<string, { name?: string; description?: string; floor?: string; actionLabel?: string; label?: string }> = {
+  hall: { description: 'Le grand hall du lycée : casiers en métal, panneau d’affichage, loge de la vie scolaire. L’escalier monte aux salles de cours.' },
+  classe: { name: 'Salle de cours 312', floor: '3ᵉ étage', description: 'Tables par deux, tableau blanc et le bureau de Mme Moreau, qui enseigne aussi au lycée.' },
+  cantine: { name: 'Restaurant scolaire', description: 'Le self, les plateaux gris et la queue de midi qui n’en finit pas.' },
+  cour: { name: 'Cour du lycée et préau', description: 'La grande cour aux platanes : les terminales au fond, les secondes près du préau.' },
+  casier: { description: 'Le n° 308 : tes cahiers de seconde et ta veste de rechange.' },
+  pupitre: { description: 'Ta table au fond, près de la fenêtre.' },
+  panneau_hall: { description: 'L’emploi du temps de ta classe de seconde, les menus du restaurant scolaire et les clubs du jeudi.' },
+};
+
+/** Lycée Jean-Moulin : gabarit du collège (hall, classe, cantine, cour), avec son nom et sa déco. */
+function lyceeInterior(c: InteriorPlaceDef): InteriorPlaceDef {
+  const txt = (t: string): string => adapterTexteEcole(t, true);
+  return {
+    placeId: 'lycee',
+    title: 'Lycée Jean-Moulin',
+    rooms: c.rooms.map((r) => {
+      const rr = LYCEE_RETOUCHES[r.id] ?? {};
+      return {
+        ...r,
+        name: rr.name ?? txt(r.name),
+        floor: rr.floor ?? r.floor,
+        description: rr.description ?? txt(r.description),
+        links: r.links?.map((l) => ({
+          ...l,
+          label: l.to === 'classe' ? 'Monter l’escalier : salle 312 (3ᵉ étage)' : l.to === 'cantine' ? 'Aller au restaurant scolaire' : txt(l.label),
+        })),
+        furniture: r.furniture.map((f) => {
+          const ff = LYCEE_RETOUCHES[f.id] ?? {};
+          return {
+            ...f,
+            name: ff.name ?? (f.id === 'bureau_prof' ? f.name : txt(f.name)),
+            description: ff.description ?? txt(f.description),
+            actionLabel: ff.actionLabel ?? txt(f.actionLabel),
+          };
+        }),
+      };
+    }),
+  };
+}
+
+export const INTERIOR_PLACES: Record<PlaceId, InteriorPlaceDef> = {
+  ...INTERIOR_PLACES_BASE,
+  lycee: lyceeInterior(INTERIOR_PLACES_BASE.college),
 };
