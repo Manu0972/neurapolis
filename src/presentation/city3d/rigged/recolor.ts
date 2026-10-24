@@ -4,18 +4,20 @@
  * shader en gardant le relief de lumière de la texture peinte.
  */
 import * as THREE from 'three';
-import { hexToRgb, labelTexel, luminance, zoneOf, ZONE_CODE, type RecolorSpec, type RigZone, type Rgb } from './recolorLogic';
+import { hexToRgb, luminance, regionOf, REGIONS, zoneOf, ZONE_CODE, ZONE_NAMES, type RecolorSpec, type Rgb } from './recolorLogic';
 
 export interface RecolorMask {
+  /** Peau / cheveux / haut (canaux R, V, B). */
   texture: THREE.Texture;
-  /** Luminance moyenne des texels peau / cheveux / tenue (pour garder les ombres peintes). */
-  ref: [number, number, number];
+  /** Bas / chaussures (canaux R, V). */
+  texture2: THREE.Texture;
+  /** Luminance moyenne des texels de chaque région, dans l'ordre de `REGIONS` (garde les ombres peintes). */
+  ref: number[];
   /** Quelles régions existent vraiment (évite de teinter du vide). */
-  has: [boolean, boolean, boolean];
+  has: boolean[];
 }
 
 const MAX_SIDE = 1024;
-const ZONE_NAMES: RigZone[] = ['fond', 'cheveux', 'visage', 'torse', 'reste'];
 
 /** Masque d'un modèle (une fois par modèle), ou `null` si la texture n'est pas lisible. */
 export function buildRecolorMask(template: THREE.Object3D): RecolorMask | null {
@@ -94,29 +96,34 @@ export function buildRecolorMask(template: THREE.Object3D): RecolorMask | null {
     if (sn < 50) return null;
     const skinRef: Rgb = [sr / sn, sg / sn, sb / sn];
 
-    const out = document.createElement('canvas');
-    out.width = w;
-    out.height = h;
-    const octx = out.getContext('2d')!;
-    const od = octx.createImageData(w, h);
-    const sums = [0, 0, 0];
-    const cnt = [0, 0, 0];
+    // Deux masques opaques (pas de canal alpha : le canevas prémultiplie et perdrait les couleurs).
+    const outs = [document.createElement('canvas'), document.createElement('canvas')];
+    const ctxs = outs.map((c) => { c.width = w; c.height = h; return c.getContext('2d')!; });
+    const ods = ctxs.map((c) => c.createImageData(w, h));
+    const sums = REGIONS.map(() => 0);
+    const cnt = REGIONS.map(() => 0);
     for (let p = 0; p < w * h; p++) {
       const zone = ZONE_NAMES[Math.round(zpix[p * 4]! / 50)] ?? 'fond';
       const c: Rgb = [pix[p * 4]! / 255, pix[p * 4 + 1]! / 255, pix[p * 4 + 2]! / 255];
-      const lab = labelTexel(zone, c, skinRef);
-      const lum = luminance(c);
-      if (lab.skin) { od.data[p * 4] = 255; sums[0]! += lum; cnt[0]!++; }
-      if (lab.hair) { od.data[p * 4 + 1] = 255; sums[1]! += lum; cnt[1]!++; }
-      if (lab.outfit) { od.data[p * 4 + 2] = 255; sums[2]! += lum; cnt[2]!++; }
-      od.data[p * 4 + 3] = 255;
+      const reg = regionOf(zone, c, skinRef);
+      if (reg) {
+        const i = REGIONS.indexOf(reg);
+        ods[i < 3 ? 0 : 1]!.data[p * 4 + (i < 3 ? i : i - 3)] = 255;
+        sums[i]! += luminance(c);
+        cnt[i]!++;
+      }
+      ods[0]!.data[p * 4 + 3] = 255;
+      ods[1]!.data[p * 4 + 3] = 255;
     }
-    octx.putImageData(od, 0, 0);
-    const texture = new THREE.CanvasTexture(out);
-    texture.flipY = false;
-    texture.colorSpace = THREE.NoColorSpace;
-    const ref = sums.map((s, i) => Math.max(0.02, cnt[i]! > 0 ? s / cnt[i]! : 0.3)) as [number, number, number];
-    return { texture, ref, has: [cnt[0]! > 200, cnt[1]! > 200, cnt[2]! > 200] };
+    const [texture, texture2] = outs.map((c, i) => {
+      ctxs[i]!.putImageData(ods[i]!, 0, 0);
+      const t = new THREE.CanvasTexture(c);
+      t.flipY = false;
+      t.colorSpace = THREE.NoColorSpace;
+      return t;
+    }) as unknown as [THREE.Texture, THREE.Texture];
+    const ref = sums.map((sm, i) => Math.max(0.02, cnt[i]! > 0 ? sm / cnt[i]! : 0.3));
+    return { texture, texture2, ref, has: cnt.map((n) => n > 200) };
   } catch {
     return null;
   }
@@ -134,9 +141,10 @@ export interface RecolorHandle {
 export function applyRecolor(model: THREE.Object3D, mask: RecolorMask): RecolorHandle {
   const uniforms = {
     uMask: { value: mask.texture },
-    uTint: { value: [new THREE.Color(), new THREE.Color(), new THREE.Color()] },
-    uOn: { value: new THREE.Vector3(0, 0, 0) },
-    uRef: { value: new THREE.Vector3(mask.ref[0], mask.ref[1], mask.ref[2]) },
+    uMask2: { value: mask.texture2 },
+    uTint: { value: REGIONS.map(() => new THREE.Color()) },
+    uOn: { value: REGIONS.map(() => 0) },
+    uRef: { value: [...mask.ref] },
   };
   const clones: THREE.Material[] = [];
   model.traverse((o) => {
@@ -146,30 +154,34 @@ export function applyRecolor(model: THREE.Object3D, mask: RecolorMask): RecolorH
     mat.onBeforeCompile = (shader): void => {
       Object.assign(shader.uniforms, uniforms);
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform sampler2D uMask;\nuniform vec3 uTint[3];\nuniform vec3 uOn;\nuniform vec3 uRef;')
+        .replace('#include <common>', '#include <common>\nuniform sampler2D uMask;\nuniform sampler2D uMask2;\nuniform vec3 uTint[5];\nuniform float uOn[5];\nuniform float uRef[5];')
         .replace('#include <map_fragment>', `#include <map_fragment>
         {
-          vec3 rm = texture2D(uMask, vMapUv).rgb;
+          vec3 m1 = texture2D(uMask, vMapUv).rgb;
+          vec2 m2 = texture2D(uMask2, vMapUv).rg;
+          float w[5];
+          w[0] = m1.r; w[1] = m1.g; w[2] = m1.b; w[3] = m2.r; w[4] = m2.g;
           float lum = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-          vec3 k = clamp(vec3(lum) / uRef, vec3(0.3), vec3(1.8));
-          diffuseColor.rgb = mix(diffuseColor.rgb, uTint[0] * k.x, rm.r * uOn.x);
-          diffuseColor.rgb = mix(diffuseColor.rgb, uTint[1] * k.y, rm.g * uOn.y);
-          diffuseColor.rgb = mix(diffuseColor.rgb, uTint[2] * k.z, rm.b * uOn.z);
+          for (int i = 0; i < 5; i++) {
+            float k = clamp(lum / uRef[i], 0.3, 1.8);
+            diffuseColor.rgb = mix(diffuseColor.rgb, uTint[i] * k, w[i] * uOn[i]);
+          }
         }`);
     };
-    mat.customProgramCacheKey = (): string => 'neurapolis-recolor';
+    mat.customProgramCacheKey = (): string => 'neurapolis-recolor-5';
     sm.material = mat;
     clones.push(mat);
   });
   return {
     set(spec): void {
-      [spec?.skin, spec?.hair, spec?.outfit].forEach((hx, i) => {
+      REGIONS.forEach((k, i) => {
+        const hx = spec?.[k];
         const on = !!hx && mask.has[i]!;
         if (on) {
           const [r, g, b] = hexToRgb(hx!);
           uniforms.uTint.value[i]!.setRGB(r, g, b, THREE.SRGBColorSpace);
         }
-        uniforms.uOn.value.setComponent(i, on ? 1 : 0);
+        uniforms.uOn.value[i] = on ? 1 : 0;
       });
     },
     dispose(): void { for (const m of clones) m.dispose(); },
