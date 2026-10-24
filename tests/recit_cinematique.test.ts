@@ -121,4 +121,12 @@ describe('fantômes kawaii 2D', () => {
     expect(mouthOpenAt(text, 0)).toBe(false);
     expect(mouthOpenAt(text, text.length)).toBe(false);
   });
+
+  it('échappe les attributs SVG contre les injections XSS', () => {
+    const maliciousId = 'ghost" onload="alert(1)" x="';
+    const svg = ghostSvgMarkup(maliciousId, 'calme', 64);
+    expect(svg).not.toContain('data-ghost="ghost" onload="alert(1)"');
+    expect(svg).toContain('data-ghost="ghost&quot; onload=&quot;alert(1)&quot; x=&quot;"');
+    expect(svg).toContain('aria-label="ghost&quot; onload=&quot;alert(1)&quot; x=&quot;"');
+  });
 });
