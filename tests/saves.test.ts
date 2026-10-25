@@ -5,7 +5,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { createWorld } from '../src/core/store';
-import { exportSave, importSave, inspectAutoSave, saveToSlot, loadFromSlot, deleteSlot } from '../src/saves/persist';
+import { exportSave, importSave, inspectAutoSave, saveToSlot, loadFromSlot, deleteSlot, slotSummary } from '../src/saves/persist';
 import { CURRENT_SAVE_VERSION, migrateSave } from '../src/saves/migrations';
 import { runTicks } from '../src/simulation/engine';
 import { buyStock, createProject } from '../src/simulation/project';
@@ -69,6 +69,32 @@ describe('sauvegarde — aller-retour export/import', () => {
         firstName: 'Samia', lastName: 'Belkacem', gender: 'fille', appearance: world.player.appearance,
       });
       expect(resumed.rivals).toEqual(world.rivals);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('validation des noms d’emplacement de sauvegarde', () => {
+  it('rejette les noms d’emplacement invalides (caractères spéciaux, espaces, trop longs)', () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => { store.set(k, v); },
+      removeItem: (k: string) => { store.delete(k); },
+      key: (i: number) => [...store.keys()][i] ?? null,
+      get length() { return store.size; },
+    });
+    try {
+      const w = mondeVecu();
+      const invalidSlots = ['slot/1', '../slot', 'slot 1', 'slot!', 'a'.repeat(33), ''];
+
+      for (const invalid of invalidSlots) {
+        expect(() => saveToSlot(invalid, w)).toThrow(/invalide/);
+        expect(() => loadFromSlot(invalid)).toThrow(/invalide/);
+        expect(() => deleteSlot(invalid)).toThrow(/invalide/);
+        expect(slotSummary(invalid)).toMatchObject({ exists: false, error: 'nom d’emplacement invalide' });
+      }
     } finally {
       vi.unstubAllGlobals();
     }
