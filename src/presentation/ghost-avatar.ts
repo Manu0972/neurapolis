@@ -14,6 +14,7 @@
  */
 import { GHOST_DEFS_BY_ID } from '../data/ghosts/registry';
 import { DUELS } from '../data/ascension/duels';
+import { escapeHtml } from './ui';
 
 export type GhostMood = 'calme' | 'joie' | 'alerte' | 'dort';
 
@@ -132,7 +133,7 @@ export function ghostSvgMarkup(
   const body = pastel(m.color);
   const kind = GHOST_ACCESSORY[id] ?? 'etoile';
   const op = opts.translucent ? ' opacity="0.86"' : '';
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -8 100 108" width="${size}" height="${size}" class="ghost-svg gk${opts.open ? ' gk-open' : ''}" data-mood="${mood}" data-ghost="${id}" role="img" aria-label="${m.name.replace(/"/g, '')}" style="--gk-blink:${blinkDelay(id)}s">`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -8 100 108" width="${size}" height="${size}" class="ghost-svg gk${opts.open ? ' gk-open' : ''}" data-mood="${mood}" data-ghost="${escapeHtml(id)}" role="img" aria-label="${escapeHtml(m.name)}" style="--gk-blink:${blinkDelay(id)}s">`
     + (opts.standalone ? `<style>${STATE_CSS}</style>` : '')
     + `<ellipse cx="50" cy="97" rx="24" ry="3.6" fill="#2c2540" opacity="0.22"/>`
     + `<g class="gk-bob"${op}>`
@@ -181,9 +182,19 @@ export function ensureGhostCss(): void {
 
 function fromMarkup(markup: string): SVGSVGElement {
   ensureGhostCss();
-  const host = document.createElement('div');
-  host.innerHTML = markup;
-  return host.firstElementChild as SVGSVGElement;
+  if (typeof DOMParser !== 'undefined') {
+    const doc = new DOMParser().parseFromString(markup, 'image/svg+xml');
+    const el = doc.documentElement;
+    if (el && el.tagName.toLowerCase() === 'svg') {
+      return el as unknown as SVGSVGElement;
+    }
+  }
+  if (typeof document !== 'undefined') {
+    const host = document.createElement('div');
+    host.innerHTML = markup;
+    return host.firstElementChild as SVGSVGElement;
+  }
+  return { outerHTML: markup } as unknown as SVGSVGElement;
 }
 
 /** Petit fantôme d'un penseur. */
@@ -243,7 +254,7 @@ export function duoAvatar(aId: string, bId: string, mood: GhostMood = 'calme', s
   const a = thinkerMeta(aId);
   const b = thinkerMeta(bId);
   const id = `duo${++clipSeq}`;
-  const markup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -8 100 108" width="${size}" height="${size}" class="ghost-svg gk duo" data-mood="${mood}" role="img" aria-label="${`${a.name} et ${b.name}`.replace(/"/g, '')}">`
+  const markup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -8 100 108" width="${size}" height="${size}" class="ghost-svg gk duo" data-mood="${mood}" role="img" aria-label="${escapeHtml(`${a.name} et ${b.name}`)}">`
     + `<defs><clipPath id="${id}l"><rect x="-10" y="-10" width="60" height="120"/></clipPath><clipPath id="${id}r"><rect x="50" y="-10" width="60" height="120"/></clipPath></defs>`
     + `<ellipse cx="50" cy="97" rx="24" ry="3.6" fill="#2c2540" opacity="0.22"/>`
     + `<g class="gk-bob">`

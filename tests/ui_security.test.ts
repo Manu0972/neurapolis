@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { escapeHtml, showGhostAdvicePopup, updateHud, buildUi } from '../src/presentation/ui';
 import { createWorld } from '../src/core/store';
+import { ghostAvatar, duoAvatar, ghostSvgMarkup } from '../src/presentation/ghost-avatar';
 
 describe('UI Security & XSS Prevention (escapeHtml)', () => {
   it('correctly escapes special HTML characters', () => {
@@ -110,5 +111,27 @@ describe('UI Security & XSS Prevention (escapeHtml)', () => {
 
     expect(statusB.textContent).toBe('❌ E2E en échec');
     expect(createdElements.some((e) => e.textContent?.includes(' — 1/2 étapes'))).toBe(true);
+  });
+
+  it('safely builds ghost SVG avatars without raw innerHTML vulnerability', () => {
+    const maliciousId = 'custom_<script>alert(1)</script>';
+    const svgMarkup = ghostSvgMarkup(maliciousId, 'calme', 64);
+    expect(svgMarkup).not.toContain('<script>');
+    expect(svgMarkup).toContain('aria-label="custom_&lt;script&gt;alert(1)&lt;/script&gt;"');
+    expect(svgMarkup).toContain('data-ghost="custom_&lt;script&gt;alert(1)&lt;/script&gt;"');
+
+    const svgEl = ghostAvatar(maliciousId, 'calme', 64);
+    expect(svgEl).toBeDefined();
+  });
+
+  it('safely builds duo SVG avatars with escaped aria-labels', () => {
+    const idA = 'thinker_<a href="javascript:alert(1)">a</a>';
+    const idB = 'thinker_b';
+    const svgMarkup = ghostSvgMarkup(idA, 'calme', 64);
+    expect(svgMarkup).not.toContain('<a href="javascript:alert(1)">');
+    expect(svgMarkup).toContain('&lt;a href=&quot;javascript:alert(1)&quot;&gt;');
+
+    const duoEl = duoAvatar(idA, idB, 'calme', 96);
+    expect(duoEl).toBeDefined();
   });
 });
