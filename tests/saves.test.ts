@@ -5,7 +5,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { createWorld } from '../src/core/store';
-import { exportSave, importSave, inspectAutoSave, saveToSlot, loadFromSlot, deleteSlot } from '../src/saves/persist';
+import { exportSave, importSave, inspectAutoSave, saveToSlot, loadFromSlot, deleteSlot, slotSummary } from '../src/saves/persist';
 import { CURRENT_SAVE_VERSION, migrateSave } from '../src/saves/migrations';
 import { runTicks } from '../src/simulation/engine';
 import { buyStock, createProject } from '../src/simulation/project';
@@ -115,6 +115,7 @@ describe('sauvegarde — migration v0 → v10 (météo, Conseil, rivaux, atelier
 
   it('une entrée illisible est rejetée avec une erreur claire', () => {
     expect(() => migrateSave(42)).toThrow(/illisible/);
+    expect(() => migrateSave([1, 2, 3])).toThrow(/illisible/);
     expect(() => importSave('{ pas du json')).toThrow();
   });
 });
@@ -486,6 +487,26 @@ describe('emplacements de sauvegarde — résumé', () => {
       expect(slotSummary('slot2')).toEqual({ slot: 'slot2', exists: false });
       store.set('neurapolis.save.slot3', '{pas du json');
       expect(slotSummary('slot3').error).toBeDefined();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('rejette les identifiants d’emplacements invalides ou dangereux', () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => { store.set(k, v); },
+      removeItem: (k: string) => { store.delete(k); },
+      key: (i: number) => [...store.keys()][i] ?? null,
+      get length() { return store.size; },
+    });
+    try {
+      const w = createWorld();
+      expect(() => saveToSlot('../../hack', w)).toThrow(/invalide/);
+      expect(() => loadFromSlot('slot space')).toThrow(/invalide/);
+      expect(() => deleteSlot('slot$bad')).toThrow(/invalide/);
+      expect(slotSummary('slot/invalid')).toMatchObject({ exists: false, error: 'Identifiant d’emplacement invalide.' });
     } finally {
       vi.unstubAllGlobals();
     }
