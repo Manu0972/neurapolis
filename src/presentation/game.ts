@@ -1802,10 +1802,12 @@ export function startGame(root: HTMLElement, initialWorld: WorldState = createWo
       nodePin.style.cssText = `position:absolute;left:${leftPct}%;top:${topPct}%;transform:translate(-50%, -50%);display:flex;flex-direction:column;align-items:center;padding:4px 8px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;background:${node.activeArrangement ? 'rgba(40,30,60,0.95)' : node.unlocked ? 'rgba(30,25,45,0.92)' : 'rgba(20,15,25,0.88)'};border:1.5px solid ${node.activeArrangement ? 'var(--or)' : node.unlocked ? 'var(--bleu)' : 'var(--line)'};color:${node.unlocked ? 'var(--ink)' : 'var(--ink-muted)'};box-shadow:${node.activeArrangement ? '0 0 10px rgba(255,217,138,0.35)' : '0 2px 6px rgba(0,0,0,0.45)'};min-width:68px;text-align:center;user-select:none;`;
 
       const safeNodeName = escapeHtml(node.name.replace(/ \(.*\)/, ''));
+      const safePresence = escapeHtml(String(node.ourPresence));
+      const safePotential = escapeHtml(String(node.marketPotential));
       nodePin.innerHTML = `
         <div style="font-size:11px;">${node.activeArrangement ? '✦' : node.unlocked ? '🔓' : '🔒'}</div>
         <div style="font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85px;">${safeNodeName}</div>
-        <div style="font-size:8px;color:${node.unlocked ? 'var(--or)' : 'var(--ink-muted)'};">${node.unlocked ? `${node.ourPresence}% part` : `${node.marketPotential}% pot.`}</div>
+        <div style="font-size:8px;color:${node.unlocked ? 'var(--or)' : 'var(--ink-muted)'};">${node.unlocked ? `${safePresence}% part` : `${safePotential}% pot.`}</div>
       `;
 
       nodePin.addEventListener('mouseenter', () => {
